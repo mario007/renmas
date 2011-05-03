@@ -1,6 +1,7 @@
 
 from tdasm import Tdasm, Runtime
 
+#TODO 64-bit for address
 ASM_STR = """
     #DATA
     uint32 address
@@ -27,6 +28,9 @@ ASM_STR = """
 """
 
 # for now just rgba
+#BGRA Format - Little endian - windows implementation 
+# TODO make utility functions for colors
+#FIXME For know we don't check if pixel is out of bounds!!!
 class Graphic2D:
     def __init__(self, width, height, pitch, address):
         self.addr = address
@@ -36,7 +40,7 @@ class Graphic2D:
         m = asm.assemble(ASM_STR)
         self.r = Runtime()
         self.ds = self.r.load("set_pixel", m)
-        self.ds["color"] = 0xFF
+        self.ds["color"] = 0xFF00FF00 # red color is default
         self.ds["address"] = address
         self.ds["width"] = width
         self.ds["height"] = height

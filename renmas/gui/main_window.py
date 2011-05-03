@@ -13,7 +13,6 @@ class MainWindow(object):
         self.enter_control = None # for regulating mouse_enter and mouse_leave events
         self.focus = None # for regulating got_focus and lost_focus events
         self.background = (0, 0, 0)
-        #self.clear_buffer(0,255,0)
         self.menubar = None # controling menu bar
         self.menu = None # for removing menu
 
@@ -38,9 +37,7 @@ class MainWindow(object):
         if m is not None: 
             self.remove_control(m)
 
-
     def destroy(self):
-        #winlib.Quit()
         self.fb.destroy()
 
     def add_control(self, control, pos):#FIXME if we have two same controls 
@@ -57,11 +54,7 @@ class MainWindow(object):
         return self.controls[con]
 
     def get_control(self, con):
-        try:
-            c = self.controls[con]
-            return con
-        except:
-            return None
+        return self.controls.get(con, None)
 
     def remove_control(self, control):
         try:
@@ -79,9 +72,11 @@ class MainWindow(object):
             self.focus.char_pressed(char)
 
     def get_addr(self): #get address of frame buffer
-        #return winlib.GetAddress()
         w, h = self.fb.get_size()
         return self.fb.pixels(), w * 4
+
+    def get_size(self): #return size of the frame buffer
+        return self.fb.get_size()
 
     def size_change(self, width, height):
         self.width = width
@@ -187,7 +182,6 @@ class MainWindow(object):
         self.rendering = False
         self.real_time(False)
 
-
     def clear_buffer(self, r, g, b):
         self.fb.clear_buffer(r, g, b)
 
@@ -212,8 +206,4 @@ class MainWindow(object):
 
     def redraw(self):
         self.fb.redraw()
-
-    def main_loop(self):
-        self.fb.redraw()
-        winlib.MainLoop()
 

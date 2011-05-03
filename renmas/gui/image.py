@@ -30,7 +30,7 @@ class ImageRGBA:
         return pix
 
     def get_addr(self):
-        return self.pixels.ptr(), self.pitch
+        return (self.pixels.ptr(), self.pitch)
 
     def get_size(self):
         return (self.width, self.height)

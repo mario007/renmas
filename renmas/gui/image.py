@@ -1,9 +1,11 @@
 
 import x86
+import platform
 from tdasm import Tdasm
+import renmas.utils as util
 
-#image in memory bgra - be cerful
-#Image class with RGBA format
+#image in memory bgra beacuse of Windows - be cerful 
+#Image class with BGRA format
 class ImageRGBA:
     def __init__(self, width, height):
         n = width * height * 4 
@@ -35,7 +37,8 @@ class ImageRGBA:
     def get_size(self):
         return (self.width, self.height)
 
-#FIXME how to store float image data argb change to rgba
+# Image in memory is in RGBA format
+# Blitter convert RGBA to BGRA that is need for display 
 class ImageFloatRGBA:
     def __init__(self, width, height):
         n = width * height * 4 * 4 
@@ -50,10 +53,31 @@ class ImageFloatRGBA:
     def get_size(self):
         return (self.width, self.height)
 
-    def generate_asm(self, runtime, label):
+    def set_pixel_asm(self, runtime, label):
+        
+        bits = platform.architecture()[0]
+        if bits == "64bit": ecx = "rcx"
+        else: ecx = "ecx"
+
+        if util.AVX:
+            line = "vmovaps oword [" + ecx + "], xmm0"
+        else:
+            line = "movaps oword [" + ecx + "], xmm0"
+
+        bits = platform.architecture()[0]
+        if bits == "64bit":
+            l1 = "uint64 ptr_buffer"
+            l2 = "mov rcx, qword [ptr_buffer]"
+            l3 = "add rcx, rax"
+        else:
+            l1 = "uint32 ptr_buffer"
+            l2 = "mov ecx, dword [ptr_buffer]"
+            l3 = "add ecx, eax"
+
         asm_code = """
         #DATA
-        uint32 ptr_buffer
+        """
+        asm_code += l1 + """
         uint32 pitch
         #CODE
         ; eax = x , ebx = y, value = xmm0
@@ -62,22 +86,24 @@ class ImageFloatRGBA:
         asm_code += """
         imul ebx, dword [pitch]
         imul eax , eax, 16
-        mov ecx, dword [ptr_buffer]
+        """
+        asm_code += l2 + """
         add eax, ebx
-        add ecx, eax
-        movaps oword [ecx], xmm0
+        """
+        asm_code += l3 + "\n"
+        asm_code += line + """
         ret
         """
+
         asm = Tdasm()
         mc = asm.assemble(asm_code, True)
-        name = "ImageFloatRGBA" 
+        name = "ImageFloatRGBA" + str(hash(self)) 
         self.ds = runtime.load(name, mc)
         self.ds["ptr_buffer"] = self.pixels.ptr()
         self.ds["pitch"] = self.pitch
 
     def set_pixel(self, x, y, r, g, b, a=0.99):
         #y = self.height - y - 1 # for flipping image
-
         #clipping 
         if x < 0 or x >= self.width: return
         if y < 0 or y >= self.height: return

@@ -1,6 +1,7 @@
 
 import winlib
 import renmas.gui 
+import timeit
 
 def create_rgba_image():
     img = renmas.gui.ImageRGBA(100, 100)
@@ -10,7 +11,7 @@ def create_rgba_image():
     return img
 
 def create_float_image():
-    img = renmas.gui.ImageFloatRGBA(150, 150)
+    img = renmas.gui.ImageFloatRGBA(400, 300)
     for y in range(75):
         for x in range(25):
             img.set_pixel(x, y, 0.99, 0, 0) #red
@@ -37,7 +38,13 @@ img = create_rgba_image()
 blt_img_to_window(80, 50, blitter, img, win)
 
 img_float = create_float_image()
-blt_float_img_to_window(350, 100, blitter, img_float, win)
+
+def blt():
+    blt_float_img_to_window(350, 100, blitter, img_float, win)
+
+t = timeit.Timer(lambda : blt())
+print ("time", t.timeit(1))
+
 
 win.redraw()
 winlib.MainLoop()

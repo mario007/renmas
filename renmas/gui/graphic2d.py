@@ -1,31 +1,60 @@
 
 from tdasm import Tdasm, Runtime
+import platform
 
-#TODO 64-bit for address
-ASM_STR = """
-    #DATA
-    uint32 address
-    uint32 x, y, width, height
-    uint32 color
-    uint32 pitch
+bits = platform.architecture()[0]
 
-    #CODE
-    call set_pixel
+if bits == "64bit":
+    ASM_STR = """
+        #DATA
+        uint64 address
+        uint32 x, y, width, height
+        uint32 color
+        uint32 pitch
 
-    #END
-    
-    set_pixel:
-    mov eax, dword [y]
-    mul dword [pitch]
-    mov edx, dword [x]
-    imul edx, edx, 4
-    
-    add eax, edx 
-    add eax, dword [address]
-    mov ebx, dword [color]
-    mov dword [eax], ebx  
-    ret
-"""
+        #CODE
+        call set_pixel
+
+        #END
+        
+        set_pixel:
+        mov eax, dword [y]
+        mul dword [pitch]
+        mov edx, dword [x]
+        imul edx, edx, 4
+        
+        add eax, edx 
+        add rax, qword [address]
+        mov ebx, dword [color]
+        mov dword [rax], ebx  
+        ret
+    """
+else:
+    ASM_STR = """
+        #DATA
+        uint32 address
+        uint32 x, y, width, height
+        uint32 color
+        uint32 pitch
+
+        #CODE
+        call set_pixel
+
+        #END
+        
+        set_pixel:
+        mov eax, dword [y]
+        mul dword [pitch]
+        mov edx, dword [x]
+        imul edx, edx, 4
+        
+        add eax, edx 
+        add eax, dword [address]
+        mov ebx, dword [color]
+        mov dword [eax], ebx  
+        ret
+    """
+
 
 # for now just rgba
 #BGRA Format - Little endian - windows implementation 

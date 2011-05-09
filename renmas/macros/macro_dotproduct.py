@@ -2,23 +2,6 @@
 from .utils import pre_proces, filter_tokens
 import renmas.utils as util
 
-ASM_CODE = """
-    #DATA
-
-    uint32 x
-    float d[4] = 3.4, 5.5, 7.8, 9.9
-    float c[4] = 4.1, 3.3, 5.5, 9.9
-    float rez[4]
-
-    #CODE
-    mov eax, 122 
-    macro dot_product rez =   c  * d   
-    #END
-
-    """ 
-
-def check_xmm(xmm):
-    return xmm in ["xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"]
 
 def dot_ins(a, b):
     regs = ["xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"]
@@ -48,7 +31,7 @@ def dot_product(tokens):
     tokens = pre_proces(tokens)
     xmm = allowed[0]
 
-    if len(tokens) != 5: #FIXME nije dobro ne podrzava strukture 
+    if len(tokens) != 5:  
         print("Wrong number of tokens")
         return "samo da pukne transofrmacija u strojni kod"
     
@@ -66,7 +49,6 @@ def dot_product(tokens):
         if a in regs:
             line1 = mov + a + ", oword [" + b +"]"
             line2 = dot_ins(a, c)
-            line3 = ""
         else:
             line1 = mov + xmm + ", oword [" + b +"]"
             line2 = dot_ins(xmm, c)
@@ -77,50 +59,58 @@ def dot_product(tokens):
         elif a == c:
             line1 = dot_ins(c, b)
         elif a in regs: 
-            line1 = mov + a + ", " + b
-            line2 = dot_ins(a, c)
+            if util.AVX:
+                line1 = " vdpps " + a + "," + b + "," + c + ", 0xf1"
+            else:
+                line1 = mov + a + ", " + b
+                line2 = dot_ins(a, c)
         else:
-            line1 = mov + xmm + ", oword [" + b +"]"
-            line2 = dot_ins(xmm, c)
-            line3 = mov + " oword[" + a + "], " + xmm
+            if util.AVX:
+                line1 = " vdpps " + xmm + "," + b + "," + c + ", 0xf1"
+                line2 = mov + " oword[" + a + "], " + xmm
+            else:
+                line1 = mov + xmm + ", oword [" + b +"]"
+                line2 = dot_ins(xmm, c)
+                line3 = mov + " oword[" + a + "], " + xmm
 
     if b in regs and c not in regs:
         if a == b:
             line1 = dot_ins(b, c)
         elif a in regs:
-            line1 = mov + a + ", " + b
-            line2 = dot_ins(a, c)
+            if util.AVX:
+                line1 = " vdpps " + a + "," + b + ", oword [" + c + "], 0xf1"
+            else:
+                line1 = mov + a + ", " + b
+                line2 = dot_ins(a, c)
         else:
-            line1 = mov + xmm + ", oword [" + b +"]"
-            line2 = dot_ins(xmm, c)
-            line3 = mov + " oword[" + a + "], " + xmm
+            if util.AVX:
+                line1 = " vdpps " + xmm + "," + b + ", oword [" + c + "], 0xf1"
+                line2 = mov + " oword[" + a + "], " + xmm
+            else:
+                line1 = mov + xmm + ", oword [" + b +"]"
+                line2 = dot_ins(xmm, c)
+                line3 = mov + " oword[" + a + "], " + xmm
 
     if b not in regs and c in regs:
         if a == c:
             line1 = dot_ins(c, b)
         elif a in regs:
-            line1 = mov + a + ", " + c
-            line2 = dot_ins(a, b)
+            if util.AVX:
+                line1 = " vdpps " + a + "," + c + ", oword [" + b + "], 0xf1"
+            else:
+                line1 = mov + a + ", " + c
+                line2 = dot_ins(a, b)
         else:
-            line1 = mov + xmm + ", oword [" + c +"]"
-            line2 = dot_ins(xmm, b)
-            line3 = mov + " oword[" + a + "], " + xmm
+            if util.AVX:
+                line1 = " vdpps " + xmm + "," + c + ", oword [" + b + "], 0xf1"
+                line2 = mov + " oword[" + a + "], " + xmm
+            else:
+                line1 = mov + xmm + ", oword [" + c +"]"
+                line2 = dot_ins(xmm, b)
+                line3 = mov + " oword[" + a + "], " + xmm
 
 
     asm = line1 + "\n" + line2 + "\n" + line3
     return asm
 
 
-if __name__ == "__main__":
-
-    asm = tdasm.Tdasm()
-    asm.register_macro("dot_product", dot_product)
-    
-    mc = asm.assemble(ASM_CODE)
-
-    run = runtime.Runtime()
-    ds = run.load('test', mc)
-
-    run.run("test")
-
-    print(ds["rez"])

@@ -29,6 +29,7 @@ ASM += asm_structs + """
     mov edx, hp
 
     call _plane_intersect
+    mov dword [hit], eax
 #END
     ;eax = pointer to ray structure
     ;ebx = pointer to plane structure
@@ -47,11 +48,17 @@ ASM += asm_structs + """
     ret
     
     populate_hitpoint:
+    ; in ecx is minimum distance
+    macro if xmm4 > ecx goto _reject 
     macro broadcast xmm5 = xmm4[0]
     macro eq128_128 edx.hitpoint.normal = ebx.plane.normal, xmm6 = xmm5 * eax.ray.dir 
     macro eq32 edx.hitpoint.t = xmm4 {xmm6}
     macro eq32_128 edx.hitpoint.mat_index = ebx.plane.mat_index, edx.hitpoint.hit = xmm6 + eax.ray.origin
     mov eax, 1
+    ret
+
+    _reject:
+    mov eax, 0
     ret
 """
 
@@ -71,8 +78,18 @@ def generate_ray():
     return ray
 
 def generate_plane():
-    point = Vector3(0.0, 0.0, 1.0)
-    normal = Vector3(0.0, 1.0, 0.0)
+    x = random.random() * 10.0
+    y = random.random() * 10.0
+    z = random.random() * 10.0
+
+    dir_x = random.random() * 10.0 - 5.0
+    dir_y = random.random() * 10.0 - 5.0
+    dir_z = random.random() * 10.0 - 5.0
+
+    point = Vector3(x, y, z)
+    normal = Vector3(dir_x, dir_y, dir_z)
+    normal.normalize()
+
     plane = Plane(point, normal, 3)
     return plane
     
@@ -82,7 +99,7 @@ def v4(v3):
 if __name__ == "__main__":
     asm = util.get_asm()
     mc = asm.assemble(ASM)
-    #mc.print_machine_code()
+    mc.print_machine_code()
     runtime = Runtime()
     ds = runtime.load("test", mc)
 
@@ -103,6 +120,8 @@ if __name__ == "__main__":
         else:
             print("Python - ASM")
             print(h.t, " ", h.material ,"  ", ds["hp.t"], ds["hp.mat_index"])
-            print(h.hit_point, ds["hp.hit"])
+            print(h.hit_point)
+            print(ds["hp.hit"])
+            print(ds["hit"])
 
 

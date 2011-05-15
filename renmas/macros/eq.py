@@ -157,8 +157,8 @@ def eq(tokens, size, xmm):
                 line1 = ar[operator] + a + "," + b + "," + c 
             else:
                 if order: # order matter
-                    line1 = mov + a + ", " + b
-                    line2 = ins(a, c, ar[operator], wide)
+                    line1 = ins(b, c, ar[operator], wide)
+                    line2 = mov + a + ", " + b
                 else:
                     line1 = ins(c, b, ar[operator], wide)
         elif a in regs: 

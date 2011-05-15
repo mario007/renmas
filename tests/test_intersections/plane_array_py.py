@@ -82,7 +82,7 @@ if __name__ == "__main__":
     #mc.print_machine_code()
     runtime = Runtime()
     Plane.intersect_asm(runtime, "_plane_intersect")
-    Plane.intersect_array_asm(runtime, "plane_array", "_plane_intersect")
+    intersect_ray_shape_array("plane", runtime, "plane_array", "_plane_intersect")
     ds = runtime.load("test", mc)
     
     planes, dyn_planes = generate_planes(10000)
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     print ("time", t.timeit(1))
 
     #runtime.run("test")
-    if hp is not False:
+    if hp is not None:
         print(hp.t, ds["hp.t"], ds["min_dist"])
 
 

@@ -109,57 +109,6 @@ class Plane:
         #mc.print_machine_code()
         runtime.load("ray_plane_intersection_bool", mc)
 
-    @classmethod
-    def intersect_array_asm(cls, runtime, lbl_arr_intersect, lbl_ray_intersect):
-        asm_structs = util.structs("ray", "plane", "hitpoint")
-
-        ASM = """
-        #DATA
-        """
-        ASM += asm_structs + """
-        #CODE
-        """
-        ASM += " global " + lbl_arr_intersect + ":\n" + """
-          ; eax - ray, ebx - hp , ecx - min_dist, esi - ptr_planes, edi - nplanes
-        ;plane_array:
-        push ecx
-        push eax
-        push ebx
-        push esi
-        push edi
-
-        _plane_loop:
-        mov eax, dword [esp + 12] ; mov eax, ray
-        mov ebx, dword [esp + 4] ; mov ebx, plane 
-        mov ecx, dword [esp + 16]; address of minimum distance
-        mov edx, dword [esp + 8] ; mov edx, hp
-        """
-        ASM += " call " + lbl_ray_intersect + "\n" + """
-        ;call _plane_intersect 
-        cmp eax, 0  ; 0 - no intersection ocur
-        je _next_plane
-        mov eax, dword [esp + 8]
-        mov ebx, dword [eax + hitpoint.t]
-
-        mov edx, dword [esp + 16] ;populate new minimum distance
-        mov dword [edx], ebx
-
-        _next_plane:
-        sub dword [esp], 1  
-        jz _end_plane
-        add dword [esp + 4], sizeof plane 
-        jmp _plane_loop
-        
-        _end_plane:
-        add esp, 20 
-        ret
-        """
-
-        assembler = util.get_asm()
-        mc = assembler.assemble(ASM, True)
-        #mc.print_machine_code()
-        runtime.load("ray_plane_array_intersection", mc)
-
 
     @classmethod
     def generate_plane(cls):

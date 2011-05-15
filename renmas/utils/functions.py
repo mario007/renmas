@@ -5,12 +5,13 @@ from renmas.core import AsmStructures
 
 asm = Tdasm()
 AVX = asm.avx_supported()
-AVX = False
+#AVX = False
 
 SSSE3 = asm.cpu["ssse3"]
 #SSSE3 = False
 SSE3 = asm.cpu["sse3"]
 SSE41 = asm.cpu["sse41"]
+SSE41 = False
 SSE2 = asm.cpu["sse2"]
 
 def structs(*lst_structs):
@@ -20,7 +21,7 @@ def structs(*lst_structs):
     for s in lst_structs:
         struct = asm_structs.get_struct(s)
         if struct is None:
-           raise ValueError("Structure " + s + " doesn't exist!")
+           raise ValueError("Structure " + str(s) + " doesn't exist!")
         code += struct
 
     return code

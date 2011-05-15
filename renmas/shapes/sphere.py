@@ -1,8 +1,10 @@
 import math
 import random
 from .hitpoint import HitPoint
+from .bbox import BBox
 import renmas.utils as util
 from renmas.maths import Vector3
+
 
 class Sphere:
     def __init__(self, origin, radius, material):
@@ -108,7 +110,7 @@ class Sphere:
 
         ASM = """ 
         #DATA
-        float epsilon = 0.0001
+        float epsilon = 0.00001
         float two = 2.0
         float minus_four = -4.0
         float zero = 0.0
@@ -280,5 +282,27 @@ class Sphere:
         d["radius"] = self.radius
         if self.material is None:
             d["mat_index"] = 999999 #TODO try to solve this in better way 
+        else:
+            d["mat_index"] = self.material
         return d
+
+    @classmethod
+    def name(cls):
+        return "sphere"
+
+    def get_bounding_box(self):
+
+        epsilon = 0.001
+        p0X = self.origin.x - self.radius - epsilon
+        p0Y = self.origin.y - self.radius - epsilon
+        p0Z = self.origin.z - self.radius - epsilon
+
+        p1X = self.origin.x + self.radius + epsilon
+        p1Y = self.origin.y + self.radius + epsilon
+        p1Z = self.origin.z + self.radius + epsilon
+
+        p0 = Vector3(p0X, p0Y, p0Z)
+        p1 = Vector3(p1X, p1Y, p1Z)
+
+        return BBox(p0, p1, None)
 

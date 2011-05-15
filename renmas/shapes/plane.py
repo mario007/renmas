@@ -74,7 +74,7 @@ class Plane:
 
         ASM = """
         #DATA
-        float epsilon = 0.0001
+        float epsilon = 0.00001
         """
         ASM += asm_structs + """
             ;eax = pointer to ray structure
@@ -144,5 +144,11 @@ class Plane:
         d["normal"] = (self.normal.x, self.normal.y, self.normal.z, 0.0)
         if self.material is None:
             d["mat_index"] = 999999 #FIXME - think to solve this in better way
+        else:
+            d["mat_index"] = self.material
         return d
+
+    @classmethod
+    def name(cls):
+        return "plane"
 

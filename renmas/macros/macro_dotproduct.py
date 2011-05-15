@@ -2,6 +2,8 @@
 from .utils import pre_proces, filter_tokens
 import renmas.utils as util
 
+# for SSE2 extra temp register is needed for dot product
+txmm = None
 
 def dot_ins(a, b):
     regs = ["xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"]
@@ -10,12 +12,28 @@ def dot_ins(a, b):
         if util.AVX:
             code = ' vdpps ' + a + ', ' + a + ', ' + b + ', 0xf1'
         else:
-            code = " dpps " + a + ', ' + b + ', 0xf1' 
+            if util.SSE41:
+                code = " dpps " + a + ', ' + b + ', 0xf1' 
+            else:
+                code = " movaps " + txmm + ", " + b + "\n"
+                code += " mulps " + a + "," + txmm + "\n"
+                code += " movhlps " + txmm + "," + a + "\n"
+                code += " addps " + a + "," + txmm + "\n"
+                code += " pshufd " + txmm + "," + a + ",1\n"
+                code += " addss " + a + "," + txmm + "\n"
     else:
         if util.AVX:
             code = ' vdpps ' + a + ', ' + a + ', oword [' + b + '], 0xf1' 
         else:
-            code = ' dpps ' + a + ', oword [' + b + '], 0xf1' 
+            if util.SSE41:
+                code = ' dpps ' + a + ', oword [' + b + '], 0xf1' 
+            else:
+                code = " movaps " + txmm + ", oword [" + b + "]\n"
+                code += " mulps " + a + "," + txmm + "\n"
+                code += " movhlps " + txmm + "," + a + "\n"
+                code += " addps " + a + "," + txmm + "\n"
+                code += " pshufd " + txmm + "," + a + ",1\n"
+                code += " addss " + a + "," + txmm + "\n"
 
     return code
     
@@ -30,6 +48,8 @@ def dot_product(tokens):
     tokens, allowed = filter_tokens(tokens, allowed)
     tokens = pre_proces(tokens)
     xmm = allowed[0]
+    global txmm
+    txmm = allowed[1]
 
     if len(tokens) != 5:  
         print("Wrong number of tokens")

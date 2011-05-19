@@ -21,6 +21,16 @@ PLANE = """
     end struct
 """
 
+TRIANGLE = """
+    struct triangle
+    float p0[4]
+    float p1[4]
+    float p2[4]
+    float normal[4]
+    uint32 mat_index
+    end struct
+"""
+
 HITPOINT = """
     struct hitpoint
     float hit[4]
@@ -50,7 +60,8 @@ structures = {
         "hitpoint": HITPOINT,
         "material": MATERIAL,
         "pointlight":POINT_LIGHT,
-        "plane": PLANE
+        "plane": PLANE,
+        "triangle": TRIANGLE
         }
 
 class AsmStructures:

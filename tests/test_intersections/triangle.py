@@ -89,11 +89,23 @@ ASM += asm_structs + """
     #END
 
     global ray_triangle:
-    vmovaps xmm0, oword [ebx + triangle.p0]
-    vmovaps xmm2, oword [eax + ray.dir]
-    vsubps xmm1, xmm0, oword [ebx + triangle.p2]
-    vsubps xmm3, xmm0, oword [eax + ray.origin]
-    vsubps xmm0, xmm0, oword [ebx + triangle.p1]
+    ;vmovaps xmm0, oword [ebx + triangle.p0]
+    vmovntdqa xmm0, oword [ebx + triangle.p0]
+
+    ;vmovaps xmm2, oword [eax + ray.dir]
+    vmovntdqa xmm2, oword [eax + ray.dir]
+
+    vmovntdqa xmm4, oword [ebx + triangle.p2]
+    vsubps xmm1, xmm0, xmm4
+    ;vsubps xmm1, xmm0, oword [ebx + triangle.p2]
+
+    vmovntdqa xmm5, oword [eax + ray.origin]
+    vsubps xmm3, xmm0, xmm5
+    ;vsubps xmm3, xmm0, oword [eax + ray.origin]
+
+    vmovntdqa xmm6, oword [ebx + triangle.p1]
+    vsubps xmm0, xmm0, xmm6
+    ;vsubps xmm0, xmm0, oword [ebx + triangle.p1]
 
     vpermilps xmm0, xmm0, 11010010B ;rotate by 1
     vpermilps xmm2, xmm2, 11001001B ; rotate by 2
@@ -114,7 +126,6 @@ ASM += asm_structs + """
     vsubps xmm4, xmm4, xmm6
     vdpps xmm7, xmm4, xmm5, 0xf1
 
-    
     vpermilps xmm3, xmm3, 11010010B ;rotate by 1
     vblendps xmm4, xmm1, xmm2, 0001B
     vmovss xmm6, dword [one]
@@ -187,7 +198,7 @@ ASM += asm_structs + """
 
     ;populate hitpoint structure
     ; t is in xmm7
-    movss dword [edx + hitpoint.t], xmm7 
+    vmovss dword [edx + hitpoint.t], xmm7 
     macro broadcast xmm6 = xmm7[0]
     macro eq128_32 edx.hitpoint.normal = ebx.triangle.normal, edx.hitpoint.mat_index = ebx.triangle.mat_index
     vpermilps xmm2, xmm2, 11001001B ; rotate by 2
@@ -198,7 +209,8 @@ ASM += asm_structs + """
     ret
 
     _reject:
-    mov eax, 0
+    ;mov eax, 0
+    xor eax, eax
     ret
 """
 
@@ -226,6 +238,146 @@ ASM2 += asm_structs + """
 
 """
 
+ASM3 = """
+#DATA
+"""
+ASM3 += asm_structs + """
+    ray r1
+    triangle tri1 
+    hitpoint hp
+    float min_dist = 999999.0
+    float epsilon = 0.0001
+    float neg_epsilon = -0.0001
+    float one = 1.0
+    float zero = 0.0
+    uint32 mask_abs[4] = 0x7FFFFFFF, 0, 0, 0
+    float minus_one = -1.0
+
+    float xm0[4]
+    float xm1[4]
+    float xm2[4]
+    float xm3[4]
+    float xm4[4]
+    float xm5[4]
+    float xm6[4]
+    float xm7[4]
+
+    #CODE
+    mov eax, r1
+    mov ebx, tri1
+    mov ecx, min_dist
+    mov edx, hp
+    call ray_triangle
+    #END
+
+    global ray_triangle:
+    macro eq128_128 xmm0 = ebx.triangle.p1 - ebx.triangle.p0, xmm1 = ebx.triangle.p2 - ebx.triangle.p0 
+    ; e1 = xmm0 , e2 = xmm1
+    macro eq128_128 xmm2 = eax.ray.dir, xmm3 = xmm1 {xmm0, xmm1}
+
+    ; p = d x e2
+    macro eq128_128 xmm4 = xmm2, xmm5 = xmm3 {xmm0, xmm1}
+"""
+if util.AVX:
+    ASM3 += """
+        vshufps xmm2, xmm2, xmm2, 0xC9
+        vshufps xmm3, xmm3, xmm3, 0xD2
+        macro eq128 xmm2 = xmm2 * xmm3 {xmm0, xmm1}
+        vshufps xmm4, xmm4, xmm4, 0xD2
+        vshufps xmm5, xmm5, xmm5, 0xC9
+    """
+else:
+    ASM3 += """
+        shufps xmm2, xmm2, 0xC9
+        shufps xmm3, xmm3, 0xD2
+        macro eq128 xmm2 = xmm2 * xmm3 {xmm0, xmm1}
+        shufps xmm4, xmm4, 0xD2
+        shufps xmm5, xmm5, 0xC9
+    """
+ASM3 += """
+    macro eq128 xmm4 = xmm4 * xmm5 {xmm0, xmm1, xmm2}
+    macro eq128 xmm2 = xmm2 - xmm4 {xmm0, xmm1}
+
+    macro dot xmm3 = xmm0 * xmm2 {xmm0, xmm1}
+"""
+if util.AVX:
+    ASM3 += "vpabsd xmm4, xmm3 \n"
+else:
+    ASM3 += "movaps xmm4, oword [mask_abs] \n"
+    ASM3 += "andps xmm4, xmm3 \n"
+
+ASM3 += """
+
+    macro if xmm4 < epsilon goto reject
+    macro eq32 xmm4 = one / xmm3 {xmm0, xmm1, xmm2, xmm3}
+
+    ; f = xmm4
+    macro eq128 xmm5 = eax.ray.origin - ebx.triangle.p0 {xmm0, xmm1, xmm2, xmm3, xmm4}
+    ; s = xmm5
+
+    macro dot xmm2 = xmm2 * xmm5 {xmm0, xmm1, xmm3, xmm4}
+    ;s * p(s dot p) = xmm2
+    macro eq32 xmm6 = xmm4 * xmm2 {xmm0, xmm1, xmm2, xmm3, xmm4, xmm5}
+
+    macro if xmm6 < zero goto reject
+    macro if xmm6 > one goto reject
+
+    ; q = s x e1 
+    macro eq128_128 xmm3 = xmm5, xmm7 = xmm0 
+"""
+if util.AVX:
+    ASM3 += """
+        vshufps xmm5, xmm5, xmm5, 0xC9
+        vshufps xmm0, xmm0, xmm0, 0xD2
+        macro eq128 xmm0 = xmm0 * xmm5 
+
+        vshufps xmm3, xmm3, xmm3, 0xD2
+        vshufps xmm7, xmm7, xmm7, 0xC9
+    """
+else:
+    ASM3 += """
+        shufps xmm5, xmm5, 0xC9
+        shufps xmm0, xmm0, 0xD2
+        macro eq128 xmm0 = xmm0 * xmm5 
+
+        shufps xmm3, xmm3, 0xD2
+        shufps xmm7, xmm7, 0xC9
+    """
+
+ASM3 += """
+    macro eq128 xmm3 = xmm3 * xmm7 
+    macro eq128 xmm0 = xmm0 - xmm3
+
+    macro dot xmm7 = xmm0 * eax.ray.dir {xmm1}
+    macro eq32 xmm7 = xmm7 * xmm4
+
+    macro if xmm7 < zero goto reject
+    macro eq32 xmm7 = xmm7 + xmm6
+    macro if xmm7 > one goto reject
+
+    macro dot xmm6 = xmm1 * xmm0
+    macro eq32 xmm6 = xmm6 * xmm4
+
+    ;populate hitpoint structure
+    ; t is in xmm6 , t can be negative so we eleminate those
+    macro if xmm6 < zero goto reject
+    macro if xmm6 > ecx goto reject
+    macro eq32 edx.hitpoint.t = xmm6
+    macro broadcast xmm7 = xmm6[0]
+    macro eq128_32 edx.hitpoint.normal = ebx.triangle.normal, edx.hitpoint.mat_index = ebx.triangle.mat_index
+    macro eq128 xmm5 = xmm7 * eax.ray.dir
+    macro eq128 edx.hitpoint.hit = xmm5 + eax.ray.origin
+
+    mov eax, 1
+    ret
+
+    reject:
+    mov eax, 0 
+    ret
+
+
+"""
+
 def isect(ray, shapes):
     min_dist = 999999.0
     hit_point = None
@@ -237,6 +389,35 @@ def isect(ray, shapes):
             hit_point = hit
     return hit_point
 
+
+def isect_ray(tr, ray):
+    e1 = tr.v1 - tr.v0
+    e2 = tr.v2 - tr.v0
+    p = ray.dir.cross(e2)
+    a = e1.dot(p)
+
+    f = 1 / a
+
+    s = ray.origin - tr.v0
+
+    u = f * s.dot(p)
+
+    q = s.cross(e1)
+    v = f * q.dot(ray.dir)
+
+    t = f * e2.dot(q)
+
+    #print("e1", e1)
+    #print("e2", e2)
+    #print("p", p)
+    #print("a", a)
+    #print("f", f)
+    #print("s", s)
+    #print("u", u)
+    #print("v", v)
+    print("t", t)
+
+
 if __name__ == "__main__":
 
     tr = create_triangle()
@@ -246,7 +427,10 @@ if __name__ == "__main__":
         print(hp.t)
 
     asm = util.get_asm()
-    mc = asm.assemble(ASM)
+    #mc = asm.assemble(ASM)
+    print (ASM3)
+    mc = asm.assemble(ASM3)
+    #mc.print_machine_code()
     runtime = Runtime()
     ds = runtime.load("test", mc)
 
@@ -263,9 +447,11 @@ if __name__ == "__main__":
 
     #runtime.run("test")
    
-    dy_arr, lst_arr = create_triangle_array(10000)
+    dy_arr, lst_arr = create_triangle_array(100000)
+    isect_ray(lst_arr[0], ray)
+
     hp = isect(ray, lst_arr)
-    if hp is not False:
+    if hp is not False and hp is not None:
         print("Tocka presjeka", hp.t)
 
     mc2 = asm.assemble(ASM2)
@@ -280,15 +466,6 @@ if __name__ == "__main__":
     t = timeit.Timer(lambda : runtime.run("test2"))
     print ("time", t.timeit(1))
     print("min_dist", ds2["min_dist"], ds2["hp.t"])
+    print(ds2["hp.mat_index"])
 
-    print(ds["xm0"])
-    print(ds["xm1"])
-    print(ds["xm2"])
-    print(ds["xm3"])
-    print("4=", ds["xm4"])
-    print(ds["xm5"])
-    print(ds["xm6"])
-    print(ds["xm7"])
-
-    print(ds["hp.t"])
 

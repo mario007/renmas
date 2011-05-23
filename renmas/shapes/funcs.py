@@ -52,11 +52,10 @@ def intersect_ray_shape_array(name_struct, runtime, lbl_arr_intersect, lbl_ray_i
     #mc.print_machine_code()
     runtime.load(lbl_arr_intersect, mc)
 
-def isect(ray, shapes):
-    min_dist = 999999.0
+def isect(ray, shapes, min_dist=999999.0):
     hit_point = None
     for s in shapes:
-        hit = s.intersect(ray, min_dist)
+        hit = s.isect(ray, min_dist)
         if hit is False: continue
         if hit.t < min_dist:
             min_dist = hit.t

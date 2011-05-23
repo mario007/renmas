@@ -50,7 +50,7 @@ def dot_product(tokens):
     xmm = allowed[0]
     global txmm
     txmm = allowed[1]
-
+    
     if len(tokens) != 5:  
         print("Wrong number of tokens")
         return "samo da pukne transofrmacija u strojni kod"
@@ -59,6 +59,10 @@ def dot_product(tokens):
 
 
     a, equal, b, mul, c = tokens 
+
+    if txmm == a:
+        txmm = allowed[2]
+
     if util.AVX:
         mov = " vmovaps "
     else:
@@ -73,7 +77,7 @@ def dot_product(tokens):
             line1 = mov + xmm + ", oword [" + b +"]"
             line2 = dot_ins(xmm, c)
             line3 = mov + " oword [" + a + "], " + xmm 
-    if b in regs and c in regs:
+    if b in regs and c in regs: 
         if a == b: #xmm1 = xmm1 * xmm3
             line1 = dot_ins(b, c)
         elif a == c:

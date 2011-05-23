@@ -5,13 +5,13 @@ from renmas.core import AsmStructures
 
 asm = Tdasm()
 AVX = asm.avx_supported()
-#AVX = False
+AVX = False
 
 SSSE3 = asm.cpu["ssse3"]
 #SSSE3 = False
 SSE3 = asm.cpu["sse3"]
 SSE41 = asm.cpu["sse41"]
-SSE41 = False
+#SSE41 = False
 SSE2 = asm.cpu["sse2"]
 
 def structs(*lst_structs):
@@ -48,3 +48,10 @@ def get_asm():
         assembler.register_macro("broadcast", broadcast)
 
     return assembler
+
+NUM = -1 
+def unique():
+    global NUM
+    NUM += 1
+    return NUM
+

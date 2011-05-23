@@ -1,7 +1,7 @@
 
 from tdasm import Tdasm, Runtime
 import random
-from renmas.shapes import Plane
+from renmas.shapes import Plane, intersect_ray_shape_array
 from renmas.core import Ray
 from renmas.maths import Vector3
 import renmas.utils as util

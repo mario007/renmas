@@ -49,9 +49,17 @@ def random_plane():
     normal = renmas.maths.Vector3(dir_x, dir_y, dir_z)
     normal.normalize()
 
-    plane = renmas.shapes.Plane(point, normal, 99998)
-    scene.shape_database.add_shape(plane)
+    plane = renmas.shapes.Plane(point, normal, 99999)
+    geometry.add_shape(plane)
     return plane
+
+def random_triangle():
+    p0 = renmas.maths.Vector3(random.random()*10.0-5.0, random.random()*10-5.0, random.random()*10-5.0)    
+    p1 = renmas.maths.Vector3(random.random()*10.0-5.0, random.random()*10-5.0, random.random()*10-5.0)    
+    p2 = renmas.maths.Vector3(random.random()*10.0-5.0, random.random()*10-5.0, random.random()*10-5.0)    
+    tri = renmas.shapes.Triangle(p0, p1, p2, 99999)
+    geometry.add_shape(tri)
+    return tri
 
 def lst_shapes():
     return geometry.shapes()

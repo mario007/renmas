@@ -62,13 +62,10 @@ def isect(ray, shapes, min_dist=999999.0):
             hit_point = hit
     return hit_point
 
-def isect_ray_scene(ray):
-    return isect(ray, renmas.core.scene.shape_database.shapes())
+# eax - pointer to ray
+# ebx - pointer to hitpoint
 
-def linear_isect_asm(runtime, label_name):
-    #FIXME test if there are no shapes and return somethin useful
-    db_shapes = renmas.core.scene.shape_database
-    db_shapes.create_asm_arrays()
+def linear_isect_asm(runtime, label, dyn_arrays):
 
     data1 = """
     uint32 r1
@@ -85,7 +82,7 @@ def linear_isect_asm(runtime, label_name):
 
     asm_structs = util.structs("ray", "hitpoint") 
     data2 = ""
-    for key, value in db_shapes.asm_shapes.items():
+    for key, value in dyn_arrays.items():
         asm_structs += util.structs(key.name())
         data2 += "uint32 ptr_" + key.name() + "\n"
         data2 += "uint32 n_" + key.name() + "\n"
@@ -94,7 +91,7 @@ def linear_isect_asm(runtime, label_name):
     ASM += data1
     ASM += data2
     ASM += "#CODE \n"
-    ASM += "global " + label_name + ":\n"
+    ASM += "global " + label + ":\n"
     ASM += "mov dword [r1], eax \n"
     ASM += "mov dword [hp], ebx \n"
     ASM += "mov edx , dword [zero] \n"
@@ -104,7 +101,7 @@ def linear_isect_asm(runtime, label_name):
     
     
     code = ""
-    for key, value in db_shapes.asm_shapes.items():
+    for key, value in dyn_arrays.items():
         code1 = """ 
         ;=== intersection of array
         mov eax, dword [r1]
@@ -117,7 +114,7 @@ def linear_isect_asm(runtime, label_name):
         code = code1 + line1 + line2 + call
         ASM += code
 
-        key.intersect_asm(runtime, key.name() + "_intersect")
+        key.isect_asm(runtime, key.name() + "_intersect")
         intersect_ray_shape_array(key.name(), runtime, key.name() + "_array", key.name() + "_intersect")
     
     ASM += "macro eq32 xmm0 = min_dist \n" 
@@ -134,10 +131,11 @@ def linear_isect_asm(runtime, label_name):
     ASM += "ret\n"
     asm = util.get_asm()
     mc = asm.assemble(ASM, True)
-    ds = runtime.load("ray_scene_intersection", mc)
+    name = "ray_scene_intersection" + str(util.unique())
+    ds = runtime.load(name, mc)
 
-    for key, value in db_shapes.asm_shapes.items():
-        dy_arr = db_shapes.asm_shapes[key]
+    for key, value in dyn_arrays.items():
+        dy_arr = dyn_arrays[key]
         ds["ptr_" + key.name()] = dy_arr.get_addr()
         ds["n_" + key.name()] = dy_arr.size
 

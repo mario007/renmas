@@ -37,74 +37,11 @@ class Sphere:
                 return HitPoint(t, hit_point, normal, self.material, ray)
         return False
 
-    @classmethod
-    def intersectbool_asm(cls, runtime, label_name):
-        asm_structs = util.structs("ray", "sphere", "hitpoint")
-        if util.AVX:
-            line1 = " vsqrtss xmm5, xmm5, xmm5 \n"
-        else:
-            line1 = " sqrtss xmm5, xmm5 \n"
-
-        ASM = """ 
-        #DATA
-        float epsilon = 0.0001
-        float two = 2.0
-        float minus_four = -4.0
-        float zero = 0.0
-        float one = 1.0
-        float minus_one = -1.0
-        """
-        ASM += asm_structs + """
-            ;eax = pointer to ray structure
-            ;ebx = pointer to plane structure
-            ;ecx = pointer to minimum distance
-        #CODE
-        """
-        ASM += " global " + label_name + ":\n" + """
-            macro eq128_128 xmm1 = eax.ray.dir, xmm2 = eax.ray.origin - ebx.sphere.origin
-            macro dot xmm3 = xmm1 * xmm1 {xmm2}
-            macro dot xmm4 = xmm2 * xmm1 {xmm3}
-            macro eq32_32 xmm4 = xmm4 * two, xmm5 = ebx.sphere.radius * ebx.sphere.radius {xmm1, xmm2, xmm3, xmm4}
-            macro dot xmm6 = xmm2 * xmm2 {xmm1, xmm3, xmm4, xmm5}
-            macro eq32 xmm5 = xmm6 - xmm5 {xmm1, xmm2, xmm3, xmm4}
-            macro eq32_32 xmm5 = xmm5 * xmm3, xmm6 = xmm4 * xmm4 {xmm1, xmm2, xmm3}
-            macro eq32 xmm5 = xmm5 * minus_four {xmm1, xmm2, xmm3, xmm4, xmm6}
-            macro eq32 xmm5 = xmm5 + xmm6 {xmm1, xmm2, xmm3, xmm4}
-            
-            ; temp = xmm2, a = xmm3 , b = xmm4, disc = xmm5, ray.dir = xmm1
-            macro if xmm5 < zero goto _reject
-        """
-        ASM += line1 + """
-            macro eq32 xmm3 = xmm3 * two {xmm1, xmm2, xmm4, xmm5}
-            macro eq32_32 xmm3 = one / xmm3, xmm4 = xmm4 * minus_one {xmm1, xmm2, xmm5}
-            macro eq32 xmm6 = xmm4 - xmm5 {xmm1, xmm2, xmm3, xmm5}
-            macro eq32 xmm6 = xmm6 * xmm3 {xmm1, xmm2, xmm3, xmm4, xmm5}
-            macro if xmm6 > epsilon goto populate_hitpoint
-            macro eq32 xmm6 = xmm4 + xmm5 {xmm1, xmm2, xmm3}
-            macro eq32 xmm6 = xmm6 * xmm3 {xmm1, xmm2, xmm3, xmm4, xmm5}
-            macro if xmm6 > epsilon goto populate_hitpoint
-            mov eax, 0
-            ret
-
-            populate_hitpoint:
-            macro if xmm6 > ecx goto _reject 
-            mov eax, 1
-            ret
-
-            _reject:
-            mov eax, 0
-            ret
-        """
-        assembler = util.get_asm()
-        mc = assembler.assemble(ASM, True)
-        #mc.print_machine_code()
-        runtime.load("ray_sphere_intersection_bool", mc)
-
     # eax = pointer to ray structure
     # ebx = pointer to sphere structure
     # ecx = pointer to minimum distance
     # edx = pointer to hitpoint
-    # TODO - maybe beacuse accept is rare dont't jump on reject - do it opositte
+    # TODO - maybe beacuse accept is rare dont't jump on reject - do it opositte jump on accept
     @classmethod
     def isect_asm(cls, runtime, label, populate=True):
         asm_structs = util.structs("ray", "sphere", "hitpoint")

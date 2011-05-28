@@ -54,6 +54,14 @@ POINT_LIGHT = """
     end struct
 """
 
+SAMPLE = """
+    struct sample
+    float xyxy[4] 
+    uint32 ix, iy
+    float weight 
+    end struct
+"""
+
 structures = {
         "ray" : RAY, 
         "sphere": SPHERE,
@@ -61,7 +69,8 @@ structures = {
         "material": MATERIAL,
         "pointlight":POINT_LIGHT,
         "plane": PLANE,
-        "triangle": TRIANGLE
+        "triangle": TRIANGLE,
+        "sample": SAMPLE
         }
 
 class AsmStructures:

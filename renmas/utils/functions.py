@@ -1,5 +1,6 @@
 
 from tdasm import Tdasm
+import renmas.core
 from renmas.core import AsmStructures
 
 
@@ -54,4 +55,14 @@ def unique():
     global NUM
     NUM += 1
     return NUM
+
+# dynamic loadr of functions written in assembly 
+# support functions have defined name
+def load_func(runtime, *names):
+
+    for name in names:
+        if not runtime.global_exists(name):
+            if name == "random":
+                renmas.core.Rng.random_float(runtime, "random")
+            pass # load that function
 

@@ -4,14 +4,22 @@ from renmas.samplers import Sample
 from tdasm import Runtime
 import renmas.utils as util
 
-def print_regular(reg, runtime, ds):
+
+
+def print_random(rnd, runtime, ds):
     sample = Sample()
     while True:
-        sam = reg.get_sample(sample)
+        sam = rnd.get_sample(sample)
         runtime.run("test")
+        print_sample(ds, "sam")
         if sam is None: break
         print ("Python = (", sample.ix, sample.x, ")",  " (", sample.iy, sample.y, ")")
-        print_sample(ds, "sam")
+        print("===============")
+    print("===============")
+    runtime.run("test")
+    print_sample(ds, "sam")
+    runtime.run("test")
+    print_sample(ds, "sam")
     runtime.run("test")
     print_sample(ds, "sam")
 
@@ -39,13 +47,12 @@ if __name__ == "__main__":
     
     runtime = Runtime()
 
-    reg = RegularSampler(8, 8)
-    reg.tile(2, 2, 2, 2)
-    reg.get_sample_asm(runtime, "get_sample")
+    rnd = RandomSampler(2, 2, n=2)
+    rnd.get_sample_asm(runtime, "get_sample")
 
     assembler = util.get_asm()
     mc = assembler.assemble(ASM)
     ds = runtime.load("test", mc)
 
-    print_regular(reg, runtime, ds)
+    print_random(rnd, runtime, ds)
 

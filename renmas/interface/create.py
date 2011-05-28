@@ -2,10 +2,26 @@
 import renmas
 import renmas.maths
 import renmas.shapes
+import renmas.camera
 import random
 
 scene = renmas.scene
 geometry = renmas.geometry
+
+def pinhole_camera(eye, lookat, distance=100):
+    ex, ey, ez = eye
+    lx, ly, lz = lookat
+    eye = renmas.maths.Vector3(float(ex), float(ey), float(ez))
+    lookat = renmas.maths.Vector3(float(lx), float(ly), float(lz))
+    cam = renmas.camera.PinholeCamera(eye, lookat, float(distance))
+    return cam
+    
+def create_sphere(x, y, z, radius):
+    v1 = renmas.maths.Vector3(float(x), float(y), float(z))
+    sphere = renmas.shapes.Sphere(v1, float(radius), 99999)
+
+    geometry.add_shape(sphere)
+    return sphere
 
 
 def random_sphere():

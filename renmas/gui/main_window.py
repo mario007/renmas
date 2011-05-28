@@ -16,10 +16,6 @@ class MainWindow(object):
         self.menubar = None # controling menu bar
         self.menu = None # for removing menu
 
-        #parameters for rendering
-        self.rendering = False
-        self.npix = 0
-
 
     def set_menubar(self, menubar):
         self.menubar = menubar
@@ -68,6 +64,11 @@ class MainWindow(object):
 
     def char_pressed(self, char):
         if char > 127: return
+        if char == 98: # 98 = b
+            self.real_time(True)
+        if char == 115:  # 115 = s
+            self.real_time(False)
+
         if self.focus is not None:
             self.focus.char_pressed(char)
 
@@ -131,6 +132,7 @@ class MainWindow(object):
 
 
     def l_mouse_up(self, px, py):
+        winlib.RealTime(0, self)
         for con in self._pt_in_con(px, py):
             pos = self.controls[con]
             con.left_mouse_up(px - pos[0], py - pos[1])
@@ -154,33 +156,12 @@ class MainWindow(object):
                 self.enter_control = con
 
     def render(self):
-        if self.rendering:
-            if self.rnd.is_finished():
-                self.stop_rendering()
-                self.rnd_control.refresh()
-                return
-            self.render_func(self.rnd)
-            self.npix += 1
-            if self.npix == 4096:
-                self.npix = 0
-                self.rnd_control.refresh()
+        rez = self.rnd_handler()
+        self.redraw()
+        if rez is None: self.real_time(False)
 
-    def set_rendering(self, func, rnd, rnd_control):
-        self.render_func = func
-        self.rnd = rnd
-        self.rnd_control = rnd_control
-
-    def start_rendering(self):
-        if self.rendering: return
-        self.start_time = time.clock()
-        self.rendering = True
-        self.real_time(True)
-
-    def stop_rendering(self):
-        end = time.clock()
-        print("Rendering time = ", end - self.start_time)
-        self.rendering = False
-        self.real_time(False)
+    def render_handler(self, handler):
+        self.rnd_handler = handler
 
     def clear_buffer(self, r, g, b):
         self.fb.clear_buffer(r, g, b)

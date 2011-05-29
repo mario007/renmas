@@ -3,10 +3,87 @@ import renmas
 import renmas.maths
 import renmas.shapes
 import renmas.camera
+import renmas.materials
+import renmas.lights
 import random
 
 scene = renmas.scene
 geometry = renmas.geometry
+mat_db = renmas.mat_db
+light_db = renmas.light_db
+
+def create_triangle(p0, p1, p2, mat_idx):
+    x0, y0, z0 = p0
+    x1, y1, z1 = p1
+    x2, y2, z2 = p2
+    p0 = renmas.maths.Vector3(float(x0), float(y0), float(z0))
+    p1 = renmas.maths.Vector3(float(x1), float(y1), float(z1))
+    p2 = renmas.maths.Vector3(float(x2), float(y2), float(z2))
+    tri = renmas.shapes.Triangle(p0, p1, p2, mat_idx)
+
+    geometry.add_shape(tri)
+    return tri
+    
+def create_spectrum(r, g, b):
+    spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
+    return spectrum
+
+def lst_lights():
+    return light_db.get_lights()
+
+def create_point_light(name, pos, spectrum):
+    x, y, z = pos
+    r, g, b = spectrum
+    spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
+    pos = renmas.maths.Vector3(float(x), float(y), float(z))
+    plight = renmas.lights.PointLight(pos, spectrum) 
+    light_db.add_light(plight)
+    return plight
+
+def create_lambertian(name, r, g, b):
+    spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
+    lamb = renmas.materials.Lambertian(spectrum)
+    mat = renmas.materials.Material()
+    mat.add_component(lamb)
+    mat_db.add_material(name, mat) 
+    return mat
+
+def create_phong(name, r, g, b, e):
+    spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
+    lamb = renmas.materials.Lambertian(spectrum)
+    phong = renmas.materials.Phong(spectrum, float(e))
+
+    mat = renmas.materials.Material()
+    mat.add_component(lamb)
+    mat.add_component(phong)
+    mat_db.add_material(name, mat)
+    return mat
+
+def create_oren(name, r, g, b, alpha):
+    spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
+    oren = renmas.materials.Oren_Nayar(spectrum, float(alpha))
+
+    mat = renmas.materials.Material()
+    mat.add_component(oren)
+    mat_db.add_material(name, mat)
+    return mat
+
+def create_oren_phong(name, r, g, b, alpha, e):
+    spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
+    oren = renmas.materials.Oren_Nayar(spectrum, float(alpha))
+    phong = renmas.materials.Phong(spectrum, float(e))
+
+    mat = renmas.materials.Material()
+    mat.add_component(oren)
+    mat.add_component(phong)
+    mat_db.add_material(name, mat)
+    return mat
+
+def get_material(idx):
+    return mat_db.material_idx(idx)
+
+def get_mat_idx(name):
+    return mat_db.get_idx(name)
 
 def pinhole_camera(eye, lookat, distance=100):
     ex, ey, ez = eye
@@ -16,9 +93,9 @@ def pinhole_camera(eye, lookat, distance=100):
     cam = renmas.camera.PinholeCamera(eye, lookat, float(distance))
     return cam
     
-def create_sphere(x, y, z, radius):
+def create_sphere(x, y, z, radius, mat=99999):
     v1 = renmas.maths.Vector3(float(x), float(y), float(z))
-    sphere = renmas.shapes.Sphere(v1, float(radius), 99999)
+    sphere = renmas.shapes.Sphere(v1, float(radius), mat)
 
     geometry.add_shape(sphere)
     return sphere

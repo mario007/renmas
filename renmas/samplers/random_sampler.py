@@ -45,13 +45,15 @@ class RandomSampler:
     def get_sample(self, sample):
         # xw = s(x - width/2 + px) 
         # yw = s(y - height/2 + py)
+
+        #FIXME hitno asm verziju
         
         temp = 0.6
         if self.curn > 0:
-            #sample.x = self.pix_size * (self.curx + self.w2 + random.random())  
-            #sample.y = self.pix_size * (self.cury + self.h2 + random.random())
-            sample.x = self.pix_size * (self.curx + self.w2 + temp)  
-            sample.y = self.pix_size * (self.cury + self.h2 + temp)
+            sample.x = self.pix_size * (self.curx + self.w2 + random.random())  
+            sample.y = self.pix_size * (self.cury + self.h2 + random.random())
+            #sample.x = self.pix_size * (self.curx + self.w2 + temp)  
+            #sample.y = self.pix_size * (self.cury + self.h2 + temp)
             sample.ix = self.curx
             sample.iy = self.cury
             self.curn -= 1
@@ -67,10 +69,10 @@ class RandomSampler:
             else:
                 self.curx += 1
 
-        #sample.x = self.pix_size * (self.curx + self.w2 + random.random())  
-        #sample.y = self.pix_size * (self.cury + self.h2 + random.random())
-        sample.x = self.pix_size * (self.curx + self.w2 + temp)  
-        sample.y = self.pix_size * (self.cury + self.h2 + temp) 
+        sample.x = self.pix_size * (self.curx + self.w2 + random.random())  
+        sample.y = self.pix_size * (self.cury + self.h2 + random.random())
+        #sample.x = self.pix_size * (self.curx + self.w2 + temp)  
+        #sample.y = self.pix_size * (self.cury + self.h2 + temp) 
         sample.ix = self.curx
         sample.iy = self.cury
         return True

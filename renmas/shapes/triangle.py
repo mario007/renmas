@@ -96,8 +96,8 @@ class Triangle:
 
         ASM = """ 
         #DATA
-        float epsilon = 0.00001
-        float neg_epsilon = -0.00001
+        float epsilon = 0.0001
+        float neg_epsilon = -0.0001
         float one = 1.0
         float zero = 0.0
         uint32 mask_abs[4] = 0x7FFFFFFF, 0, 0, 0

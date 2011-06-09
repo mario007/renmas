@@ -33,7 +33,6 @@ ASM += util.structs("sample") + """
     #CODE
 
     mov eax, sam 
-
     call get_sample
     mov dword [have], eax
     #END
@@ -47,7 +46,8 @@ if __name__ == "__main__":
     
     runtime = Runtime()
 
-    rnd = RandomSampler(2, 2, n=2)
+    rnd = RandomSampler(25, 20, n=2)
+    rnd.tile(10, 10, 3, 3)
     rnd.get_sample_asm(runtime, "get_sample")
 
     assembler = util.get_asm()

@@ -6,13 +6,13 @@ from renmas.core import AsmStructures
 
 asm = Tdasm()
 AVX = asm.avx_supported()
-AVX = False
+#AVX = False
 
 SSSE3 = asm.cpu["ssse3"]
 #SSSE3 = False
 SSE3 = asm.cpu["sse3"]
 SSE41 = asm.cpu["sse41"]
-#SSE41 = False
+SSE41 = False
 SSE2 = asm.cpu["sse2"]
 
 def structs(*lst_structs):
@@ -65,4 +65,27 @@ def load_func(runtime, *names):
             if name == "random":
                 renmas.core.Rng.random_float(runtime, "random")
             pass # load that function
+
+def normalization(xmm, tmp1, tmp2):
+    line0 = """
+    #DATA
+    #CODE
+    """
+    line1 = line2 = line3 = ""
+    if AVX:
+        line1 = "vdpps " + tmp1 + "," + xmm + "," +  xmm + ", 0x7f \n"
+        line2 = "vsqrtps " + tmp1 + "," + tmp1 + "\n"
+    elif SSE41:
+        line1 = "movaps " + tmp1 + "," +  xmm + "\n"
+        line2 = "dpps " + tmp1 + "," +  tmp1 + ", 0x7F\n" 
+        line3 = "sqrtps " + tmp1 + "," + tmp1 + "\n"
+    else:
+        line1 = "macro dot " + tmp1 + " = " + xmm + "*" + xmm + "\n"
+        line2 = "macro broadcast " + tmp1 + " = " + tmp1 + "[0]\n"
+        line3 = "sqrtps " + tmp1 + "," + tmp1 + "\n"
+    line4 = "macro eq128 " + xmm + " = " + xmm + "/" + tmp1 + "\n"
+
+    code = line0 + line1 + line2 + line3 + line4 
+    return code
+
 

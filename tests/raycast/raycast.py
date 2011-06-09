@@ -44,8 +44,8 @@ create_materials()
 shapes = build_scene()
 create_lights()
 
-WIDTH = 500
-HEIGHT = 500 
+WIDTH = 200
+HEIGHT = 200 
 NSAMPLES = 1 
 film = renmas.core.Film(WIDTH, HEIGHT, NSAMPLES)
 #sampler = renmas.samplers.RegularSampler(100, 100)
@@ -73,7 +73,7 @@ plight = renmas.lights.PointLight(pos, col)
 
 
 def list_tiles(width, height, nsamples):
-    # TODO - implement later smarter version
+    # TODO - implement later smarter version to include number os sample and assembly version
     w = 50
     h = 50 
     

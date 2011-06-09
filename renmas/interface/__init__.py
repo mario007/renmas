@@ -19,3 +19,10 @@ from .create import lst_lights
 from .create import create_oren_phong
 from .create import create_triangle
 
+from .create import get_tiles
+from .create import create_random_sampler
+from .create import get_sampler
+from .create import get_camera
+from .create import create_film
+from .create import get_film
+

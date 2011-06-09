@@ -73,6 +73,7 @@ def linear_isect_asm(runtime, label, dyn_arrays):
     float min_dist = 999999.0
     float max_dist = 999999.0
     float zero = 0.0
+    float one = 1.0
     float epsilon = 0.0001
     """
 
@@ -95,9 +96,8 @@ def linear_isect_asm(runtime, label, dyn_arrays):
     ASM += "mov dword [r1], eax \n"
     ASM += "mov dword [hp], ebx \n"
     ASM += "mov edx , dword [zero] \n"
-    ASM += "mov ecx, dword [max_dist] \n"
+    ASM += "macro eq32 min_dist = max_dist + one\n"
     ASM += "mov dword [eax + hitpoint.t], edx \n"
-    ASM += "mov dword [min_dist], ecx \n"
     
     
     code = ""
@@ -131,6 +131,7 @@ def linear_isect_asm(runtime, label, dyn_arrays):
     ASM += "ret\n"
     asm = util.get_asm()
     mc = asm.assemble(ASM, True)
+    #mc.print_machine_code()
     name = "ray_scene_intersection" + str(util.unique())
     ds = runtime.load(name, mc)
 
@@ -140,4 +141,101 @@ def linear_isect_asm(runtime, label, dyn_arrays):
         ds["n_" + key.name()] = dy_arr.size
 
     #print (ASM)
+
+geometry = renmas.geometry
+def lst_shapes():
+    return geometry.shapes()
+
+def visible(p1, p2):
+    lst_objects = lst_shapes()
+    epsilon = 0.00001
+    direction = p2 - p1
+
+    distance = direction.length() - epsilon # self intersection!!! visiblity
+    ray = renmas.core.Ray(p1, direction.normalize())
+    hp = isect(ray, lst_objects, 999999.0)
+
+    if hp is None or hp is False:
+        return True
+    else:
+        if hp.t < distance:
+            return False
+        else:
+            return True
+
+#FIXME - implement so that we can provide distance to ray_scene intersection it will be faster 
+def visible_asm(runtime, label, ray_scene_isect):
+    # visibility of two points
+    # xmm0 = p1
+    # xmm1 = p2
+    norm = util.normalization("xmm1", "xmm2", "xmm3") 
+    asm_structs = util.structs("ray", "hitpoint")
+
+    xmm = "xmm1"
+    tmp1 = "xmm2"
+    line1 = line2 = line3 = ""
+    if util.AVX:
+        line1 = "vdpps " + tmp1 + "," + xmm + "," +  xmm + ", 0x7f \n"
+        line2 = "vsqrtps " + tmp1 + "," + tmp1 + "\n"
+    elif util.SSE41:
+        line1 = "movaps " + tmp1 + "," +  xmm + "\n"
+        line2 = "dpps " + tmp1 + "," +  tmp1 + ", 0x7F\n" 
+        line3 = "sqrtps " + tmp1 + "," + tmp1 + "\n"
+    else:
+        line1 = "macro dot " + tmp1 + " = " + xmm + "*" + xmm + "\n"
+        line2 = "macro broadcast " + tmp1 + " = " + tmp1 + "[0]\n"
+        line3 = "sqrtps " + tmp1 + "," + tmp1 + "\n"
+
+    code = line1 + line2 + line3
+
+    ASM = """
+    #DATA
+    """
+    ASM += asm_structs + """
+    hitpoint hp
+    ray r1
+    float distance
+    float epsilon = 0.0001
+
+    #CODE
+    """
+    ASM += " global " + label + ":\n" + """
+    macro eq128 xmm1 = xmm1 - xmm0
+    macro eq128 r1.origin = xmm0 
+    """
+    ASM += code + """
+    macro eq32 distance = xmm2 - epsilon {xmm0, xmm1}
+    macro eq128 xmm1 = xmm1 / xmm2 {xmm0, xmm1}
+    macro eq128 r1.dir = xmm1
+
+    ; call ray scene intersection
+
+    mov eax, r1
+    mov ebx, hp
+    """
+    ASM += "call " + ray_scene_isect + """
+    cmp eax, 0
+    jne _maybe_visible
+    ;no intersection ocure that mean that points are visible
+    mov eax, 1 
+    ret
+
+    _maybe_visible:
+    macro eq32 xmm0 = distance
+    macro if xmm0 < hp.t goto accept 
+    xor eax, eax 
+    ret
+    
+    accept:
+    mov eax, 1
+    ret
+
+    """
+
+    assembler = util.get_asm()
+    mc = assembler.assemble(ASM, True)
+    #mc.print_machine_code()
+    name = "visible" + str(util.unique())
+    runtime.load(name, mc)
+    
 

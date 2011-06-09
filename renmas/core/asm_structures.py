@@ -35,8 +35,13 @@ HITPOINT = """
     struct hitpoint
     float hit[4]
     float normal[4]
+    float wi[4]
+    float wo[4]
+    float spectrum[4]
     float t
     uint32 mat_index
+    uint32 visible 
+    float ndotwi
     end struct
 """
 

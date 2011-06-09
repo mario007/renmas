@@ -33,7 +33,8 @@ class Film:
             spec = self.spectrum
 
             #spec.clamp() FIXME make clamp to certen color so to know when picture is wrong 
-            self.image.set_pixel(sample.ix, sample.iy, spec.r, spec.g, spec.b)
+            iy = self.height - sample.iy #flip the image
+            self.image.set_pixel(sample.ix, iy, spec.r, spec.g, spec.b)
             self.curn = self.nsamples
             self.spectrum = renmas.core.Spectrum(0.0, 0.0, 0.0)
         else:

@@ -1,6 +1,7 @@
 
 import renmas.core
 import math
+import renmas.utils as util
 
 # in hitpoint.spectrum is light spectrum
 def Lambertian(spectrum): #TODO include or dont include ndotwi - make an option
@@ -43,6 +44,42 @@ def Oren_Nayar(spectrum, alpha):
         temp1 = (temp1 + A) * hp.ndotwi
         return spectrum.mix_spectrum(hp.spectrum) * temp1
     return brdf
+
+class LambertianBRDF:
+    def __init__(self, spectrum):
+        self.spectrum = spectrum
+
+    def brdf(self, hitpoint):
+        return self.spectrum.mix_spectrum(hitpoint.spectrum) * hitpoint.ndotwi  
+
+    def brdf_asm(self):
+        asm_structs = util.structs("hitpoint")
+        
+        #eax pointer to hitpoint
+        name = "lamb" + str(hash(self))
+
+        ASM = """
+        #DATA
+        """
+        ASM += asm_structs
+        ASM += "float " + name + "spectrum[4] \n" 
+        ASM += "#CODE \n"
+        ASM += "macro eq128 xmm0 = " + name + "spectrum * eax.hitpoint.spectrum\n"  
+        ASM += "macro eq32 xmm1 = eax.hitpoint.ndotwi\n"
+        ASM += "macro broadcast xmm1 = xmm1[0]\n"
+        ASM += "macro eq128 xmm0 = xmm0 * xmm1\n"
+
+        return ASM
+
+    def populate_ds(self, ds):
+        s = self.spectrum
+        name = "lamb" + str(hash(self)) + "spectrum"
+        ds[name] = (s.r, s.g, s.b, 0.0)
+
+class MaterialNew:
+    def __init__(self):
+        self.components = []
+        pass
 
 class Material:
     def __init__(self):

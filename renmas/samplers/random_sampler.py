@@ -46,14 +46,9 @@ class RandomSampler:
         # xw = s(x - width/2 + px) 
         # yw = s(y - height/2 + py)
 
-        #FIXME hitno asm verziju
-        
-        temp = 0.6
         if self.curn > 0:
             sample.x = self.pix_size * (self.curx + self.w2 + random.random())  
             sample.y = self.pix_size * (self.cury + self.h2 + random.random())
-            #sample.x = self.pix_size * (self.curx + self.w2 + temp)  
-            #sample.y = self.pix_size * (self.cury + self.h2 + temp)
             sample.ix = self.curx
             sample.iy = self.cury
             self.curn -= 1
@@ -71,8 +66,6 @@ class RandomSampler:
 
         sample.x = self.pix_size * (self.curx + self.w2 + random.random())  
         sample.y = self.pix_size * (self.cury + self.h2 + random.random())
-        #sample.x = self.pix_size * (self.curx + self.w2 + temp)  
-        #sample.y = self.pix_size * (self.cury + self.h2 + temp) 
         sample.ix = self.curx
         sample.iy = self.cury
         return True
@@ -85,9 +78,9 @@ class RandomSampler:
         util.load_func(runtime, "random")
 
         if util.AVX:
-            line1 = "vcvtdq2ps xmm0, xmm0 \n"
+            line1 = "vcvtdq2ps xmm4, xmm4 \n"
         else:
-            line1 = "cvtdq2ps xmm0, xmm0 \n"
+            line1 = "cvtdq2ps xmm4, xmm4 \n"
 
         asm_structs = util.structs("sample")
         code = """
@@ -101,8 +94,6 @@ class RandomSampler:
             float pixel_size[4]
             float w2h2[4]
 
-            float tmp_random[4] = 0.6, 0.6, 0.6, 0.6
-
             #CODE
         """
         code += " global " + label + ":\n" + """
@@ -110,19 +101,21 @@ class RandomSampler:
             jbe _next_pixel
 
             ; calculate sample
-            macro eq128 xmm0 = cur_xyxy
+            call random
+            ; random number is in xmm0
+            macro eq128 xmm4 = cur_xyxy {xmm0}
             """
         code += line1 + """
-            macro eq128_128 xmm1 = pixel_size, xmm2 = w2h2
-            macro eq128 xmm3 = xmm0 + xmm2 {xmm1}
-            macro eq128 xmm3 = xmm3 + tmp_random {xmm1}
+            macro eq128_128 xmm1 = pixel_size, xmm2 = w2h2 {xmm0}
+            macro eq128 xmm3 = xmm4 + xmm2 {xmm1, xmm0}
+            macro eq128 xmm3 = xmm3 + xmm0 {xmm1}
             mov ebx, dword [cur_xyxy]
             mov ecx, dword [cur_xyxy + 4]
             macro eq128 eax.sample.xyxy = xmm3 * xmm1
             mov dword [eax + sample.ix] ,ebx
             mov dword [eax + sample.iy] ,ecx
             sub dword [curn], 1
-            mov eax,  526
+            mov eax,  1 
             ret
             
             
@@ -139,17 +132,18 @@ class RandomSampler:
             mov dword [cur_xyxy], ebx
             ; calculate sample
            
-            macro eq128 xmm0 = cur_xyxy
+            call random
+            macro eq128 xmm4 = cur_xyxy {xmm0}
         """
         code += line1 + """
-            macro eq128_128 xmm1 = pixel_size, xmm2 = w2h2
-            macro eq128 xmm3 = xmm0 + xmm2 {xmm1}
-            macro eq128 xmm3 = xmm3 + tmp_random {xmm1}
+            macro eq128_128 xmm1 = pixel_size, xmm2 = w2h2 {xmm0}
+            macro eq128 xmm3 = xmm4 + xmm2 {xmm1, xmm0}
+            macro eq128 xmm3 = xmm3 + xmm0 {xmm1}
             mov ecx, dword [cur_xyxy + 4]
             macro eq128 eax.sample.xyxy = xmm3 * xmm1
             mov dword [eax + sample.ix] ,ebx
             mov dword [eax + sample.iy] ,ecx
-            mov eax, 20 
+            mov eax, 1 
             ret
 
             _checky:
@@ -161,21 +155,22 @@ class RandomSampler:
             mov ebx, dword [tilex]
             mov dword [cur_xyxy+ 4], ecx 
             mov dword [cur_xyxy], ebx
-            macro eq128 xmm0 = cur_xyxy
+
+            call random
+            macro eq128 xmm4 = cur_xyxy {xmm0}
         """
         code += line1 + """
-            macro eq128_128 xmm1 = pixel_size, xmm2 = w2h2
-            macro eq128 xmm3 = xmm0 + xmm2 {xmm1}
-            macro eq128 xmm3 = xmm3 + tmp_random {xmm1}
+            macro eq128_128 xmm1 = pixel_size, xmm2 = w2h2 {xmm0}
+            macro eq128 xmm3 = xmm4 + xmm2 {xmm1, xmm0}
+            macro eq128 xmm3 = xmm3 + xmm0 {xmm1}
             macro eq128 eax.sample.xyxy = xmm3 * xmm1
             mov dword [eax + sample.ix] ,ebx
             mov dword [eax + sample.iy] ,ecx
-            mov eax, 10
+            mov eax, 1 
             ret
 
             _end_sampling:
             xor eax, eax 
-            mov eax, 3333
             ret
 
         """

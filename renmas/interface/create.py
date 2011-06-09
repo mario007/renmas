@@ -5,12 +5,17 @@ import renmas.shapes
 import renmas.camera
 import renmas.materials
 import renmas.lights
+import renmas.samplers
 import random
 
 scene = renmas.scene
 geometry = renmas.geometry
 mat_db = renmas.mat_db
 light_db = renmas.light_db
+
+sampler = None
+camera = None
+film = None
 
 def create_triangle(p0, p1, p2, mat_idx):
     x0, y0, z0 = p0
@@ -91,6 +96,8 @@ def pinhole_camera(eye, lookat, distance=100):
     eye = renmas.maths.Vector3(float(ex), float(ey), float(ez))
     lookat = renmas.maths.Vector3(float(lx), float(ly), float(lz))
     cam = renmas.camera.PinholeCamera(eye, lookat, float(distance))
+    global camera
+    camera = cam
     return cam
     
 def create_sphere(x, y, z, radius, mat=99999):
@@ -160,4 +167,60 @@ def lst_shapes():
 def dyn_arrays():
     geometry.create_asm_arrays()
     return geometry.asm_shapes
+
+def get_tiles(width, height, nsamples):
+    # TODO - implement later smarter version to include number os sample and assembly version
+    w = 50
+    h = 50 
+    
+    sx = 0
+    sy = 0
+    xcoords = []
+    ycoords = []
+    tiles = []
+    while sx < width:
+        xcoords.append(sx)
+        sx += w
+    last_w = width - (sx - w) 
+    while sy < height:
+        ycoords.append(sy)
+        sy += h
+    last_h = height - (sy - h)
+
+    for i in xcoords:
+        for j in ycoords:
+            tw = w
+            th = h
+            if i == xcoords[-1]:
+                tw = last_w
+            if j == ycoords[-1]:
+                th = last_h
+            tiles.append((i, j, tw, th))
+
+    #print(xcoords)
+    #print(ycoords)
+    #print(last_w, last_h)
+    #print(tiles)
+    return tiles
+
+def create_random_sampler(width, height, nsamples):
+    sam = renmas.samplers.RandomSampler(width, height, n=nsamples)
+    global sampler
+    sampler = sam 
+    return sam
+
+def get_sampler():
+    return sampler
+
+def get_camera():
+    return camera
+
+def create_film(width, height, nsamples):
+    fil = renmas.core.Film(width, height, nsamples)
+    global film
+    film = fil
+    return fil
+
+def get_film():
+    return film
 

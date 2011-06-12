@@ -9,4 +9,6 @@ from .rng import Rng
 from .material_database import MaterialDatabase
 from .light_database import LightDatabase
 
+from .shading import shade, generate_shade
+
 

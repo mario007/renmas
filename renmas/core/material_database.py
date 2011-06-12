@@ -22,6 +22,9 @@ class MaterialDatabase:
     def get_idx(self, name):
         return self.mat_names[name][1]
 
+    def get_materials(self):
+        return self.lst_materials
+
     #generate machine code for all materials in database
     #create dynamic array for materials where are pointers to brdf functions
     def gen_asm(self, runtime):

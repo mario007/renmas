@@ -62,7 +62,7 @@ def build_scene():
     ren.create_triangle((0.556, 0.0, 0.559), (0.000, 0.549, 0.559), (0.556, 0.549, 0.559), idx)
     ren.create_triangle((0.000, 0.549, 0.559), (0.556, 0.0, 0.559), (0.006, 0.0, 0.559), idx)
 
-    ## RIGHT WALL
+    # RIGHT WALL
     idx = ren.get_mat_idx("m3")
     ren.create_triangle((0.006, 0.0, 0.559), (0.00, 0.549, 0.00), (0.0, 0.549, 0.559), idx)
     ren.create_triangle((0.000, 0.549, 0.0), (0.006, 0.0, 0.559), (0.003, 0.0, 0.0), idx)

@@ -17,18 +17,6 @@ sampler = None
 camera = None
 film = None
 
-def create_triangle(p0, p1, p2, mat_idx):
-    x0, y0, z0 = p0
-    x1, y1, z1 = p1
-    x2, y2, z2 = p2
-    p0 = renmas.maths.Vector3(float(x0), float(y0), float(z0))
-    p1 = renmas.maths.Vector3(float(x1), float(y1), float(z1))
-    p2 = renmas.maths.Vector3(float(x2), float(y2), float(z2))
-    tri = renmas.shapes.Triangle(p0, p1, p2, mat_idx)
-
-    geometry.add_shape(tri)
-    return tri
-    
 def create_spectrum(r, g, b):
     spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
     return spectrum
@@ -36,18 +24,13 @@ def create_spectrum(r, g, b):
 def lst_lights():
     return light_db.get_lights()
 
-def create_point_light(name, pos, spectrum):
-    x, y, z = pos
-    r, g, b = spectrum
-    spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
-    pos = renmas.maths.Vector3(float(x), float(y), float(z))
-    plight = renmas.lights.PointLight(pos, spectrum) 
-    light_db.add_light(plight)
-    return plight
+def lst_materials():
+    return mat_db.get_materials()
+
 
 def create_lambertian(name, r, g, b):
     spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
-    lamb = renmas.materials.Lambertian(spectrum)
+    lamb = renmas.materials.LambertianBRDF(spectrum)
     mat = renmas.materials.Material()
     mat.add_component(lamb)
     mat_db.add_material(name, mat) 
@@ -89,24 +72,6 @@ def get_material(idx):
 
 def get_mat_idx(name):
     return mat_db.get_idx(name)
-
-def pinhole_camera(eye, lookat, distance=100):
-    ex, ey, ez = eye
-    lx, ly, lz = lookat
-    eye = renmas.maths.Vector3(float(ex), float(ey), float(ez))
-    lookat = renmas.maths.Vector3(float(lx), float(ly), float(lz))
-    cam = renmas.camera.PinholeCamera(eye, lookat, float(distance))
-    global camera
-    camera = cam
-    return cam
-    
-def create_sphere(x, y, z, radius, mat=99999):
-    v1 = renmas.maths.Vector3(float(x), float(y), float(z))
-    sphere = renmas.shapes.Sphere(v1, float(radius), mat)
-
-    geometry.add_shape(sphere)
-    return sphere
-
 
 def random_sphere():
     x = random.random() * 10.0 - 5.0
@@ -203,23 +168,145 @@ def get_tiles(width, height, nsamples):
     #print(tiles)
     return tiles
 
-def create_random_sampler(width, height, nsamples):
-    sam = renmas.samplers.RandomSampler(width, height, n=nsamples)
+
+def create_material(name):
+    mat = renmas.materials.Material()
+
+    mat_db.add_material(name, mat) 
+    return mat
+
+def add_brdf(material_name, props):
+    # props is dict with properties
+    brdf_name = props.get("type", "")
+    if brdf_name == "lambertian":
+        #he has reflectence properties for three channels
+        r, g, b = props["R"]
+        spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
+        lamb = renmas.materials.LambertianBRDF(spectrum)
+        mat = mat_db.mat(material_name) 
+        mat.add_component(lamb)
+    else:
+        raise ValueError("unknown brdf name")
+
+def create_random_sampler(props):
+    width = props["width"]
+    height = props["height"]
+    nsamples = props.get("nsamples", 1)
+    pixel_size = props.get("pixel", 1.0)
+    sam = renmas.samplers.RandomSampler(width, height, n=nsamples, pixel=float(pixel_size))
     global sampler
     sampler = sam 
     return sam
+
+def create_regular_sampler(props):
+    width = props["width"]
+    height = props["height"]
+    pixel_size = props.get("pixel", 1.0)
+    sam = renmas.samplers.RegularSampler(width, height, pixel=float(pixel_size))
+    global sampler
+    sampler = sam 
+    return sam
+
+def create_sampler(props):
+    
+    typ_sampler = props.get("type", "")
+    if typ_sampler == "random":
+        return create_random_sampler(props)
+    elif typ_sampler == "regular":
+        return create_regular_sampler(props)
+    else:
+        raise ValueError("unknown type of sampler")
+
+def create_pinhole_camera(props):
+    ex, ey, ez = props["eye"] 
+    lx, ly, lz = props["lookat"] 
+    distance = props.get("distance", 100)
+
+    eye = renmas.maths.Vector3(float(ex), float(ey), float(ez))
+    lookat = renmas.maths.Vector3(float(lx), float(ly), float(lz))
+    cam = renmas.camera.PinholeCamera(eye, lookat, float(distance))
+    global camera
+    camera = cam
+    return cam
+
+def create_camera(props):
+
+    typ_camera = props.get("type", "")
+    if typ_camera =="pinhole":
+        return create_pinhole_camera(props)
+    else:
+        raise ValueError("unknown type of camera")
+
+def create_film(props):
+    width = props["width"]
+    height = props["height"]
+    nsamples = props.get("nsamples", 1)
+
+    fil = renmas.core.Film(width, height, nsamples)
+    global film
+    film = fil
+    return fil
+
+def create_point_light(props):
+    name = props.get("name", "unknown")
+    x, y, z = props["position"]
+    r, g, b, = props["spectrum"]
+
+    spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
+    pos = renmas.maths.Vector3(float(x), float(y), float(z))
+    plight = renmas.lights.PointLight(pos, spectrum) 
+    light_db.add_light(plight)
+    return plight
+
+def create_light(props):
+    typ_light = props.get("type", "")
+    if typ_light == "point":
+        return create_point_light(props)
+    else:
+        raise ValueError("unknown type of light")
+
+def create_sphere(props):
+    x, y, z = props["position"]
+    radius = props["radius"]
+    name = props["material"]
+
+    idx = get_mat_idx(name)
+
+    v1 = renmas.maths.Vector3(float(x), float(y), float(z))
+    sphere = renmas.shapes.Sphere(v1, float(radius), idx)
+
+    geometry.add_shape(sphere)
+    return sphere
+
+def create_triangle(props):
+    x0, y0, z0 = props["p0"] 
+    x1, y1, z1 = props["p1"] 
+    x2, y2, z2 = props["p2"] 
+    name = props["material"]
+    mat_idx = get_mat_idx(name)
+
+    p0 = renmas.maths.Vector3(float(x0), float(y0), float(z0))
+    p1 = renmas.maths.Vector3(float(x1), float(y1), float(z1))
+    p2 = renmas.maths.Vector3(float(x2), float(y2), float(z2))
+    tri = renmas.shapes.Triangle(p0, p1, p2, mat_idx)
+
+    geometry.add_shape(tri)
+    return tri
+    
+def create_shape(props):
+    type_shape = props.get("type", "")
+    if type_shape == "sphere":
+        return create_sphere(props)
+    elif type_shape == "triangle":
+        return create_triangle(props)
+    else:
+        raise ValueError("unknown type of shape")
 
 def get_sampler():
     return sampler
 
 def get_camera():
     return camera
-
-def create_film(width, height, nsamples):
-    fil = renmas.core.Film(width, height, nsamples)
-    global film
-    film = fil
-    return fil
 
 def get_film():
     return film

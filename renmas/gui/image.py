@@ -105,8 +105,10 @@ class ImageFloatRGBA:
     def set_pixel(self, x, y, r, g, b, a=0.99):
         #y = self.height - y - 1 # for flipping image
         #clipping 
-        if x < 0 or x >= self.width: return
-        if y < 0 or y >= self.height: return
+        if x < 0 or x >= self.width: 
+            raise ValueError("Out of bounds:x=" + str(x) + " y=" + str(y) + " width=" + str(self.width) + " height=" + str(self.height))
+        if y < 0 or y >= self.height: 
+            raise ValueError("Out of bounds:x=" + str(x) + " y=" + str(y) + " width=" + str(self.width) + " height=" + str(self.height))
         adr = y * self.pitch + x * 16
 
         x86.SetFloat(self.pixels.ptr()+adr, (r, g, b, a), 0)

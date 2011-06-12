@@ -53,7 +53,6 @@ class LambertianBRDF:
         return self.spectrum.mix_spectrum(hitpoint.spectrum) * hitpoint.ndotwi  
 
     def brdf_asm(self):
-        asm_structs = util.structs("hitpoint")
         
         #eax pointer to hitpoint
         name = "lamb" + str(hash(self))
@@ -61,7 +60,6 @@ class LambertianBRDF:
         ASM = """
         #DATA
         """
-        ASM += asm_structs
         ASM += "float " + name + "spectrum[4] \n" 
         ASM += "#CODE \n"
         ASM += "macro eq128 xmm0 = " + name + "spectrum * eax.hitpoint.spectrum\n"  
@@ -76,12 +74,70 @@ class LambertianBRDF:
         name = "lamb" + str(hash(self)) + "spectrum"
         ds[name] = (s.r, s.g, s.b, 0.0)
 
-class MaterialNew:
+class Material:
     def __init__(self):
         self.components = []
-        pass
+        self.ds = None
+        self.func_ptr = None
 
-class Material:
+    def add_component(self, component):
+        self.components.append(component)
+
+    def brdf(self, hitpoint):
+        spectrum = renmas.core.Spectrum(0.0, 0.0, 0.0) 
+        for c in self.components:
+            spectrum = spectrum + c.brdf(hitpoint)
+        
+        hitpoint.spectrum = spectrum
+        return spectrum 
+
+    def brdf_asm(self, runtime):
+
+        asm_structs = util.structs("hitpoint")
+        #eax pointer to hitpoint
+        ASM = """ 
+        #DATA
+        """
+        ASM += asm_structs + """
+        float zero_spectrum[4] = 0.0, 0.0, 0.0, 0.0
+        float spectrum[4] 
+        uint32 hp_ptr
+
+        #CODE
+        mov dword [hp_ptr], eax ;save pointer to hitpoint
+        macro eq128 spectrum = zero_spectrum
+        """
+
+        for c in self.components:
+            ASM += c.brdf_asm()
+            #in xmm0 is spectrum from component so we acumulate spectrum
+            ASM += """
+                macro eq128 spectrum = spectrum + xmm0
+                mov eax, dword [hp_ptr]
+            """
+        ASM += """
+        mov eax, dword [hp_ptr]
+        macro eq128 eax.hitpoint.spectrum = spectrum
+        ret
+
+        """
+
+        #print(ASM)
+
+        assembler = util.get_asm()
+        mc = assembler.assemble(ASM, True)
+        #mc.print_machine_code()
+        name = "material" + str(util.unique())
+
+        self.ds = runtime.load(name, mc)
+        #FIXME - add method to runtime class so we can ask runtime for address of module
+        self.func_ptr = runtime.modules[name][0]
+
+        for c in self.components:
+            c.populate_ds(self.ds)
+
+
+class OldMaterial:
     def __init__(self):
         self.components = []
 

@@ -16,7 +16,7 @@ img = renmas.gui.load_image("Koala.jpg")
 blt_img_to_window(10, 10, blitter, img, win)
 
 # for now just png is supported.
-renmas.gui.save_image("Novakoala.png", img)
+renmas.gui.save_image("Novakoala3.png", img)
 
 win.redraw()
 winlib.MainLoop()

@@ -20,6 +20,8 @@ class PointLight:
         wi = self.position - hitpoint.hit_point
         wi.normalize()
         ndotwi = hitpoint.normal.dot(wi)
+        hitpoint.wi = wi 
+        hitpoint.ndotwi = ndotwi
         if ndotwi < 0.0: # ray strike back of object so that mean point is not visible to light. dielectric?? FIXME
             hitpoint.visible = False
             return False
@@ -31,8 +33,6 @@ class PointLight:
         else: #think copy of spectrum ?? FIXME
             hitpoint.spectrum = self.spectrum #TODO reduce intesity, attenuation options  1/r^2
             hitpoint.visible = True
-            hitpoint.wi = wi 
-            hitpoint.ndotwi = ndotwi
             return True
 
     def L_asm(self, runtime, visible_label):

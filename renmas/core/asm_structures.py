@@ -20,6 +20,17 @@ PLANE = """
     uint32 mat_index
     end struct
 """
+RECTANGLE = """
+    struct rectangle
+    float point[4] 
+    float normal[4]
+    float edge_a[4]
+    float edge_b[4]
+    float edge_a_squared
+    float edge_b_squared
+    uint32 mat_index
+    end struct
+"""
 
 TRIANGLE = """
     struct triangle
@@ -38,10 +49,12 @@ HITPOINT = """
     float wi[4]
     float wo[4]
     float spectrum[4]
+    float brdf[4]
     float t
     uint32 mat_index
     uint32 visible 
     float ndotwi
+    float pdf
     end struct
 """
 
@@ -74,6 +87,7 @@ structures = {
         "material": MATERIAL,
         "pointlight":POINT_LIGHT,
         "plane": PLANE,
+        "rectangle": RECTANGLE,
         "triangle": TRIANGLE,
         "sample": SAMPLE
         }

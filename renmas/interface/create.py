@@ -169,9 +169,15 @@ def get_tiles(width, height, nsamples):
     return tiles
 
 
-def create_material(name):
-    mat = renmas.materials.Material()
+def create_material(props):
+    name = props.get("name", "")
+    sampling = props.get("sampling", None)
 
+    mat = renmas.materials.Material()
+    if sampling is not None:
+        if sampling == "hemisphere_cos":
+            sampling = renmas.materials.HemisphereCos()
+            mat.add_sampling(sampling)
     mat_db.add_material(name, mat) 
     return mat
 
@@ -181,10 +187,26 @@ def add_brdf(material_name, props):
     if brdf_name == "lambertian":
         #he has reflectence properties for three channels
         r, g, b = props["R"]
+        k = props.get("k", None)
         spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
-        lamb = renmas.materials.LambertianBRDF(spectrum)
+        lamb = renmas.materials.LambertianBRDF(spectrum, k)
         mat = mat_db.mat(material_name) 
         mat.add_component(lamb)
+    elif brdf_name == "constant":
+        r, g, b = props["R"]
+        k = props.get("k", None)
+        spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
+        c = renmas.materials.ConstantBRDF(spectrum, k)
+        mat = mat_db.mat(material_name) 
+        mat.add_component(c)
+    elif brdf_name == "phong":
+        r, g, b = props["R"]
+        e = props["e"]
+        k = props.get("k", None)
+        spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
+        c = renmas.materials.PhongBRDF(spectrum, float(e), k)
+        mat = mat_db.mat(material_name) 
+        mat.add_component(c)
     else:
         raise ValueError("unknown brdf name")
 
@@ -292,13 +314,32 @@ def create_triangle(props):
 
     geometry.add_shape(tri)
     return tri
-    
+
+def create_rectangle(props):
+    x, y, z = props["p"] 
+    nx, ny, nz = props["normal"] 
+    eda_x, eda_y, eda_z = props["edge_a"] 
+    edb_x, edb_y, edb_z = props["edge_b"] 
+    name = props["material"]
+    mat_idx = get_mat_idx(name)
+
+    p = renmas.maths.Vector3(float(x), float(y), float(z))
+    n = renmas.maths.Vector3(float(nx), float(ny), float(nz))
+    edge_a = renmas.maths.Vector3(float(eda_x), float(eda_y), float(eda_z))
+    edge_b = renmas.maths.Vector3(float(edb_x), float(edb_y), float(edb_z))
+
+    rect = renmas.shapes.Rectangle(p, edge_a, edge_b, n,  mat_idx)
+    geometry.add_shape(rect)
+    return rect
+
 def create_shape(props):
     type_shape = props.get("type", "")
     if type_shape == "sphere":
         return create_sphere(props)
     elif type_shape == "triangle":
         return create_triangle(props)
+    elif type_shape == "rectangle":
+        return create_rectangle(props)
     else:
         raise ValueError("unknown type of shape")
 

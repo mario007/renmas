@@ -37,8 +37,8 @@ def save_image(film, name):
     renmas.gui.save_image(name, img)
     return None
 
-WIDTH = 300 
-HEIGHT = 300 
+WIDTH = 600 
+HEIGHT = 600 
 NSAMPLES = 128 
 
 lst_tiles = ren.get_tiles(WIDTH, HEIGHT, NSAMPLES)
@@ -51,7 +51,7 @@ def next_tile():
     return lst_tiles[ntile]
 
 def build_scene3():
-    s_props = {"type":"random", "pixel":1.0, "width": WIDTH, "height": HEIGHT, "nsamples": NSAMPLES}
+    s_props = {"type":"random", "pixel":0.5, "width": WIDTH, "height": HEIGHT, "nsamples": NSAMPLES}
     s =ren.create_sampler(s_props)
 
     c_props = {"type":"pinhole", "eye":(27.6, 27.4, -80), "lookat":(27.6, 27.4, 0.0), "distance":400}
@@ -61,7 +61,7 @@ def build_scene3():
     f = ren.create_film(f_props)
 
     #create lights
-    l_props = {"type":"point", "name": "light1", "position":(25,50,25), "spectrum":(2.99,2.99,2.99)}
+    l_props = {"type":"point", "name": "light1", "position":(26,48,20), "spectrum":(3.99,3.99,3.99)}
     l = ren.create_light(l_props)
 
     m_props = {"name": "m1", "sampling":"hemisphere_cos"}
@@ -74,7 +74,7 @@ def build_scene3():
     m_props = {"type":"lambertian", "R":(0.342, 0.015, 0.015)} # left wall- red wall
     ren.add_brdf("m2", m_props)
 
-    m_props = {"name": "m3", "sampling":"hemisphere_cos"}
+    m_props = {"name": "m3", "sampling": "hemisphere_cos"}
     m = ren.create_material(m_props)
     m_props = {"type":"lambertian", "R":(0.222, 0.354, 0.12)} # right wall- green wall
     ren.add_brdf("m3", m_props)
@@ -98,7 +98,6 @@ def build_scene3():
     #ceiling
     sh_props = {"type":"rectangle", "p":(0.0, 54.88, 0.0), "edge_a":(0.0, 0.0, 55.92), "edge_b":(55.28, 0.0, 0.0), "normal":(0.0, -1.0, 0.0) ,"material":"m1"}
     s = ren.create_shape(sh_props)
-
     # short box
     #top
     sh_props = {"type":"rectangle", "p":(13.0, 16.5, 6.5), "edge_a":(-4.8, 0.0, 16.0), "edge_b":(16.0, 0.0, 4.9), "normal":(0.0, 1.0, 0.0) ,"material":"m1"}
@@ -133,129 +132,6 @@ def build_scene3():
     sh_props = {"type":"rectangle", "p":(47.2, 0.0, 40.6), "edge_a":(-4.9, 0.0, -15.9), "edge_b":(0.0, 33.0, 0.0), "normal":(-0.95564, 0.0, 0.2945) ,"material":"m1"}
     s = ren.create_shape(sh_props)
 
-
-def build_scene2():
-    s_props = {"type":"random", "pixel":0.8, "width": WIDTH, "height": HEIGHT, "nsamples": NSAMPLES}
-    s =ren.create_sampler(s_props)
-
-    c_props = {"type":"pinhole", "eye":(0.278, 0.275, -0.789), "lookat":(0,0,1), "distance":380}
-    c = ren.create_camera(c_props)
-
-    f_props = {"width": WIDTH, "height": HEIGHT, "nsamples": NSAMPLES}
-    f = ren.create_film(f_props)
-
-    #create lights
-    l_props = {"type":"point", "name": "light1", "position":(0.2,0.5,0.2), "spectrum":(0.99,0.99,0.99)}
-    l = ren.create_light(l_props)
-
-
-    m_props = {"type":"lambertian", "R":(0.99, 0.0, 0.0)}
-    m = ren.create_material("m1")
-    ren.add_brdf("m1", m_props)
-
-    m_props = {"type":"lambertian", "R":(0.00, 0.99, 0.0)}
-    m = ren.create_material("m2")
-    ren.add_brdf("m2", m_props)
-
-    m_props = {"type":"lambertian", "R":(0.00, 0.00, 0.99)}
-    m = ren.create_material("m3")
-    ren.add_brdf("m3", m_props)
-
-    m_props = {"type":"lambertian", "R":(0.00, 0.99, 0.99)}
-    m = ren.create_material("m4")
-    ren.add_brdf("m4", m_props)
-
-    m_props = {"type":"lambertian", "R":(0.99, 0.0, 0.99)}
-    m = ren.create_material("m5")
-    ren.add_brdf("m5", m_props)
-
-    m_props = {"type":"lambertian", "R":(0.99, 0.99, 0.00)}
-    m = ren.create_material("m6")
-    ren.add_brdf("m6", m_props)
-
-    m_props = {"type":"lambertian", "R":(0.55, 0.22, 0.88)}
-    m = ren.create_material("m7")
-    ren.add_brdf("m7", m_props)
-
-    #create triangles for cornell
-    ## FLOOR
-    sh_props = {"type":"triangle", "p0":(0.556,0.0,0.0), "p1":(0.006, 0.0, 0.559), "p2":(0.556, 0.0, 0.559) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    sh_props = {"type":"triangle", "p0":(0.006,0.0,0.559), "p1":(0.556, 0.0, 0.0), "p2":(0.003, 0.0, 0.0) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    ## BACK WALL
-    sh_props = {"type":"triangle", "p0":(0.556,0.0,0.559), "p1":(0.0, 0.549, 0.559), "p2":(0.556, 0.549, 0.559) ,"material":"m2"}
-    s = ren.create_shape(sh_props)
-    sh_props = {"type":"triangle", "p0":(0.0,0.549,0.559), "p1":(0.556, 0.0, 0.559), "p2":(0.006, 0.0, 0.559) ,"material":"m2"}
-    s = ren.create_shape(sh_props)
-    # RIGHT WALL
-    sh_props = {"type":"triangle", "p0":(0.006,0.0,0.559), "p1":(0.0, 0.549, 0.0), "p2":(0.0, 0.549, 0.559) ,"material":"m3"}
-    s = ren.create_shape(sh_props)
-    sh_props = {"type":"triangle", "p0":(0.0,0.549,0.0), "p1":(0.006, 0.0, 0.559), "p2":(0.003, 0.0, 0.0) ,"material":"m3"}
-    s = ren.create_shape(sh_props)
-    ## LEFT WALL
-    sh_props = {"type":"triangle", "p0":(0.556,0.0,0.0), "p1":(0.556, 0.549, 0.559), "p2":(0.556, 0.549, 0.0) ,"material":"m4"}
-    s = ren.create_shape(sh_props)
-    sh_props = {"type":"triangle", "p0":(0.556,0.549,0.559), "p1":(0.556, 0.0, 0.0), "p2":(0.556, 0.0, 0.559) ,"material":"m4"}
-    s = ren.create_shape(sh_props)
-    ## TOP
-    sh_props = {"type":"triangle", "p0":(0.556,0.549,0.559), "p1":(0.0, 0.549, 0.0), "p2":(0.556, 0.549, 0.0) ,"material":"m5"}
-    s = ren.create_shape(sh_props)
-    sh_props = {"type":"triangle", "p0":(0.0,0.549,0.0), "p1":(0.556, 0.549, 0.559), "p2":(0.0, 0.549, 0.559) ,"material":"m5"}
-    s = ren.create_shape(sh_props)
-
-    #veca kocka - gornji dio
-    sh_props = {"type":"triangle", "p0":(0.133,0.330,0.247), "p1":(0.291, 0.330, 0.296), "p2":(0.242, 0.330, 0.456) ,"material":"m6"}
-    s = ren.create_shape(sh_props)
-    sh_props = {"type":"triangle", "p0":(0.242,0.330,0.456), "p1":(0.084, 0.330, 0.406), "p2":(0.133, 0.330, 0.247) ,"material":"m6"}
-    s = ren.create_shape(sh_props)
-
-    sh_props = {"type":"triangle", "p0":(0.133,0.000,0.247), "p1":(0.133, 0.330, 0.247), "p2":(0.084, 0.330, 0.406) ,"material":"m6"}
-    s = ren.create_shape(sh_props)
-    sh_props = {"type":"triangle", "p0":(0.084,0.330,0.406), "p1":(0.084, 0.000, 0.406), "p2":(0.133, 0.000, 0.247) ,"material":"m6"}
-    s = ren.create_shape(sh_props)
-
-    sh_props = {"type":"triangle", "p0":(0.084,0.000,0.406), "p2":(0.084, 0.330, 0.406), "p1":(0.242, 0.330, 0.456) ,"material":"m6"}
-    s = ren.create_shape(sh_props)
-    sh_props = {"type":"triangle", "p0":(0.242,0.330,0.456), "p2":(0.242, 0.000, 0.456), "p1":(0.084, 0.000, 0.406) ,"material":"m6"}
-    s = ren.create_shape(sh_props)
-
-    sh_props = {"type":"triangle", "p0":(0.242,0.000,0.456), "p1":(0.242, 0.330, 0.456), "p2":(0.291, 0.330, 0.296) ,"material":"m6"}
-    s = ren.create_shape(sh_props)
-    sh_props = {"type":"triangle", "p0":(0.291,0.330,0.296), "p1":(0.291, 0.000, 0.296), "p2":(0.242, 0.000, 0.456) ,"material":"m6"}
-    s = ren.create_shape(sh_props)
-
-    sh_props = {"type":"triangle", "p0":(0.291,0.000,0.296), "p2":(0.291, 0.330, 0.296), "p1":(0.133, 0.330, 0.247) ,"material":"m6"}
-    s = ren.create_shape(sh_props)
-    sh_props = {"type":"triangle", "p0":(0.133,0.330,0.247), "p2":(0.133, 0.000, 0.247), "p1":(0.291, 0.000, 0.296) ,"material":"m6"}
-    s = ren.create_shape(sh_props)
-
-    ## gornji dio manje kocke
-    sh_props = {"type":"triangle", "p0":(0.474,0.165,0.225), "p1":(0.426, 0.165, 0.065), "p2":(0.316, 0.165, 0.272) ,"material":"m7"}
-    s = ren.create_shape(sh_props)
-    sh_props = {"type":"triangle", "p0":(0.266,0.165,0.114), "p1":(0.316, 0.165, 0.272), "p2":(0.426, 0.165, 0.065) ,"material":"m7"}
-    s = ren.create_shape(sh_props)
-
-    sh_props = {"type":"triangle", "p0":(0.266,0.00,0.114), "p1":(0.266, 0.165, 0.114), "p2":(0.316, 0.165, 0.272) ,"material":"m7"}
-    s = ren.create_shape(sh_props)
-    sh_props = {"type":"triangle", "p0":(0.316,0.00,0.272), "p1":(0.266, 0.000, 0.114), "p2":(0.316, 0.165, 0.272) ,"material":"m7"}
-    s = ren.create_shape(sh_props)
-
-    sh_props = {"type":"triangle", "p0":(0.316,0.000,0.272), "p1":(0.316, 0.165, 0.272), "p2":(0.474, 0.165, 0.225) ,"material":"m7"}
-    s = ren.create_shape(sh_props)
-    sh_props = {"type":"triangle", "p0":(0.474,0.165,0.225), "p1":(0.316, 0.000, 0.272), "p2":(0.474, 0.000, 0.225) ,"material":"m7"}
-    s = ren.create_shape(sh_props)
-
-    sh_props = {"type":"triangle", "p0":(0.474,0.000,0.225), "p1":(0.474, 0.165, 0.225), "p2":(0.426, 0.165, 0.065) ,"material":"m7"}
-    s = ren.create_shape(sh_props)
-    sh_props = {"type":"triangle", "p0":(0.426,0.165,0.065), "p1":(0.426, 0.000, 0.065), "p2":(0.474, 0.000, 0.225) ,"material":"m7"}
-    s = ren.create_shape(sh_props)
-
-    sh_props = {"type":"triangle", "p0":(0.436,0.000,0.065), "p1":(0.426, 0.165, 0.065), "p2":(0.266, 0.165, 0.114) ,"material":"m7"}
-    s = ren.create_shape(sh_props)
-    sh_props = {"type":"triangle", "p0":(0.266,0.165,0.114), "p1":(0.266, 0.000, 0.114), "p2":(0.426, 0.000, 0.065) ,"material":"m7"}
-    s = ren.create_shape(sh_props)
-
 def build_scene():
     s_props = {"type":"random", "pixel":1.0, "width": WIDTH, "height": HEIGHT, "nsamples": NSAMPLES}
     s =ren.create_sampler(s_props)
@@ -266,24 +142,20 @@ def build_scene():
     f_props = {"width": WIDTH, "height": HEIGHT, "nsamples": NSAMPLES}
     f = ren.create_film(f_props)
 
-    l_props = {"type":"point", "name": "light1", "position":(6,7,9), "spectrum":(2.99,2.99,2.99)}
+    l_props = {"type":"point", "name": "light1", "position":(6,7,9), "spectrum":(0.99,0.99,0.99)}
     l = ren.create_light(l_props)
 
-    m_props = {"type":"phong", "R":(0.22, 0.63, 0.53), "e": 12.2, "k":0.3}
+    m_props = {"type":"phong", "R":(0.99, 0.99, 0.99), "e": 20.2, "k":0.5}
     m = ren.create_material("m1")
     ren.add_brdf("m1", m_props)
 
-    m_props = {"type":"lambertian", "R":(0.22, 0.63, 0.53), "k":0.6}
+    m_props = {"type":"lambertian", "R":(0.22, 0.63, 0.53), "k":0.8}
     ren.add_brdf("m1", m_props)
 
     sh_props = {"type":"sphere", "position":(0,0,0), "radius":2, "material":"m1"}
     s = ren.create_shape(sh_props)
 
 build_scene3()
-#v1 = renmas.maths.Vector3(55.28, 47.657430, 43.70494)
-#v2 = renmas.maths.Vector3(25.0, 50.0, 25.0)
-#ret = renmas.shapes.visible(v1, v2)
-#print(ret)
 
 image_saved = False
 duration = 0.0
@@ -319,17 +191,43 @@ def raycast():
         ray = camera.ray(sample)
         hp = isect(ray, shapes, 999999.0)
 
-        if sample.ix == 10 and sample.iy == 1650:
-            print(hp.hit_point)
-            print(sample.ix, sample.iy, hp.spectrum)
-            #import pdb; pdb.set_trace()
-
         if hp is None:
+            hp2.spectrum = background
             film.add_sample(sample, hp2) #background
+            continue
         else:
             hp.wo = ray.dir * -1.0
             shade(hp)
-            film.add_sample(sample, hp) #background
+            #film.add_sample(sample, hp) #background
+            #continue
+
+        #emissive -- stop
+        #TODO
+
+        #first depth
+        o = hp.hit_point
+        d = hp.wi
+        kr = hp.brdf * (1.0 / hp.pdf) * hp.ndotwi
+        ray1 = renmas.core.Ray(o, d)
+
+        s = hp.spectrum
+        spec = renmas.core.Spectrum(s.r, s.g, s.b)
+
+        hp = isect(ray1, shapes, 999999.0)
+        if hp is None:
+            #spec2 = spec + kr.mix_spectrum(background)
+            spec2 = spec 
+            hp2.spectrum = spec2
+            film.add_sample(sample, hp2) #background
+            continue
+        else:
+            hp.wo = ray.dir * -1.0
+            shade(hp)
+
+            spec2 = spec + hp.spectrum.mix_spectrum(kr)
+            hp.spectrum = spec2
+            film.add_sample(sample, hp) 
+
 
     blt_float_img_to_window(0, 0, film.image, win)
     end = time.clock()
@@ -350,6 +248,8 @@ ASM += asm_structs + """
     uint32 end_sam
     float back[4] = 0.00, 0.00, 0.00, 0.00
     float minus_one[4] = -1.0, -1.0, -1.0, 0.0
+    float kr[4]
+    float spec1[4]
 
 #CODE
     macro eq128 background.spectrum = back
@@ -385,15 +285,55 @@ ASM += asm_structs + """
     macro eq128 eax.hitpoint.wo = ebx.ray.dir * minus_one 
     call shade
     ; add_sample to film
-    mov eax, hp
-    mov ebx, sam 
-    call add_sample
-    jmp _next_sample
+    ;mov eax, hp
+    ;mov ebx, sam 
+    ;call add_sample
+    jmp _depth1
 
     _background: ; add background sample to film
     mov eax, background
     mov ebx, sam
     call add_sample
+    jmp _next_sample
+
+    _depth1:
+    mov eax, r1
+    mov ebx, hp
+    macro eq128 eax.ray.origin = ebx.hitpoint.hit 
+    macro eq128 eax.ray.dir = ebx.hitpoint.wi
+    macro eq32 xmm0 = ebx.hitpoint.ndotwi 
+    macro eq32 xmm1 = ebx.hitpoint.pdf
+    macro eq32 xmm0 = xmm0 / xmm1
+    macro broadcast xmm0 = xmm0[0]
+    macro eq128 xmm0 = xmm0 * ebx.hitpoint.brdf
+    macro eq128 kr = xmm0
+    macro eq128 spec1 = ebx.hitpoint.spectrum
+
+    call scene_isect 
+    cmp eax, 0
+    je _background1
+    ; call shading routine
+    mov eax, hp
+    mov ebx, r1
+    macro eq128 eax.hitpoint.wo = ebx.ray.dir * minus_one 
+    call shade
+
+    ; add_sample to film
+    mov eax, hp
+    mov ebx, sam 
+    macro eq128 xmm0 = eax.hitpoint.spectrum * kr
+    macro eq128 xmm0 = xmm0 + spec1
+    macro eq128 eax.hitpoint.spectrum = xmm0
+    call add_sample
+
+    jmp _next_sample
+
+    _background1:
+    mov eax, hp
+    macro eq128 eax.hitpoint.spectrum = spec1
+    mov ebx, sam
+    call add_sample
+
 
     jmp _next_sample
 
@@ -402,6 +342,8 @@ ASM += asm_structs + """
     mov dword [end_sam], 0
 #END
 """
+
+
 runtime = Runtime()
 ren.get_sampler().get_sample_asm(runtime, "get_sample")
 ren.get_camera().ray_asm(runtime, "generate_ray")
@@ -453,4 +395,5 @@ win.redraw()
 win.render_handler(raycast_asm)
 #win.render_handler(raycast)
 winlib.MainLoop()
+
 

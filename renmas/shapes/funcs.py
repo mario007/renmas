@@ -147,11 +147,13 @@ def lst_shapes():
     return geometry.shapes()
 
 def visible(p1, p2):
+
     lst_objects = lst_shapes()
     epsilon = 0.00001
     direction = p2 - p1
 
     distance = direction.length() - epsilon # self intersection!!! visiblity
+
     ray = renmas.core.Ray(p1, direction.normalize())
     hp = isect(ray, lst_objects, 999999.0)
 
@@ -195,7 +197,7 @@ def visible_asm(runtime, label, ray_scene_isect):
     hitpoint hp
     ray r1
     float distance
-    float epsilon = 0.0001
+    float epsilon = 0.0005
 
     #CODE
     """

@@ -64,6 +64,13 @@ def load_func(runtime, *names):
         if not runtime.global_exists(name):
             if name == "random":
                 renmas.core.Rng.random_float(runtime, "random")
+            elif name == "fast_pow_ss":
+                renmas.maths.load_math_func("fast_pow_ss", runtime)
+            elif name == "fast_pow_ps":
+                renmas.maths.load_math_func("fast_pow_ps", runtime)
+            elif name == "fast_sincos_ps":
+                renmas.maths.load_math_func("fast_sincos_ps", runtime)
+
             pass # load that function
 
 def normalization(xmm, tmp1, tmp2):
@@ -88,4 +95,27 @@ def normalization(xmm, tmp1, tmp2):
     code = line0 + line1 + line2 + line3 + line4 
     return code
 
+# xmm1 x xmm2  - result is in xmm1
+def cross_product(xmm1, xmm2, tmp1, tmp2):
+
+    ASM = "\n#CODE \n"
+    ASM += "macro eq128 " + tmp1 + " = " + xmm1 + "\n" 
+    ASM += "macro eq128 " + tmp2 + " = " + xmm2 + "\n"
+    if AVX:
+        ASM += "vshufps " + xmm1 + "," + xmm1 + ","  + xmm1 + ", 0xC9 \n" 
+        ASM += "vshufps " + xmm2 + "," + xmm2 + ","  + xmm2 + ", 0xD2 \n" 
+        ASM += "macro eq128 " + xmm1 + " = " + xmm1 + "*" + xmm2 + " \n" 
+        ASM += "vshufps " + tmp1 + "," + tmp1 + ","  + tmp1 + ", 0xD2 \n" 
+        ASM += "vshufps " + tmp2 + "," + tmp2 + ","  + tmp2 + ", 0xC9 \n" 
+    else:
+        ASM += "shufps " + xmm1 + ","  + xmm1 + ", 0xC9 \n" 
+        ASM += "shufps " + xmm2 + ","  + xmm2 + ", 0xD2 \n" 
+        ASM += "macro eq128 " + xmm1 + " = " + xmm1 + "*" + xmm2 + " \n" 
+        ASM += "shufps " + tmp1 + ","  + tmp1 + ", 0xD2 \n" 
+        ASM += "shufps " + tmp2 + ","  + tmp2 + ", 0xC9 \n" 
+
+    ASM += "macro eq128 " + tmp1 + " = " + tmp1 + " * " + tmp2 + "\n"
+    ASM += "macro eq128 " + xmm1 + " = " + xmm1 + " - " + tmp1 + "\n"
+
+    return ASM
 

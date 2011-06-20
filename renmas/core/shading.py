@@ -1,14 +1,25 @@
 import renmas
 
 def shade(hp):
+    # emisive material
+
+    # direct illumination
     #loop through lights
     lights = renmas.interface.lst_lights()
     tmp_spec = renmas.core.Spectrum(0.0, 0.0, 0.0)
     for light in lights:
         if light.L(hp) is True: #light is visible
             renmas.interface.get_material(hp.material).brdf(hp)
-            tmp_spec = tmp_spec + hp.spectrum
+            tmp_spec = tmp_spec + (hp.spectrum.mix_spectrum(hp.brdf) * hp.ndotwi)
     hp.spectrum = tmp_spec
+
+    # indirect illumination
+    #to calculate next direction
+    # first calculate next direction i pdf - next direction is in wi
+
+    m = renmas.interface.get_material(hp.material)
+    m.next_direction(hp)
+
     return hp
 
 def generate_shade(runtime, label,  visible_label):
@@ -28,6 +39,7 @@ def generate_shade(runtime, label,  visible_label):
     ASM += asm_structs
     ASM += "uint32 lights_ptrs[" + str(nlights) + "]\n"
     ASM += "uint32 materials_ptrs[" + str(nmaterials) + "]\n"
+    ASM += "uint32 brdf_samplings[" + str(nmaterials) + "]\n"
     ASM += "uint32 nlights \n"
     ASM += "uint32 cur_light \n"
     ASM += """
@@ -65,12 +77,19 @@ def generate_shade(runtime, label,  visible_label):
         mov ebx, dword [eax + hitpoint.mat_index]
         call dword [materials_ptrs + 4*ebx] 
         mov eax, dword [hp_ptr]
-        macro eq128 curr_spectrum = curr_spectrum + eax.hitpoint.spectrum
+        macro eq128 xmm0 = eax.hitpoint.spectrum * eax.hitpoint.brdf
+        macro eq32 xmm1 = eax.hitpoint.ndotwi
+        macro broadcast xmm1 = xmm1[0]
+        macro eq128 xmm0 = xmm0 * xmm1
+        macro eq128 curr_spectrum = curr_spectrum + xmm0 
         jmp next_light
 
         _end_shading:
         mov eax, dword [hp_ptr]
         macro eq128 eax.hitpoint.spectrum = curr_spectrum
+        ; call sampling of next direction of ray
+        mov ebx, dword [eax + hitpoint.mat_index]
+        call dword [brdf_samplings + 4*ebx] 
         ret
 
     """
@@ -81,9 +100,11 @@ def generate_shade(runtime, label,  visible_label):
         l_ptrs.append(l.func_ptr)
     l_ptrs = tuple(l_ptrs)
     m_ptrs = []
+    brdf_sampling_ptrs = []
     for m in materials:
         m.brdf_asm(runtime)
         m_ptrs.append(m.func_ptr)
+        brdf_sampling_ptrs.append(m.sampling_brdf_ptr)
     m_ptrs = tuple(m_ptrs)
 
     asm = renmas.utils.get_asm()
@@ -93,4 +114,5 @@ def generate_shade(runtime, label,  visible_label):
     ds["lights_ptrs"] = l_ptrs
     ds["materials_ptrs"] = m_ptrs
     ds["nlights"] = nlights
+    ds["brdf_samplings"] = tuple(brdf_sampling_ptrs)
 

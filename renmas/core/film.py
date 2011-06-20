@@ -67,6 +67,7 @@ class Film:
             float spectrum[4]
             float scale[4]
             float zero_spectrum[4] = 0.0, 0.0, 0.0, 0.0
+            float alpha_channel[4] = 0.0, 0.0, 0.0, 0.99
             uint32 nsamples 
             uint32 curn
             uint32 height 
@@ -78,6 +79,8 @@ class Film:
             jne _next_sample
             macro eq128 xmm0 = spectrum + eax.hitpoint.spectrum
             macro eq128 xmm0 = xmm0 * scale 
+            ;because of alpha channel - try solve this in better way
+            macro eq128 xmm0 = xmm0 + alpha_channel
 
             ;flip the image and call set pixel
             mov eax, dword [ebx + sample.ix]

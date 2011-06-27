@@ -45,6 +45,8 @@ class Film:
             iy = self.height - sample.iy - 1 #flip the image
 
             #print(sample.ix, iy, spec.r, spec.g, spec.b)
+            #if spec.r > 0.99 or spec.g > 0.99 or spec.b > 0.99:
+            #    print(spec)
             self.image.set_pixel(sample.ix, iy, spec.r, spec.g, spec.b)
             self.curn = self.nsamples
             self.spectrum = renmas.core.Spectrum(0.0, 0.0, 0.0)

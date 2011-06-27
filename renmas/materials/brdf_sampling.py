@@ -27,7 +27,8 @@ class HemisphereCos:
         pw = cos_theta
 
         w = hitpoint.normal
-        v = w.cross(renmas.maths.Vector3(0.0034, 1.0, 0.0071))
+        tv = renmas.maths.Vector3(0.0034, 1.0, 0.0071)
+        v = tv.cross(w)
         v.normalize()
         u = v.cross(w)
 
@@ -80,9 +81,9 @@ class HemisphereCos:
             js _calculate_samples
             _gen_direction:
             mov eax, dword [ptr_hp]
-            macro eq128 xmm0 = eax.hitpoint.normal
-            macro eq128 xmm7 = xmm0
-            macro eq128 xmm1 = tvector
+            macro eq128 xmm1 = eax.hitpoint.normal
+            macro eq128 xmm7 = xmm1
+            macro eq128 xmm0 = tvector
             
             """
         ASM += util.cross_product("xmm0", "xmm1", "xmm2", "xmm3") 

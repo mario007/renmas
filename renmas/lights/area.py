@@ -22,8 +22,10 @@ class AreaLight:
         len2 = wi.length_squared()
         wi.normalize()
         
-        wout = wi * -1.0
-        cos_light = wout.dot(hitpoint.light_normal)
+        #wout = wi * -1.0
+        #cos_light = wout.dot(hitpoint.light_normal)
+        cos_light = wi.dot(hitpoint.light_normal * -1.0)
+        #if cos_light < 0.0: cos_light = 0.0
         spectrum = self.spectrum * cos_light * (1.0 / (hitpoint.light_pdf * len2))
 
         ndotwi = hitpoint.normal.dot(wi)

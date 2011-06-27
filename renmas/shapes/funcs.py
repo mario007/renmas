@@ -214,6 +214,7 @@ def visible_asm(runtime, label, ray_scene_isect):
 
     mov eax, r1
     mov ebx, hp
+
     """
     ASM += "call " + ray_scene_isect + """
     cmp eax, 0

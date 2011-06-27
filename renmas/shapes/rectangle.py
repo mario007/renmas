@@ -42,6 +42,7 @@ class Rectangle:
         #DATA
         float epsilon = 0.0001
         float zero = 0.0
+
         """
         ASM += asm_structs + """
             ;eax = pointer to ray structure

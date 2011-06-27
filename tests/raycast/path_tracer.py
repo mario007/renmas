@@ -39,7 +39,7 @@ def save_image(film, name):
 
 WIDTH = 600 
 HEIGHT = 600 
-NSAMPLES = 128 
+NSAMPLES = 16 
 
 lst_tiles = ren.get_tiles(WIDTH, HEIGHT, NSAMPLES)
 ntile = -1 

@@ -97,7 +97,7 @@ def linear_isect_asm(runtime, label, dyn_arrays):
     ASM += "mov dword [hp], ebx \n"
     ASM += "mov edx , dword [zero] \n"
     ASM += "macro eq32 min_dist = max_dist + one\n"
-    ASM += "mov dword [eax + hitpoint.t], edx \n"
+    ASM += "mov dword [ebx + hitpoint.t], edx \n"
     
     
     code = ""
@@ -214,6 +214,7 @@ def visible_asm(runtime, label, ray_scene_isect):
 
     mov eax, r1
     mov ebx, hp
+
     """
     ASM += "call " + ray_scene_isect + """
     cmp eax, 0

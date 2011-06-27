@@ -18,6 +18,10 @@ class Rectangle:
         self.edge_a_squared = edge_a.length_squared()
         self.edge_b_squared = edge_b.length_squared()
 
+        #asm
+        self.sample_ptr = None
+        self.ds = None
+
     def isect(self, ray, min_dist = 999999.0):
         t = (self.point - ray.origin).dot(self.normal) / ray.dir.dot(self.normal)
         #TODO - test if t can be negative!!
@@ -113,6 +117,59 @@ class Rectangle:
         r2 = random.random()
         hitpoint.light_sample = self.point + self.edge_a * r1 + self.edge_b * r2
 
+    def light_sample_asm(self, runtime):
+        util.load_func(runtime, "random")
+        #eax - pointer to hitpoint structure
+        asm_structs = util.structs("hitpoint")
+        ASM = """
+        #DATA
+        """
+        ASM += asm_structs + """
+        float normal[4]
+        float edge_a[4]
+        float edge_b[4]
+        float point[4]
+        float pdf
+        uint32 hp_ptr
+        #CODE
+        mov dword [hp_ptr], eax
+        call random
+        macro eq128 xmm1 = xmm0
+        macro broadcast xmm0 = xmm0[0] 
+        macro broadcast xmm1 = xmm1[1]
+        macro eq128 xmm0 = xmm0 * edge_a {xmm1}
+        macro eq128 xmm1 = xmm1 * edge_b {xmm0}
+        macro eq128 xmm0 = xmm0 + point {xmm1}
+        macro eq128 xmm0 = xmm0 + xmm1 
+        mov eax, dword [hp_ptr]
+        macro eq128 eax.hitpoint.light_sample = xmm0
+        macro eq128 eax.hitpoint.light_normal = normal
+        macro eq32 eax.hitpoint.light_pdf = pdf
+        ret
+        
+        """
+        assembler = util.get_asm()
+        mc = assembler.assemble(ASM, True)
+        #mc.print_machine_code()
+        name = "recangle_sample" + str(util.unique())
+
+        self.ds = runtime.load(name, mc)
+        self._populate_ds()
+
+        #FIXME - add method to runtime class so we can ask runtime for address of module
+        self.sample_ptr = runtime.modules[name][0]
+
+    def _populate_ds(self):
+        if self.ds is None: return
+        p = self.point
+        self.ds["point"] = (p.x, p.y, p.z, 0.0)
+        e = self.edge_a
+        self.ds["edge_a"] = (e.x, e.y, e.z, 0.0)
+        e = self.edge_b
+        self.ds["edge_b"] = (e.x, e.y, e.z, 0.0)
+        n = self.normal
+        self.ds["normal"] = (n.x, n.y, n.z, 0.0)
+        self.ds["pdf"] = self.inv_area
 
     @classmethod
     def name(cls):

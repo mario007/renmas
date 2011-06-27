@@ -50,11 +50,14 @@ HITPOINT = """
     float wo[4]
     float spectrum[4]
     float brdf[4]
+    float light_normal[4]
+    float light_sample[4]
     float t
     uint32 mat_index
     uint32 visible 
     float ndotwi
     float pdf
+    float light_pdf
     end struct
 """
 

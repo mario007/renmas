@@ -651,7 +651,8 @@ mem_dealloc(Window *self)
 {
   self->fb->Destroy();
   self->fb = NULL;
-  PyObject_DEL(self);
+  self->ob_base.ob_type->tp_free((PyObject*)self);
+  //PyObject_DEL(self);
 }
 
 static PyObject *

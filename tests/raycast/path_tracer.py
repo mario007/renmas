@@ -39,7 +39,7 @@ def save_image(film, name):
 
 WIDTH = 600 
 HEIGHT = 600 
-NSAMPLES = 128 
+NSAMPLES = 32 
 
 lst_tiles = ren.get_tiles(WIDTH, HEIGHT, NSAMPLES)
 ntile = -1 
@@ -60,8 +60,9 @@ def build_scene3():
     f_props = {"width": WIDTH, "height": HEIGHT, "nsamples": NSAMPLES}
     f = ren.create_film(f_props)
 
-    #create lights
-    l_props = {"type":"point", "name": "light1", "position":(26,48,20), "spectrum":(3.99,3.99,3.99)}
+    #area light
+    l_props = {"type":"area", "spectrum":(55.99, 55.99, 55.99), "shape":"rectangle", "p":(21.3, 54.87999, 22.7),
+            "edge_a":(0.0, 0.0, 10.5), "edge_b":(13.0, 0.0, 0.0), "normal":(0.0, -1.0, 0.0)}
     l = ren.create_light(l_props)
 
     m_props = {"name": "m1", "sampling":"hemisphere_cos"}
@@ -198,8 +199,6 @@ def raycast():
         else:
             hp.wo = ray.dir * -1.0
             shade(hp)
-            #film.add_sample(sample, hp) #background
-            #continue
 
         #emissive -- stop
         #TODO
@@ -390,10 +389,11 @@ def raycast_asm():
     print("Renderiranje jednog tile je trajalo", end - start, duration)
     return True
 
-win = renmas.gui.MainWindow(1000, 800, "Test")
+win = renmas.gui.MainWindow(800, 600, "Test")
 win.redraw()
-win.render_handler(raycast_asm)
-#win.render_handler(raycast)
+#win.render_handler(raycast_asm)
+win.render_handler(raycast)
 winlib.MainLoop()
-
+pass
+#print("Prije pucanja")
 

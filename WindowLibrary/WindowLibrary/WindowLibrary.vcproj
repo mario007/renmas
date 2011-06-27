@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9.00"
+	Version="9,00"
 	Name="WindowLibrary"
 	ProjectGUID="{08011628-739C-488C-9516-458D549AB5BB}"
 	RootNamespace="WindowLibrary"
@@ -44,6 +44,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
+				AdditionalIncludeDirectories="C:\Python31\include"
 				PreprocessorDefinitions="WIN32;_DEBUG;_WINDOWS;_USRDLL;WINDOWLIBRARY_EXPORTS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"

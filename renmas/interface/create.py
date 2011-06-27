@@ -280,10 +280,34 @@ def create_point_light(props):
     light_db.add_light(plight)
     return plight
 
+def create_area_light(props):
+    name = props.get("name", "unknown")
+    r, g, b, = props["spectrum"]
+    spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
+    
+
+    x, y, z = props["p"] 
+    nx, ny, nz = props["normal"] 
+    eda_x, eda_y, eda_z = props["edge_a"] 
+    edb_x, edb_y, edb_z = props["edge_b"] 
+
+    p = renmas.maths.Vector3(float(x), float(y), float(z))
+    n = renmas.maths.Vector3(float(nx), float(ny), float(nz))
+    edge_a = renmas.maths.Vector3(float(eda_x), float(eda_y), float(eda_z))
+    edge_b = renmas.maths.Vector3(float(edb_x), float(edb_y), float(edb_z))
+
+    rect = renmas.shapes.Rectangle(p, edge_a, edge_b, n,  99999)
+    a_light = renmas.lights.AreaLight(spectrum, rect)
+    light_db.add_light(a_light)
+
+    return a_light
+
 def create_light(props):
     typ_light = props.get("type", "")
     if typ_light == "point":
         return create_point_light(props)
+    elif typ_light == "area":
+        return create_area_light(props)
     else:
         raise ValueError("unknown type of light")
 

@@ -1,6 +1,7 @@
 
 import random
 from .hitpoint import HitPoint
+from .bbox import BBox
 import renmas.utils as util
 from renmas.maths import Vector3
 
@@ -205,4 +206,23 @@ class Rectangle:
         else:
             d["mat_index"] = self.material
         return d
+
+    def bbox(self):
+        epsilon = 0.001 
+
+        p = self.point
+        ea = self.edge_a
+        eb = self.edge_b
+
+        p0X = min(p.x, p.x + ea.x, p.x + eb.x, p.x + ea.x + eb.x) - epsilon
+        p1X = max(p.x, p.x + ea.x, p.x + eb.x, p.x + ea.x + eb.x) + epsilon
+        p0Y = min(p.y, p.y + ea.y, p.y + eb.y, p.y + ea.y + eb.y) - epsilon 
+        p1Y = max(p.y, p.y + ea.y, p.y + eb.y, p.y + ea.y + eb.y) + epsilon
+        p0Z = min(p.z, p.z + ea.z, p.z + eb.z, p.z + ea.z + eb.z) - epsilon
+        p1Z = max(p.z, p.z + ea.z, p.z + eb.z, p.z + ea.z + eb.z) + epsilon
+
+        p0 = Vector3(p0X, p0Y, p0Z)
+        p1 = Vector3(p1X, p1Y, p1Z)
+
+        return BBox(p0, p1, None)
 

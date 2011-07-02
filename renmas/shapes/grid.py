@@ -13,7 +13,7 @@ def isect(ray, shapes):
     min_dist = 999999.0
     hit_point = None
     for s in shapes:
-        hit = s.intersect(ray, min_dist)
+        hit = s.isect(ray, min_dist)
         if hit is False: continue
         if hit.t < min_dist:
             min_dist = hit.t
@@ -24,15 +24,14 @@ class Grid:
     def __init__(self):
         self.bbox = None
 
-    def setup(self):
-        db_shapes = renmas.core.scene.shape_database
+    def setup(self, shapes):
 
         p0 = Vector3(9999999.0, 9999999.0, 9999999.0)
         p1 = Vector3(-9999999.0, -9999999.0, -9999999.0)
         bb_min = BBox(p0, p1, None) 
 
-        for shape in db_shapes.shapes():
-            bbox = shape.get_bounding_box()
+        for shape in shapes:
+            bbox = shape.bbox()
 
             if bbox.x0 < bb_min.x0: bb_min.x0 = bbox.x0
             if bbox.y0 < bb_min.y0: bb_min.y0 = bbox.y0
@@ -45,11 +44,11 @@ class Grid:
         self.bbox = bb_min
 
         
-        num_shapes = len(db_shapes.shapes()) #FIXME when we incoorporate mesh
+        num_shapes = len(shapes) #FIXME when we incoorporate mesh
         wx = bb_min.x1 - bb_min.x0
         wy = bb_min.y1 - bb_min.y0
         wz = bb_min.z1 - bb_min.z0
-        multiplier = 1.5 # about 8 times more cells than objects TODO test this!
+        multiplier = 2.0 # about 8 times more cells than objects TODO test this!
         
         s = math.pow(wx * wy * wz / float(num_shapes), 0.333333)
         nx = int(multiplier * wx / s + 1)
@@ -60,6 +59,7 @@ class Grid:
         self.nz = nz
 
         num_cells = int(nx * ny * nz)
+        print("wx=", wx, " wy=", wy, " wz=", wz)
         print("nx=", nx, " ny=", ny, " nz=", nz)
 
         # every cell have referencs to objects that are in that cell
@@ -69,8 +69,8 @@ class Grid:
 
         max_len = 0
 
-        for shape in db_shapes.shapes():
-            bbox = shape.get_bounding_box()
+        for shape in shapes:
+            bbox = shape.bbox()
     
             ixmin = int(clamp((bbox.x0 - bb_min.x0) * nx / (bb_min.x1 - bb_min.x0), 0, nx - 1))
             iymin = int(clamp((bbox.y0 - bb_min.y0) * ny / (bb_min.y1 - bb_min.y0), 0, ny - 1))

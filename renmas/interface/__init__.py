@@ -17,6 +17,7 @@ from .create import lst_lights
 from .create import create_oren_phong
 from .create import create_triangle
 
+from .create import tiles
 from .create import get_tiles
 from .create import lst_materials
 

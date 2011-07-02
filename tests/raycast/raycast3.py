@@ -12,6 +12,7 @@ import renmas.interface as ren
 import os
 import time
 from tdasm import Runtime
+from scenes import cornell_scene
 
 
 blitter = renmas.gui.Blitter()
@@ -36,108 +37,6 @@ def save_image(film, name):
     blitter.blt_floatTorgba(da, 0, 0, dw, dh, dpitch, sa, 0, 0, sw, sh, spitch)
     renmas.gui.save_image(name, img)
     return None
-
-WIDTH = 300 
-HEIGHT = 300 
-NSAMPLES = 16 
-
-lst_tiles = ren.get_tiles(WIDTH, HEIGHT, NSAMPLES)
-ntile = -1 
-def next_tile():
-    global ntile
-    if ntile == len(lst_tiles) - 1:
-        return None
-    ntile += 1
-    return lst_tiles[ntile]
-
-def build_scene3():
-    s_props = {"type":"random", "pixel":1.0, "width": WIDTH, "height": HEIGHT, "nsamples": NSAMPLES}
-    s =ren.create_sampler(s_props)
-
-    c_props = {"type":"pinhole", "eye":(27.6, 27.4, -80), "lookat":(27.6, 27.4, 0.0), "distance":400}
-    c = ren.create_camera(c_props)
-
-    f_props = {"width": WIDTH, "height": HEIGHT, "nsamples": NSAMPLES}
-    f = ren.create_film(f_props)
-
-    #create lights
-    l_props = {"type":"point", "name": "light1", "position":(25,50,25), "spectrum":(2.99,2.99,2.99)}
-    l = ren.create_light(l_props)
-
-    #area light
-    #l_props = {"type":"area", "spectrum":(50.99, 50.99, 50.99), "shape":"rectangle", "p":(21.3, 54.87999, 22.7),
-    #        "edge_a":(0.0, 0.0, 10.5), "edge_b":(13.0, 0.0, 0.0), "normal":(0.0, -1.0, 0.0)}
-    #l = ren.create_light(l_props)
-
-    m_props = {"name": "m1", "sampling":"hemisphere_cos"}
-    m = ren.create_material(m_props)
-    m_props = {"type":"lambertian", "R":(0.6, 0.6, 0.6)} # back wall - white wall
-    ren.add_brdf("m1", m_props)
-
-    m_props = {"name": "m2", "sampling":"hemisphere_cos"}
-    m = ren.create_material(m_props)
-    m_props = {"type":"lambertian", "R":(0.342, 0.015, 0.015)} # left wall- red wall
-    ren.add_brdf("m2", m_props)
-
-    m_props = {"name": "m3", "sampling":"hemisphere_cos"}
-    m = ren.create_material(m_props)
-    m_props = {"type":"lambertian", "R":(0.222, 0.354, 0.12)} # right wall- green wall
-    ren.add_brdf("m3", m_props)
-
-    #back wall
-    sh_props = {"type":"rectangle", "p":(0.0, 0.0, 55.92), "edge_a":(55.28, 0.0, 0.0), "edge_b":(0.0, 54.88, 0.0), "normal":(0.0, 0.0, -1.0) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-
-    #left wall
-    sh_props = {"type":"rectangle", "p":(55.28, 0.0, 0.0), "edge_a":(0.0, 0.0, 55.92), "edge_b":(0.0, 54.88, 0.0), "normal":(-1.0, 0.0, 0.0) ,"material":"m2"}
-    s = ren.create_shape(sh_props)
-
-    #right wall
-    sh_props = {"type":"rectangle", "p":(0.0, 0.0, 0.0), "edge_a":(0.0, 0.0, 55.92), "edge_b":(0.0, 54.88, 0.0), "normal":(1.0, 0.0, 0.0) ,"material":"m3"}
-    s = ren.create_shape(sh_props)
-
-    #floor
-    sh_props = {"type":"rectangle", "p":(0.0, 0.0, 0.0), "edge_a":(0.0, 0.0, 55.92), "edge_b":(55.28, 0.0, 0.0), "normal":(0.0, 1.0, 0.0) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-
-    #ceiling
-    sh_props = {"type":"rectangle", "p":(0.0, 54.88, 0.0), "edge_a":(0.0, 0.0, 55.92), "edge_b":(55.28, 0.0, 0.0), "normal":(0.0, -1.0, 0.0) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-
-    # short box
-    #top
-    sh_props = {"type":"rectangle", "p":(13.0, 16.5, 6.5), "edge_a":(-4.8, 0.0, 16.0), "edge_b":(16.0, 0.0, 4.9), "normal":(0.0, 1.0, 0.0) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    #side 1
-    sh_props = {"type":"rectangle", "p":(13.0, 0.0, 6.5), "edge_a":(-4.8, 0.0, 16.0), "edge_b":(0.0, 16.5, 0.0), "normal":(-0.957826, 0.0, -0.28734) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    #side 2
-    sh_props = {"type":"rectangle", "p":(8.2, 0.0, 22.5), "edge_a":(15.8, 0.0, 4.7), "edge_b":(0.0, 16.5, 0.0), "normal":(-0.28512, 0.0, 0.95489) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    #side 3
-    sh_props = {"type":"rectangle", "p":(24.2, 0.0, 27.4), "edge_a":(4.8, 0.0, -16.0), "edge_b":(0.0, 16.5, 0.0), "normal":(-0.95782, 0.0, -0.28734) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    #side 4
-    sh_props = {"type":"rectangle", "p":(29, 0.0, 11.4), "edge_a":(-16.0, 0.0, -4.9), "edge_b":(0.0, 16.5, 0.0), "normal":(-0.292825, 0.0, -0.95616) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-
-    # tall box
-    #top
-    sh_props = {"type":"rectangle", "p":(42.3, 33.0, 24.7), "edge_a":(-15.8, 0.0, 4.9), "edge_b":(4.9, 0.0, 15.9), "normal":(0.0, 1.0, 0.0) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    #side 1
-    sh_props = {"type":"rectangle", "p":(42.3, 0.0, 24.7), "edge_a":(-15.8, 0.0, 4.9), "edge_b":(0.0, 33.0, 0.0), "normal":(0.2962, 0.0, 0.955123) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    #side 2
-    sh_props = {"type":"rectangle", "p":(26.5, 0.0, 29.6), "edge_a":(4.9, 0.0, 15.9), "edge_b":(0.0, 33.0, 0.0), "normal":(0.955648, 0.0, -0.2945) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    #side 3
-    sh_props = {"type":"rectangle", "p":(31.4, 0.0, 45.5), "edge_a":(15.8, 0.0, -4.9), "edge_b":(0.0, 33.0, 0.0), "normal":(-0.2962, 0.0, -0.955123) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    #side 4
-    sh_props = {"type":"rectangle", "p":(47.2, 0.0, 40.6), "edge_a":(-4.9, 0.0, -15.9), "edge_b":(0.0, 33.0, 0.0), "normal":(-0.95564, 0.0, 0.2945) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-
 
 def build_scene2():
     s_props = {"type":"random", "pixel":0.8, "width": WIDTH, "height": HEIGHT, "nsamples": NSAMPLES}
@@ -284,21 +183,34 @@ def build_scene():
     sh_props = {"type":"sphere", "position":(0,0,0), "radius":2, "material":"m1"}
     s = ren.create_shape(sh_props)
 
-build_scene3()
+cornell_scene()
 #v1 = renmas.maths.Vector3(55.28, 47.657430, 43.70494)
 #v2 = renmas.maths.Vector3(25.0, 50.0, 25.0)
 #ret = renmas.shapes.visible(v1, v2)
 #print(ret)
 
+lst_tiles = ren.tiles()
+ntile = -1 
+def next_tile():
+    global ntile
+    if ntile == len(lst_tiles) - 1:
+        return None
+    ntile += 1
+    return lst_tiles[ntile]
 image_saved = False
 duration = 0.0
+
+grid = renmas.shapes.Grid()
+grid.setup(ren.lst_shapes())
+
 def raycast():
     sampler = ren.get_sampler()
     camera = ren.get_camera()
     film = ren.get_film()
     lst_lights = ren.lst_lights()
     shapes = ren.lst_shapes()
-    isect = renmas.shapes.isect #intersection rutine
+    #isect = renmas.shapes.isect #intersection rutine
+    isect = grid.intersect
     shade = renmas.core.shade
 
     background = renmas.core.Spectrum(0.00, 0.00, 0.00) 
@@ -322,7 +234,8 @@ def raycast():
         sam = sampler.get_sample(sample)
         if sam is None: break 
         ray = camera.ray(sample)
-        hp = isect(ray, shapes, 999999.0)
+        #hp = isect(ray, shapes, 999999.0)
+        hp = isect(ray)
 
         if sample.ix == 10 and sample.iy == 1650:
             print(hp.hit_point)
@@ -417,7 +330,6 @@ ren.get_film().add_sample_asm(runtime, "add_sample")
 
 asm = renmas.utils.get_asm()
 mc = asm.assemble(ASM)
-print(mc.data_section_size())
 ds = runtime.load("raycast", mc)
 
 def raycast_asm():
@@ -456,7 +368,7 @@ def raycast_asm():
 
 win = renmas.gui.MainWindow(600, 400, "Test")
 win.redraw()
-win.render_handler(raycast_asm)
-#win.render_handler(raycast)
+#win.render_handler(raycast_asm)
+win.render_handler(raycast)
 winlib.MainLoop()
 

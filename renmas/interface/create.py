@@ -135,6 +135,7 @@ def dyn_arrays():
 
 def get_tiles(width, height, nsamples):
     # TODO - implement later smarter version to include number os sample and assembly version
+    # different size of tile for python and assembler
     w = 50
     h = 50 
     
@@ -375,4 +376,13 @@ def get_camera():
 
 def get_film():
     return film
+
+def tiles():
+    if sampler is None: return None
+
+    width = sampler.width
+    height = sampler.height
+    nsamples = sampler.nsamples()
+    
+    return get_tiles(width, height, nsamples)
 

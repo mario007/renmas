@@ -13,6 +13,7 @@ import os
 import time
 from tdasm import Runtime
 
+from scenes import cornell_scene
 
 blitter = renmas.gui.Blitter()
 def blt_float_img_to_window(x, y, img, win):
@@ -37,112 +38,8 @@ def save_image(film, name):
     renmas.gui.save_image(name, img)
     return None
 
-WIDTH = 600 
-HEIGHT = 600 
-NSAMPLES = 128 
-
-lst_tiles = ren.get_tiles(WIDTH, HEIGHT, NSAMPLES)
-ntile = -1 
-def next_tile():
-    global ntile
-    if ntile == len(lst_tiles) - 1:
-        return None
-    ntile += 1
-    return lst_tiles[ntile]
-
-def build_scene3():
-    s_props = {"type":"random", "pixel":0.5, "width": WIDTH, "height": HEIGHT, "nsamples": NSAMPLES}
-    s =ren.create_sampler(s_props)
-
-    c_props = {"type":"pinhole", "eye":(27.6, 27.4, -80), "lookat":(27.6, 27.4, 0.0), "distance":400}
-    c = ren.create_camera(c_props)
-
-    f_props = {"width": WIDTH, "height": HEIGHT, "nsamples": NSAMPLES}
-    f = ren.create_film(f_props)
-
-    #area light
-    l_props = {"type":"area", "spectrum":(55, 52, 40), "shape":"rectangle", "p":(21.3, 54.87999, 22.7),
-            "edge_a":(0.0, 0.0, 10.5), "edge_b":(13.0, 0.0, 0.0), "normal":(0.0, -1.0, 0.0)}
-    l = ren.create_light(l_props)
-
-    m_props = {"name": "m1", "sampling":"hemisphere_cos"}
-    m = ren.create_material(m_props)
-    m_props = {"type":"lambertian", "R":(0.6, 0.6, 0.6)} # back wall - white wall
-    ren.add_brdf("m1", m_props)
-
-    m_props = {"name": "m2", "sampling":"hemisphere_cos"}
-    m = ren.create_material(m_props)
-    m_props = {"type":"lambertian", "R":(0.342, 0.015, 0.015)} # left wall- red wall
-    ren.add_brdf("m2", m_props)
-
-    m_props = {"name": "m3", "sampling": "hemisphere_cos"}
-    m = ren.create_material(m_props)
-    m_props = {"type":"lambertian", "R":(0.222, 0.354, 0.12)} # right wall- green wall
-    ren.add_brdf("m3", m_props)
-
-    #back wall
-    sh_props = {"type":"rectangle", "p":(0.0, 0.0, 55.92), "edge_a":(55.28, 0.0, 0.0), "edge_b":(0.0, 54.88, 0.0), "normal":(0.0, 0.0, -1.0) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-
-    #left wall
-    sh_props = {"type":"rectangle", "p":(55.28, 0.0, 0.0), "edge_a":(0.0, 0.0, 55.92), "edge_b":(0.0, 54.88, 0.0), "normal":(-1.0, 0.0, 0.0) ,"material":"m2"}
-    s = ren.create_shape(sh_props)
-
-    #right wall
-    sh_props = {"type":"rectangle", "p":(0.0, 0.0, 0.0), "edge_a":(0.0, 0.0, 55.92), "edge_b":(0.0, 54.88, 0.0), "normal":(1.0, 0.0, 0.0) ,"material":"m3"}
-    s = ren.create_shape(sh_props)
-
-    #floor
-    sh_props = {"type":"rectangle", "p":(0.0, 0.0, 0.0), "edge_a":(0.0, 0.0, 55.92), "edge_b":(55.28, 0.0, 0.0), "normal":(0.0, 1.0, 0.0) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-
-    #ceiling
-    sh_props = {"type":"rectangle", "p":(0.0, 54.88, 0.0), "edge_a":(0.0, 0.0, 55.92), "edge_b":(55.28, 0.0, 0.0), "normal":(0.0, -1.0, 0.0) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    # short box
-    #top
-    sh_props = {"type":"rectangle", "p":(13.0, 16.5, 6.5), "edge_a":(-4.8, 0.0, 16.0), "edge_b":(16.0, 0.0, 4.9), "normal":(0.0, 1.0, 0.0) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    #side 1
-    sh_props = {"type":"rectangle", "p":(13.0, 0.0, 6.5), "edge_a":(-4.8, 0.0, 16.0), "edge_b":(0.0, 16.5, 0.0),
-            "normal":(-0.95782628, 0.0, -0.2873478) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    #side 2
-    sh_props = {"type":"rectangle", "p":(8.2, 0.0, 22.5), "edge_a":(15.8, 0.0, 4.7), "edge_b":(0.0, 16.5, 0.0),
-            "normal":(-0.2851209, 0.0, 0.95489155) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    #side 3
-    sh_props = {"type":"rectangle", "p":(24.2, 0.0, 27.4), "edge_a":(4.8, 0.0, -16.0), "edge_b":(0.0, 16.5, 0.0),
-            "normal":(0.95782628, 0.0, 0.28734788) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    #side 4
-    sh_props = {"type":"rectangle", "p":(29, 0.0, 11.4), "edge_a":(-16.0, 0.0, -4.9), "edge_b":(0.0, 16.5, 0.0),
-            "normal":(0.29282578, 0.0, -0.9561658) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-
-    # tall box
-    #top
-    sh_props = {"type":"rectangle", "p":(42.3, 33.0, 24.7), "edge_a":(-15.8, 0.0, 4.9), "edge_b":(4.9, 0.0, 15.9), "normal":(0.0, 1.0, 0.0) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    #side 1
-    sh_props = {"type":"rectangle", "p":(42.3, 0.0, 24.7), "edge_a":(-15.8, 0.0, 4.9), "edge_b":(0.0, 33.0, 0.0),
-            "normal":(-0.296209, 0.0, -0.955123) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    #side 2
-    sh_props = {"type":"rectangle", "p":(26.5, 0.0, 29.6), "edge_a":(4.9, 0.0, 15.9), "edge_b":(0.0, 33.0, 0.0),
-            "normal":(-0.9556489, 0.0, 0.294508) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    #side 3
-    sh_props = {"type":"rectangle", "p":(31.4, 0.0, 45.5), "edge_a":(15.8, 0.0, -4.9), "edge_b":(0.0, 33.0, 0.0),
-            "normal":(0.296209, 0.0, 0.95512312) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-    #side 4
-    sh_props = {"type":"rectangle", "p":(47.2, 0.0, 40.6), "edge_a":(-4.9, 0.0, -15.9), "edge_b":(0.0, 33.0, 0.0),
-            "normal":(0.95564, 0.0, -0.2945) ,"material":"m1"}
-    s = ren.create_shape(sh_props)
-
 def build_scene():
-    s_props = {"type":"random", "pixel":1.0, "width": WIDTH, "height": HEIGHT, "nsamples": NSAMPLES}
+    s_props = {"type":"random", "pixel":2.0, "width": WIDTH, "height": HEIGHT, "nsamples": NSAMPLES}
     s =ren.create_sampler(s_props)
 
     c_props = {"type":"pinhole", "eye":(5, 6.5, 7.7), "lookat":(0,0,0), "distance":480}
@@ -154,17 +51,43 @@ def build_scene():
     l_props = {"type":"point", "name": "light1", "position":(6,7,9), "spectrum":(0.99,0.99,0.99)}
     l = ren.create_light(l_props)
 
+    m_props = {"name": "m1", "sampling":"hemisphere_cos"}
+    m = ren.create_material(m_props)
     m_props = {"type":"phong", "R":(0.99, 0.99, 0.99), "e": 20.2, "k":0.5}
-    m = ren.create_material("m1")
     ren.add_brdf("m1", m_props)
 
-    m_props = {"type":"lambertian", "R":(0.22, 0.63, 0.53), "k":0.8}
+    m_props = {"type":"lambertian", "R":(0.22, 0.63, 0.53), "k":1.0}
     ren.add_brdf("m1", m_props)
 
     sh_props = {"type":"sphere", "position":(0,0,0), "radius":2, "material":"m1"}
     s = ren.create_shape(sh_props)
 
-build_scene3()
+cornell_scene()
+
+#build_scene()
+
+lst_tiles = ren.tiles()
+ntile = -1 
+def next_tile():
+    global ntile
+    if ntile == len(lst_tiles) - 1:
+        return None
+    ntile += 1
+    return lst_tiles[ntile]
+
+def calc_brdf(hp, ray):
+    hp.wo = ray.dir * -1.0
+    renmas.core.shade(hp)
+
+    o = hp.hit_point
+    d = hp.wi
+    kr = hp.brdf * (1.0 / hp.pdf) * hp.ndotwi
+    ray.dir = d
+    ray.origin = o
+
+    s = hp.spectrum
+    spec = renmas.core.Spectrum(s.r, s.g, s.b)
+    return (spec, kr)
 
 image_saved = False
 duration = 0.0
@@ -173,9 +96,11 @@ def raycast():
     camera = ren.get_camera()
     film = ren.get_film()
     lst_lights = ren.lst_lights()
+
     shapes = ren.lst_shapes()
     isect = renmas.shapes.isect #intersection rutine
     shade = renmas.core.shade
+    recursion_depth = 3
 
     background = renmas.core.Spectrum(0.00, 0.00, 0.00) 
     hp2 = renmas.shapes.HitPoint()
@@ -204,36 +129,26 @@ def raycast():
             hp2.spectrum = background
             film.add_sample(sample, hp2) #background
             continue
-        else:
-            hp.wo = ray.dir * -1.0
-            shade(hp)
 
-        #emissive -- stop
-        #TODO
-
-        #first depth
-        o = hp.hit_point
-        d = hp.wi
-        kr = hp.brdf * (1.0 / hp.pdf) * hp.ndotwi
-        ray1 = renmas.core.Ray(o, d)
-
-        s = hp.spectrum
-        spec = renmas.core.Spectrum(s.r, s.g, s.b)
-
-        hp = isect(ray1, shapes, 999999.0)
+        Ld1, Brdf1 = calc_brdf(hp, ray)
+        hp = isect(ray, shapes, 999999.0)
         if hp is None:
-            #spec2 = spec + kr.mix_spectrum(background)
-            spec2 = spec 
-            hp2.spectrum = spec2
-            film.add_sample(sample, hp2) #background
+            hp2.spectrum = Ld1 
+            film.add_sample(sample, hp2) 
             continue
-        else:
-            hp.wo = ray.dir * -1.0
-            shade(hp)
 
-            spec2 = spec + hp.spectrum.mix_spectrum(kr)
-            hp.spectrum = spec2
-            film.add_sample(sample, hp) 
+        Ld2, Brdf2 = calc_brdf(hp, ray)
+        hp = isect(ray, shapes, 999999.0)
+        if hp is None:
+            hp2.spectrum = Ld1 + Ld2.mix_spectrum(Brdf1)
+            film.add_sample(sample, hp2) 
+            continue
+
+        Ld3, Brdf3 = calc_brdf(hp, ray)
+        spectrum = Ld3.mix_spectrum(Brdf2) + Ld2
+        spectrum = spectrum.mix_spectrum(Brdf1) + Ld1
+        hp.spectrum = spectrum 
+        film.add_sample(sample, hp) 
 
 
     blt_float_img_to_window(0, 0, film.image, win)
@@ -258,11 +173,18 @@ ASM += asm_structs + """
     float kr[4]
     float spec1[4]
 
+    float Ld1[4]
+    float Ld2[4]
+    float Ld3[4]
+    float Brdf1[4]
+    float Brdf2[4]
+    float Brdf3[4]
+    float test_brdf[4] = 0.3, 0.5, 0.1, 0.0 
+
 #CODE
     macro eq128 background.spectrum = back
 
     _next_sample:
-    ; put pointer to sample structre in eax and generate sample
     mov eax, sam
     call get_sample
     ; test to si if we are done sampling picture 
@@ -285,17 +207,39 @@ ASM += asm_structs + """
     cmp eax, 0
     je _background
 
-
-    ; call shading routine
     mov eax, hp
     mov ebx, r1
-    macro eq128 eax.hitpoint.wo = ebx.ray.dir * minus_one 
-    call shade
-    ; add_sample to film
-    ;mov eax, hp
-    ;mov ebx, sam 
-    ;call add_sample
-    jmp _depth1
+    call calc_brdf
+    ; xmm0 = Ld xmm1 = Brdf
+    macro eq128 Ld1 = xmm0
+    macro eq128 Brdf1 = xmm1
+    mov eax, r1
+    mov ebx, hp
+    call scene_isect
+    cmp eax, 0
+    je _depth1
+    
+    mov eax, hp
+    mov ebx, r1
+    call calc_brdf
+    macro eq128 Ld2 = xmm0
+    macro eq128 Brdf2 = xmm1
+    mov eax, r1
+    mov ebx, hp
+    call scene_isect
+    cmp eax, 0
+    je _depth2
+
+    mov eax, hp
+    mov ebx, r1
+    call calc_brdf
+    macro eq128 Ld3 = xmm0
+    macro eq128 Brdf3 = xmm1
+    mov eax, r1
+    mov ebx, hp
+    call scene_isect
+    cmp eax, 0
+    jmp _depth3
 
     _background: ; add background sample to film
     mov eax, background
@@ -303,53 +247,63 @@ ASM += asm_structs + """
     call add_sample
     jmp _next_sample
 
-    _depth1:
-    mov eax, r1
-    mov ebx, hp
-    macro eq128 eax.ray.origin = ebx.hitpoint.hit 
-    macro eq128 eax.ray.dir = ebx.hitpoint.wi
-    macro eq32 xmm0 = ebx.hitpoint.ndotwi 
-    macro eq32 xmm1 = ebx.hitpoint.pdf
-    macro eq32 xmm0 = xmm0 / xmm1
-    macro broadcast xmm0 = xmm0[0]
-    macro eq128 xmm0 = xmm0 * ebx.hitpoint.brdf
-    macro eq128 kr = xmm0
-    macro eq128 spec1 = ebx.hitpoint.spectrum
-
-    call scene_isect 
-    cmp eax, 0
-    je _background1
-    ; call shading routine
-    mov eax, hp
-    mov ebx, r1
-    macro eq128 eax.hitpoint.wo = ebx.ray.dir * minus_one 
-    call shade
 
     ; add_sample to film
+    _depth1:
     mov eax, hp
     mov ebx, sam 
-    macro eq128 xmm0 = eax.hitpoint.spectrum * kr
-    macro eq128 xmm0 = xmm0 + spec1
-    macro eq128 eax.hitpoint.spectrum = xmm0
+    macro eq128 eax.hitpoint.spectrum = Ld1 
     call add_sample
 
     jmp _next_sample
-
-    _background1:
-    mov eax, hp
-    macro eq128 eax.hitpoint.spectrum = spec1
-    mov ebx, sam
-    call add_sample
-
-
-    jmp _next_sample
-
     
+    _depth2:
+    mov eax, hp
+    mov ebx, sam 
+    macro eq128 xmm0 = Ld2 * Brdf1 
+    macro eq128 eax.hitpoint.spectrum = xmm0 + Ld1
+    call add_sample
+
+    jmp _next_sample
+
+    _depth3:
+    mov eax, hp
+    mov ebx, sam 
+    macro eq128 xmm0 = Ld3 * Brdf2 
+    macro eq128 xmm0 = xmm0 + Ld2
+    macro eq128 xmm0 = xmm0 * Brdf1
+    macro eq128 eax.hitpoint.spectrum = xmm0 + Ld1
+    call add_sample
+
+    jmp _next_sample
+
     _end_sampling:
     mov dword [end_sam], 0
-#END
-"""
+    #END
 
+    ; eax - pointer to hp, ebx - pointer to ray 
+    ; result  xmm0 - Ld  xmm1 - brdf
+    calc_brdf:
+    push eax
+    push ebx
+    ; call shading routine
+    macro eq128 eax.hitpoint.wo = ebx.ray.dir * minus_one 
+    call shade
+    pop eax 
+    pop ebx 
+
+    macro eq128 eax.ray.origin = ebx.hitpoint.hit 
+    macro eq128 eax.ray.dir = ebx.hitpoint.wi
+
+    macro eq32 xmm1 = ebx.hitpoint.ndotwi 
+    macro eq32 xmm0 = ebx.hitpoint.pdf
+    macro eq32 xmm1 = xmm1 / xmm0
+    macro broadcast xmm1 = xmm1[0]
+    macro eq128 xmm1 = xmm1 * ebx.hitpoint.brdf
+    macro eq128 xmm0 = ebx.hitpoint.spectrum
+
+    ret
+"""
 
 runtime = Runtime()
 ren.get_sampler().get_sample_asm(runtime, "get_sample")

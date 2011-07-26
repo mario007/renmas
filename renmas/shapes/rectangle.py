@@ -177,6 +177,9 @@ class Rectangle:
     def name(cls):
         return "rectangle"
 
+    @classmethod
+    def isect_name(cls):
+        return "ray_rectangle_intersection"
 
     def bbox(self):
         raise ValueError("Rectangle doesn't have BBox yet!!!")

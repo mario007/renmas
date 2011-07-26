@@ -12,6 +12,7 @@ class Triangle:
         self.normal.normalize()
 
     def isect(self, ray, min_dist = 999999.0):
+
         a = self.v0.x - self.v1.x
         b = self.v0.x - self.v2.x
         c = ray.dir.x 
@@ -31,8 +32,10 @@ class Triangle:
         p = f * l - h * j
         q = g * i - e * k
         s = e * j - f * i
-
-        inv_denom = 1.0 / (a * m + b * q + c * s)
+        
+        temp3 =  (a * m + b * q + c * s)
+        if temp3 == 0.0: return False
+        inv_denom = 1.0 / temp3
 
         e1 = d * m - b * n - c * p
         beta = e1 * inv_denom
@@ -84,6 +87,9 @@ class Triangle:
     def name(cls):
         return "triangle"
 
+    @classmethod
+    def isect_name(cls):
+        return "ray_triangle_intersection"
 
     # eax = pointer to ray structure
     # ebx = pointer to sphere structure
@@ -96,8 +102,8 @@ class Triangle:
 
         ASM = """ 
         #DATA
-        float epsilon = 0.0001
-        float neg_epsilon = -0.0001
+        float epsilon = 0.00001
+        float neg_epsilon = -0.00001
         float one = 1.0
         float zero = 0.0
         uint32 mask_abs[4] = 0x7FFFFFFF, 0, 0, 0

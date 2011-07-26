@@ -62,6 +62,12 @@ class DynamicArray:
             return self.address.ptr()
         return None
 
+    def obj_size(self): # size in bytes
+        return self.sizeof
+
+    def num_objects(self): #number of objects in array
+        return self.size
+
     def get_name_struct(self):
         return self.struct.name
 
@@ -73,11 +79,11 @@ class DynamicArray:
             if self.size > 0 and self.size <= 100:
                 self.reserve += 1
             elif self.size > 100 and self.size <= 10000:
-                self.reserve += 10
-            elif self.size > 10000 and self.size <= 1000000:
                 self.reserve += 100
+            elif self.size > 10000 and self.size <= 1000000:
+                self.reserve += 10000
             else:
-                self.reserve += 1000
+                self.reserve += 100000
 
             temp = x86.MemData(self.sizeof*self.reserve)
             memcpy(temp.ptr(), self.address.ptr(), self.size*self.sizeof)

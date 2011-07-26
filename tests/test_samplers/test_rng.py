@@ -103,7 +103,7 @@ blitter = Blitter()
 blitter.blt_rgba(addr, 100, 100, 500, 500, spitch, img_addr, 0, 0, width, height, img_pitch)
 
 blitter.blt_rgba(addr, 600, 100, 1000, 500, spitch, img2_addr, 0, 0, width2, height2, img2_pitch)
-
 win.redraw()
 winlib.MainLoop()
+print(4) 
 

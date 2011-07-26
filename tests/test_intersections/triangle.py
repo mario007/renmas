@@ -46,7 +46,7 @@ def create_triangle_array(n):
 
     dy = util.DynamicArray(Triangle.struct(), len(lst_arr))
     for sh in lst_arr:
-        dy.add_instance(sh.struct_params())
+        dy.add_instance(sh.attributes())
 
     return dy, lst_arr
 
@@ -382,7 +382,7 @@ def isect(ray, shapes):
     min_dist = 999999.0
     hit_point = None
     for s in shapes:
-        hit = s.intersect(ray, min_dist)
+        hit = s.isect(ray, min_dist)
         if hit is False: continue
         if hit.t < min_dist:
             min_dist = hit.t
@@ -422,14 +422,14 @@ if __name__ == "__main__":
 
     tr = create_triangle()
     ray = create_ray() 
-    hp = tr.intersect(ray)
+    hp = tr.isect(ray)
     if hp is not False:
         print(hp.t)
 
     asm = util.get_asm()
-    #mc = asm.assemble(ASM)
-    print (ASM3)
-    mc = asm.assemble(ASM3)
+    mc = asm.assemble(ASM)
+    #print (ASM3)
+    #mc = asm.assemble(ASM3)
     #mc.print_machine_code()
     runtime = Runtime()
     ds = runtime.load("test", mc)

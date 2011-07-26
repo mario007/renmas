@@ -44,7 +44,9 @@ class Vector3:
         return self.scale(-1)
 
     def normalize(self):
-        return self.scale(1.0 / self.length())
+        length = self.length()
+        if length == 0.0: return self  
+        return self.scale(1.0 / length)
 
     def cross(self, vec):
         return Vector3(self.y * vec.z - self.z * vec.y,

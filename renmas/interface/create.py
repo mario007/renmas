@@ -1,9 +1,9 @@
 
 import renmas
 import renmas.maths
-import renmas.shapes
 import renmas.camera
 import renmas.materials
+import renmas.shapes
 import renmas.lights
 import renmas.samplers
 import random
@@ -129,9 +129,17 @@ def random_triangle():
 def lst_shapes():
     return geometry.shapes()
 
+def isect_shapes():
+    return geometry.isect_shapes()
+
+def prepare_for_rendering():
+    geometry.prepare_shapes()
+
 def dyn_arrays():
-    geometry.create_asm_arrays()
-    return geometry.asm_shapes
+    arr = geometry.dyn_arrays_for_isect()
+    return arr
+
+    return geometry.dyn_arrays
 
 def get_tiles(width, height, nsamples):
     # TODO - implement later smarter version to include number os sample and assembly version
@@ -315,29 +323,32 @@ def create_light(props):
 def create_sphere(props):
     x, y, z = props["position"]
     radius = props["radius"]
-    name = props["material"]
+    mat_name = props["material"]
 
-    idx = get_mat_idx(name)
+    name = props.get("name", "Sphere" + str(renmas.utils.unique()))
+    idx = get_mat_idx(mat_name)
 
     v1 = renmas.maths.Vector3(float(x), float(y), float(z))
     sphere = renmas.shapes.Sphere(v1, float(radius), idx)
 
-    geometry.add_shape(sphere)
+    geometry.add_shape(name, sphere)
     return sphere
 
 def create_triangle(props):
     x0, y0, z0 = props["p0"] 
     x1, y1, z1 = props["p1"] 
     x2, y2, z2 = props["p2"] 
-    name = props["material"]
-    mat_idx = get_mat_idx(name)
+    mat_name = props["material"]
+    mat_idx = get_mat_idx(mat_name)
+
+    name = props.get("name", "Triangle" + str(renmas.utils.unique()))
 
     p0 = renmas.maths.Vector3(float(x0), float(y0), float(z0))
     p1 = renmas.maths.Vector3(float(x1), float(y1), float(z1))
     p2 = renmas.maths.Vector3(float(x2), float(y2), float(z2))
     tri = renmas.shapes.Triangle(p0, p1, p2, mat_idx)
 
-    geometry.add_shape(tri)
+    geometry.add_shape(name, tri)
     return tri
 
 def create_rectangle(props):
@@ -345,8 +356,10 @@ def create_rectangle(props):
     nx, ny, nz = props["normal"] 
     eda_x, eda_y, eda_z = props["edge_a"] 
     edb_x, edb_y, edb_z = props["edge_b"] 
-    name = props["material"]
-    mat_idx = get_mat_idx(name)
+    mat_name = props["material"]
+    mat_idx = get_mat_idx(mat_name)
+
+    name = props.get("name", "Rectangle" + str(renmas.utils.unique()))
 
     p = renmas.maths.Vector3(float(x), float(y), float(z))
     n = renmas.maths.Vector3(float(nx), float(ny), float(nz))
@@ -354,8 +367,34 @@ def create_rectangle(props):
     edge_b = renmas.maths.Vector3(float(edb_x), float(edb_y), float(edb_z))
 
     rect = renmas.shapes.Rectangle(p, edge_a, edge_b, n,  mat_idx)
-    geometry.add_shape(rect)
+    geometry.add_shape(name, rect)
     return rect
+
+def create_mesh(props):
+    mat_name = props["material"]
+    mat_idx = get_mat_idx(mat_name)
+    name = props.get("name", "Mesh" + str(renmas.utils.unique()))
+    mesh = renmas.shapes.Mesh3D(mat_idx)
+
+    fnames = props.get("resource", None)
+    if fnames:
+        for fname in fnames:
+            mesh.load_ply(fname)
+    scale = props.get("scale", None)
+    if scale:
+        mesh.scale(scale[0], scale[1], scale[2])
+        mesh.calculate_bbox()
+
+    translate = props.get("translate", None)
+    if translate:
+        mesh.translate(translate[0], translate[1], translate[2])
+        mesh.calculate_bbox()
+
+    mesh.prepare_isect()
+
+    geometry.add_shape(name, mesh)
+    return mesh
+
 
 def create_shape(props):
     type_shape = props.get("type", "")
@@ -365,6 +404,8 @@ def create_shape(props):
         return create_triangle(props)
     elif type_shape == "rectangle":
         return create_rectangle(props)
+    elif type_shape == "mesh":
+        return create_mesh(props)
     else:
         raise ValueError("unknown type of shape")
 
@@ -385,4 +426,21 @@ def tiles():
     nsamples = sampler.nsamples()
     
     return get_tiles(width, height, nsamples)
+
+
+#  list of objects must be in shape database
+
+def objfunc_array(lst_shapes, runtime):
+
+    addr = []
+    for shape in lst_shapes:
+        objadr = geometry.obj_address(shape=shape)
+        addr.append(objadr)
+
+        if not runtime.global_exists(shape.isect_name()):
+            shape.isect_asm(runtime, shape.isect_name())
+        lbl_addr = runtime.address_label(shape.isect_name())
+        addr.append(lbl_addr)
+
+    return tuple(addr)
 

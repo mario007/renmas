@@ -10,6 +10,8 @@
 *.idb
 *.dep
 *.py~
+*.png
+*.ply
 /ImageLoader/ImageLoader/Release
 /WindowLibrary/WindowLibrary/Release
 /WindowLibrary/WindowLibrary/x64

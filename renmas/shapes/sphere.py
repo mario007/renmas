@@ -148,6 +148,10 @@ class Sphere:
     def name(cls):
         return "sphere"
 
+    @classmethod
+    def isect_name(cls):
+        return "ray_sphere_intersection"
+
     def bbox(self):
 
         epsilon = 0.001

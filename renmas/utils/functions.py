@@ -12,7 +12,7 @@ SSSE3 = asm.cpu["ssse3"]
 #SSSE3 = False
 SSE3 = asm.cpu["sse3"]
 SSE41 = asm.cpu["sse41"]
-SSE41 = False
+#SSE41 = False
 SSE2 = asm.cpu["sse2"]
 
 def structs(*lst_structs):
@@ -70,7 +70,8 @@ def load_func(runtime, *names):
                 renmas.maths.load_math_func("fast_pow_ps", runtime)
             elif name == "fast_sincos_ps":
                 renmas.maths.load_math_func("fast_sincos_ps", runtime)
-
+            elif name == "ray_triangle_mesh":
+                renmas.shapes.intersect_ray_triangle(runtime, "ray_triangle_mesh")
             pass # load that function
 
 def normalization(xmm, tmp1, tmp2):
@@ -118,4 +119,13 @@ def cross_product(xmm1, xmm2, tmp1, tmp2):
     ASM += "macro eq128 " + xmm1 + " = " + xmm1 + " - " + tmp1 + "\n"
 
     return ASM
+
+
+blitter = None
+def memcpy(da, sa, n):
+    global blitter
+    if blitter is None:
+        blitter = renmas.gui.Blitter()
+    n = n // 4 #FIXME - fix this better
+    blitter._memcpy(da, sa, n)
 

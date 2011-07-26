@@ -73,6 +73,7 @@ class Film:
             uint32 nsamples 
             uint32 curn
             uint32 height 
+            float clamp[4] = 0.99, 0.99, 0.99, 0.99
 
             #CODE
         """
@@ -83,6 +84,8 @@ class Film:
             macro eq128 xmm0 = xmm0 * scale 
             ;because of alpha channel - try solve this in better way
             macro eq128 xmm0 = xmm0 + alpha_channel
+            ; for clamping 
+            minps xmm0, oword [clamp] 
 
             ;flip the image and call set pixel
             mov eax, dword [ebx + sample.ix]

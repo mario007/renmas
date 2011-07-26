@@ -37,3 +37,8 @@ from .create import create_light
 
 from .create import create_shape
 
+from .create import objfunc_array
+
+from .create import isect_shapes 
+from .create import prepare_for_rendering
+

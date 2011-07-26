@@ -99,6 +99,10 @@ class Plane:
     def name(cls):
         return "plane"
 
+    @classmethod
+    def isect_name(cls):
+        return "ray_plane_intersection"
+
     def bbox(self):
-        raise ValueError("Plane doesn't have BBox for know!!!")
+        raise ValueError("Plane doesn't have BBox for know and mybe never will be one for him!!!")
 

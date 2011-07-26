@@ -82,6 +82,24 @@ SAMPLE = """
     float weight 
     end struct
 """
+GRID = """
+    struct grid
+    float bbox_min[4] 
+    float bbox_max[4]
+    float n_1[4]
+    float nbox_width[4]
+    float one_overn[4]
+    int32 n[4]
+    uint32 grid_ptr
+    uint32 arr_ptr 
+    end struct
+"""
+
+MESH3D = """
+    struct mesh3d
+    uint32 ptr_isect
+    end struct
+"""
 
 structures = {
         "ray" : RAY, 
@@ -92,7 +110,9 @@ structures = {
         "plane": PLANE,
         "rectangle": RECTANGLE,
         "triangle": TRIANGLE,
-        "sample": SAMPLE
+        "sample": SAMPLE,
+        'grid': GRID,
+        "mesh3d": MESH3D
         }
 
 class AsmStructures:

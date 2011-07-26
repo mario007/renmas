@@ -201,7 +201,17 @@ image_saved = False
 duration = 0.0
 
 grid = renmas.shapes.Grid()
-grid.setup(ren.lst_shapes())
+#grid.setup(ren.lst_shapes())
+
+#idx_material = 2
+#mesh = renmas.core.Mesh3D(idx_material)
+#mesh.load_ply("dragon_vrip_res4.ply")
+#mesh.load_ply("dragon_vrip_res3.ply")
+#mesh.load_ply("dragon_vrip_res2.ply")
+#mesh.load_ply("dragon_vrip.ply")
+#gridmesh = renmas.shapes.GridMesh()
+#gridmesh.setup(mesh)
+
 
 def raycast():
     sampler = ren.get_sampler()
@@ -210,7 +220,7 @@ def raycast():
     lst_lights = ren.lst_lights()
     shapes = ren.lst_shapes()
     #isect = renmas.shapes.isect #intersection rutine
-    isect = grid.intersect
+    isect = grid.isect
     shade = renmas.core.shade
 
     background = renmas.core.Spectrum(0.00, 0.00, 0.00) 
@@ -236,11 +246,6 @@ def raycast():
         ray = camera.ray(sample)
         #hp = isect(ray, shapes, 999999.0)
         hp = isect(ray)
-
-        if sample.ix == 10 and sample.iy == 1650:
-            print(hp.hit_point)
-            print(sample.ix, sample.iy, hp.spectrum)
-            #import pdb; pdb.set_trace()
 
         if hp is None:
             film.add_sample(sample, hp2) #background
@@ -368,7 +373,7 @@ def raycast_asm():
 
 win = renmas.gui.MainWindow(600, 400, "Test")
 win.redraw()
-#win.render_handler(raycast_asm)
-win.render_handler(raycast)
+win.render_handler(raycast_asm)
+#win.render_handler(raycast)
 winlib.MainLoop()
 

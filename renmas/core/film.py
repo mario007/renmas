@@ -41,7 +41,7 @@ class Film:
             self.spectrum.scale(1.0/self.nsamples)
             spec = self.spectrum
 
-            #spec.clamp() FIXME make clamp to certen color so to know when picture is wrong 
+            spec.clamp() #FIXME make clamp to certen color so to know when picture is wrong 
             iy = self.height - sample.iy - 1 #flip the image
 
             #print(sample.ix, iy, spec.r, spec.g, spec.b)

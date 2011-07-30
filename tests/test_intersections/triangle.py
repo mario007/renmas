@@ -89,23 +89,15 @@ ASM += asm_structs + """
     #END
 
     global ray_triangle:
-    ;vmovaps xmm0, oword [ebx + triangle.p0]
-    vmovntdqa xmm0, oword [ebx + triangle.p0]
+    vmovaps xmm0, oword [ebx + triangle.p0]
 
-    ;vmovaps xmm2, oword [eax + ray.dir]
-    vmovntdqa xmm2, oword [eax + ray.dir]
+    vmovaps xmm2, oword [eax + ray.dir]
 
-    vmovntdqa xmm4, oword [ebx + triangle.p2]
-    vsubps xmm1, xmm0, xmm4
-    ;vsubps xmm1, xmm0, oword [ebx + triangle.p2]
+    vsubps xmm1, xmm0, oword [ebx + triangle.p2]
 
-    vmovntdqa xmm5, oword [eax + ray.origin]
-    vsubps xmm3, xmm0, xmm5
-    ;vsubps xmm3, xmm0, oword [eax + ray.origin]
+    vsubps xmm3, xmm0, oword [eax + ray.origin]
 
-    vmovntdqa xmm6, oword [ebx + triangle.p1]
-    vsubps xmm0, xmm0, xmm6
-    ;vsubps xmm0, xmm0, oword [ebx + triangle.p1]
+    vsubps xmm0, xmm0, oword [ebx + triangle.p1]
 
     vpermilps xmm0, xmm0, 11010010B ;rotate by 1
     vpermilps xmm2, xmm2, 11001001B ; rotate by 2

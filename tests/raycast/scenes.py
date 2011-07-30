@@ -4,14 +4,14 @@ import renmas.interface as ren
 
 WIDTH = 420 
 HEIGHT = 420 
-NSAMPLES = 100 
+NSAMPLES = 512 
 
 def dragon():
-    width = 1600 
-    height = 1200 
-    nsamples = 1 
+    width = 800 
+    height = 800 
+    nsamples = 16 
 
-    s_props = {"type":"regular", "pixel":0.8, "width": width, "height": height, "nsamples": nsamples}
+    s_props = {"type":"random", "pixel":0.8, "width": width, "height": height, "nsamples": nsamples}
     s =ren.create_sampler(s_props)
 
     c_props = {"type":"pinhole", "eye":(10.0, 11.0, 10.0), "lookat":(0.0, 0.0, 0.0), "distance":400}
@@ -22,12 +22,14 @@ def dragon():
     f = ren.create_film(f_props)
 
     #create lights
-    l_props = {"type":"point", "name": "light1", "position":(5,5.5,5.2), "spectrum":(4.99,4.99,4.99)}
+    #l_props = {"type":"point", "name": "light1", "position":(5,5.5,5.2), "spectrum":(4.99,4.99,4.99)}
+    l_props = {"type":"area", "spectrum":(148, 148, 148), "shape":"rectangle", "p":(21.3, 24.87999, 22.7),
+            "edge_a":(0.0, 0.0, 10.5), "edge_b":(13.0, 0.0, 0.0), "normal":(0.0, -1.0, 0.0)}
     l = ren.create_light(l_props)
 
     m_props = {"name": "m1", "sampling":"hemisphere_cos"}
     m = ren.create_material(m_props)
-    m_props = {"type":"lambertian", "R":(0.342, 0.015, 0.015)} # left wall- red wall
+    m_props = {"type":"lambertian", "R":(0.342, 0.155, 0.115)} # left wall- red wall
     ren.add_brdf("m1", m_props)
     m_props = {"type":"phong", "R":(0.2, 0.2, 0.2), "e": 12.2, "k":0.3}
     ren.add_brdf("m1", m_props)
@@ -49,16 +51,21 @@ def dragon():
     #sh_props = {"type":"sphere", "position":(0,0,0), "radius":2, "material":"m1"}
     #s = ren.create_shape(sh_props)
 
-    sh_props = {"type":"mesh", "resource":["Horse97K.ply"], "material":"m1", "scale": (2.4, 2.4, 2.4), "translate":(1.5, 1.7, 0.0)}
-    s = ren.create_shape(sh_props)
+    sh_props = {"type":"mesh", "resource":["Horse97K.ply"], "material":"m1", "scale": (2.5, 2.5, 2.5), "translate":(0.0, 0.0, 0.0)}
+    #s = ren.create_shape(sh_props)
 
     sh_props = {"type":"mesh", "resource":["dragon_vrip_res4.ply"], "material":"m2" , "translate":(0.5,0.5,0), "scale":(4, 4, 4)}
     #sh_props = {"type":"mesh", "resource":["dragon_vrip_res3.ply"], "material":"m2"}
     #sh_props = {"type":"mesh", "resource":["dragon_vrip.ply"], "material":"m1"}
-    sh_props = {"type":"mesh", "resource":["dragon_vrip.ply"], "material":"m2" , "translate":(0.2,-1.95,0), "scale":(24, 24, 24)}
+    sh_props = {"type":"mesh", "resource":["dragon_vrip.ply"], "material":"m2" , "translate":(0.2,-1.65,0), "scale":(12, 12, 12)}
+    #sh_props = {"type":"mesh", "resource":["dragon_vrip_res2.ply"], "material":"m2" , "translate":(0.2,-1.35,0), "scale":(8, 8, 8)}
     s = ren.create_shape(sh_props)
 
     sh_props = {"type":"mesh", "resource":["dragon_vrip_res4.ply"], "material":"m3" , "translate":(-2.5,0.0,0), "scale":(4, 4, 4)}
+    #s = ren.create_shape(sh_props)
+
+    #floor
+    sh_props = {"type":"rectangle", "p":(-8.0, -1.0, -4.0), "edge_a":(0.0, 0.0, 100.00), "edge_b":(100.00, 0.0, 0.0), "normal":(0.0, 1.0, 0.0) ,"material":"m1"}
     s = ren.create_shape(sh_props)
 
 
@@ -170,7 +177,7 @@ def cornell_scene():
             "normal":(0.95564, 0.0, -0.2945) ,"material":"m1"}
     s = ren.create_shape(sh_props)
 
-    import random
+    """import random
     for x in range(500):
         sh_props = {"type":"sphere", "position":(random.random()*45.0 + 5.0,random.random()*25,random.random()*45+5.0), "radius":random.random(), "material":"m4"}
         s = ren.create_shape(sh_props)
@@ -179,5 +186,5 @@ def cornell_scene():
         s = ren.create_shape(sh_props)
     for x in range(500):
         sh_props = {"type":"sphere", "position":(random.random()*45.0 + 5.0,random.random()*25,random.random()*45+5.0), "radius":random.random(), "material":"m5"}
-        s = ren.create_shape(sh_props)
+        s = ren.create_shape(sh_props)"""
 

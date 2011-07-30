@@ -6,7 +6,7 @@ from renmas.core import AsmStructures
 
 asm = Tdasm()
 AVX = asm.avx_supported()
-AVX = False
+#AVX = False 
 
 SSSE3 = asm.cpu["ssse3"]
 #SSSE3 = False
@@ -72,6 +72,7 @@ def load_func(runtime, *names):
                 renmas.maths.load_math_func("fast_sincos_ps", runtime)
             elif name == "ray_triangle_mesh":
                 renmas.shapes.intersect_ray_triangle(runtime, "ray_triangle_mesh")
+                #renmas.shapes.intersect_ray_triangle_avx(runtime, "ray_triangle_mesh")
             pass # load that function
 
 def normalization(xmm, tmp1, tmp2):

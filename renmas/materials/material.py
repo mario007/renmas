@@ -199,6 +199,7 @@ class Material:
         self.sampling_brdf_ptr = None
         self.sampling = None
         self.emiter = None
+        self.le_ptr = None
 
     def add_emiter(self, emiter):
         self.emiter = emiter
@@ -213,10 +214,10 @@ class Material:
         self.components.append(component)
 
     def le(self, hitpoint):
-        if self.emiter is None: return False
+        if self.emiter is None:
+            return renmas.core.Spectrum(0.0, 0.0, 0.0) 
         else:
-            self.emiter.Le(hitpoint)
-        return True
+            return self.emiter.Le(hitpoint)
 
     def brdf(self, hitpoint):
         spectrum = renmas.core.Spectrum(0.0, 0.0, 0.0) 
@@ -228,6 +229,7 @@ class Material:
 
     def next_direction(self, hitpoint):
         if self.sampling is None:
+            raise ValueError("There must exist some sampling tehnique!!!")
             return
         else: # implement to choose if we have mulitple sampling
             self.sampling[0].get_sample(hitpoint)
@@ -286,9 +288,34 @@ class Material:
         ds["sampling_ptr"] = f_ptr
         ds["brdf_ptr"] = self.func_ptr
 
-        #FIXME - add method to runtime class so we can ask runtime for address of module
-        self.sampling_brdf_ptr = runtime.modules[name][0]
+        self.sampling_brdf_ptr = runtime.address_module(name) 
 
+    def le_asm(self, runtime):
+        asm_structs = util.structs("hitpoint")
+        #eax pointer to hitpoint
+        ASM = """ 
+        #DATA
+        """
+        ASM += asm_structs + """
+        float zero_spectrum[4] = 0.0, 0.0, 0.0, 0.0
+        #CODE
+        """
+
+        if self.emiter is None:
+            ASM += "macro eq128 eax.hitpoint.le = zero_spectrum"
+        else:
+            raise ValueError("Its not implemented yet!! urgent implemtation is needed")
+
+        ASM += """
+        ret
+        """
+        assembler = util.get_asm()
+        mc = assembler.assemble(ASM, True)
+        #mc.print_machine_code()
+        name = "material_le" + str(util.unique())
+
+        runtime.load(name, mc)
+        self.le_ptr = runtime.address_module(name)
 
     def brdf_asm(self, runtime):
 
@@ -329,8 +356,7 @@ class Material:
         name = "material" + str(util.unique())
 
         self.ds = runtime.load(name, mc)
-        #FIXME - add method to runtime class so we can ask runtime for address of module
-        self.func_ptr = runtime.modules[name][0]
+        self.func_ptr = runtime.address_module(name)
 
         for c in self.components:
             c.populate_ds(self.ds)

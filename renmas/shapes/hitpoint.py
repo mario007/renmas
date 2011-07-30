@@ -1,7 +1,7 @@
 
 class HitPoint():
      __slots__ = ['t', 'hit_point', 'normal', 'material', 'ray', 'scene', 'spectrum', 'visible', 'wi', 'ndotwi', 
-             'wo', 'pdf', 'stop', 'brdf', 'light_pdf', 'light_normal', 'light_sample']
+             'wo', 'pdf', 'le', 'brdf', 'light_pdf', 'light_normal', 'light_sample']
      def __init__(self, t=0.0, hit_point=None, normal=None, material=None,
              ray=None, scene=None):
         self.t = t
@@ -16,7 +16,7 @@ class HitPoint():
         self.ndotwi = None
         self.wo = None
         self.pdf = None
-        self.stop = None
+        self.le = None
         self.brdf = None
         self.light_pdf = None
         self.light_normal = None

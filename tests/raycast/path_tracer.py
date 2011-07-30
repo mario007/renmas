@@ -13,7 +13,7 @@ import os
 import time
 from tdasm import Runtime
 
-from scenes import cornell_scene
+from scenes import cornell_scene, dragon
 
 blitter = renmas.gui.Blitter()
 def blt_float_img_to_window(x, y, img, win):
@@ -62,9 +62,11 @@ def build_scene():
     sh_props = {"type":"sphere", "position":(0,0,0), "radius":2, "material":"m1"}
     s = ren.create_shape(sh_props)
 
-cornell_scene()
+#cornell_scene()
+dragon()
 
 #build_scene()
+ren.prepare_for_rendering()
 
 lst_tiles = ren.tiles()
 ntile = -1 
@@ -97,7 +99,7 @@ def raycast():
     film = ren.get_film()
     lst_lights = ren.lst_lights()
 
-    shapes = ren.lst_shapes()
+    shapes = ren.isect_shapes()
     isect = renmas.shapes.isect #intersection rutine
     shade = renmas.core.shade
     recursion_depth = 3
@@ -353,7 +355,7 @@ def raycast_asm():
 
 win = renmas.gui.MainWindow(800, 600, "Test")
 win.redraw()
-win.render_handler(raycast_asm)
-#win.render_handler(raycast)
+#win.render_handler(raycast_asm)
+win.render_handler(raycast)
 winlib.MainLoop()
 

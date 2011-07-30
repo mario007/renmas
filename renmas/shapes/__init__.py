@@ -10,4 +10,5 @@ from .rectangle import Rectangle
 from .hitpoint import HitPoint
 from .funcs import intersect_ray_shape_array, isect, linear_isect_asm, visible, visible_asm, multiple_isect_asm
 from .funcs import intersect_ray_triangle
+from .funcs import intersect_ray_triangle_avx
 

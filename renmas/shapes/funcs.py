@@ -14,6 +14,174 @@ import renmas.utils as util
 # esp + 12 - address of v2
 # esp + 16 - address of normal
 # esp + 20 - mat_index
+def intersect_ray_triangle_avx(runtime, label, populate=True):
+    asm_structs = util.structs("ray", "hitpoint")
+
+    ASM = """ 
+    #DATA
+    float one = 1.0
+    float zero = 0.0
+    float epsilon = 0.00001
+    float beta
+    float coff 
+    """
+    ASM += asm_structs + """
+        ;eax = pointer to ray structure
+        ;ecx = pointer to minimum distance
+        ;edx = pointer to hitpoint
+    #CODE
+    """
+    ASM += " global " + label + ":\n" 
+    ASM += """
+    mov ebp, dword [esp+4]
+    vmovaps xmm0, oword [ebp]
+    ;vmovaps xmm0, oword [ebx + triangle.p0]
+
+
+    vmovaps xmm2, oword [eax + ray.dir]
+
+    mov ebp, dword [esp+12]
+    vsubps xmm1, xmm0, oword [ebp]
+    ;vsubps xmm1, xmm0, oword [ebx + triangle.p2]
+
+    vsubps xmm3, xmm0, oword [eax + ray.origin]
+
+    mov ebp, dword [esp+8]
+    vsubps xmm0, xmm0, oword [ebp]
+    ;vsubps xmm0, xmm0, oword [ebx + triangle.p1]
+
+    vpermilps xmm0, xmm0, 11010010B ;rotate by 1
+    vpermilps xmm2, xmm2, 11001001B ; rotate by 2
+    
+    vblendps xmm4, xmm0, xmm1, 0010b
+    vblendps xmm4, xmm4, xmm2, 1
+   
+    vblendps xmm5, xmm0, xmm1, 0100b
+    vblendps xmm5, xmm5, xmm2, 0010b
+
+    vpermilps xmm6, xmm4, 11010010B
+    vpermilps xmm7, xmm5, 11001001B
+
+    vmulps xmm4, xmm4, xmm5
+    vmulps xmm6, xmm6, xmm7
+    vblendps xmm5, xmm0, xmm1, 0001B
+    vblendps xmm5, xmm5, xmm2, 0100B
+    vsubps xmm4, xmm4, xmm6
+    vdpps xmm7, xmm4, xmm5, 0xf1
+
+    vpermilps xmm3, xmm3, 11010010B ;rotate by 1
+    vblendps xmm4, xmm1, xmm2, 0001B
+    vmovss xmm6, dword [one]
+    vblendps xmm4, xmm4, xmm3, 0100B
+    vblendps xmm5, xmm1, xmm2, 0010B
+    vdivss xmm6, xmm6, xmm7
+
+    vblendps xmm5, xmm5, xmm3, 0001B
+
+    vpermilps xmm7, xmm5, 11001001B
+    vmovss dword [coff], xmm6
+    vpermilps xmm6, xmm4, 11010010B
+
+    vmulps xmm4, xmm4, xmm5
+    vmulps xmm6, xmm6, xmm7
+
+    vblendps xmm5, xmm1, xmm2, 0100B
+    vblendps xmm5, xmm5, xmm3, 0010B
+
+    vsubps xmm4, xmm4, xmm6
+    vdpps xmm7, xmm4, xmm5, 0xf1
+
+    vmulss xmm7, xmm7, dword [coff]
+    vcomiss xmm7, dword [zero]
+    jc _reject ;beta less then zero reject 
+    vmovss dword [beta], xmm7
+    
+    vpermilps xmm3, xmm3, 11001001B ; rotate by 2
+
+    vblendps xmm4, xmm0, xmm2, 0001B
+    vblendps xmm4, xmm4, xmm3, 0010B
+    vpermilps xmm6, xmm4, 11010010B
+    vblendps xmm5, xmm0, xmm2, 0010B
+    vblendps xmm5, xmm5, xmm3, 0100B
+    vpermilps xmm7, xmm5, 11001001B
+    vmulps xmm4, xmm4, xmm5
+    vmulps xmm6, xmm6, xmm7
+    vblendps xmm5, xmm0, xmm2, 0100B
+    vblendps xmm5, xmm5, xmm3, 0001B
+    vsubps xmm4, xmm4, xmm6
+    vdpps xmm7, xmm4, xmm5, 0xf1
+
+    vmulss xmm7, xmm7, dword [coff]
+    vcomiss xmm7, dword [zero]
+    jc _reject ;beta less then zero reject 
+    vaddss xmm7, xmm7, dword [beta]
+    vcomiss xmm7, dword [one]
+    jnc _reject
+
+    vpermilps xmm3, xmm3, 11001001B ; rotate by 2
+
+    vblendps xmm4, xmm0, xmm1, 0010B
+    vblendps xmm4, xmm4, xmm3, 0001B
+    vpermilps xmm6, xmm4, 11010010B
+    vblendps xmm5, xmm0, xmm1, 0100B
+    vblendps xmm5, xmm5, xmm3, 0010B
+    vpermilps xmm7, xmm5, 11001001B
+    vmulps xmm4, xmm4, xmm5
+    vmulps xmm6, xmm6, xmm7
+    vblendps xmm5, xmm0, xmm1, 0001B
+    vblendps xmm5, xmm5, xmm3, 0100B
+    vsubps xmm4, xmm4, xmm6
+    vdpps xmm7, xmm4, xmm5, 0xf1
+    vmulss xmm7, xmm7, dword [coff]
+    vcomiss xmm7, dword [epsilon]
+    jc _reject
+    vcomiss xmm7, dword [ecx] ;minimum distance
+    jnc _reject
+
+
+    ;populate hitpoint structure
+    ; t is in xmm7
+    vmovss dword [edx + hitpoint.t], xmm7 
+    macro broadcast xmm6 = xmm7[0]
+    ;macro eq128_32 edx.hitpoint.normal = ebx.triangle.normal, edx.hitpoint.mat_index = ebx.triangle.mat_index
+
+    ;vpermilps xmm2, xmm2, 11001001B ; rotate by 2
+    macro eq128 xmm2 = eax.ray.dir
+    vmulps xmm6, xmm6, xmm2
+    macro eq128 edx.hitpoint.hit = xmm6 + eax.ray.origin
+
+    mov ebp, dword [esp + 16]
+    vmovaps xmm0, oword [ebp]
+    vmovss xmm1, dword [esp + 20]
+    macro eq128 edx.hitpoint.normal = xmm0
+    macro eq32 edx.hitpoint.mat_index = xmm1
+
+    mov eax, 1
+    ret
+
+    _reject:
+    mov eax, 0
+    ret
+"""
+
+
+    assembler = util.get_asm()
+    mc = assembler.assemble(ASM, True)
+    #mc.print_machine_code()
+    name = "ray_triangle_isect" + str(util.unique())
+    runtime.load(name, mc)
+
+# eax = pointer to ray structure
+# ecx = pointer to minimum distance
+# edx = pointer to hitpoint
+
+# triangle paramters are on the on the stack
+# esp - return address
+# esp + 4 - address of v0
+# esp + 8 - address of v1
+# esp + 12 - address of v2
+# esp + 16 - address of normal
+# esp + 20 - mat_index
 
 def intersect_ray_triangle(runtime, label, populate=True):
     asm_structs = util.structs("ray", "hitpoint")

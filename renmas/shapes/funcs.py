@@ -14,6 +14,222 @@ import renmas.utils as util
 # esp + 12 - address of v2
 # esp + 16 - address of normal
 # esp + 20 - mat_index
+
+def intersect_ray_triangle_new(runtime, label, populate=True):
+    asm_structs = util.structs("ray", "hitpoint")
+
+    ASM = """ 
+    #DATA
+    float epsilon= 0.00001
+    float one = 1.0
+    """
+    ASM += asm_structs + """
+        ;eax = pointer to ray structure
+        ;ecx = pointer to minimum distance
+        ;edx = pointer to hitpoint
+    #CODE
+    ;macro eq128_128 xmm0 = ebx.triangle.p1 - ebx.triangle.p0, xmm1 = ebx.triangle.p2 - ebx.triangle.p0 
+    """
+    ASM += " global " + label + ":\n" 
+    ASM += """
+    mov ebp, dword [esp+4]
+    movaps xmm0, oword [ebp]
+    ;movaps xmm0, oword [ebx + triangle.p0]
+
+    movaps xmm2, oword [eax + ray.dir]
+    movaps xmm1, xmm0
+
+    mov ebp, dword [esp+12]
+    subps xmm1, oword [ebp]
+    ;subps xmm1, oword [ebx + triangle.p2]
+
+    movaps xmm3, xmm0
+    subps xmm3, oword [eax + ray.origin]
+
+    mov ebp, dword [esp+8]
+    subps xmm0, oword [ebp]
+    ;subps xmm0, oword [ebx + triangle.p1]
+
+    
+    ; f f h f
+    movaps xmm4, xmm1
+    movlhps xmm4, xmm3
+    shufps xmm4, xmm4, 01110101B
+
+    ; k k k l
+    movaps xmm5, xmm2
+    movhlps xmm5, xmm3
+    shufps xmm5, xmm5, 00101010B 
+
+    ; f f h f * k k k l
+    movaps xmm7, xmm4
+    mulps xmm7, xmm5
+
+    ; g g g h
+    movaps xmm6, xmm2
+    movaps xmm4, xmm1
+    movlhps xmm6, xmm3
+    movhlps xmm4, xmm3
+    shufps xmm6, xmm6, 11010101B
+    shufps xmm4, xmm4, 10001010B
+
+    ; j j l j
+
+    ; g g g h * j j l j
+    mulps xmm4, xmm6
+
+    ; f f h f * k k k l - g g g h * j j l j
+    subps xmm7, xmm4
+
+    ; a d a a
+    movaps xmm5, xmm0
+    movlhps xmm5, xmm3
+    shufps xmm5, xmm5, 00001000B
+
+    ; a d a a * (f f h f * k k k l - g g g h * j j l j)
+    mulps xmm7, xmm5
+
+    ; i l i i
+    movaps xmm5, xmm0
+    movhlps xmm5, xmm3
+    shufps xmm5, xmm5, 10100010B
+
+    ; g g g h * i l i i
+    mulps xmm6, xmm5
+
+    ; e h e e
+    movaps xmm4, xmm0
+    movlhps xmm4, xmm3
+    shufps xmm4, xmm4, 01011101B
+
+    ; k k k l
+    movaps xmm5, xmm2
+    movhlps xmm5, xmm3
+    shufps xmm5, xmm5, 00101010B 
+
+    ; e h e e * k k k l
+    mulps xmm5, xmm4
+
+    ; g g g h * i l i i - e h e e * k k k l
+    subps xmm6, xmm5
+
+    ; b b d b
+    movaps xmm5, xmm1
+    movlhps xmm5, xmm3
+    shufps xmm5, xmm5, 00100000B
+
+    ; b b d b * (g g g h * i l i i - e h e e * k k k l)
+    mulps xmm6, xmm5
+
+    addps xmm7, xmm6
+
+    ; j j l j
+    movaps xmm5, xmm1
+    movhlps xmm5, xmm3
+    shufps xmm5, xmm5, 10001010B
+
+    ; e e h e * j j l j 
+    mulps xmm4, xmm5
+
+    ; f f h f
+    movaps xmm6, xmm1
+    movlhps xmm6, xmm3
+    shufps xmm6, xmm6, 01110101B
+
+    ; i l i i
+    movaps xmm5, xmm0
+    movhlps xmm5, xmm3
+    shufps xmm5, xmm5, 10100010B
+
+    ; f f h f * i l i i
+    mulps xmm6, xmm5
+
+    ; e h e e * j j l j - f f h f * i l i i
+    subps xmm4, xmm6
+
+    ; c c c d
+    movaps xmm5, xmm2
+    movlhps xmm5, xmm3
+    shufps xmm5, xmm5, 10000000B
+
+    ; c c c d * (e h e e * j j l j - f f h f * i l i i)
+    mulps xmm4, xmm5
+
+    addps xmm7, xmm4
+    macro broadcast xmm3 = xmm7[0]
+    divps xmm7, xmm3
+
+    movhlps xmm5, xmm7
+    
+    movaps xmm4, xmm7
+    shufps xmm4, xmm4, 0x55 
+    
+    movaps xmm6, xmm7
+    shufps xmm6, xmm6, 0xFF
+
+    ; xmm7 = d
+    ; xmm6 = td
+    ; xmm5 = gamma
+    ; xmm4 = beta
+
+    pxor xmm3, xmm3
+    macro if xmm4 < xmm3 goto _reject
+    macro if xmm5 < xmm3 goto _reject
+    addss xmm4, xmm5
+    macro if xmm4 > one goto _reject
+
+    comiss xmm6, dword [epsilon]
+    jc _reject
+    comiss xmm6, dword [ecx] ;minimum distance
+    jnc _reject
+
+    ;populate hitpoint structure
+    ; t is in xmm6
+    
+    movaps xmm2, oword [eax + ray.dir]
+
+    mov ebp, dword [esp + 16]
+    movaps xmm3, oword [ebp]
+    ;movaps xmm3, oword [ebx + triangle.normal]
+
+
+    movss xmm4, dword [esp+20]
+    ;movss xmm4, dword [ebx + triangle.mat_index]
+    
+
+    movss dword [edx + hitpoint.t], xmm6 
+    movaps oword [edx + hitpoint.normal], xmm3
+    movss dword [edx + hitpoint.mat_index], xmm4
+    macro broadcast xmm5 = xmm6[0]
+    mulps xmm5, xmm2
+
+    macro eq128 edx.hitpoint.hit = xmm5 + eax.ray.origin
+
+    mov eax, 1
+    ret
+
+    _reject:
+    xor eax, eax
+    ret
+    """
+
+    assembler = util.get_asm()
+    mc = assembler.assemble(ASM, True)
+    #mc.print_machine_code()
+    name = "ray_triangle_isect" + str(util.unique())
+    runtime.load(name, mc)
+
+# eax = pointer to ray structure
+# ecx = pointer to minimum distance
+# edx = pointer to hitpoint
+
+# triangle paramters are on the on the stack
+# esp - return address
+# esp + 4 - address of v0
+# esp + 8 - address of v1
+# esp + 12 - address of v2
+# esp + 16 - address of normal
+# esp + 20 - mat_index
 def intersect_ray_triangle_avx(runtime, label, populate=True):
     asm_structs = util.structs("ray", "hitpoint")
 

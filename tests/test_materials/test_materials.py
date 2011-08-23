@@ -21,10 +21,8 @@ hitpoint.wi = renmas.maths.Vector3(0.55, 0.35, 0.10)
 hitpoint.wo = renmas.maths.Vector3(0.22, -0.66, 0.11)
 
 spectrum = renmas.core.Spectrum(0.6, 0.7, 0.8)
-ndotwi = 0.65
-
 hitpoint.spectrum = spectrum
-hitpoint.ndotwi = ndotwi
+hitpoint.ndotwi = hitpoint.normal.dot(hitpoint.wi) 
 
 
 mat = renmas.materials.Material()
@@ -34,8 +32,16 @@ lamb = renmas.materials.LambertianBRDF(mat_spec)
 mat_spec2 = renmas.core.Spectrum(0.3, 0.2, 0.1)
 lamb2 = renmas.materials.PhongBRDF(mat_spec2, 1.2)
 
+sam = renmas.materials.HemisphereCos()
+mat.add_sampling(sam)
+
+spec3 = renmas.core.Spectrum(0.2, 0.2, 0.2)
+dist = renmas.materials.BeckmannDistribution(0.3)
+cook = renmas.materials.CookTorranceBRDF(spec3, dist)
+
 #mat.add_component(lamb)
 mat.add_component(lamb2)
+mat.add_component(cook)
 
 runtime = Runtime()
 mat.brdf_asm(runtime)
@@ -47,10 +53,12 @@ ASM = """
 ASM += asm_structs + """
     hitpoint hp1
     uint32 func_ptr
+    float _xmm0[4]
 
     #CODE
     mov eax, hp1
     call dword [func_ptr]
+    macro eq128 _xmm0 = xmm0
 
     #END
 """
@@ -73,5 +81,6 @@ ds["func_ptr"] = mat.func_ptr
 runtime.run("test")
 
 print(mat.brdf(hitpoint))
-print(ds["hp1.spectrum"])
+print(ds["hp1.brdf"])
+print(ds["_xmm0"])
 

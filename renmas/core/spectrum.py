@@ -15,6 +15,9 @@ class Spectrum:
     def __add__(self, col):
         return Spectrum(self.r + col.r, self.g + col.g, self.b + col.b)
 
+    def __sub__(self, col):
+        return Spectrum(self.r - col.r, self.g - col.g, self.b - col.b)
+
     def __eq__(self, col):
         return (self.r == col.r) and (self.g == col.g) and (self.b == col.b)
     
@@ -34,9 +37,9 @@ class Spectrum:
         return self
 
     def clamp(self):
-        if self.r > 1.0: self.r = 0.99999
-        if self.g > 1.0: self.g = 0.99999
-        if self.b > 1.0: self.b = 0.99999
+        if self.r > 1.0: self.r = 0.99
+        if self.g > 1.0: self.g = 0.99
+        if self.b > 1.0: self.b = 0.99
         if self.r < 0.0: self.r = 0.0
         if self.g < 0.0: self.g = 0.0
         if self.b < 0.0: self.b = 0.0

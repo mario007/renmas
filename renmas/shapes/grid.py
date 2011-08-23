@@ -912,6 +912,7 @@ class Grid:
         y1 = self.bbox.y1
         z1 = self.bbox.z1
 
+        if dx == 0.0: return False
         a = 1.0 / dx
         if a >= 0:
             tx_min = (x0 - ox) * a
@@ -920,6 +921,7 @@ class Grid:
             tx_min = (x1 - ox) * a
             tx_max = (x0 - ox) * a
 
+        if dy == 0.0: return False
         b = 1.0 / dy
         if b >= 0:
             ty_min = (y0 - oy) * b
@@ -928,6 +930,7 @@ class Grid:
             ty_min = (y1 - oy) * b
             ty_max = (y0 - oy) * b
 
+        if dz == 0.0: return False
         c = 1.0 / dz
         if c >= 0:
             tz_min = (z0 - oz) * c

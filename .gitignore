@@ -12,6 +12,7 @@
 *.py~
 *.png
 *.ply
+*.cpp~
 /ImageLoader/ImageLoader/Release
 /WindowLibrary/WindowLibrary/Release
 /WindowLibrary/WindowLibrary/x64

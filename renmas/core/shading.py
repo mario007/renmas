@@ -59,7 +59,6 @@ def generate_shade(runtime, label,  visible_label):
         mov ebx, dword [eax + hitpoint.mat_index]
         call dword [le_ptrs + 4*ebx] 
 
-
         next_light:
         ; check if include all lights and finish shading if we are  
         mov ebx, dword [cur_light]

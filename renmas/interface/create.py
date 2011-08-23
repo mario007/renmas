@@ -7,6 +7,7 @@ import renmas.shapes
 import renmas.lights
 import renmas.samplers
 import random
+from tdasm import Runtime
 
 scene = renmas.scene
 geometry = renmas.geometry
@@ -185,8 +186,12 @@ def create_material(props):
     mat = renmas.materials.Material()
     if sampling is not None:
         if sampling == "hemisphere_cos":
-            sampling = renmas.materials.HemisphereCos()
-            mat.add_sampling(sampling)
+            sam = renmas.materials.HemisphereCos()
+            mat.add_sampling(sam)
+        elif sampling == "specular":
+            sam = renmas.materials.SpecularSampling()
+            mat.add_sampling(sam)
+
     mat_db.add_material(name, mat) 
     return mat
 
@@ -201,6 +206,12 @@ def add_brdf(material_name, props):
         lamb = renmas.materials.LambertianBRDF(spectrum, k)
         mat = mat_db.mat(material_name) 
         mat.add_component(lamb)
+    elif brdf_name == "specular":
+        #he has reflectence properties for three channels
+        R = props["R"]
+        spec = renmas.materials.SpecularBRDF(float(R))
+        mat = mat_db.mat(material_name) 
+        mat.add_component(spec)
     elif brdf_name == "constant":
         r, g, b = props["R"]
         k = props.get("k", None)
@@ -216,6 +227,33 @@ def add_brdf(material_name, props):
         c = renmas.materials.PhongBRDF(spectrum, float(e), k)
         mat = mat_db.mat(material_name) 
         mat.add_component(c)
+    elif brdf_name == "oren_nayar":
+        r, g, b = props["R"]
+        alpha = float(props["alpha"])
+        k = props.get("k", None)
+        spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
+        c = renmas.materials.OrenNayarBRDF(spectrum, alpha, k)
+        mat = mat_db.mat(material_name) 
+        mat.add_component(c)
+
+    elif brdf_name == "cook_torrance":
+        r, g, b = props["R"]
+        k = props.get("k", None)
+        spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
+        if props["distribution"] == "gaussian":
+            pr = props["dist_props"]
+            c = float(pr["c"])
+            m = float(pr["m"])
+            dis = renmas.materials.GaussianDistribution(c, m)
+        elif props["distribution"] == "beckmann":
+            pr = props["dist_props"]
+            m = float(pr["m"])
+            dis = renmas.materials.BeckmannDistribution(m)
+        else:
+            raise ValueError("unknown distribution")
+        comp = renmas.materials.CookTorranceBRDF(spectrum, dis, k)
+        mat = mat_db.mat(material_name) 
+        mat.add_component(comp)
     else:
         raise ValueError("unknown brdf name")
 
@@ -305,9 +343,21 @@ def create_area_light(props):
     edge_a = renmas.maths.Vector3(float(eda_x), float(eda_y), float(eda_z))
     edge_b = renmas.maths.Vector3(float(edb_x), float(edb_y), float(edb_z))
 
-    rect = renmas.shapes.Rectangle(p, edge_a, edge_b, n,  99999)
+    mat = renmas.materials.Material()
+    sampling = renmas.materials.HemisphereCos()
+    mat.add_sampling(sampling)
+    material_name = "Emiter" + str(renmas.utils.unique())
+    emiter = renmas.materials.ConstEmiter(spectrum)
+    mat.add_emiter(emiter)
+    mat_db.add_material(material_name, mat) 
+
+    mat_idx = get_mat_idx(material_name)
+
+    rect = renmas.shapes.Rectangle(p, edge_a, edge_b, n, mat_idx)
     a_light = renmas.lights.AreaLight(spectrum, rect)
     light_db.add_light(a_light)
+
+    geometry.add_shape("Rectangle"+str(renmas.utils.unique()), rect)
 
     return a_light
 
@@ -443,4 +493,75 @@ def objfunc_array(lst_shapes, runtime):
         addr.append(lbl_addr)
 
     return tuple(addr)
+
+lst_tiles = []
+rendering_done = False
+
+def create_tiles():
+    global lst_tiles
+    lst_tiles = tiles()
+    global rendering_done 
+    rendering_done = False
+
+def get_tile():
+    global lst_tiles 
+
+    try:
+        return lst_tiles.pop()
+    except:
+        global rendering_done
+        rendering_done = True
+        return None
+
+def is_rendering_finished():
+    return rendering_done
+
+def get_integrator():
+    import renmas.integrators
+    return pathtracer_asm
+    return raycast_asm
+    return renmas.integrators.raycast
+
+runtime = None
+def prepare_raycast_asm():
+    global runtime
+    runtime = Runtime()
+    get_sampler().get_sample_asm(runtime, "get_sample")
+    get_camera().ray_asm(runtime, "generate_ray")
+
+    import renmas
+    renmas.shapes.linear_isect_asm(runtime, "scene_isect", dyn_arrays())
+    renmas.shapes.visible_asm(runtime, "visible", "scene_isect")
+    renmas.core.generate_shade(runtime, "shade", "visible")
+    get_film().add_sample_asm(runtime, "add_sample")
+    import renmas.integrators
+    renmas.integrators.prepare_raycast_asm(runtime)
+
+def raycast_asm(tile):
+    global runtime
+    sampler = get_sampler()
+    x, y, width, height = tile
+    sampler.tile(x, y, width, height)
+    runtime.run("raycast") #100% rendering in assembly language
+    
+def pathtracer_asm(tile):
+    global runtime
+    sampler = get_sampler()
+    x, y, width, height = tile
+    sampler.tile(x, y, width, height)
+    runtime.run("pathtracer") #100% rendering in assembly language
+
+def prepare_pathtracer_asm():
+    global runtime
+    runtime = Runtime()
+    get_sampler().get_sample_asm(runtime, "get_sample")
+    get_camera().ray_asm(runtime, "generate_ray")
+
+    import renmas
+    renmas.shapes.linear_isect_asm(runtime, "scene_isect", dyn_arrays())
+    renmas.shapes.visible_asm(runtime, "visible", "scene_isect")
+    renmas.core.generate_shade(runtime, "shade", "visible")
+    get_film().add_sample_asm(runtime, "add_sample")
+    import renmas.integrators
+    renmas.integrators.prepare_pathtracer_asm(runtime)
 

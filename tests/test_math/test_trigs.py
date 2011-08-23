@@ -20,6 +20,7 @@ movss dword [x], xmm0
 #END
 """
 
+
 SIN_CODE_PS = """
 #DATA
 float x
@@ -135,6 +136,135 @@ float v2[4]
 movaps xmm0, oword [v1]
 movaps xmm1, oword [v2]
 call fast_pow_ps
+movaps oword [v1], xmm0 
+
+#END
+"""
+ATAN_CODE = """
+#DATA
+float x
+float v1[4]
+
+#CODE
+movss xmm0, dword [x]
+call fast_atan_ss
+movss dword [x], xmm0 
+
+#END
+"""
+
+ATAN_CODE_PS = """
+#DATA
+float x
+float v1[4]
+
+#CODE
+movaps xmm0, oword [v1]
+call fast_atan_ps
+movaps oword [v1], xmm0 
+
+#END
+"""
+
+ASIN_CODE = """
+#DATA
+float x
+float v1[4]
+
+#CODE
+movss xmm0, dword [x]
+call fast_asin_ss
+movss dword [x], xmm0 
+
+#END
+"""
+
+ASIN_CODE_PS = """
+#DATA
+float x
+float v1[4]
+
+#CODE
+movaps xmm0, oword [v1]
+call fast_asin_ps
+movaps oword [v1], xmm0 
+
+#END
+"""
+
+ACOS_CODE = """
+#DATA
+float x
+float v1[4]
+
+#CODE
+movss xmm0, dword [x]
+call fast_acos_ss
+movss dword [x], xmm0 
+
+#END
+"""
+
+ACOS_CODE_PS = """
+#DATA
+float x
+float v1[4]
+
+#CODE
+movaps xmm0, oword [v1]
+call fast_acos_ps
+movaps oword [v1], xmm0 
+
+#END
+"""
+
+TAN_CODE = """
+#DATA
+float x
+float v1[4]
+
+#CODE
+movss xmm0, dword [x]
+call fast_tan_ss
+movss dword [x], xmm0 
+
+#END
+"""
+
+TAN_CODE_PS = """
+#DATA
+float x
+float v1[4]
+
+#CODE
+movaps xmm0, oword [v1]
+call fast_tan_ps
+movaps oword [v1], xmm0 
+
+#END
+"""
+
+LOG_CODE = """
+#DATA
+float x
+float v1[4]
+
+#CODE
+movss xmm0, dword [x]
+call fast_log_ss
+movss dword [x], xmm0 
+
+#END
+"""
+
+LOG_CODE_PS = """
+#DATA
+float x
+float v1[4]
+
+#CODE
+movaps xmm0, oword [v1]
+call fast_log_ps
 movaps oword [v1], xmm0 
 
 #END
@@ -363,6 +493,206 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm[1], rez_py2, 1)
             self.assertAlmostEqual(rez_asm[2], rez_py3, 1)
             self.assertAlmostEqual(rez_asm[3], rez_py4, 1)
+
+    def test_atan(self):
+        asm = Tdasm()
+        mc = asm.assemble(ATAN_CODE)
+        runtime = Runtime()
+        load_math_func("fast_atan_ss", runtime)
+        ds = runtime.load("atan", mc)
+
+        for x in range(1000):
+            num = random.random() * 2000
+            ds["x"] = num 
+            runtime.run("atan")
+            rez_asm = ds["x"]
+            rez_py = math.atan(num)
+            self.assertAlmostEqual(rez_asm, rez_py, 3)
+
+    def test_atan_ps(self):
+        asm = Tdasm()
+        mc = asm.assemble(ATAN_CODE_PS)
+        runtime = Runtime()
+        load_math_func("fast_atan_ps", runtime)
+        ds = runtime.load("atan_ps", mc)
+
+        for x in range(1000):
+            num1 = random.random() * 2000
+            num2 = random.random() * 2000
+            num3 = random.random() * 2000
+            num4 = random.random() * 2000
+            ds["v1"] = (num1, num2, num3, num4) 
+            runtime.run("atan_ps")
+            rez_asm = ds["v1"]
+            rez_py1 = math.atan(num1)
+            rez_py2 = math.atan(num2)
+            rez_py3 = math.atan(num3)
+            rez_py4 = math.atan(num4)
+
+            self.assertAlmostEqual(rez_asm[0], rez_py1, 3)
+            self.assertAlmostEqual(rez_asm[1], rez_py2, 3)
+            self.assertAlmostEqual(rez_asm[2], rez_py3, 3)
+            self.assertAlmostEqual(rez_asm[3], rez_py4, 3)
+
+    def test_asin(self):
+        asm = Tdasm()
+        mc = asm.assemble(ASIN_CODE)
+        runtime = Runtime()
+        load_math_func("fast_asin_ss", runtime)
+        ds = runtime.load("asin", mc)
+
+        for x in range(1000):
+            num = random.random() 
+            ds["x"] = num 
+            runtime.run("asin")
+            rez_asm = ds["x"]
+            rez_py = math.asin(num)
+            self.assertAlmostEqual(rez_asm, rez_py, 3)
+
+    def test_asin_ps(self):
+        asm = Tdasm()
+        mc = asm.assemble(ASIN_CODE_PS)
+        runtime = Runtime()
+        load_math_func("fast_asin_ps", runtime)
+        ds = runtime.load("asin_ps", mc)
+
+        for x in range(1000):
+            num1 = random.random() 
+            num2 = random.random() 
+            num3 = random.random() 
+            num4 = random.random()
+            ds["v1"] = (num1, num2, num3, num4) 
+            runtime.run("asin_ps")
+            rez_asm = ds["v1"]
+            rez_py1 = math.asin(num1)
+            rez_py2 = math.asin(num2)
+            rez_py3 = math.asin(num3)
+            rez_py4 = math.asin(num4)
+
+            self.assertAlmostEqual(rez_asm[0], rez_py1, 3)
+            self.assertAlmostEqual(rez_asm[1], rez_py2, 3)
+            self.assertAlmostEqual(rez_asm[2], rez_py3, 3)
+            self.assertAlmostEqual(rez_asm[3], rez_py4, 3)
+
+    def test_acos(self):
+        asm = Tdasm()
+        mc = asm.assemble(ACOS_CODE)
+        runtime = Runtime()
+        load_math_func("fast_acos_ss", runtime)
+        ds = runtime.load("acos", mc)
+
+        for x in range(1000):
+            num = random.random() 
+            ds["x"] = num 
+            runtime.run("acos")
+            rez_asm = ds["x"]
+            rez_py = math.acos(num)
+            self.assertAlmostEqual(rez_asm, rez_py, 2)
+
+    def test_acos_ps(self):
+        asm = Tdasm()
+        mc = asm.assemble(ACOS_CODE_PS)
+        runtime = Runtime()
+        load_math_func("fast_acos_ps", runtime)
+        ds = runtime.load("acos_ps", mc)
+
+        for x in range(1000):
+            num1 = random.random() 
+            num2 = random.random() 
+            num3 = random.random() 
+            num4 = random.random()
+            ds["v1"] = (num1, num2, num3, num4) 
+            runtime.run("acos_ps")
+            rez_asm = ds["v1"]
+            rez_py1 = math.acos(num1)
+            rez_py2 = math.acos(num2)
+            rez_py3 = math.acos(num3)
+            rez_py4 = math.acos(num4)
+
+            self.assertAlmostEqual(rez_asm[0], rez_py1, 2)
+            self.assertAlmostEqual(rez_asm[1], rez_py2, 2)
+            self.assertAlmostEqual(rez_asm[2], rez_py3, 2)
+            self.assertAlmostEqual(rez_asm[3], rez_py4, 2)
+
+    def test_tan(self):
+        asm = Tdasm()
+        mc = asm.assemble(TAN_CODE)
+        runtime = Runtime()
+        load_math_func("fast_tan_ss", runtime)
+        ds = runtime.load("tan", mc)
+
+        for x in range(1000):
+            num = random.random()  
+            ds["x"] = num 
+            runtime.run("tan")
+            rez_asm = ds["x"]
+            rez_py = math.tan(num)
+            self.assertAlmostEqual(rez_asm, rez_py, 1)
+
+    def test_tan_ps(self):
+        asm = Tdasm()
+        mc = asm.assemble(TAN_CODE_PS)
+        runtime = Runtime()
+        load_math_func("fast_tan_ps", runtime)
+        ds = runtime.load("tan_ps", mc)
+
+        for x in range(1000):
+            num1 = random.random() 
+            num2 = random.random()
+            num3 = random.random() 
+            num4 = random.random() 
+            ds["v1"] = (num1, num2, num3, num4) 
+            runtime.run("tan_ps")
+            rez_asm = ds["v1"]
+            rez_py1 = math.tan(num1)
+            rez_py2 = math.tan(num2)
+            rez_py3 = math.tan(num3)
+            rez_py4 = math.tan(num4)
+
+            self.assertAlmostEqual(rez_asm[0], rez_py1, 1)
+            self.assertAlmostEqual(rez_asm[1], rez_py2, 1)
+            self.assertAlmostEqual(rez_asm[2], rez_py3, 1)
+            self.assertAlmostEqual(rez_asm[3], rez_py4, 1)
+
+    def test_log(self):
+        asm = Tdasm()
+        mc = asm.assemble(LOG_CODE)
+        runtime = Runtime()
+        load_math_func("fast_log_ss", runtime)
+        ds = runtime.load("log", mc)
+
+        for x in range(1000):
+            num = random.random()  
+            ds["x"] = num 
+            runtime.run("log")
+            rez_asm = ds["x"]
+            rez_py = math.log(num)
+            self.assertAlmostEqual(rez_asm, rez_py, 3)
+
+    def test_log_ps(self):
+        asm = Tdasm()
+        mc = asm.assemble(LOG_CODE_PS)
+        runtime = Runtime()
+        load_math_func("fast_log_ps", runtime)
+        ds = runtime.load("log_ps", mc)
+
+        for x in range(1000):
+            num1 = random.random() 
+            num2 = random.random()
+            num3 = random.random() 
+            num4 = random.random() 
+            ds["v1"] = (num1, num2, num3, num4) 
+            runtime.run("log_ps")
+            rez_asm = ds["v1"]
+            rez_py1 = math.log(num1)
+            rez_py2 = math.log(num2)
+            rez_py3 = math.log(num3)
+            rez_py4 = math.log(num4)
+
+            self.assertAlmostEqual(rez_asm[0], rez_py1, 3)
+            self.assertAlmostEqual(rez_asm[1], rez_py2, 3)
+            self.assertAlmostEqual(rez_asm[2], rez_py3, 3)
+            self.assertAlmostEqual(rez_asm[3], rez_py4, 3)
 
 if __name__ == "__main__":
     unittest.main()

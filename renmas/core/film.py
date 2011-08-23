@@ -11,10 +11,19 @@ class Film:
         self.nsamples = nsamples
 
         self.image = renmas.gui.ImageFloatRGBA(width, height)
+        self.frame_buffer = renmas.gui.ImageRGBA(width, height)
+        self.blitter = renmas.gui.Blitter()
 
         self.spectrum = renmas.core.Spectrum(0.0, 0.0, 0.0)
         self.curn = nsamples
         self.ds = None
+
+    def blt_image_to_buffer(self):
+        da, dpitch = self.frame_buffer.get_addr()
+        dw, dh = self.frame_buffer.get_size()
+        sa, spitch = self.image.get_addr()
+        sw, sh = self.image.get_size()
+        self.blitter.blt_floatTorgba(da, 0, 0, dw, dh, dpitch, sa, 0, 0, sw, sh, spitch)
 
     def numsamples(self):
         return self.nsamples

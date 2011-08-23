@@ -52,7 +52,7 @@ class Sphere:
 
         ASM = """ 
         #DATA
-        float epsilon = 0.00001
+        float epsilon = 0.00005
         float two = 2.0
         float minus_four = -4.0
         float zero = 0.0

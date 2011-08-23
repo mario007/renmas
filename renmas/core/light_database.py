@@ -9,3 +9,4 @@ class LightDatabase:
     def get_lights(self):
         return self.lights
 
+

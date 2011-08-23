@@ -1,4 +1,4 @@
-
+import renmas
 import renmas.core
 import math
 import random
@@ -48,42 +48,6 @@ def Oren_Nayar(spectrum, alpha):
         return spectrum.mix_spectrum(hp.spectrum) * temp1
     return brdf
 
-class LambertianBRDF:
-    def __init__(self, spectrum, k=None):
-        self.spectrum = spectrum * ( 1 / math.pi)
-        self.k = k
-
-    def brdf(self, hitpoint):
-        if self.k is None:
-            return self.spectrum
-        else:
-            return self.spectrum * self.k
-
-    def brdf_asm(self, runtime):
-        
-        #eax pointer to hitpoint
-        name = "lamb" + str(hash(self))
-
-        ASM = """
-        #DATA
-        """
-        ASM += "float " + name + "spectrum[4] \n" 
-        ASM += "float " + name + "k[4] \n"
-        ASM += "#CODE \n"
-        ASM += "macro eq128 xmm0 = " + name + "spectrum \n"
-        if self.k is not None:
-            ASM += "macro eq128 xmm0 = xmm0 * " + name + "k\n"
-
-        return ASM
-
-    def populate_ds(self, ds):
-        s = self.spectrum
-        name = "lamb" + str(hash(self)) + "spectrum"
-        ds[name] = (s.r, s.g, s.b, 0.0)
-        if self.k is not None:
-            name = "lamb" + str(hash(self)) + "k"
-            ds[name] = (self.k, self.k, self.k, 0.0)
-
 class ConstantBRDF:
     def __init__(self, spectrum, k=None):
         self.spectrum = spectrum
@@ -120,74 +84,37 @@ class ConstantBRDF:
             ds[name] = (self.k, self.k, self.k, 0.0)
 
 
-class PhongBRDF:
-    def __init__(self, spectrum, e, k=None):
+class ConstEmiter:
+    def __init__(self, spectrum):
         self.spectrum = spectrum
-        self.e = e
-        self.k = k
+        self.k = None
 
-    def brdf(self, hitpoint):
-        hp = hitpoint
-        r = hp.normal * hp.ndotwi * 2.0 - hp.wi
+    def le(self, hitpoint):
+        return self.spectrum
 
-        rdotwo = r.dot(hp.wo)
-        if rdotwo > 0.0:
-            phong = self.spectrum * math.pow(rdotwo, self.e)
-            if self.k is None:
-                return phong * (1 / hitpoint.ndotwi)
-            else:
-                return phong * self.k * ( 1 / hitpoint.ndotwi)
-        return renmas.core.Spectrum(0.0, 0.0, 0.0)
-
-    def brdf_asm(self, runtime):
-        
-        util.load_func(runtime, "fast_pow_ss")
+    def le_asm(self, runtime):
         #eax pointer to hitpoint
-        name = "phong" + str(hash(self))
+        name = "emiter" + str(hash(self))
 
         ASM = """
         #DATA
         """
         ASM += "float " + name + "spectrum[4] \n" 
         ASM += "float " + name + "k[4] \n"
-        ASM += "float " + name + "zero_spectrum[4] = 0.0, 0.0, 0.0, 0.0 \n"
-        ASM += "float " + name + "e\n"
-        ASM += "float " + name + "two = 2.0 \n"
-        ASM += "uint32 " + name + "hp_ptr \n"
         ASM += "#CODE \n"
-        ASM += "mov dword [" + name + "hp_ptr], eax \n"
-        ASM += "macro eq32 xmm0 = " + name + "two * eax.hitpoint.ndotwi \n"
-        ASM += "macro broadcast xmm0 = xmm0[0] \n"
-        ASM += "macro eq128 xmm0 = xmm0 * eax.hitpoint.normal\n"
-        ASM += "macro eq128 xmm0 = xmm0 - eax.hitpoint.wi \n"
-        ASM += "macro dot xmm0 = xmm0 * eax.hitpoint.wo \n"
-        ASM += "macro if xmm0 > " + name + "zero_spectrum goto " + name + "accept \n"
-        ASM += "macro eq128 xmm0 = " + name + "zero_spectrum \n"
-        ASM += "jmp " + name + "end \n"
-
-        ASM +=  name + "accept:\n"
-        ASM += "macro eq32 xmm1 = " + name + "e\n"
-        ASM += "call fast_pow_ss \n"
-        ASM += "macro broadcast xmm0 = xmm0[0] \n"
-        ASM += "macro eq128 xmm0 = xmm0 *" + name + "spectrum \n"
-        ASM += "macro eq32 xmm1 = eax.hitpoint.ndotwi \n"
-        ASM += "macro broadcast xmm1 = xmm1[0] \n"
-        ASM += "macro eq128 xmm0 = xmm0 / xmm1 \n"
+        ASM += "macro eq128 xmm0 = " + name + "spectrum \n"
         if self.k is not None:
             ASM += "macro eq128 xmm0 = xmm0 * " + name + "k\n"
-
-        ASM += name + "end: \n" 
+        ASM += "macro eq128 eax.hitpoint.le = xmm0  \n"
 
         return ASM
 
     def populate_ds(self, ds):
         s = self.spectrum
-        name = "phong" + str(hash(self)) + "spectrum"
+        name = "emiter" + str(hash(self)) + "spectrum"
         ds[name] = (s.r, s.g, s.b, 0.0)
-        name = "phong" + str(hash(self)) + "e"
-        ds[name] = self.e
         if self.k is not None:
-            name = "phong" + str(hash(self)) + "k"
+            name = "emiter" + str(hash(self)) + "k"
             ds[name] = (self.k, self.k, self.k, 0.0)
 
 
@@ -200,6 +127,7 @@ class Material:
         self.sampling = None
         self.emiter = None
         self.le_ptr = None
+        self.emiter_ds = None
 
     def add_emiter(self, emiter):
         self.emiter = emiter
@@ -217,7 +145,7 @@ class Material:
         if self.emiter is None:
             return renmas.core.Spectrum(0.0, 0.0, 0.0) 
         else:
-            return self.emiter.Le(hitpoint)
+            return self.emiter.le(hitpoint)
 
     def brdf(self, hitpoint):
         spectrum = renmas.core.Spectrum(0.0, 0.0, 0.0) 
@@ -304,17 +232,21 @@ class Material:
         if self.emiter is None:
             ASM += "macro eq128 eax.hitpoint.le = zero_spectrum"
         else:
-            raise ValueError("Its not implemented yet!! urgent implemtation is needed")
+            ASM += self.emiter.le_asm(runtime)
 
         ASM += """
         ret
         """
+
         assembler = util.get_asm()
         mc = assembler.assemble(ASM, True)
         #mc.print_machine_code()
         name = "material_le" + str(util.unique())
 
-        runtime.load(name, mc)
+        self.emiter_ds = runtime.load(name, mc)
+        if self.emiter is not None:
+            self.emiter.populate_ds(self.emiter_ds)
+
         self.le_ptr = runtime.address_module(name)
 
     def brdf_asm(self, runtime):

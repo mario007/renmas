@@ -1661,6 +1661,1061 @@ def pow_ps(runtime):
     name = "fast_pow_ps"  
     runtime.load(name, mc)
 
+def atan_ss(runtime):
+    data = """
+    #DATA
+    uint32 _ps_am_sign_mask[4] = 0x80000000, 0x80000000, 0x80000000, 0x80000000
+    float _ps_am_m1[4] = -1.0, -1.0, -1.0, -1.0
+    float _ps_atan_t0[4] = -0.091646118527, -0.091646118527, -0.091646118527, -0.091646118527
+    float _ps_atan_s0[4] = 1.2797564625, 1.2797564625, 1.2797564625, 1.2797564625
+    float _ps_atan_s1[4] = 2.1972168858, 2.1972168858, 2.1972168858, 2.1972168858
+    float _ps_atan_t1[4] = -1.395694568, -1.395694568, -1.395694568, -1.395694568
+    float _ps_atan_s2[4] = 6.8193064723, 6.8193064723, 6.8193064723 ,6.8193064723
+    float _ps_atan_t2[4] = -94.3939261227, -94.3939261227, -94.3939261227, -94.3939261227
+    float _ps_atan_s3[4] = 28.205206687, 28.205206687, 28.205206687, 28.205206687
+    float _ps_atan_t3[4] = 12.888383034, 12.888383034, 12.888383034, 12.888383034
+    float _ps_am_pi_o_2[4] = 1.57079632679, 1.57079632679, 1.57079632679, 1.57079632679
+
+    """
+    asm_code = data + """
+
+    #CODE
+    global fast_atan_ss:
+    movss	xmm1, dword [_ps_am_sign_mask]
+	rcpss	xmm4, xmm0
+	orps	xmm1, xmm0
+	movss	xmm6, xmm4
+	comiss	xmm1, dword [_ps_am_m1]
+	movss	xmm3, dword [_ps_atan_t0]
+	jnc		l_small  ; 'c' is 'lt' for comiss
+
+    ;l_big:
+	mulss	xmm6, xmm6
+
+	movss	xmm5, dword [_ps_atan_s0]
+	addss	xmm5, xmm6
+
+	movss	xmm7, dword [_ps_atan_s1]
+	rcpss	xmm5, xmm5
+	mulss	xmm5, xmm3
+	movss	xmm3, dword [_ps_atan_t1]
+	addss	xmm7, xmm6
+	addss	xmm5, xmm7
+
+	movss	xmm7, dword [_ps_atan_s2]
+	rcpss	xmm5, xmm5
+	mulss	xmm5, xmm3
+	movss	xmm3, dword [_ps_atan_t2]
+	addss	xmm7, xmm6
+	addss	xmm5, xmm7
+
+	movss	xmm7, dword [_ps_atan_s3]
+	rcpss	xmm5, xmm5
+	mulss	xmm5, xmm3
+	movss	xmm3, dword [_ps_atan_t3]
+	addss	xmm7, xmm6
+	movss	xmm2, dword [_ps_am_sign_mask]
+	mulss	xmm4, xmm3
+	addss	xmm5, xmm7
+
+	movss	xmm7, dword [_ps_am_pi_o_2]
+	rcpss	xmm5, xmm5
+	mulss	xmm5, xmm4
+
+	andps	xmm0, xmm2
+	orps	xmm0, xmm7
+	subss	xmm0, xmm5
+	ret
+
+    l_small:
+	movaps	xmm2, xmm0
+	mulss	xmm2, xmm2
+
+	movss	xmm1, dword [_ps_atan_s0]
+	addss	xmm1, xmm2
+
+	movss	xmm7, dword [_ps_atan_s1]
+	rcpss	xmm1, xmm1
+	mulss	xmm1, xmm3
+	movss	xmm3, dword [_ps_atan_t1]
+	addss	xmm7, xmm2
+	addss	xmm1, xmm7
+			
+	movss	xmm7, dword [_ps_atan_s2]
+	rcpss	xmm1, xmm1
+	mulss	xmm1, xmm3
+	movss	xmm3, dword [_ps_atan_t2]
+	addss	xmm7, xmm2
+	addss	xmm1, xmm7
+
+	movss	xmm7, dword [_ps_atan_s3]
+	rcpss	xmm1, xmm1
+	mulss	xmm1, xmm3
+	movss	xmm3, dword [_ps_atan_t3]
+	addss	xmm7, xmm2
+	mulss	xmm0, xmm3
+	addss	xmm1, xmm7
+
+	rcpss	xmm1, xmm1
+	mulss	xmm0, xmm1
+    ret
+
+    """
+    asm = Tdasm()
+    if util.AVX:
+        raise ValueError("AVX is not yet implemented")
+        mc = asm.assemble(avx_code, True)
+    else:
+        mc = asm.assemble(asm_code, True)
+
+    name = "fast_atan_ss"  
+    runtime.load(name, mc)
+
+def atan_ps(runtime):
+    data = """
+    #DATA
+    uint32 _ps_am_sign_mask[4] = 0x80000000, 0x80000000, 0x80000000, 0x80000000
+    float _ps_am_1[4] = 1.0, 1.0, 1.0, 1.0
+    float _ps_am_m1[4] = -1.0, -1.0, -1.0, -1.0
+    float _ps_atan_t0[4] = -0.091646118527, -0.091646118527, -0.091646118527, -0.091646118527
+    float _ps_atan_s0[4] = 1.2797564625, 1.2797564625, 1.2797564625, 1.2797564625
+    float _ps_atan_s1[4] = 2.1972168858, 2.1972168858, 2.1972168858, 2.1972168858
+    float _ps_atan_t1[4] = -1.395694568, -1.395694568, -1.395694568, -1.395694568
+    float _ps_atan_s2[4] = 6.8193064723, 6.8193064723, 6.8193064723 ,6.8193064723
+    float _ps_atan_t2[4] = -94.3939261227, -94.3939261227, -94.3939261227, -94.3939261227
+    float _ps_atan_s3[4] = 28.205206687, 28.205206687, 28.205206687, 28.205206687
+    float _ps_atan_t3[4] = 12.888383034, 12.888383034, 12.888383034, 12.888383034
+    float _ps_am_pi_o_2[4] = 1.57079632679, 1.57079632679, 1.57079632679, 1.57079632679
+
+    """
+    asm_code = data + """
+
+    #CODE
+    global fast_atan_ps:
+    movaps	xmm5, oword [_ps_am_1]
+	movaps	xmm6, oword [_ps_am_m1]
+	rcpps	xmm4, xmm0
+
+	cmpps	xmm5, xmm0, 1
+	cmpps	xmm6, xmm0, 6
+	movaps	xmm1, oword [_ps_atan_s0]
+	orps	xmm5, xmm6
+
+	andps	xmm4, xmm5
+	movaps	xmm2, oword [_ps_atan_t0]
+	movaps	xmm7, xmm5
+	andnps	xmm5, xmm0
+	movaps	xmm3, oword [_ps_atan_s1]
+	orps	xmm4, xmm5
+	movaps	xmm0, xmm4
+
+	movaps	xmm6, oword [_ps_atan_t1]
+	mulps	xmm4, xmm4
+
+	addps	xmm1, xmm4
+	movaps	xmm5, oword [_ps_atan_s2]
+	rcpps	xmm1, xmm1
+	mulps	xmm1, xmm2
+	movaps	xmm2, oword [_ps_atan_t2]
+	addps	xmm3, xmm4
+	addps	xmm1, xmm3
+
+	movaps	xmm3, oword [_ps_atan_s3]
+	rcpps	xmm1, xmm1
+	mulps	xmm1, xmm6
+	movaps	xmm6, oword [_ps_atan_t3]
+	addps	xmm5, xmm4
+	addps	xmm1, xmm5
+
+	movaps	xmm5, oword [_ps_am_sign_mask]
+	rcpps	xmm1, xmm1
+	mulps	xmm1, xmm2
+	addps	xmm3, xmm4
+	movaps	xmm4, oword [_ps_am_pi_o_2]
+	mulps	xmm6, xmm0
+	addps	xmm1, xmm3
+
+	andps	xmm0, xmm5
+	rcpps	xmm1, xmm1
+	mulps	xmm1, xmm6
+
+	orps	xmm0, xmm4
+	subps	xmm0, xmm1
+
+	andps	xmm0, xmm7
+	andnps	xmm7, xmm1
+	orps	xmm0, xmm7
+	ret
+
+    """
+
+    asm = Tdasm()
+    if util.AVX:
+        raise ValueError("AVX is not yet implemented")
+        mc = asm.assemble(avx_code, True)
+    else:
+        mc = asm.assemble(asm_code, True)
+
+    name = "fast_atan_ps"  
+    runtime.load(name, mc)
+
+def asin_ss(runtime):
+    data = """
+    #DATA
+    uint32 _ps_am_sign_mask[4] = 0x80000000, 0x80000000, 0x80000000, 0x80000000
+    float _ps_am_m1[4] = -1.0, -1.0, -1.0, -1.0
+    float _ps_am_1[4] = 1.0, 1.0, 1.0, 1.0
+    float _ps_atan_t0[4] = -0.091646118527, -0.091646118527, -0.091646118527, -0.091646118527
+    float _ps_atan_s0[4] = 1.2797564625, 1.2797564625, 1.2797564625, 1.2797564625
+    float _ps_atan_s1[4] = 2.1972168858, 2.1972168858, 2.1972168858, 2.1972168858
+    float _ps_atan_t1[4] = -1.395694568, -1.395694568, -1.395694568, -1.395694568
+    float _ps_atan_s2[4] = 6.8193064723, 6.8193064723, 6.8193064723 ,6.8193064723
+    float _ps_atan_t2[4] = -94.3939261227, -94.3939261227, -94.3939261227, -94.3939261227
+    float _ps_atan_s3[4] = 28.205206687, 28.205206687, 28.205206687, 28.205206687
+    float _ps_atan_t3[4] = 12.888383034, 12.888383034, 12.888383034, 12.888383034
+    float _ps_am_pi_o_2[4] = 1.57079632679, 1.57079632679, 1.57079632679, 1.57079632679
+
+    """
+    asm_code = data + """
+
+    #CODE
+    global fast_asin_ss:
+    movss xmm1, dword [_ps_am_1]
+    movss xmm2, xmm1
+    addss xmm1, xmm0
+    subss xmm2, xmm0
+    mulss xmm1, xmm2
+    rsqrtss xmm1, xmm1
+    mulss xmm0, xmm1
+
+    ;atan
+    movss	xmm1, dword [_ps_am_sign_mask]
+	rcpss	xmm4, xmm0
+	orps	xmm1, xmm0
+	movss	xmm6, xmm4
+	comiss	xmm1, dword [_ps_am_m1]
+	movss	xmm3, dword [_ps_atan_t0]
+	jnc		l_small  ; 'c' is 'lt' for comiss
+
+    ;l_big:
+	mulss	xmm6, xmm6
+
+	movss	xmm5, dword [_ps_atan_s0]
+	addss	xmm5, xmm6
+
+	movss	xmm7, dword [_ps_atan_s1]
+	rcpss	xmm5, xmm5
+	mulss	xmm5, xmm3
+	movss	xmm3, dword [_ps_atan_t1]
+	addss	xmm7, xmm6
+	addss	xmm5, xmm7
+
+	movss	xmm7, dword [_ps_atan_s2]
+	rcpss	xmm5, xmm5
+	mulss	xmm5, xmm3
+	movss	xmm3, dword [_ps_atan_t2]
+	addss	xmm7, xmm6
+	addss	xmm5, xmm7
+
+	movss	xmm7, dword [_ps_atan_s3]
+	rcpss	xmm5, xmm5
+	mulss	xmm5, xmm3
+	movss	xmm3, dword [_ps_atan_t3]
+	addss	xmm7, xmm6
+	movss	xmm2, dword [_ps_am_sign_mask]
+	mulss	xmm4, xmm3
+	addss	xmm5, xmm7
+
+	movss	xmm7, dword [_ps_am_pi_o_2]
+	rcpss	xmm5, xmm5
+	mulss	xmm5, xmm4
+
+	andps	xmm0, xmm2
+	orps	xmm0, xmm7
+	subss	xmm0, xmm5
+	ret
+
+    l_small:
+	movaps	xmm2, xmm0
+	mulss	xmm2, xmm2
+
+	movss	xmm1, dword [_ps_atan_s0]
+	addss	xmm1, xmm2
+
+	movss	xmm7, dword [_ps_atan_s1]
+	rcpss	xmm1, xmm1
+	mulss	xmm1, xmm3
+	movss	xmm3, dword [_ps_atan_t1]
+	addss	xmm7, xmm2
+	addss	xmm1, xmm7
+			
+	movss	xmm7, dword [_ps_atan_s2]
+	rcpss	xmm1, xmm1
+	mulss	xmm1, xmm3
+	movss	xmm3, dword [_ps_atan_t2]
+	addss	xmm7, xmm2
+	addss	xmm1, xmm7
+
+	movss	xmm7, dword [_ps_atan_s3]
+	rcpss	xmm1, xmm1
+	mulss	xmm1, xmm3
+	movss	xmm3, dword [_ps_atan_t3]
+	addss	xmm7, xmm2
+	mulss	xmm0, xmm3
+	addss	xmm1, xmm7
+
+	rcpss	xmm1, xmm1
+	mulss	xmm0, xmm1
+    ret
+
+    """
+    asm = Tdasm()
+    if util.AVX:
+        raise ValueError("AVX is not yet implemented")
+        mc = asm.assemble(avx_code, True)
+    else:
+        mc = asm.assemble(asm_code, True)
+
+    name = "fast_asin_ss"  
+    runtime.load(name, mc)
+
+def asin_ps(runtime):
+    data = """
+    #DATA
+    uint32 _ps_am_sign_mask[4] = 0x80000000, 0x80000000, 0x80000000, 0x80000000
+    float _ps_am_1[4] = 1.0, 1.0, 1.0, 1.0
+    float _ps_am_m1[4] = -1.0, -1.0, -1.0, -1.0
+    float _ps_atan_t0[4] = -0.091646118527, -0.091646118527, -0.091646118527, -0.091646118527
+    float _ps_atan_s0[4] = 1.2797564625, 1.2797564625, 1.2797564625, 1.2797564625
+    float _ps_atan_s1[4] = 2.1972168858, 2.1972168858, 2.1972168858, 2.1972168858
+    float _ps_atan_t1[4] = -1.395694568, -1.395694568, -1.395694568, -1.395694568
+    float _ps_atan_s2[4] = 6.8193064723, 6.8193064723, 6.8193064723 ,6.8193064723
+    float _ps_atan_t2[4] = -94.3939261227, -94.3939261227, -94.3939261227, -94.3939261227
+    float _ps_atan_s3[4] = 28.205206687, 28.205206687, 28.205206687, 28.205206687
+    float _ps_atan_t3[4] = 12.888383034, 12.888383034, 12.888383034, 12.888383034
+    float _ps_am_pi_o_2[4] = 1.57079632679, 1.57079632679, 1.57079632679, 1.57079632679
+
+    """
+    asm_code = data + """
+
+    #CODE
+    global fast_asin_ps:
+    movaps xmm1, oword [_ps_am_1]
+    movaps xmm2, xmm1
+    addps xmm1, xmm0
+    subps xmm2, xmm0
+    mulps xmm1, xmm2
+    rsqrtps xmm1, xmm1
+    mulps xmm0, xmm1
+
+    ;atan
+    movaps	xmm5, oword [_ps_am_1]
+	movaps	xmm6, oword [_ps_am_m1]
+	rcpps	xmm4, xmm0
+
+	cmpps	xmm5, xmm0, 1
+	cmpps	xmm6, xmm0, 6
+	movaps	xmm1, oword [_ps_atan_s0]
+	orps	xmm5, xmm6
+
+	andps	xmm4, xmm5
+	movaps	xmm2, oword [_ps_atan_t0]
+	movaps	xmm7, xmm5
+	andnps	xmm5, xmm0
+	movaps	xmm3, oword [_ps_atan_s1]
+	orps	xmm4, xmm5
+	movaps	xmm0, xmm4
+
+	movaps	xmm6, oword [_ps_atan_t1]
+	mulps	xmm4, xmm4
+
+	addps	xmm1, xmm4
+	movaps	xmm5, oword [_ps_atan_s2]
+	rcpps	xmm1, xmm1
+	mulps	xmm1, xmm2
+	movaps	xmm2, oword [_ps_atan_t2]
+	addps	xmm3, xmm4
+	addps	xmm1, xmm3
+
+	movaps	xmm3, oword [_ps_atan_s3]
+	rcpps	xmm1, xmm1
+	mulps	xmm1, xmm6
+	movaps	xmm6, oword [_ps_atan_t3]
+	addps	xmm5, xmm4
+	addps	xmm1, xmm5
+
+	movaps	xmm5, oword [_ps_am_sign_mask]
+	rcpps	xmm1, xmm1
+	mulps	xmm1, xmm2
+	addps	xmm3, xmm4
+	movaps	xmm4, oword [_ps_am_pi_o_2]
+	mulps	xmm6, xmm0
+	addps	xmm1, xmm3
+
+	andps	xmm0, xmm5
+	rcpps	xmm1, xmm1
+	mulps	xmm1, xmm6
+
+	orps	xmm0, xmm4
+	subps	xmm0, xmm1
+
+	andps	xmm0, xmm7
+	andnps	xmm7, xmm1
+	orps	xmm0, xmm7
+	ret
+
+    """
+
+    asm = Tdasm()
+    if util.AVX:
+        raise ValueError("AVX is not yet implemented")
+        mc = asm.assemble(avx_code, True)
+    else:
+        mc = asm.assemble(asm_code, True)
+
+    name = "fast_sin_ps"  
+    runtime.load(name, mc)
+
+def acos_ss(runtime):
+    data = """
+    #DATA
+    uint32 _ps_am_sign_mask[4] = 0x80000000, 0x80000000, 0x80000000, 0x80000000
+    float _ps_am_m1[4] = -1.0, -1.0, -1.0, -1.0
+    float _ps_am_1[4] = 1.0, 1.0, 1.0, 1.0
+    float _ps_atan_t0[4] = -0.091646118527, -0.091646118527, -0.091646118527, -0.091646118527
+    float _ps_atan_s0[4] = 1.2797564625, 1.2797564625, 1.2797564625, 1.2797564625
+    float _ps_atan_s1[4] = 2.1972168858, 2.1972168858, 2.1972168858, 2.1972168858
+    float _ps_atan_t1[4] = -1.395694568, -1.395694568, -1.395694568, -1.395694568
+    float _ps_atan_s2[4] = 6.8193064723, 6.8193064723, 6.8193064723 ,6.8193064723
+    float _ps_atan_t2[4] = -94.3939261227, -94.3939261227, -94.3939261227, -94.3939261227
+    float _ps_atan_s3[4] = 28.205206687, 28.205206687, 28.205206687, 28.205206687
+    float _ps_atan_t3[4] = 12.888383034, 12.888383034, 12.888383034, 12.888383034
+    float _ps_am_pi_o_2[4] = 1.57079632679, 1.57079632679, 1.57079632679, 1.57079632679
+
+    """
+    asm_code = data + """
+
+    #CODE
+    global fast_acos_ss:
+    movss xmm1, dword [_ps_am_1]
+    movss xmm2, xmm1
+    subss xmm1, xmm0
+    addss xmm2, xmm0
+    rcpss xmm1, xmm1
+    mulss xmm2, xmm1
+    rsqrtss xmm0, xmm2
+
+    ;atan
+    movss	xmm1, dword [_ps_am_sign_mask]
+	rcpss	xmm4, xmm0
+	orps	xmm1, xmm0
+	movss	xmm6, xmm4
+	comiss	xmm1, dword [_ps_am_m1]
+	movss	xmm3, dword [_ps_atan_t0]
+	jnc		l_small  ; 'c' is 'lt' for comiss
+
+    ;l_big:
+	mulss	xmm6, xmm6
+
+	movss	xmm5, dword [_ps_atan_s0]
+	addss	xmm5, xmm6
+
+	movss	xmm7, dword [_ps_atan_s1]
+	rcpss	xmm5, xmm5
+	mulss	xmm5, xmm3
+	movss	xmm3, dword [_ps_atan_t1]
+	addss	xmm7, xmm6
+	addss	xmm5, xmm7
+
+	movss	xmm7, dword [_ps_atan_s2]
+	rcpss	xmm5, xmm5
+	mulss	xmm5, xmm3
+	movss	xmm3, dword [_ps_atan_t2]
+	addss	xmm7, xmm6
+	addss	xmm5, xmm7
+
+	movss	xmm7, dword [_ps_atan_s3]
+	rcpss	xmm5, xmm5
+	mulss	xmm5, xmm3
+	movss	xmm3, dword [_ps_atan_t3]
+	addss	xmm7, xmm6
+	movss	xmm2, dword [_ps_am_sign_mask]
+	mulss	xmm4, xmm3
+	addss	xmm5, xmm7
+
+	movss	xmm7, dword [_ps_am_pi_o_2]
+	rcpss	xmm5, xmm5
+	mulss	xmm5, xmm4
+
+	andps	xmm0, xmm2
+	orps	xmm0, xmm7
+	subss	xmm0, xmm5
+	ret
+
+    l_small:
+	movaps	xmm2, xmm0
+	mulss	xmm2, xmm2
+
+	movss	xmm1, dword [_ps_atan_s0]
+	addss	xmm1, xmm2
+
+	movss	xmm7, dword [_ps_atan_s1]
+	rcpss	xmm1, xmm1
+	mulss	xmm1, xmm3
+	movss	xmm3, dword [_ps_atan_t1]
+	addss	xmm7, xmm2
+	addss	xmm1, xmm7
+			
+	movss	xmm7, dword [_ps_atan_s2]
+	rcpss	xmm1, xmm1
+	mulss	xmm1, xmm3
+	movss	xmm3, dword [_ps_atan_t2]
+	addss	xmm7, xmm2
+	addss	xmm1, xmm7
+
+	movss	xmm7, dword [_ps_atan_s3]
+	rcpss	xmm1, xmm1
+	mulss	xmm1, xmm3
+	movss	xmm3, dword [_ps_atan_t3]
+	addss	xmm7, xmm2
+	mulss	xmm0, xmm3
+	addss	xmm1, xmm7
+
+	rcpss	xmm1, xmm1
+	mulss	xmm0, xmm1
+
+    addss xmm0, xmm0 ;this line is not part of atan 
+    ret
+
+    """
+    asm = Tdasm()
+    if util.AVX:
+        raise ValueError("AVX is not yet implemented")
+        mc = asm.assemble(avx_code, True)
+    else:
+        mc = asm.assemble(asm_code, True)
+
+    name = "fast_acos_ss"  
+    runtime.load(name, mc)
+
+def acos_ps(runtime):
+    data = """
+    #DATA
+    uint32 _ps_am_sign_mask[4] = 0x80000000, 0x80000000, 0x80000000, 0x80000000
+    float _ps_am_1[4] = 1.0, 1.0, 1.0, 1.0
+    float _ps_am_m1[4] = -1.0, -1.0, -1.0, -1.0
+    float _ps_atan_t0[4] = -0.091646118527, -0.091646118527, -0.091646118527, -0.091646118527
+    float _ps_atan_s0[4] = 1.2797564625, 1.2797564625, 1.2797564625, 1.2797564625
+    float _ps_atan_s1[4] = 2.1972168858, 2.1972168858, 2.1972168858, 2.1972168858
+    float _ps_atan_t1[4] = -1.395694568, -1.395694568, -1.395694568, -1.395694568
+    float _ps_atan_s2[4] = 6.8193064723, 6.8193064723, 6.8193064723 ,6.8193064723
+    float _ps_atan_t2[4] = -94.3939261227, -94.3939261227, -94.3939261227, -94.3939261227
+    float _ps_atan_s3[4] = 28.205206687, 28.205206687, 28.205206687, 28.205206687
+    float _ps_atan_t3[4] = 12.888383034, 12.888383034, 12.888383034, 12.888383034
+    float _ps_am_pi_o_2[4] = 1.57079632679, 1.57079632679, 1.57079632679, 1.57079632679
+
+    """
+    asm_code = data + """
+
+    #CODE
+    global fast_acos_ps:
+    movaps xmm1, oword [_ps_am_1]
+    movaps xmm2, xmm1
+    subps xmm1, xmm0
+    addps xmm2, xmm0
+    rcpps xmm1, xmm1
+    mulps xmm2, xmm1
+    rsqrtps xmm0, xmm2
+
+    ;atan
+    movaps	xmm5, oword [_ps_am_1]
+	movaps	xmm6, oword [_ps_am_m1]
+	rcpps	xmm4, xmm0
+
+	cmpps	xmm5, xmm0, 1
+	cmpps	xmm6, xmm0, 6
+	movaps	xmm1, oword [_ps_atan_s0]
+	orps	xmm5, xmm6
+
+	andps	xmm4, xmm5
+	movaps	xmm2, oword [_ps_atan_t0]
+	movaps	xmm7, xmm5
+	andnps	xmm5, xmm0
+	movaps	xmm3, oword [_ps_atan_s1]
+	orps	xmm4, xmm5
+	movaps	xmm0, xmm4
+
+	movaps	xmm6, oword [_ps_atan_t1]
+	mulps	xmm4, xmm4
+
+	addps	xmm1, xmm4
+	movaps	xmm5, oword [_ps_atan_s2]
+	rcpps	xmm1, xmm1
+	mulps	xmm1, xmm2
+	movaps	xmm2, oword [_ps_atan_t2]
+	addps	xmm3, xmm4
+	addps	xmm1, xmm3
+
+	movaps	xmm3, oword [_ps_atan_s3]
+	rcpps	xmm1, xmm1
+	mulps	xmm1, xmm6
+	movaps	xmm6, oword [_ps_atan_t3]
+	addps	xmm5, xmm4
+	addps	xmm1, xmm5
+
+	movaps	xmm5, oword [_ps_am_sign_mask]
+	rcpps	xmm1, xmm1
+	mulps	xmm1, xmm2
+	addps	xmm3, xmm4
+	movaps	xmm4, oword [_ps_am_pi_o_2]
+	mulps	xmm6, xmm0
+	addps	xmm1, xmm3
+
+	andps	xmm0, xmm5
+	rcpps	xmm1, xmm1
+	mulps	xmm1, xmm6
+
+	orps	xmm0, xmm4
+	subps	xmm0, xmm1
+
+	andps	xmm0, xmm7
+	andnps	xmm7, xmm1
+	orps	xmm0, xmm7
+
+    addps xmm0, xmm0 ;this line is not part of atan 
+	ret
+
+    """
+
+    asm = Tdasm()
+    if util.AVX:
+        raise ValueError("AVX is not yet implemented")
+        mc = asm.assemble(avx_code, True)
+    else:
+        mc = asm.assemble(asm_code, True)
+
+    name = "fast_acos_ps"  
+    runtime.load(name, mc)
+
+def tan_ss(runtime):
+    data = """
+    #DATA
+    uint32 _ps_am_inv_sign_mask[4] = 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF
+    float _ps_am_4_o_pi[4] = 1.273239544735, 1.273239544735, 1.273239544735, 1.273239544735
+    float _ps_am_1[4] = 1.0, 1.0, 1.0, 1.0
+    float _ps_am_pi_o_4[4] = 0.78539816339, 0.78539816339, 0.78539816339, 0.78539816339
+    uint32 _ps_am_sign_mask[4] = 0x80000000, 0x80000000, 0x80000000, 0x80000000
+    float _ps_tan_p0[4] = -17956525.197648, -17956525.197648, -17956525.197648, -17956525.197648 
+    float _ps_tan_q0[4] = -53869575.592945, -53869575.592945, -53869575.592945, -53869575.592945 
+    float _ps_tan_p1[4] = 1153516.64838587, 1153516.64838587, 1153516.64838587, 1153516.64838587
+    float _ps_tan_q1[4] = 25008380.18233579, 25008380.18233579, 25008380.18233579, 25008380.18233579
+    float _ps_tan_p2[4] = -13093.693918138, -13093.693918138, -13093.693918138, -13093.693918138
+    float _ps_tan_q2[4] = -1320892.3444021, -1320892.3444021, -1320892.3444021, -1320892.3444021
+    float _ps_tan_q3[4] = 13681.296347069, 13681.296347069, 13681.296347069, 13681.296347069
+    float _ps_tan_poleval[4] = 36893500000000000000.0, 36893500000000000000.0, 36893500000000000000.0, 36893500000000000000.0
+
+    """
+    asm_code = data + """
+
+    #CODE
+    global fast_tan_ss:
+    movss	xmm1, dword [_ps_am_inv_sign_mask]
+    movd	eax, xmm0
+    andps	xmm0, xmm1
+    movaps	xmm1, xmm0
+    mulss	xmm0, dword [_ps_am_4_o_pi]
+
+    cvttss2si	edx, xmm0
+    and		eax, 0x80000000
+
+    mov		ecx, 0x1
+    movd	xmm7, eax
+    mov		eax, 0x7
+
+    movss	xmm5, dword [_ps_am_1]
+
+    and		ecx, edx
+    and		eax, edx
+    add		edx, ecx
+    add		eax, ecx
+
+    cvtsi2ss	xmm0, edx
+    xorps	xmm6, xmm6
+
+    mulss	xmm0, dword [_ps_am_pi_o_4]
+    subss	xmm1, xmm0
+    movss	xmm2, dword [_ps_tan_p2]
+    minss	xmm1, xmm5
+    movss	xmm3, dword [_ps_tan_q3]
+    movaps	xmm0, xmm1
+    mulss	xmm1, xmm1
+
+    mulss	xmm2, xmm1
+    addss	xmm3, xmm1
+    addss	xmm2, dword [_ps_tan_p1]
+    mulss	xmm3, xmm1
+    mulss	xmm2, xmm1
+    addss	xmm3, dword [_ps_tan_q2]
+    addss	xmm2, dword [_ps_tan_p0]
+    mulss	xmm3, xmm1
+    mulss	xmm2, xmm1
+    addss	xmm3, dword [_ps_tan_q1]
+    xorps	xmm0, xmm7
+    mulss	xmm3, xmm1
+    mulss	xmm2, xmm0
+    addss	xmm3, dword [_ps_tan_q0]
+
+    rcpss	xmm4, xmm3
+    mulss	xmm3, xmm4
+    mulss	xmm3, xmm4
+    addss	xmm4, xmm4
+    test	eax, 0x2
+    subss	xmm4, xmm3
+
+    mulss	xmm2, xmm4
+    jz		l_cont
+    addss	xmm2, xmm0
+    comiss	xmm6, xmm1
+
+    rcpss	xmm4, xmm2
+    movss	xmm0, dword [_ps_am_sign_mask]
+    jz		l_pole
+    mulss	xmm2, xmm4
+    mulss	xmm2, xmm4
+    addss	xmm4, xmm4
+    subss	xmm4, xmm2
+    xorps	xmm0, xmm4
+
+    ret		
+
+    l_pole:
+    movss	xmm1, dword [_ps_tan_poleval]
+    movaps	xmm3, xmm0
+    andps	xmm0, xmm2
+    orps	xmm0, xmm1
+
+    xorps	xmm0, xmm3
+
+    ret		
+
+    l_cont:
+    addss	xmm0, xmm2
+    ret		
+
+
+    """
+
+    asm = Tdasm()
+    if util.AVX:
+        raise ValueError("AVX is not yet implemented")
+        mc = asm.assemble(avx_code, True)
+    else:
+        mc = asm.assemble(asm_code, True)
+
+    name = "fast_tan_ss"  
+    runtime.load(name, mc)
+
+def tan_ps(runtime):
+    data = """
+    #DATA
+    uint32 _ps_am_inv_sign_mask[4] = 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF
+    float _ps_am_4_o_pi[4] = 1.273239544735, 1.273239544735, 1.273239544735, 1.273239544735
+    float _ps_am_1[4] = 1.0, 1.0, 1.0, 1.0
+    float _ps_am_pi_o_4[4] = 0.78539816339, 0.78539816339, 0.78539816339, 0.78539816339
+    int32 _epi32_1[4] = 1, 1, 1, 1
+    int32 _epi32_7[4] = 7, 7, 7, 7
+    int32 _epi32_2[4] = 2, 2, 2, 2
+    uint32 _ps_am_sign_mask[4] = 0x80000000, 0x80000000, 0x80000000, 0x80000000
+    float _ps_tan_p0[4] = -17956525.197648, -17956525.197648, -17956525.197648, -17956525.197648 
+    float _ps_tan_q0[4] = -53869575.592945, -53869575.592945, -53869575.592945, -53869575.592945 
+    float _ps_tan_p1[4] = 1153516.64838587, 1153516.64838587, 1153516.64838587, 1153516.64838587
+    float _ps_tan_q1[4] = 25008380.18233579, 25008380.18233579, 25008380.18233579, 25008380.18233579
+    float _ps_tan_p2[4] = -13093.693918138, -13093.693918138, -13093.693918138, -13093.693918138
+    float _ps_tan_q2[4] = -1320892.3444021, -1320892.3444021, -1320892.3444021, -1320892.3444021
+    float _ps_tan_q3[4] = 13681.296347069, 13681.296347069, 13681.296347069, 13681.296347069
+    float _ps_tan_poleval[4] = 36893500000000000000.0, 36893500000000000000.0, 36893500000000000000.0, 36893500000000000000.0
+
+    """
+    asm_code = data + """
+
+    #CODE
+    global fast_tan_ps:
+    movaps	xmm7, xmm0
+    andps	xmm0, oword [_ps_am_inv_sign_mask]
+    andps	xmm7, oword [_ps_am_sign_mask]
+    movaps	xmm1, xmm0
+    mulps	xmm0, oword [_ps_am_4_o_pi]
+
+    cvttps2dq	xmm0, xmm0
+    movdqa	xmm4, oword [_epi32_1]
+    movdqa	xmm5, oword [_epi32_7]
+
+    pand	xmm4, xmm0
+    pand	xmm5, xmm0
+    movaps	xmm3, oword [_ps_am_1]
+    paddd	xmm0, xmm4
+    paddd	xmm5, xmm4
+
+    cvtdq2ps	xmm0, xmm0
+
+    mulps	xmm0, oword [_ps_am_pi_o_4]
+    xorps	xmm6, xmm6
+    subps	xmm1, xmm0
+    movaps	xmm2, oword [_ps_tan_p2]
+    minps	xmm1, xmm3
+    movaps	xmm3, oword [_ps_tan_q3]
+    movaps	xmm0, xmm1
+    mulps	xmm1, xmm1
+
+    mulps	xmm2, xmm1
+    addps	xmm3, xmm1
+    addps	xmm2, oword [_ps_tan_p1]
+    mulps	xmm3, xmm1
+    mulps	xmm2, xmm1
+    addps	xmm3, oword [_ps_tan_q2]
+    addps	xmm2, oword [_ps_tan_p0]
+    mulps	xmm3, xmm1
+    mulps	xmm2, xmm1
+    addps	xmm3, oword [_ps_tan_q1]
+    xorps	xmm0, xmm7
+    mulps	xmm3, xmm1
+    pand	xmm5, oword [_epi32_2]
+    addps	xmm3, oword [_ps_tan_q0]
+    mulps	xmm2, xmm0
+
+    cmpps xmm6, xmm1, 4
+    rcpps	xmm4, xmm3
+    pxor	xmm7, xmm7
+    mulps	xmm3, xmm4
+    pcmpeqd	xmm5, xmm7
+    mulps	xmm3, xmm4
+    addps	xmm4, xmm4
+    orps	xmm6, xmm5
+    subps	xmm4, xmm3
+
+    mulps	xmm2, xmm4
+    movaps	xmm1, oword [_ps_am_sign_mask]
+    movmskps	eax, xmm6
+    addps	xmm2, xmm0
+
+    rcpps	xmm4, xmm2
+    cmp		eax, 0xf
+    movaps	xmm0, xmm2
+    mulps	xmm2, xmm4
+    mulps	xmm2, xmm4
+    addps	xmm4, xmm4
+    subps	xmm4, xmm2
+    jne		l_pole
+
+    xorps	xmm4, xmm1
+
+    andps	xmm0, xmm5
+    andnps	xmm5, xmm4
+    orps	xmm0, xmm5
+
+    ret	
+
+    l_pole:
+    movaps	xmm7, xmm1
+    movaps	xmm3, oword [_ps_tan_poleval]
+    andps	xmm1, xmm0
+    orps	xmm3, xmm1
+    andps	xmm4, xmm6
+    andnps	xmm6, xmm3
+    orps	xmm4, xmm6
+
+    xorps	xmm4, xmm7
+
+    andps	xmm0, xmm5
+    andnps	xmm5, xmm4
+    orps	xmm0, xmm5
+
+    ret	
+
+
+    """
+
+    asm = Tdasm()
+    if util.AVX:
+        raise ValueError("AVX is not yet implemented")
+        mc = asm.assemble(avx_code, True)
+    else:
+        mc = asm.assemble(asm_code, True)
+
+    name = "fast_tan_ps"  
+    runtime.load(name, mc)
+
+def log_ss(runtime):
+    data = """
+    #DATA
+    float _ps_am_1[4] = 1.0, 1.0, 1.0, 1.0
+    uint32 _ps_am_min_norm_pos[4] = 0x00800000, 0x00800000, 0x00800000, 0x00800000
+    uint32 _ps_am_inv_mant_mask[4] = 0x807FFFFF, 0x807FFFFF, 0x807FFFFF, 0x807FFFFF 
+    float _ps_log_p0[4] = -0.789580278884, -0.789580278884, -0.789580278884, -0.789580278884
+    float _ps_log_q0[4] = -35.6722798256, -35.6722798256, -35.6722798256, -35.6722798256
+    float _ps_log_p1[4] = 16.38666456995, 16.38666456995, 16.38666456995, 16.38666456995
+    float _ps_log_q1[4] = 312.0937663722, 312.0937663722, 312.0937663722, 312.0937663722
+    float _ps_log_p2[4] = -64.14099529587, -64.14099529587, -64.14099529587, -64.14099529587
+    float _ps_log_q2[4] = -769.69194355046, -769.69194355046, -769.69194355046, -769.69194355046
+    float _ps_log_c0[4] = 0.6931471805599, 0.6931471805599, 0.6931471805599, 0.6931471805599 
+
+    """
+    asm_code = data + """
+
+    #CODE
+    global fast_log_ss:
+    maxss	xmm0, dword [_ps_am_min_norm_pos]  ; cut off denormalized stuff
+    movss	xmm1, dword [_ps_am_1]
+    movd	edx, xmm0
+
+    andps	xmm0, oword [_ps_am_inv_mant_mask]
+    orps	xmm0, xmm1
+
+    movaps	xmm4, xmm0
+    subss	xmm0, xmm1
+    addss	xmm4, xmm1
+    shr		edx, 23
+    rcpss	xmm4, xmm4
+    mulss	xmm0, xmm4
+    addss	xmm0, xmm0
+
+    movaps	xmm2, xmm0
+    mulss	xmm0, xmm0
+    sub		edx, 0x7f
+
+    movss	xmm4, dword [_ps_log_p0]
+    movss	xmm6, dword [_ps_log_q0]
+
+    mulss	xmm4, xmm0
+    movss	xmm5, dword [_ps_log_p1]
+    mulss	xmm6, xmm0
+    movss	xmm7, dword [_ps_log_q1]
+
+    addss	xmm4, xmm5
+    addss	xmm6, xmm7
+
+    movss	xmm5, dword [_ps_log_p2]
+    mulss	xmm4, xmm0
+    movss	xmm7, dword [_ps_log_q2]
+    mulss	xmm6, xmm0
+
+    addss	xmm4, xmm5
+    movss	xmm5, dword [_ps_log_c0]
+    addss	xmm6, xmm7
+    cvtsi2ss	xmm1, edx
+
+    mulss	xmm0, xmm4
+    rcpss	xmm6, xmm6
+
+    mulss	xmm0, xmm6
+    mulss	xmm0, xmm2
+
+    mulss	xmm1, xmm5
+
+    addss	xmm0, xmm2
+    addss	xmm0, xmm1
+
+    ret	
+
+
+    """
+
+    asm = Tdasm()
+    if util.AVX:
+        raise ValueError("AVX is not yet implemented")
+        mc = asm.assemble(avx_code, True)
+    else:
+        mc = asm.assemble(asm_code, True)
+
+    name = "fast_log_ss"  
+    runtime.load(name, mc)
+
+def log_ps(runtime):
+    data = """
+    #DATA
+    float _ps_am_1[4] = 1.0, 1.0, 1.0, 1.0
+    uint32 _ps_am_min_norm_pos[4] = 0x00800000, 0x00800000, 0x00800000, 0x00800000
+    uint32 _ps_am_inv_mant_mask[4] = 0x807FFFFF, 0x807FFFFF, 0x807FFFFF, 0x807FFFFF 
+    uint32 _epi32_0x7f[4] = 0x7F, 0x7F, 0x7F, 0x7F
+    float _ps_log_p0[4] = -0.789580278884, -0.789580278884, -0.789580278884, -0.789580278884
+    float _ps_log_q0[4] = -35.6722798256, -35.6722798256, -35.6722798256, -35.6722798256
+    float _ps_log_p1[4] = 16.38666456995, 16.38666456995, 16.38666456995, 16.38666456995
+    float _ps_log_q1[4] = 312.0937663722, 312.0937663722, 312.0937663722, 312.0937663722
+    float _ps_log_p2[4] = -64.14099529587, -64.14099529587, -64.14099529587, -64.14099529587
+    float _ps_log_q2[4] = -769.69194355046, -769.69194355046, -769.69194355046, -769.69194355046
+    float _ps_log_c0[4] = 0.6931471805599, 0.6931471805599, 0.6931471805599, 0.6931471805599 
+
+    """
+    asm_code = data + """
+
+    #CODE
+    global fast_log_ps:
+    maxps	xmm0, oword [_ps_am_min_norm_pos]  ; cut off denormalized stuff
+    movaps	xmm1, oword [_ps_am_1]
+    movaps	xmm3, xmm0
+
+    andps	xmm0, oword [_ps_am_inv_mant_mask]
+    orps	xmm0, xmm1
+
+    movaps	xmm4, xmm0
+    subps	xmm0, xmm1
+    addps	xmm4, xmm1
+    psrld	xmm3, 23
+    rcpps	xmm4, xmm4
+    mulps	xmm0, xmm4
+    psubd	xmm3, oword [_epi32_0x7f]
+    addps	xmm0, xmm0
+
+    movaps	xmm2, xmm0
+    mulps	xmm0, xmm0
+
+    movaps	xmm4, oword [_ps_log_p0]
+    movaps	xmm6, oword [_ps_log_q0]
+
+    mulps	xmm4, xmm0
+    movaps	xmm5, oword [_ps_log_p1]
+    mulps	xmm6, xmm0
+    movaps	xmm7, oword [_ps_log_q1]
+
+    addps	xmm4, xmm5
+    addps	xmm6, xmm7
+
+    movaps	xmm5, oword [_ps_log_p2]
+    mulps	xmm4, xmm0
+    movaps	xmm7, oword [_ps_log_q2]
+    mulps	xmm6, xmm0
+
+    addps	xmm4, xmm5
+    movaps	xmm5, oword [_ps_log_c0]
+    addps	xmm6, xmm7
+    cvtdq2ps	xmm1, xmm3
+
+    mulps	xmm0, xmm4
+    rcpps	xmm6, xmm6
+
+    mulps	xmm0, xmm6
+    mulps	xmm0, xmm2
+
+    mulps	xmm1, xmm5
+
+    addps	xmm0, xmm2
+    addps	xmm0, xmm1
+
+    ret	
+
+
+    """
+
+    asm = Tdasm()
+    if util.AVX:
+        raise ValueError("AVX is not yet implemented")
+        mc = asm.assemble(avx_code, True)
+    else:
+        mc = asm.assemble(asm_code, True)
+
+    name = "fast_log_ps"  
+    runtime.load(name, mc)
+
 ## Function that is used to load transcendental function in runtime(memory). Thease functions destroys registers
 # xmm0 - xmm7 and only fast_pow_ps also destroy register eax.
 # @param name Name of function to load in runtime(memory). 
@@ -1688,7 +2743,17 @@ def load_math_func(name, runtime):
             "fast_sincos_ss": sincos_ss,
             "fast_sincos_ps": sincos_ps,
             "fast_exp_ss": exp_ss,
-            "fast_exp_ps": exp_ps
+            "fast_exp_ps": exp_ps,
+            "fast_atan_ss": atan_ss,
+            "fast_atan_ps": atan_ps,
+            "fast_asin_ss": asin_ss,
+            "fast_asin_ps": asin_ps,
+            "fast_acos_ss": acos_ss,
+            "fast_acos_ps": acos_ps,
+            "fast_tan_ss": tan_ss,
+            "fast_tan_ps": tan_ps,
+            "fast_log_ss": log_ss,
+            "fast_log_ps": log_ps
             }
 
     if name in funcs:

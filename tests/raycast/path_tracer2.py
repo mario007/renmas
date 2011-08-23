@@ -12,10 +12,11 @@ import renmas.interface as ren
 import os
 import time
 from tdasm import Runtime
-from scenes import cornell_scene, dragon
+from scenes import cornell_scene, dragon, sphere
 
-dragon()
+#dragon()
 #cornell_scene()
+sphere()
 
 blitter = renmas.gui.Blitter()
 def blt_float_img_to_window(x, y, img, win):
@@ -73,7 +74,7 @@ def path_tracer(tile):
     Ld = [] #direct light
     transmitance = 1.0
     cur_depth = 0
-    max_depth = 2
+    max_depth = 4
 
     #current implementation stop tracing path when we hit emitter
     while True:
@@ -115,7 +116,7 @@ def path_tracer(tile):
             hp.wo = ray.dir * -1.0
             shade(hp)
             if hp.le.r > 0.0001: 
-                Le = hp.le
+                #Le = hp.le
                 break #we hit emiter FIXME - we dont't have to stop think for better implementation !!!!
             kr = hp.brdf * (1.0 / hp.pdf) * hp.ndotwi
             Lr.append(kr)

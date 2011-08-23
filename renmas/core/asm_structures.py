@@ -59,6 +59,7 @@ HITPOINT = """
     float ndotwi
     float pdf
     float light_pdf
+    uint32 specular
     end struct
 """
 

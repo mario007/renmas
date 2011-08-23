@@ -68,11 +68,34 @@ def load_func(runtime, *names):
                 renmas.maths.load_math_func("fast_pow_ss", runtime)
             elif name == "fast_pow_ps":
                 renmas.maths.load_math_func("fast_pow_ps", runtime)
+            elif name == "fast_tan_ss":
+                renmas.maths.load_math_func("fast_tan_ss", runtime)
+            elif name == "fast_tan_ps":
+                renmas.maths.load_math_func("fast_tan_ps", runtime)
+            elif name == "fast_cos_ps":
+                renmas.maths.load_math_func("fast_cos_ps", runtime)
+            elif name == "fast_cos_ss":
+                renmas.maths.load_math_func("fast_cos_ss", runtime)
+            elif name == "fast_sin_ss":
+                renmas.maths.load_math_func("fast_sin_ss", runtime)
+            elif name == "fast_sin_ps":
+                renmas.maths.load_math_func("fast_sin_ps", runtime)
+            elif name == "fast_acos_ss":
+                renmas.maths.load_math_func("fast_acos_ss", runtime)
+            elif name == "fast_acos_ps":
+                renmas.maths.load_math_func("fast_acos_ps", runtime)
+            elif name == "fast_exp_ps":
+                renmas.maths.load_math_func("fast_exp_ps", runtime)
+            elif name == "fast_exp_ss":
+                renmas.maths.load_math_func("fast_exp_ss", runtime)
             elif name == "fast_sincos_ps":
                 renmas.maths.load_math_func("fast_sincos_ps", runtime)
+            elif name == "fast_sincos_ss":
+                renmas.maths.load_math_func("fast_sincos_ss", runtime)
             elif name == "ray_triangle_mesh":
-                renmas.shapes.intersect_ray_triangle(runtime, "ray_triangle_mesh")
+                #renmas.shapes.intersect_ray_triangle(runtime, "ray_triangle_mesh")
                 #renmas.shapes.intersect_ray_triangle_avx(runtime, "ray_triangle_mesh")
+                renmas.shapes.intersect_ray_triangle_new(runtime, "ray_triangle_mesh")
             pass # load that function
 
 def normalization(xmm, tmp1, tmp2):
@@ -129,4 +152,8 @@ def memcpy(da, sa, n):
         blitter = renmas.gui.Blitter()
     n = n // 4 #FIXME - fix this better
     blitter._memcpy(da, sa, n)
+
+## cof_fi = N dot L
+def fresnel_nk(n, k, cos_fi):
+    pass
 

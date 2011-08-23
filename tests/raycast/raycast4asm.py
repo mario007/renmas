@@ -12,9 +12,10 @@ import renmas.interface as ren
 import os
 import time
 from tdasm import Runtime
-from scenes import cornell_scene, dragon
+from scenes import cornell_scene, dragon, sphere
 
-dragon()
+#dragon()
+sphere()
 
 
 blitter = renmas.gui.Blitter()

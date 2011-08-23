@@ -26,14 +26,23 @@ class Triangle:
         k = ray.dir.z
         l = self.v0.z - ray.origin.z
 
-
         m = f * k - g * j
         n = h * k - g * l
         p = f * l - h * j
         q = g * i - e * k
         s = e * j - f * i
+
+        #r1 = a * (f*k - g*j) + b * (g*i - e*k) + c * (e*j - f*i) 
+        #r2 = d * (f*k - g*j) + b * (g*l - h*k) + c * (h*j - f*l)
+        #r3 = a * (h*k - g*l) + d * (g*i - e*k) + c * (e*l - h*i)
+        #r4 = a * (f*l - h*j) + b * (h*i - e*l) + d * (e*j - f*i)
+        #print(r1)
+        #print(r2)
+        #print(r3)
+        #print(r4)
         
         temp3 =  (a * m + b * q + c * s)
+
         if temp3 == 0.0: return False
         inv_denom = 1.0 / temp3
 

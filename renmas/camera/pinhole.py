@@ -33,6 +33,21 @@ class PinholeCamera:
         direction.normalize()
         return renmas.core.Ray(self.eye, direction)
 
+    def set_eye(self, x, y, z):
+        self.eye = renmas.maths.Vector3(float(x), float(y), float(z))
+        self._update_camera()
+
+    def set_lookat(self, x, y, z):
+        self.lookat = renmas.maths.Vector3(float(x), float(y), float(z))
+        self._update_camera()
+
+    def set_distance(self, distance):
+        self.distance = float(distance)
+
+    def _update_camera(self):
+        self.compute_uvw()
+        self._populate_ds()
+
     def ray_asm(self, runtime, label):
 
         asm_structs = util.structs("ray", "sample")

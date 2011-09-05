@@ -1,0 +1,22 @@
+
+1.Odzipas RenmasWPF
+2.Da bi pokrenu program ides u RenmasWPF->RenmasWPF->bin->Release i pokrenes RenmasWPF.exe 
+Napomena: u Debug direktoriju isto ima exe ali tamo ne radi tako da moras pokricati exe u bin->Release
+
+Prije nego pokrenes exe moras konfigurirati EnvironmnetVariablu PYTHONPATH 
+Ako si na desktopu samo moras prominiti putanje di odzipas ovo ca cu ti poslati.
+3. Odzipas DistPython.zip, GitTDASM.zip i GitRENMAS.zip
+4. za GitRENMAS.zip sun napravi direktorij GitRENMAS pa tamo odzipaj 
+5. Sad ti je samo u EnvironemtVariable podesiti putanje do direktorijov di su ti odzipana ta tri projekta
+EnvironmentVariable to ides u ControlPanel pa tamo na System and Security pa na System i tamo sa live strane imas Advanced System Settings
+Kad to otvoris viti ces na dnu EnvironmentVariable botun
+Varijablu podesis u ovin donjin prozoru ca se zove System variables
+
+Evo ti primjer kako je meni podesena varijabla; PYTHONPATH ti je ime te varijable
+
+PYTHONPATH
+C:\DistPython\Lib;I:\GitTDASM;I:\GitRENMAS
+
+Samo pazi kad odzipas ako slucajno imas GitTDASM\GitTDASM umisto samo jedan GitTDASM da napises dva GitTDASM u putanji
+
+ 

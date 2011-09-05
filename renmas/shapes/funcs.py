@@ -1,4 +1,4 @@
-
+import renmas
 import renmas.core
 import renmas.utils as util
 
@@ -14,7 +14,6 @@ import renmas.utils as util
 # esp + 12 - address of v2
 # esp + 16 - address of normal
 # esp + 20 - mat_index
-
 def intersect_ray_triangle_new(runtime, label, populate=True):
     asm_structs = util.structs("ray", "hitpoint")
 

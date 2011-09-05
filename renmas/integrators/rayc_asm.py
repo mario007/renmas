@@ -72,3 +72,8 @@ def prepare_raycast_asm(runtime):
     mc = asm.assemble(ASM)
     ds = runtime.load("raycast", mc)
 
+def raycast_integrator_asm(tile, renderer):
+    x, y, width, height = tile
+    renderer._sampler.tile(x, y, width, height)
+    renderer._runtime.run("raycast") #100% rendering in assembly language
+

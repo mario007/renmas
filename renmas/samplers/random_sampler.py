@@ -23,6 +23,9 @@ class RandomSampler:
         self.pix_size = size
         self._populate_ds()
 
+    def get_pixel_size(self):
+        return self.pix_size
+
     def tile(self, x, y, width, height):
         width -= 1
         height -= 1
@@ -72,6 +75,10 @@ class RandomSampler:
 
     def nsamples(self):
         return self.n 
+
+    def set_samples_per_pixel(self, num):
+        self.n = int(num) 
+        self._populate_ds()
 
     def get_sample_asm(self, runtime, label):
         # eax - pointer to sample structure

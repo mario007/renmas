@@ -2,6 +2,7 @@
 import renmas.gui
 import renmas
 import renmas.utils as util
+import math
 
 #TODO make flip image as option
 class Film:
@@ -17,6 +18,7 @@ class Film:
         self.spectrum = renmas.core.Spectrum(0.0, 0.0, 0.0)
         self.curn = nsamples
         self.ds = None
+        self.max_spectrum = renmas.core.Spectrum(0.0, 0.0, 0.0)
 
     def blt_image_to_buffer(self):
         da, dpitch = self.frame_buffer.get_addr()
@@ -28,10 +30,16 @@ class Film:
     def numsamples(self):
         return self.nsamples
 
-    def set_resolution(width, height):
+    def set_resolution(self, width, height):
         self.width = width
         self.height = height
-        #TODO - new image is needed FIXME
+        self.image = renmas.gui.ImageFloatRGBA(width, height)
+        self.frame_buffer = renmas.gui.ImageRGBA(width, height)
+        # you need again to build runtime object
+        #TODO - think better solution if its needed
+
+    def get_resolution(self):
+        return (self.width, self.height)
         
     def set_nsamples(self, n):
         self.nsamples = n
@@ -50,7 +58,11 @@ class Film:
             self.spectrum.scale(1.0/self.nsamples)
             spec = self.spectrum
 
-            spec.clamp() #FIXME make clamp to certen color so to know when picture is wrong 
+            self.max_spectrum.r = max(self.max_spectrum.r, spec.r)
+            self.max_spectrum.g = max(self.max_spectrum.g, spec.g)
+            self.max_spectrum.b = max(self.max_spectrum.b, spec.b)
+
+            #spec.clamp() #FIXME make clamp to certen color so to know when picture is wrong 
             iy = self.height - sample.iy - 1 #flip the image
 
             #print(sample.ix, iy, spec.r, spec.g, spec.b)
@@ -62,6 +74,69 @@ class Film:
         else:
             self.spectrum = self.spectrum + hitpoint.spectrum
             self.curn -= 1
+
+    def tone_map(self):
+        width, height = self.image.get_size()
+        delta = 0.001
+        sum_pix = 0.0
+        lw_min = 100000.0
+        lw_max = 0.0
+        for j in range(height):
+            for i in range(width):
+                r, g, b, a = self.image.get_pixel(i, j)
+                lw = 0.27 * r + 0.67 * g + 0.06 * b
+                lw_min = min(lw_min, lw)
+                lw_max = max(lw_max, lw)
+                lw += delta
+                sum_pix += math.log(lw)
+
+        if lw_min == 0.0: lw_min = 0.001
+        lw_min_log2 = math.log(lw_min, 2)
+        lw_max_log2 = math.log(lw_max, 2)
+        log_av = math.exp(sum_pix / float(width*height))
+
+        den = 2.0 * math.log(log_av, 2) - lw_min_log2 - lw_max_log2
+        nom = lw_max_log2 - lw_min_log2
+        alpha = 0.18 * math.pow(4.0, den/nom)
+
+        lwhite = 1.5 * math.pow(2.0, lw_max_log2 - lw_min_log2 - 5.0)
+
+        print("Log_average", log_av, lw_min, lw_max)
+        print("alpha = ", alpha, "  Lwhite = ", lwhite)
+
+        rd_max = gd_max = bd_max = 0.0
+        r_max = g_max = b_max = 0.0
+
+        scaling = alpha / log_av
+        for j in range(height):
+            for i in range(width):
+                r, g, b, a = self.image.get_pixel(i, j)
+                r_max = max(r, r_max)
+                g_max = max(g, g_max)
+                b_max = max(b, b_max)
+
+                lw = 0.27 * r + 0.67 * g + 0.06 * b
+                lw += delta
+
+                lx = scaling * lw 
+                ldisp = (lx * (1 + lx / (lwhite*lwhite))) / (1.0 + lx)
+                rd = ldisp * r / lw
+                gd = ldisp * g / lw
+                bd = ldisp * b / lw
+
+                rd_max = max(rd, rd_max)
+                gd_max = max(gd, gd_max)
+                bd_max = max(bd, bd_max)
+
+                if rd > 0.99: rd = 0.99
+                if bd > 0.99: bd = 0.99
+                if gd > 0.99: gd = 0.99
+
+                self.image.set_pixel(i, j, rd, gd, bd)
+
+        print(rd_max, gd_max, bd_max)
+        print(r_max, g_max, b_max)
+
 
     def add_sample_asm(self, runtime, label):
 
@@ -94,7 +169,7 @@ class Film:
             ;because of alpha channel - try solve this in better way
             macro eq128 xmm0 = xmm0 + alpha_channel
             ; for clamping 
-            minps xmm0, oword [clamp] 
+            ;minps xmm0, oword [clamp] 
 
             ;flip the image and call set pixel
             mov eax, dword [ebx + sample.ix]

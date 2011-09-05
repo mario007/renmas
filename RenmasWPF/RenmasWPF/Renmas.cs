@@ -24,9 +24,7 @@ namespace RenmasWPF
         [System.Runtime.InteropServices.DllImport("RenmasAPI.dll")]
         public static extern int Render();
         [System.Runtime.InteropServices.DllImport("RenmasAPI.dll")]
-        public static extern int IsFinished();
-        [System.Runtime.InteropServices.DllImport("RenmasAPI.dll")]
-        public static extern void PrepareScene();
+        public static extern int PrepareScene();
         [System.Runtime.InteropServices.DllImport("RenmasAPI.dll")]
         public static extern uint GetProperty(string category, string name);
         [System.Runtime.InteropServices.DllImport("RenmasAPI.dll")]
@@ -60,13 +58,10 @@ namespace RenmasWPF
         {
             return Render();
         }
-        public void PrepareForRendering()
+        public int PrepareForRendering()
         {
-            PrepareScene();
-        }
-        public int IsRenderingFinished()
-        {
-            return IsFinished();
+            int rez = PrepareScene();
+            return rez;
         }
         public string GetProp(string category, string name)
         {
@@ -75,7 +70,7 @@ namespace RenmasWPF
             unsafe
             {
                 string text = new System.String((sbyte*)ptr_text);
-                return text;
+                return text + "";
             }
             
         }

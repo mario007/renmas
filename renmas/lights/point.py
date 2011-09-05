@@ -13,7 +13,7 @@ class PointLight:
         self.ds = None
         self.func_ptr = None # function pointer
 
-    def L(self, hitpoint):
+    def L(self, hitpoint, ren=None):
         # 1. check visibility
         # 2. populate light vector in hitpoint and spectrum of light
         
@@ -26,7 +26,11 @@ class PointLight:
             hitpoint.visible = False
             return False
 
-        ret = renmas.shapes.visible(self.position, hitpoint.hit_point)
+        if ren is None:
+            ret = renmas.shapes.visible(self.position, hitpoint.hit_point)
+        else:
+            ret = ren._visible(self.position, hitpoint.hit_point)
+
         if ret is False:
             hitpoint.visible = False
             return False

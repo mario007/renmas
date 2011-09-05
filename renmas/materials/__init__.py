@@ -15,4 +15,5 @@ from .material import ConstEmiter
 
 from .cook_torrance_brdf import CookTorranceBRDF, BeckmannDistribution, GaussianDistribution  
 from .oren_nayar_brdf import OrenNayarBRDF
+from .ward import WardAnisotropicBRDF
 

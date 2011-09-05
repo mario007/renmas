@@ -675,7 +675,7 @@ class Grid:
     def __init__(self):
         self.bbox = None
 
-    def setup(self, shapes):
+    def setup(self, shapes, ren=None):
 
         p0 = Vector3(9999999.0, 9999999.0, 9999999.0)
         p1 = Vector3(-9999999.0, -9999999.0, -9999999.0)
@@ -791,7 +791,10 @@ class Grid:
                         x86.SetUInt32(adr, num, 0)
                         offset += 4
 
-                        lst_address = renmas.interface.objfunc_array(cell, runtime)
+                        if ren is None:
+                            lst_address = renmas.interface.objfunc_array(cell, runtime)
+                        else:
+                            lst_address = self.objfunc_array(cell, runtime, ren)
                         n = len(lst_address)
                         x86.SetUInt32(adr+4, lst_address, 0)
                         offset = offset + n * 4 
@@ -812,6 +815,20 @@ class Grid:
         print("duzina", max_len)
         print("num objects =", num_objects, " num arrays", num_arrays)
         return None
+
+    def objfunc_array(self, lst_shapes, runtime, ren):
+
+        addr = []
+        for shape in lst_shapes:
+            objadr = ren.shape_address(shape)
+            addr.append(objadr)
+
+            if not runtime.global_exists(shape.isect_name()):
+                shape.isect_asm(runtime, shape.isect_name())
+            lbl_addr = runtime.address_label(shape.isect_name())
+            addr.append(lbl_addr)
+
+        return tuple(addr)
 
     def attributes(self):
         d = {}

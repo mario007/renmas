@@ -327,7 +327,7 @@ class Mesh3D:
                         self.triangles.add_triangle(v0, v1, v2, material, normal[0], normal[0], normal[0])
 
 
-                        v3 = int(words[3])
+                        v3 = int(words[3]) #not confirmed that this is good!!!
                         v4 = int(words[4])
                         v5 = int(words[0])
                         normal = calc_normal(self.vertex_buffer, v3, v4, v0, self.bounding_box)

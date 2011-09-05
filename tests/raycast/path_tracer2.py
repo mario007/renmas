@@ -152,6 +152,8 @@ def render_scene():
         global image_saved
         if not image_saved:
             film = ren.get_film()
+            film.tone_map()
+            blt_float_img_to_window(0, 0, film.image, win)
             save_image(film, "Image5.png")
             image_saved = True
         return

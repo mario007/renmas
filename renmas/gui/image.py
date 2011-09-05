@@ -117,7 +117,7 @@ class ImageFloatRGBA:
         if x < 0 or x >= self.width: return None
         if y < 0 or y >= self.height: return None
         adr = y * self.pitch + x * 16
-        # return b, g, r, a
+        # return r, g, b, a 
         pix = x86.GetFloat(self.pixels.ptr()+adr, 0, 4)
         return pix
 

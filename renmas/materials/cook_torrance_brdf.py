@@ -56,6 +56,13 @@ class BeckmannDistribution:
         cosa *= cosa
         return math.exp(-tana*tana) / (self.m * self.m * cosa * cosa) 
 
+    def D1(self, hitpoint, h):
+        
+        ndoth = hitpoint.normal.dot(h)
+        if ndoth < 0.00001: return 0.0
+        return (self.m+2.0) * math.pow(ndoth, self.m) / (2.0*math.pi)
+
+
     def D_asm(self, runtime):
 
         util.load_func(runtime, "fast_acos_ss", "fast_cos_ss", "fast_tan_ss", "fast_exp_ss")
@@ -100,6 +107,7 @@ class CookTorranceBRDF:
         self.spectrum = spectrum
         self.one = renmas.core.Spectrum(1.0, 1.0, 1.0)
         self.dist = distribution
+        self.k = 0.02
 
     def brdf(self, hitpoint):
         #geometric term G
@@ -115,7 +123,7 @@ class CookTorranceBRDF:
         tmp = 1.0 - ndotl
         tmp2 = tmp * tmp * tmp * tmp * tmp
         F = self.spectrum + (self.one - self.spectrum)*tmp2 
-
+        
         spec = F * D * G * (1/(math.pi * ndotl * ndotv))
         if self.k is None:
             return spec

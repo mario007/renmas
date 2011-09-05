@@ -4,6 +4,12 @@ from .create import is_rendering_finished
 from .create import get_film
 from . import create 
 
+
+import renmas
+renderer = renmas.renderer # renderer
+ren = renmas.ren #high level interface
+log = renmas.log
+
 #prepare_scene
 #render
 #is_finished
@@ -31,80 +37,107 @@ from . import create
 
 
 def prepare_scene():
-    prepare_for_rendering()
-    create_tiles()
-    #create.prepare_raycast_asm()
-    create.prepare_pathtracer_asm()
+    return renderer.prepare()
 
 def render(): #render small part of picture
-    # grab next fragmet of picture to renderer 
-    # render fragment
-    tile = get_tile()
-    if tile is None: return False 
-    integrator = get_integrator()
-    integrator(tile)
-    film = get_film()
+    res = renderer.render()
+    film = renderer._film
     film.blt_image_to_buffer()
-    return True
 
-def is_finished(): 
-    return is_rendering_finished()
+    return res
 
 #FORMAT is float RGBA - 4byte per color channel- alpha channel is 1.0 
 def ptr_image():
-    film = get_film()
+    film = renderer._film
     if film is None: return -1 
     #addr, pitch = film.image.get_addr()
     addr, pitch = film.frame_buffer.get_addr()
     return addr 
     
 def width_image():
-    film = get_film()
+    film = renderer._film
     if film is None: return -1 
     #width, height = film.image.get_size()
     width, height = film.frame_buffer.get_size()
     return width
 
 def height_image():
-    film = get_film()
+    film = renderer._film
     if film is None: return -1 
     #width, height = film.image.get_size()
     width, height = film.frame_buffer.get_size()
     return height
 
 def pitch_image():
-    film = get_film()
+    film = renderer._film
     if film is None: return -1 
     #addr, pitch = film.image.get_addr()
     addr, pitch = film.frame_buffer.get_addr()
     return pitch
 
+#main protocol methods - almost everthing must go through this two methos
 def get_property(category, name):
-    if (category == "camera"):
-        if(name == "eye"):
-            eye = create.get_camera().eye
-            text = str(eye.x) + "," + str(eye.y) + "," + str(eye.z) 
-            return text
-    if (category == "camera"):
-        if(name == "lookat"):
-            lookat = create.get_camera().lookat
-            text = str(lookat.x) + "," + str(lookat.y) + "," + str(lookat.z) 
-            return text
-    if (category == "camera"):
-        if(name == "distance"):
-            distance = create.get_camera().distance
-            return str(distance) 
-
+    if category == "camera":
+        return get_camera_props(name)
+    elif category == "log":
+        return log.handlers[0].get_logs()
+    elif category == "global_settings":
+        return get_global_settings(name)
     return ""
 
 def set_property(category, name, value):
-    if (category == "camera"):
-        if(name == "eye"):
-            camera = create.get_camera()
-            x, y, z = value.split(',')
-            camera.set_eye(float(x), float(y), float(z))
-            return 1
+    if category == "camera":
+        return set_camera_props(name, value)
+    elif category == "global_settings":
+        return set_global_settings(name, value)
 
     return 1
 
+
+def get_camera_props(prop):
+    text = ""
+    if prop == "eye":
+        eye = renderer.get_camera().eye
+        text = str(eye.x) + "," + str(eye.y) + "," + str(eye.z) 
+    elif prop == "lookat":
+        lookat = renderer.get_camera().lookat
+        text = str(lookat.x) + "," + str(lookat.y) + "," + str(lookat.z) 
+    elif prop == "distance":
+        distance = renderer.get_camera().distance
+        text = str(distance)
+    return text
+
+def set_camera_props(prop, value):
+    if prop == "eye":
+        camera = renderer.get_camera()
+        x, y, z = value.split(',')
+        camera.set_eye(float(x), float(y), float(z))
+
+    return 1
+
+def get_global_settings(prop):
+    text = ""
+    if prop == "resolution": 
+        width, height = renderer.get_resolution()
+        text = str(width) + "," + str(height)
+    elif prop == "pixel_size":
+        pix_size = renderer.get_pixel_size()
+        text = str(pix_size)
+    elif prop == "samples_per_pixel":
+        n = renderer.get_samples_per_pixel()
+        text = str(n)
+    return text
+
+def set_global_settings(prop, value):
+    if prop == "resolution":
+        width, height = value.split(',')
+        renderer.set_resolution(width, height)
+    elif prop == "pixel_size":
+        renderer.set_pixel_size(abs(float(value)))
+    elif prop == "samples_per_pixel":
+        renderer.set_samples_per_pixel(int(value))
+    elif prop == "algorithm":
+        renderer.set_rendering_algorithm(value)
+
+    return 1
 

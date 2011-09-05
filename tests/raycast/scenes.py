@@ -5,7 +5,7 @@ import renmas.interface as ren
 def dragon():
     width = 800 
     height = 800 
-    nsamples = 4 
+    nsamples = 1 
 
     s_props = {"type":"random", "pixel":0.8, "width": width, "height": height, "nsamples": nsamples}
     s =ren.create_sampler(s_props)
@@ -19,7 +19,7 @@ def dragon():
 
     #create lights
     #l_props = {"type":"point", "name": "light1", "position":(5,5.5,5.2), "spectrum":(4.99,4.99,4.99)}
-    l_props = {"type":"area", "spectrum":(40, 40, 40), "shape":"rectangle", "p":(21.3, 24.87999, 22.7),
+    l_props = {"type":"area", "spectrum":(80, 80, 80), "shape":"rectangle", "p":(21.3, 24.87999, 22.7),
             "edge_a":(0.0, 0.0, 10.5), "edge_b":(13.0, 0.0, 0.0), "normal":(0.0, -1.0, 0.0)}
     l = ren.create_light(l_props)
 
@@ -39,7 +39,7 @@ def dragon():
 
     m_props = {"name": "m3", "sampling":"hemisphere_cos"}
     m = ren.create_material(m_props)
-    m_props = {"type":"lambertian", "R":(0.142, 0.115, 0.315)} # left wall- red wall
+    m_props = {"type":"lambertian", "R":(0.3, 0.215, 0.415)} # left wall- red wall
     ren.add_brdf("m3", m_props)
     m_props = {"type":"phong", "R":(0.2, 0.2, 0.2), "e": 12.2, "k":0.3}
     ren.add_brdf("m3", m_props)
@@ -55,10 +55,12 @@ def dragon():
 
     m_props = {"name": "m5", "sampling":"hemisphere_cos"}
     m = ren.create_material(m_props)
-    m_props = {"type":"cook_torrance", "R":(0.2, 0.2, 0.2),
-            "distribution":"beckmann", "dist_props":{"c": 3.9, "m":0.3}} 
+    #m_props = {"type":"cook_torrance", "R":(0.8, 0.8, 0.8),
+    #        "distribution":"beckmann", "dist_props":{"c": 3.9, "m":0.2}} 
+    #ren.add_brdf("m5", m_props)
+    m_props = {"type":"oren_nayar", "R":(0.4, 0.4, 0.4), "alpha":0.1} 
     ren.add_brdf("m5", m_props)
-    m_props = {"type":"oren_nayar", "R":(0.05, 0.3, 0.05), "alpha":0.7} 
+    m_props = {"type": "ward_anisotropic", "R":(0.2, 0.2, 0.2), "alpha":0.2, "beta":0.9}
     ren.add_brdf("m5", m_props)
 
     #sh_props = {"type":"sphere", "position":(0,0,0), "radius":2, "material":"m1"}
@@ -67,7 +69,7 @@ def dragon():
     sh_props = {"type":"mesh", "resource":["Horse97K.ply"], "material":"m1", "scale": (2.5, 2.5, 2.5), "translate":(0.0, 0.0, 0.0)}
     #s = ren.create_shape(sh_props)
 
-    sh_props = {"type":"mesh", "resource":["dragon_vrip_res4.ply"], "material":"m5" , "translate":(0.2,-1.65,-1.5), "scale":(12, 12, 12)}
+    sh_props = {"type":"mesh", "resource":["dragon_vrip_res4.ply"], "material":"m5" , "translate":(0.2,-1.65,0.0), "scale":(12, 12, 12)}
     #sh_props = {"type":"mesh", "resource":["dragon_vrip_res3.ply"], "material":"m2"}
     #sh_props = {"type":"mesh", "resource":["dragon_vrip.ply"], "material":"m1"}
     #sh_props = {"type":"mesh", "resource":["dragon_vrip.ply"], "material":"m5" , "translate":(0.2,-1.65,-0.0), "scale":(12, 12, 12)}
@@ -78,7 +80,7 @@ def dragon():
     #s = ren.create_shape(sh_props)
 
     #floor
-    sh_props = {"type":"rectangle", "p":(-8.0, -1.0, -4.0), "edge_a":(0.0, 0.0, 100.00), "edge_b":(100.00, 0.0, 0.0), "normal":(0.0, 1.0, 0.0) ,"material":"m4"}
+    sh_props = {"type":"rectangle", "p":(-8.0, -1.0, -4.0), "edge_a":(0.0, 0.0, 100.00), "edge_b":(100.00, 0.0, 0.0), "normal":(0.0, 1.0, 0.0) ,"material":"m3"}
     s = ren.create_shape(sh_props)
 
 
@@ -209,7 +211,7 @@ def cornell_scene():
 def sphere():
     WIDTH = 600 
     HEIGHT = 600 
-    NSAMPLES = 1 
+    NSAMPLES = 16 
 
     s_props = {"type":"random", "pixel":1.0, "width": WIDTH, "height": HEIGHT, "nsamples": NSAMPLES}
     s =ren.create_sampler(s_props)
@@ -231,8 +233,8 @@ def sphere():
     ren.add_brdf("m1", m_props)
     m_props = {"type":"phong", "R":(0.2, 0.2, 0.2), "e": 12.2, "k":0.3}
     ren.add_brdf("m1", m_props)
-    m_props = {"type":"specular", "R":0.75}
-    ren.add_brdf("m1", m_props)
+    #m_props = {"type":"specular", "R":0.75}
+    #ren.add_brdf("m1", m_props)
 
     m_props = {"name": "m2", "sampling":"hemisphere_cos"}
     m = ren.create_material(m_props)
@@ -247,7 +249,17 @@ def sphere():
     m_props = {"type":"lambertian", "R":(0.3, 0.3, 0.3)} 
     ren.add_brdf("m3", m_props)
 
-    sh_props = {"type":"sphere", "position":(0.0, 0.0, 0.0), "radius":3.0, "material":"m2"}
+    m_props = {"name": "m5", "sampling":"hemisphere_cos"}
+    m = ren.create_material(m_props)
+    #m_props = {"type":"cook_torrance", "R":(0.8, 0.8, 0.8),
+    #        "distribution":"beckmann", "dist_props":{"c": 3.9, "m":0.2}} 
+    #ren.add_brdf("m5", m_props)
+    m_props = {"type":"oren_nayar", "R":(0.0, 0.1, 0.3), "alpha":0.1} 
+    ren.add_brdf("m5", m_props)
+    m_props = {"type": "ward_anisotropic", "R":(0.4, 0.4, 0.4), "alpha":0.1, "beta":1.0}
+    ren.add_brdf("m5", m_props)
+
+    sh_props = {"type":"sphere", "position":(0.0, 0.0, 0.0), "radius":3.0, "material":"m5"}
     s = ren.create_shape(sh_props)
 
     #floor

@@ -18,7 +18,8 @@ extern "C" __declspec(dllexport) int __cdecl Init()
 
 extern "C" __declspec(dllexport) void __cdecl ShutDown()
 {
-	Py_Finalize();
+	//Py_Finalize();
+
 }
 
 extern "C" __declspec(dllexport) int __cdecl RunScript(const char *filename)
@@ -99,23 +100,6 @@ extern "C" __declspec(dllexport) long __cdecl PitchImage()
 	return pitch;
 }
 
-extern "C" __declspec(dllexport) long __cdecl IsFinished()
-{
-	PyObject *result = NULL;
-	result = PyObject_CallMethod(cmds, "is_finished", "");
-	long finished = -1;
-	if (result != NULL) 
-	{
-		finished = PyLong_AsLong(result);
-		Py_DECREF(result);
-	}
-	else
-	{
-		PyErr_Print();
-	}
-	return finished;
-}
-
 extern "C" __declspec(dllexport) long __cdecl Render()
 {
 	PyObject *result = NULL;
@@ -133,18 +117,22 @@ extern "C" __declspec(dllexport) long __cdecl Render()
 	return finished;
 }
 
-extern "C" __declspec(dllexport) void __cdecl PrepareScene()
+extern "C" __declspec(dllexport) long __cdecl PrepareScene()
 {
 	PyObject *result = NULL;
-	result = PyObject_CallMethod(cmds, "prepare_scene", "");  
+	result = PyObject_CallMethod(cmds, "prepare_scene", "");
+	long prepared = 0;
 	if (result != NULL) 
 	{
+		prepared = PyLong_AsLong(result);
 		Py_DECREF(result);
 	}
 	else
 	{
+		prepared = 25;
 		PyErr_Print();
 	}
+	return prepared;
 }
 
 extern "C" __declspec(dllexport) const char* __cdecl GetProperty(const char*category, const char *name)

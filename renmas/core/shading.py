@@ -21,9 +21,13 @@ def shade(hp):
     material.next_direction(hp)
     return hp
 
-def generate_shade(runtime, label,  visible_label):
-    materials = renmas.interface.lst_materials()
-    lights = renmas.interface.lst_lights()
+def generate_shade(runtime, label,  visible_label, renderer=None):
+    if renderer:
+        lights = renderer._list_lights()
+        materials = renderer._list_materials() 
+    else:
+        materials = renmas.interface.lst_materials()
+        lights = renmas.interface.lst_lights()
 
     nmaterials = len(materials)
     nlights = len(lights)

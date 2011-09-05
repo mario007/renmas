@@ -227,6 +227,15 @@ def add_brdf(material_name, props):
         c = renmas.materials.PhongBRDF(spectrum, float(e), k)
         mat = mat_db.mat(material_name) 
         mat.add_component(c)
+    elif brdf_name == "ward_anisotropic":
+        r, g, b = props["R"]
+        k = props.get("k", None)
+        ax = props["alpha"]
+        ay = props["beta"]
+        spectrum = renmas.core.Spectrum(float(r), float(g), float(b))
+        c = renmas.materials.WardAnisotropicBRDF(spectrum, float(ax), float(ay), k)
+        mat = mat_db.mat(material_name) 
+        mat.add_component(c)
     elif brdf_name == "oren_nayar":
         r, g, b = props["R"]
         alpha = float(props["alpha"])

@@ -12,4 +12,6 @@ from .light_database import LightDatabase
 from .shading import shade, generate_shade
 
 from .renderer import Renderer
+from .build_functions import RendererUtils
+from .logger import log
 

@@ -6,7 +6,6 @@ class SpecularBRDF:
     def __init__(self, r):
         self.r = float(r)
         self.spectrum = renmas.core.Spectrum(float(r), float(r), float(r))
-        self.spectrum = self.spectrum * 2.0
         self.spectrum2 = renmas.core.Spectrum(0.0, 0.0, 0.0)
 
     def brdf(self, hitpoint):

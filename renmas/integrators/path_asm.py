@@ -173,3 +173,8 @@ def prepare_pathtracer_asm(runtime):
     mc = asm.assemble(ASM)
     ds = runtime.load("pathtracer", mc)
 
+def path_integrator_asm(tile, renderer):
+    x, y, width, height = tile
+    renderer._sampler.tile(x, y, width, height)
+    renderer._runtime.run("pathtracer") #100% rendering in assembly language
+

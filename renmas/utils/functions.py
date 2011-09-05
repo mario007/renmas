@@ -6,7 +6,7 @@ from renmas.core import AsmStructures
 
 asm = Tdasm()
 AVX = asm.avx_supported()
-#AVX = False 
+AVX = False 
 
 SSSE3 = asm.cpu["ssse3"]
 #SSSE3 = False

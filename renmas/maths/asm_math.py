@@ -1761,9 +1761,93 @@ def atan_ss(runtime):
     ret
 
     """
+
+    avx_code = data + """
+
+    #CODE
+    global fast_atan_ss:
+    vmovss	xmm1, dword [_ps_am_sign_mask]
+	vrcpss	xmm4, xmm4, xmm0
+	vorps	xmm1, xmm1, xmm0
+	vmovss	xmm6, xmm6, xmm4
+	vcomiss	xmm1, dword [_ps_am_m1]
+	vmovss	xmm3, dword [_ps_atan_t0]
+	jnc		l_small  ; 'c' is 'lt' for comiss
+
+    ;l_big:
+	vmulss	xmm6, xmm6, xmm6
+
+	vmovss	xmm5, dword [_ps_atan_s0]
+	vaddss	xmm5, xmm5, xmm6
+
+	vmovss	xmm7, dword [_ps_atan_s1]
+	vrcpss	xmm5, xmm5, xmm5
+	vmulss	xmm5, xmm5, xmm3
+	vmovss	xmm3, dword [_ps_atan_t1]
+	vaddss	xmm7, xmm7, xmm6
+	vaddss	xmm5, xmm5, xmm7
+
+	vmovss	xmm7, dword [_ps_atan_s2]
+	vrcpss	xmm5, xmm5, xmm5
+	vmulss	xmm5, xmm5, xmm3
+	vmovss	xmm3, dword [_ps_atan_t2]
+	vaddss	xmm7, xmm7, xmm6
+	vaddss	xmm5, xmm5, xmm7
+
+	vmovss	xmm7, dword [_ps_atan_s3]
+	vrcpss	xmm5, xmm5, xmm5
+	vmulss	xmm5, xmm5, xmm3
+	vmovss	xmm3, dword [_ps_atan_t3]
+	vaddss	xmm7, xmm7, xmm6
+	vmovss	xmm2, dword [_ps_am_sign_mask]
+	vmulss	xmm4, xmm4, xmm3
+	vaddss	xmm5, xmm5, xmm7
+
+	vmovss	xmm7, dword [_ps_am_pi_o_2]
+	vrcpss	xmm5, xmm5, xmm5
+	vmulss	xmm5, xmm5, xmm4
+
+	vandps	xmm0, xmm0, xmm2
+	vorps	xmm0, xmm0, xmm7
+	vsubss	xmm0, xmm0, xmm5
+	ret
+
+    l_small:
+	vmovaps	xmm2, xmm0
+	vmulss	xmm2, xmm2, xmm2
+
+	vmovss	xmm1, dword [_ps_atan_s0]
+	vaddss	xmm1, xmm1, xmm2
+
+	vmovss	xmm7, dword [_ps_atan_s1]
+	vrcpss	xmm1, xmm1, xmm1
+	vmulss	xmm1, xmm1, xmm3
+	vmovss	xmm3, dword [_ps_atan_t1]
+	vaddss	xmm7, xmm7, xmm2
+	vaddss	xmm1, xmm1, xmm7
+			
+	vmovss	xmm7, dword [_ps_atan_s2]
+	vrcpss	xmm1, xmm1, xmm1
+	vmulss	xmm1, xmm1, xmm3
+	vmovss	xmm3, dword [_ps_atan_t2]
+	vaddss	xmm7, xmm7, xmm2
+	vaddss	xmm1, xmm1, xmm7
+
+	vmovss	xmm7, dword [_ps_atan_s3]
+	vrcpss	xmm1, xmm1, xmm1
+	vmulss	xmm1, xmm1, xmm3
+	vmovss	xmm3, dword [_ps_atan_t3]
+	vaddss	xmm7, xmm7, xmm2
+	vmulss	xmm0, xmm0, xmm3
+	vaddss	xmm1, xmm1, xmm7
+
+	vrcpss	xmm1, xmm1, xmm1
+	vmulss	xmm0, xmm0, xmm1
+    ret
+
+    """
     asm = Tdasm()
     if util.AVX:
-        raise ValueError("AVX is not yet implemented")
         mc = asm.assemble(avx_code, True)
     else:
         mc = asm.assemble(asm_code, True)
@@ -1849,9 +1933,69 @@ def atan_ps(runtime):
 
     """
 
+    avx_code = data + """
+
+    #CODE
+    global fast_atan_ps:
+    vmovaps	xmm5, oword [_ps_am_1]
+	vmovaps	xmm6, oword [_ps_am_m1]
+	vrcpps	xmm4, xmm0
+
+	vcmpps	xmm5, xmm5, xmm0, 1
+	vcmpps	xmm6, xmm6, xmm0, 6
+	vmovaps	xmm1, oword [_ps_atan_s0]
+	vorps	xmm5, xmm5, xmm6
+
+	vandps	xmm4, xmm4, xmm5
+	vmovaps	xmm2, oword [_ps_atan_t0]
+	vmovaps	xmm7, xmm5
+	vandnps	xmm5, xmm5, xmm0
+	vmovaps	xmm3, oword [_ps_atan_s1]
+	vorps	xmm4, xmm4, xmm5
+	vmovaps	xmm0, xmm4
+
+	vmovaps	xmm6, oword [_ps_atan_t1]
+	vmulps	xmm4, xmm4, xmm4
+
+	vaddps	xmm1, xmm1, xmm4
+	vmovaps	xmm5, oword [_ps_atan_s2]
+	vrcpps	xmm1, xmm1
+	vmulps	xmm1, xmm1, xmm2
+	vmovaps	xmm2, oword [_ps_atan_t2]
+	vaddps	xmm3, xmm3, xmm4
+	vaddps	xmm1, xmm1, xmm3
+
+	vmovaps	xmm3, oword [_ps_atan_s3]
+	vrcpps	xmm1, xmm1
+	vmulps	xmm1, xmm1, xmm6
+	vmovaps	xmm6, oword [_ps_atan_t3]
+	vaddps	xmm5, xmm5, xmm4
+	vaddps	xmm1, xmm1, xmm5
+
+	vmovaps	xmm5, oword [_ps_am_sign_mask]
+	vrcpps	xmm1, xmm1
+	vmulps	xmm1, xmm1, xmm2
+	vaddps	xmm3, xmm3, xmm4
+	vmovaps	xmm4, oword [_ps_am_pi_o_2]
+	vmulps	xmm6, xmm6, xmm0
+	vaddps	xmm1, xmm1, xmm3
+
+	vandps	xmm0, xmm0, xmm5
+	vrcpps	xmm1, xmm1
+	vmulps	xmm1, xmm1, xmm6
+
+	vorps	xmm0, xmm0, xmm4
+	vsubps	xmm0, xmm0, xmm1
+
+	vandps	xmm0, xmm0, xmm7
+	vandnps	xmm7, xmm7, xmm1
+	vorps	xmm0, xmm0, xmm7
+	ret
+
+    """
+
     asm = Tdasm()
     if util.AVX:
-        raise ValueError("AVX is not yet implemented")
         mc = asm.assemble(avx_code, True)
     else:
         mc = asm.assemble(asm_code, True)
@@ -1969,9 +2113,102 @@ def asin_ss(runtime):
     ret
 
     """
+
+    avx_code = data + """
+
+    #CODE
+    global fast_asin_ss:
+    vmovss xmm1, dword [_ps_am_1]
+    vmovss xmm2, xmm2, xmm1
+    vaddss xmm1, xmm1, xmm0
+    vsubss xmm2, xmm2, xmm0
+    vmulss xmm1, xmm1, xmm2
+    vrsqrtss xmm1, xmm1, xmm1
+    vmulss xmm0, xmm0, xmm1
+
+    ;atan
+    vmovss	xmm1, dword [_ps_am_sign_mask]
+	vrcpss	xmm4, xmm4, xmm0
+	vorps	xmm1, xmm1, xmm0
+	vmovss	xmm6, xmm6, xmm4
+	vcomiss	xmm1, dword [_ps_am_m1]
+	vmovss	xmm3, dword [_ps_atan_t0]
+	jnc		l_small  ; 'c' is 'lt' for comiss
+
+    ;l_big:
+	vmulss	xmm6, xmm6, xmm6
+
+	vmovss	xmm5, dword [_ps_atan_s0]
+	vaddss	xmm5, xmm5, xmm6
+
+	vmovss	xmm7, dword [_ps_atan_s1]
+	vrcpss	xmm5, xmm5, xmm5
+	vmulss	xmm5, xmm5, xmm3
+	vmovss	xmm3, dword [_ps_atan_t1]
+	vaddss	xmm7, xmm7, xmm6
+	vaddss	xmm5, xmm5, xmm7
+
+	vmovss	xmm7, dword [_ps_atan_s2]
+	vrcpss	xmm5, xmm5, xmm5
+	vmulss	xmm5, xmm5, xmm3
+	vmovss	xmm3, dword [_ps_atan_t2]
+	vaddss	xmm7, xmm7, xmm6
+	vaddss	xmm5, xmm5, xmm7
+
+	vmovss	xmm7, dword [_ps_atan_s3]
+	vrcpss	xmm5, xmm5, xmm5
+	vmulss	xmm5, xmm5, xmm3
+	vmovss	xmm3, dword [_ps_atan_t3]
+	vaddss	xmm7, xmm7, xmm6
+	vmovss	xmm2, dword [_ps_am_sign_mask]
+	vmulss	xmm4, xmm4, xmm3
+	vaddss	xmm5, xmm5, xmm7
+
+	vmovss	xmm7, dword [_ps_am_pi_o_2]
+	vrcpss	xmm5, xmm5, xmm5
+	vmulss	xmm5, xmm5, xmm4
+
+	vandps	xmm0, xmm0, xmm2
+	vorps	xmm0, xmm0, xmm7
+	vsubss	xmm0, xmm0, xmm5
+	ret
+
+    l_small:
+	vmovaps	xmm2, xmm0
+	vmulss	xmm2, xmm2, xmm2
+
+	vmovss	xmm1, dword [_ps_atan_s0]
+	vaddss	xmm1, xmm1, xmm2
+
+	vmovss	xmm7, dword [_ps_atan_s1]
+	vrcpss	xmm1, xmm1, xmm1
+	vmulss	xmm1, xmm1, xmm3
+	vmovss	xmm3, dword [_ps_atan_t1]
+	vaddss	xmm7, xmm7, xmm2
+	vaddss	xmm1, xmm1, xmm7
+			
+	vmovss	xmm7, dword [_ps_atan_s2]
+	vrcpss	xmm1, xmm1, xmm1
+	vmulss	xmm1, xmm1, xmm3
+	vmovss	xmm3, dword [_ps_atan_t2]
+	vaddss	xmm7, xmm7, xmm2
+	vaddss	xmm1, xmm1, xmm7
+
+	vmovss	xmm7, dword [_ps_atan_s3]
+	vrcpss	xmm1, xmm1, xmm1
+	vmulss	xmm1, xmm1, xmm3
+	vmovss	xmm3, dword [_ps_atan_t3]
+	vaddss	xmm7, xmm7, xmm2
+	vmulss	xmm0, xmm0, xmm3
+	vaddss	xmm1, xmm1, xmm7
+
+	vrcpss	xmm1, xmm1, xmm1
+	vmulss	xmm0, xmm0, xmm1
+    ret
+
+    """
     asm = Tdasm()
     if util.AVX:
-        raise ValueError("AVX is not yet implemented")
         mc = asm.assemble(avx_code, True)
     else:
         mc = asm.assemble(asm_code, True)
@@ -2066,9 +2303,78 @@ def asin_ps(runtime):
 
     """
 
+    avx_code = data + """
+
+    #CODE
+    global fast_asin_ps:
+    vmovaps xmm1, oword [_ps_am_1]
+    vmovaps xmm2, xmm1
+    vaddps xmm1, xmm1, xmm0
+    vsubps xmm2, xmm2, xmm0
+    vmulps xmm1, xmm1, xmm2
+    vrsqrtps xmm1, xmm1
+    vmulps xmm0, xmm0, xmm1
+
+    ;atan
+    vmovaps	xmm5, oword [_ps_am_1]
+	vmovaps	xmm6, oword [_ps_am_m1]
+	vrcpps	xmm4, xmm0
+
+	vcmpps	xmm5, xmm5, xmm0, 1
+	vcmpps	xmm6, xmm6, xmm0, 6
+	vmovaps	xmm1, oword [_ps_atan_s0]
+	vorps	xmm5, xmm5, xmm6
+
+	vandps	xmm4, xmm4, xmm5
+	vmovaps	xmm2, oword [_ps_atan_t0]
+	vmovaps	xmm7, xmm5
+	vandnps	xmm5, xmm5, xmm0
+	vmovaps	xmm3, oword [_ps_atan_s1]
+	vorps	xmm4, xmm4, xmm5
+	vmovaps	xmm0, xmm4
+
+	vmovaps	xmm6, oword [_ps_atan_t1]
+	vmulps	xmm4, xmm4, xmm4
+
+	vaddps	xmm1, xmm1, xmm4
+	vmovaps	xmm5, oword [_ps_atan_s2]
+	vrcpps	xmm1, xmm1
+	vmulps	xmm1, xmm1, xmm2
+	vmovaps	xmm2, oword [_ps_atan_t2]
+	vaddps	xmm3, xmm3, xmm4
+	vaddps	xmm1, xmm1, xmm3
+
+	vmovaps	xmm3, oword [_ps_atan_s3]
+	vrcpps	xmm1, xmm1
+	vmulps	xmm1, xmm1, xmm6
+	vmovaps	xmm6, oword [_ps_atan_t3]
+	vaddps	xmm5, xmm5, xmm4
+	vaddps	xmm1, xmm1, xmm5
+
+	vmovaps	xmm5, oword [_ps_am_sign_mask]
+	vrcpps	xmm1, xmm1
+	vmulps	xmm1, xmm1, xmm2
+	vaddps	xmm3, xmm3, xmm4
+	vmovaps	xmm4, oword [_ps_am_pi_o_2]
+	vmulps	xmm6, xmm6, xmm0
+	vaddps	xmm1, xmm1, xmm3
+
+	vandps	xmm0, xmm0, xmm5
+	vrcpps	xmm1, xmm1
+	vmulps	xmm1, xmm1, xmm6
+
+	vorps	xmm0, xmm0, xmm4
+	vsubps	xmm0, xmm0, xmm1
+
+	vandps	xmm0, xmm0, xmm7
+	vandnps	xmm7, xmm7, xmm1
+	vorps	xmm0, xmm0, xmm7
+	ret
+
+    """
+
     asm = Tdasm()
     if util.AVX:
-        raise ValueError("AVX is not yet implemented")
         mc = asm.assemble(avx_code, True)
     else:
         mc = asm.assemble(asm_code, True)
@@ -2188,9 +2494,104 @@ def acos_ss(runtime):
     ret
 
     """
+
+    avx_code = data + """
+
+    #CODE
+    global fast_acos_ss:
+    vmovss xmm1, dword [_ps_am_1]
+    vmovss xmm2, xmm2, xmm1
+    vsubss xmm1, xmm1, xmm0
+    vaddss xmm2, xmm2, xmm0
+    vrcpss xmm1, xmm1, xmm1
+    vmulss xmm2, xmm2, xmm1
+    vrsqrtss xmm0, xmm0, xmm2
+
+    ;atan
+    vmovss	xmm1, dword [_ps_am_sign_mask]
+	vrcpss	xmm4, xmm4, xmm0
+	vorps	xmm1, xmm1, xmm0
+	vmovss	xmm6, xmm6, xmm4
+	vcomiss	xmm1, dword [_ps_am_m1]
+	vmovss	xmm3, dword [_ps_atan_t0]
+	jnc		l_small  ; 'c' is 'lt' for comiss
+
+    ;l_big:
+	vmulss	xmm6, xmm6, xmm6
+
+	vmovss	xmm5, dword [_ps_atan_s0]
+	vaddss	xmm5, xmm5, xmm6
+
+	vmovss	xmm7, dword [_ps_atan_s1]
+	vrcpss	xmm5, xmm5, xmm5
+	vmulss	xmm5, xmm5, xmm3
+	vmovss	xmm3, dword [_ps_atan_t1]
+	vaddss	xmm7, xmm7, xmm6
+	vaddss	xmm5, xmm5, xmm7
+
+	vmovss	xmm7, dword [_ps_atan_s2]
+	vrcpss	xmm5, xmm5, xmm5
+	vmulss	xmm5, xmm5, xmm3
+	vmovss	xmm3, dword [_ps_atan_t2]
+	vaddss	xmm7, xmm7, xmm6
+	vaddss	xmm5, xmm5, xmm7
+
+	vmovss	xmm7, dword [_ps_atan_s3]
+	vrcpss	xmm5, xmm5, xmm5
+	vmulss	xmm5, xmm5, xmm3
+	vmovss	xmm3, dword [_ps_atan_t3]
+	vaddss	xmm7, xmm7, xmm6
+	vmovss	xmm2, dword [_ps_am_sign_mask]
+	vmulss	xmm4, xmm4, xmm3
+	vaddss	xmm5, xmm5, xmm7
+
+	vmovss	xmm7, dword [_ps_am_pi_o_2]
+	vrcpss	xmm5, xmm5, xmm5
+	vmulss	xmm5, xmm5, xmm4
+
+	vandps	xmm0, xmm0, xmm2
+	vorps	xmm0, xmm0, xmm7
+	vsubss	xmm0, xmm0, xmm5
+	ret
+
+    l_small:
+	vmovaps	xmm2, xmm0
+	vmulss	xmm2, xmm2, xmm2
+
+	vmovss	xmm1, dword [_ps_atan_s0]
+	vaddss	xmm1, xmm1, xmm2
+
+	vmovss	xmm7, dword [_ps_atan_s1]
+	vrcpss	xmm1, xmm1, xmm1
+	vmulss	xmm1, xmm1, xmm3
+	vmovss	xmm3, dword [_ps_atan_t1]
+	vaddss	xmm7, xmm7, xmm2
+	vaddss	xmm1, xmm1, xmm7
+			
+	vmovss	xmm7, dword [_ps_atan_s2]
+	vrcpss	xmm1, xmm1, xmm1
+	vmulss	xmm1, xmm1, xmm3
+	vmovss	xmm3, dword [_ps_atan_t2]
+	vaddss	xmm7, xmm7, xmm2
+	vaddss	xmm1, xmm1, xmm7
+
+	vmovss	xmm7, dword [_ps_atan_s3]
+	vrcpss	xmm1, xmm1, xmm1
+	vmulss	xmm1, xmm1, xmm3
+	vmovss	xmm3, dword [_ps_atan_t3]
+	vaddss	xmm7, xmm7, xmm2
+	vmulss	xmm0, xmm0, xmm3
+	vaddss	xmm1, xmm1, xmm7
+
+	vrcpss	xmm1, xmm1, xmm1
+	vmulss	xmm0, xmm0, xmm1
+
+    vaddss xmm0, xmm0, xmm0 ;this line is not part of atan 
+    ret
+
+    """
     asm = Tdasm()
     if util.AVX:
-        raise ValueError("AVX is not yet implemented")
         mc = asm.assemble(avx_code, True)
     else:
         mc = asm.assemble(asm_code, True)
@@ -2287,9 +2688,81 @@ def acos_ps(runtime):
 
     """
 
+    avx_code = data + """
+
+    #CODE
+    global fast_acos_ps:
+    vmovaps xmm1, oword [_ps_am_1]
+    vmovaps xmm2, xmm1
+    vsubps xmm1, xmm1, xmm0
+    vaddps xmm2, xmm2, xmm0
+    vrcpps xmm1, xmm1
+    vmulps xmm2, xmm2, xmm1
+    vrsqrtps xmm0, xmm2
+
+    ;atan
+    vmovaps	xmm5, oword [_ps_am_1]
+	vmovaps	xmm6, oword [_ps_am_m1]
+	vrcpps	xmm4, xmm0
+
+	vcmpps	xmm5, xmm5, xmm0, 1
+	vcmpps	xmm6, xmm6, xmm0, 6
+	vmovaps	xmm1, oword [_ps_atan_s0]
+	vorps	xmm5, xmm5, xmm6
+
+	vandps	xmm4, xmm4, xmm5
+	vmovaps	xmm2, oword [_ps_atan_t0]
+	vmovaps	xmm7, xmm5
+	vandnps	xmm5, xmm5, xmm0
+	vmovaps	xmm3, oword [_ps_atan_s1]
+	vorps	xmm4, xmm4, xmm5
+	vmovaps	xmm0, xmm4
+
+	vmovaps	xmm6, oword [_ps_atan_t1]
+	vmulps	xmm4, xmm4, xmm4
+
+	vaddps	xmm1, xmm1, xmm4
+	vmovaps	xmm5, oword [_ps_atan_s2]
+	vrcpps	xmm1, xmm1
+	vmulps	xmm1, xmm1, xmm2
+	vmovaps	xmm2, oword [_ps_atan_t2]
+	vaddps	xmm3, xmm3, xmm4
+	vaddps	xmm1, xmm1, xmm3
+
+	vmovaps	xmm3, oword [_ps_atan_s3]
+	vrcpps	xmm1, xmm1
+	vmulps	xmm1, xmm1, xmm6
+	vmovaps	xmm6, oword [_ps_atan_t3]
+	vaddps	xmm5, xmm5, xmm4
+	vaddps	xmm1, xmm1, xmm5
+
+	vmovaps	xmm5, oword [_ps_am_sign_mask]
+	vrcpps	xmm1, xmm1
+	vmulps	xmm1, xmm1, xmm2
+	vaddps	xmm3, xmm3, xmm4
+	vmovaps	xmm4, oword [_ps_am_pi_o_2]
+	vmulps	xmm6, xmm6, xmm0
+	vaddps	xmm1, xmm1, xmm3
+
+	vandps	xmm0, xmm0, xmm5
+	vrcpps	xmm1, xmm1
+	vmulps	xmm1, xmm1, xmm6
+
+	vorps	xmm0, xmm0, xmm4
+	vsubps	xmm0, xmm0, xmm1
+
+	vandps	xmm0, xmm0, xmm7
+	vandnps	xmm7, xmm7, xmm1
+	vorps	xmm0, xmm0, xmm7
+
+    vaddps xmm0, xmm0, xmm0 ;this line is not part of atan 
+	ret
+
+    """
+
+
     asm = Tdasm()
     if util.AVX:
-        raise ValueError("AVX is not yet implemented")
         mc = asm.assemble(avx_code, True)
     else:
         mc = asm.assemble(asm_code, True)
@@ -2405,9 +2878,98 @@ def tan_ss(runtime):
 
     """
 
+    avx_code = data + """
+
+    #CODE
+    global fast_tan_ss:
+    vmovss	xmm1, dword [_ps_am_inv_sign_mask]
+    movd	eax, xmm0
+    vandps	xmm0, xmm0, xmm1
+    vmovaps	xmm1, xmm0
+    vmulss	xmm0, xmm0, dword [_ps_am_4_o_pi]
+
+    vcvttss2si	edx, xmm0
+    and		eax, 0x80000000
+
+    mov		ecx, 0x1
+    movd	xmm7, eax
+    mov		eax, 0x7
+
+    vmovss	xmm5, dword [_ps_am_1]
+
+    and		ecx, edx
+    and		eax, edx
+    add		edx, ecx
+    add		eax, ecx
+
+    vcvtsi2ss	xmm0, xmm0, edx
+    vxorps	xmm6, xmm6, xmm6
+
+    vmulss	xmm0, xmm0, dword [_ps_am_pi_o_4]
+    vsubss	xmm1, xmm1, xmm0
+    vmovss	xmm2, dword [_ps_tan_p2]
+    vminss	xmm1, xmm1, xmm5
+    vmovss	xmm3, dword [_ps_tan_q3]
+    vmovaps	xmm0, xmm1
+    vmulss	xmm1, xmm1, xmm1
+
+    vmulss	xmm2, xmm2, xmm1
+    vaddss	xmm3, xmm3, xmm1
+    vaddss	xmm2, xmm2, dword [_ps_tan_p1]
+    vmulss	xmm3, xmm3, xmm1
+    vmulss	xmm2, xmm2, xmm1
+    vaddss	xmm3, xmm3, dword [_ps_tan_q2]
+    vaddss	xmm2, xmm2, dword [_ps_tan_p0]
+    vmulss	xmm3, xmm3, xmm1
+    vmulss	xmm2, xmm2, xmm1
+    vaddss	xmm3, xmm3, dword [_ps_tan_q1]
+    vxorps	xmm0, xmm0, xmm7
+    vmulss	xmm3, xmm3, xmm1
+    vmulss	xmm2, xmm2, xmm0
+    vaddss	xmm3, xmm3, dword [_ps_tan_q0]
+
+    vrcpss	xmm4, xmm4, xmm3
+    vmulss	xmm3, xmm3, xmm4
+    vmulss	xmm3, xmm3, xmm4
+    vaddss	xmm4, xmm4, xmm4
+    test	eax, 0x2
+    vsubss	xmm4, xmm4, xmm3
+
+    vmulss	xmm2, xmm2, xmm4
+    jz		l_cont
+    vaddss	xmm2, xmm2, xmm0
+    vcomiss	xmm6, xmm1
+
+    vrcpss	xmm4, xmm4, xmm2
+    vmovss	xmm0, dword [_ps_am_sign_mask]
+    jz		l_pole
+    vmulss	xmm2, xmm2, xmm4
+    vmulss	xmm2, xmm2, xmm4
+    vaddss	xmm4, xmm4, xmm4
+    vsubss	xmm4, xmm4, xmm2
+    vxorps	xmm0, xmm0, xmm4
+
+    ret		
+
+    l_pole:
+    vmovss	xmm1, dword [_ps_tan_poleval]
+    vmovaps	xmm3, xmm0
+    vandps	xmm0, xmm0, xmm2
+    vorps	xmm0, xmm0, xmm1
+
+    vxorps	xmm0, xmm0, xmm3
+
+    ret		
+
+    l_cont:
+    vaddss	xmm0, xmm0, xmm2
+    ret		
+
+
+    """
+
     asm = Tdasm()
     if util.AVX:
-        raise ValueError("AVX is not yet implemented")
         mc = asm.assemble(avx_code, True)
     else:
         mc = asm.assemble(asm_code, True)
@@ -2535,9 +3097,107 @@ def tan_ps(runtime):
 
     """
 
+    avx_code = data + """
+
+    #CODE
+    global fast_tan_ps:
+    vmovaps	xmm7, xmm0
+    vandps	xmm0, xmm0, oword [_ps_am_inv_sign_mask]
+    vandps	xmm7, xmm7, oword [_ps_am_sign_mask]
+    vmovaps	xmm1, xmm0
+    vmulps	xmm0, xmm0, oword [_ps_am_4_o_pi]
+
+    vcvttps2dq	xmm0, xmm0
+    vmovdqa	xmm4, oword [_epi32_1]
+    vmovdqa	xmm5, oword [_epi32_7]
+
+    vpand	xmm4, xmm4, xmm0
+    vpand	xmm5, xmm5, xmm0
+    vmovaps	xmm3, oword [_ps_am_1]
+    vpaddd	xmm0, xmm0, xmm4
+    vpaddd	xmm5, xmm5, xmm4
+
+    vcvtdq2ps	xmm0, xmm0
+
+    vmulps	xmm0, xmm0, oword [_ps_am_pi_o_4]
+    vxorps	xmm6, xmm6, xmm6
+    vsubps	xmm1, xmm1, xmm0
+    vmovaps	xmm2, oword [_ps_tan_p2]
+    vminps	xmm1, xmm1, xmm3
+    vmovaps	xmm3, oword [_ps_tan_q3]
+    vmovaps	xmm0, xmm1
+    vmulps	xmm1, xmm1, xmm1
+
+    vmulps	xmm2, xmm2, xmm1
+    vaddps	xmm3, xmm3, xmm1
+    vaddps	xmm2, xmm2, oword [_ps_tan_p1]
+    vmulps	xmm3, xmm3, xmm1
+    vmulps	xmm2, xmm2, xmm1
+    vaddps	xmm3, xmm3, oword [_ps_tan_q2]
+    vaddps	xmm2, xmm2, oword [_ps_tan_p0]
+    vmulps	xmm3, xmm3, xmm1
+    vmulps	xmm2, xmm2, xmm1
+    vaddps	xmm3, xmm3, oword [_ps_tan_q1]
+    vxorps	xmm0, xmm0, xmm7
+    vmulps	xmm3, xmm3, xmm1
+    vpand	xmm5, xmm5, oword [_epi32_2]
+    vaddps	xmm3, xmm3, oword [_ps_tan_q0]
+    vmulps	xmm2, xmm2, xmm0
+
+    vcmpps xmm6, xmm6, xmm1, 4
+    vrcpps	xmm4, xmm3
+    vpxor	xmm7, xmm7, xmm7
+    vmulps	xmm3, xmm3, xmm4
+    vpcmpeqd	xmm5, xmm5, xmm7
+    vmulps	xmm3, xmm3, xmm4
+    vaddps	xmm4, xmm4, xmm4
+    vorps	xmm6, xmm6, xmm5
+    vsubps	xmm4, xmm4, xmm3
+
+    vmulps	xmm2, xmm2, xmm4
+    vmovaps	xmm1, oword [_ps_am_sign_mask]
+    vmovmskps	eax, xmm6
+    vaddps	xmm2, xmm2, xmm0
+
+    vrcpps	xmm4, xmm2
+    cmp		eax, 0xf
+    vmovaps	xmm0, xmm2
+    vmulps	xmm2, xmm2, xmm4
+    vmulps	xmm2, xmm2, xmm4
+    vaddps	xmm4, xmm4, xmm4
+    vsubps	xmm4, xmm4, xmm2
+    jne		l_pole
+
+    vxorps	xmm4, xmm4, xmm1
+
+    vandps	xmm0, xmm0, xmm5
+    vandnps	xmm5, xmm5, xmm4
+    vorps	xmm0, xmm0, xmm5
+
+    ret	
+
+    l_pole:
+    vmovaps	xmm7, xmm1
+    vmovaps	xmm3, oword [_ps_tan_poleval]
+    vandps	xmm1, xmm1, xmm0
+    vorps	xmm3, xmm3, xmm1
+    vandps	xmm4, xmm4, xmm6
+    vandnps	xmm6, xmm6, xmm3
+    vorps	xmm4, xmm4, xmm6
+
+    vxorps	xmm4, xmm4, xmm7
+
+    vandps	xmm0, xmm0, xmm5
+    vandnps	xmm5, xmm5, xmm4
+    vorps	xmm0, xmm0, xmm5
+
+    ret	
+
+
+    """
+
     asm = Tdasm()
     if util.AVX:
-        raise ValueError("AVX is not yet implemented")
         mc = asm.assemble(avx_code, True)
     else:
         mc = asm.assemble(asm_code, True)
@@ -2620,9 +3280,68 @@ def log_ss(runtime):
 
     """
 
+    avx_code = data + """
+
+    #CODE
+    global fast_log_ss:
+    vmaxss	xmm0, xmm0, dword [_ps_am_min_norm_pos]  ; cut off denormalized stuff
+    vmovss	xmm1, dword [_ps_am_1]
+    movd	edx, xmm0
+
+    vandps	xmm0, xmm0, oword [_ps_am_inv_mant_mask]
+    vorps	xmm0, xmm0, xmm1
+
+    vmovaps	xmm4, xmm0
+    vsubss	xmm0, xmm0, xmm1
+    vaddss	xmm4, xmm4, xmm1
+    shr		edx, 23
+    vrcpss	xmm4, xmm4, xmm4
+    vmulss	xmm0, xmm0, xmm4
+    vaddss	xmm0, xmm0, xmm0
+
+    vmovaps	xmm2, xmm0
+    vmulss	xmm0, xmm0, xmm0
+    sub		edx, 0x7f
+
+    vmovss	xmm4, dword [_ps_log_p0]
+    vmovss	xmm6, dword [_ps_log_q0]
+
+    vmulss	xmm4, xmm4, xmm0
+    vmovss	xmm5, dword [_ps_log_p1]
+    vmulss	xmm6, xmm6, xmm0
+    vmovss	xmm7, dword [_ps_log_q1]
+
+    vaddss	xmm4, xmm4, xmm5
+    vaddss	xmm6, xmm6, xmm7
+
+    vmovss	xmm5, dword [_ps_log_p2]
+    vmulss	xmm4, xmm4, xmm0
+    vmovss	xmm7, dword [_ps_log_q2]
+    vmulss	xmm6, xmm6, xmm0
+
+    vaddss	xmm4, xmm4, xmm5
+    vmovss	xmm5, dword [_ps_log_c0]
+    vaddss	xmm6, xmm6, xmm7
+    vcvtsi2ss	xmm1, xmm1, edx
+
+    vmulss	xmm0, xmm0, xmm4
+    vrcpss	xmm6, xmm6, xmm6
+
+    vmulss	xmm0, xmm0, xmm6
+    vmulss	xmm0, xmm0, xmm2
+
+    vmulss	xmm1, xmm1, xmm5
+
+    vaddss	xmm0, xmm0, xmm2
+    vaddss	xmm0, xmm0, xmm1
+
+    ret	
+
+
+    """
+
     asm = Tdasm()
     if util.AVX:
-        raise ValueError("AVX is not yet implemented")
         mc = asm.assemble(avx_code, True)
     else:
         mc = asm.assemble(asm_code, True)
@@ -2706,9 +3425,68 @@ def log_ps(runtime):
 
     """
 
+    avx_code = data + """
+
+    #CODE
+    global fast_log_ps:
+    vmaxps	xmm0, xmm0, oword [_ps_am_min_norm_pos]  ; cut off denormalized stuff
+    vmovaps	xmm1, oword [_ps_am_1]
+    vmovaps	xmm3, xmm0
+
+    vandps	xmm0, xmm0, oword [_ps_am_inv_mant_mask]
+    vorps	xmm0, xmm0, xmm1
+
+    vmovaps	xmm4, xmm0
+    vsubps	xmm0, xmm0, xmm1
+    vaddps	xmm4, xmm4, xmm1
+    vpsrld	xmm3, xmm3, 23
+    vrcpps	xmm4, xmm4
+    vmulps	xmm0, xmm0, xmm4
+    vpsubd	xmm3, xmm3, oword [_epi32_0x7f]
+    vaddps	xmm0, xmm0, xmm0
+
+    vmovaps	xmm2, xmm0
+    vmulps	xmm0, xmm0, xmm0
+
+    vmovaps	xmm4, oword [_ps_log_p0]
+    vmovaps	xmm6, oword [_ps_log_q0]
+
+    vmulps	xmm4, xmm4, xmm0
+    vmovaps	xmm5, oword [_ps_log_p1]
+    vmulps	xmm6, xmm6, xmm0
+    vmovaps	xmm7, oword [_ps_log_q1]
+
+    vaddps	xmm4, xmm4, xmm5
+    vaddps	xmm6, xmm6, xmm7
+
+    vmovaps	xmm5, oword [_ps_log_p2]
+    vmulps	xmm4, xmm4, xmm0
+    vmovaps	xmm7, oword [_ps_log_q2]
+    vmulps	xmm6, xmm6, xmm0
+
+    vaddps	xmm4, xmm4, xmm5
+    vmovaps	xmm5, oword [_ps_log_c0]
+    vaddps	xmm6, xmm6, xmm7
+    vcvtdq2ps	xmm1, xmm3
+
+    vmulps	xmm0, xmm0, xmm4
+    vrcpps	xmm6, xmm6
+
+    vmulps	xmm0, xmm0, xmm6
+    vmulps	xmm0, xmm0, xmm2
+
+    vmulps	xmm1, xmm1, xmm5
+
+    vaddps	xmm0, xmm0, xmm2
+    vaddps	xmm0, xmm0, xmm1
+
+    ret	
+
+
+    """
+
     asm = Tdasm()
     if util.AVX:
-        raise ValueError("AVX is not yet implemented")
         mc = asm.assemble(avx_code, True)
     else:
         mc = asm.assemble(asm_code, True)

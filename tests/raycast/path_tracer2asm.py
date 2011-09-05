@@ -63,14 +63,14 @@ ASM += asm_structs + """
     hitpoint hp
     hitpoint background
     uint32 end_sam
-    float back[4] = 0.00, 0.00, 0.29, 0.00
+    float back[4] = 0.40, 0.40, 0.40, 0.99
     float background1[4] = 0.99, 0.99, 0.99, 0.00
     float minus_one[4] = -1.0, -1.0, -1.0, 0.0
     float one[4] = 1.0, 1.0, 1.0, 1.0
     float zero[4] = 0.0, 0.0, 0.0, 0.0
 
     float transmitance = 1.0
-    uint32 max_depth = 2
+    uint32 max_depth = 4
     uint32 cur_depth = 0
     float Ld[40] ;this is for maxdepth of 10
     float Lr[40]
@@ -253,6 +253,8 @@ def render_scene():
         global image_saved
         if not image_saved:
             film = ren.get_film()
+            film.tone_map()
+            blt_float_img_to_window(0, 0, film.image, win)
             save_image(film, "Image6.png")
             image_saved = True
         return

@@ -13,6 +13,7 @@
 *.png
 *.ply
 *.cpp~
+*.swp
 /ImageLoader/ImageLoader/Release
 /WindowLibrary/WindowLibrary/Release
 /WindowLibrary/WindowLibrary/x64

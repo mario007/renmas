@@ -27,16 +27,27 @@ namespace RenmasWPF
         bool rendering = false;
 
         // -------------GUI MenuItems --------------------------
-        private MenuItem file_exit;
-        private MenuItem tools_run_script, tools_render;
+        private MenuItem file_exit, file_export_image;
+        private MenuItem tools_run_script, tools_render, tools_stop;
 
         // ------------- GUI TextBoxes ------------------------
         private TextBox camera_eye_x, camera_eye_y, camera_eye_z;
         private TextBox camera_lookat_x, camera_lookat_y, camera_lookat_z;
         private TextBox camera_distance;
 
+        private Grid main_grid;
+        private object content;
+        private object sve_zivo;
+
         // -------------- GUI Image for represent FrameBuffer
         private Image frame_buffer_control;
+
+        // -------------- Logger
+        private TextBox log_output;
+
+        // ------------ Global Settings
+        private TextBox resolution_x, resolution_y, pixel_size, samples_per_pixel;
+        private ComboBox cb_algorithm;
         
         public Window1()
         {
@@ -65,18 +76,31 @@ namespace RenmasWPF
                 {
                     FileStream s = new FileStream(filename, FileMode.Open);
                     DependencyObject rootElement = (DependencyObject)XamlReader.Load(s);
+                    this.sve_zivo = rootElement;
+                    //this.main_grid = (Grid)LogicalTreeHelper.FindLogicalNode(rootElement, "LayoutRoot");
+                    //Window win = (Window)LogicalTreeHelper.FindLogicalNode(rootElement, "Window");
+                    
+
+                    //this.content = win.Content;
+                    //win.Content = null;
+                    
+                    
+                    //this.Content = this.main_grid;
                     this.Content = rootElement;
-                    this.Width = 640;
-                    this.Height = 480;
+                    this.Width = 800;
+                    this.Height = 600;
                   
                     SolidColorBrush mySolidColorBrush = new SolidColorBrush();
-                    mySolidColorBrush.Color = Color.FromArgb(255, 69, 69, 69);
+                    mySolidColorBrush.Color = Color.FromArgb(255, 47, 47, 47);
                     this.Background = mySolidColorBrush;
-
+                    
+                    // Bind Events for Loaded GUI
                     this.BindGuiEvents(rootElement);
+
                 }
                 catch (Exception e)
                 {
+                    this.Width = 640;
                 }
             }     
         }
@@ -89,6 +113,10 @@ namespace RenmasWPF
             if (this.tools_run_script != null) this.tools_run_script.Click += menu_run_script;
             this.tools_render = (MenuItem)LogicalTreeHelper.FindLogicalNode(element, "tools_render");
             if (this.tools_render != null) this.tools_render.Click += menu_tools_render;
+            this.tools_stop = (MenuItem)LogicalTreeHelper.FindLogicalNode(element, "tools_stop");
+            if (this.tools_stop != null) this.tools_stop.Click += menu_tools_stop;
+            this.file_export_image = (MenuItem)LogicalTreeHelper.FindLogicalNode(element, "file_save_image");
+            if (this.file_export_image != null) this.file_export_image.Click += menu_file_save_image;
 
             // TEXTBOX 
             this.camera_eye_x = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_eye_x");
@@ -103,11 +131,81 @@ namespace RenmasWPF
             this.camera_distance = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_distance");
 
             this.frame_buffer_control = (Image)LogicalTreeHelper.FindLogicalNode(element, "render_window");
+
+            this.log_output = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "log_output");
+
+            // Global Settings
+            this.resolution_x = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "output_resolution_x");
+            this.resolution_y = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "output_resolution_y");
             
+            
+            
+            this.pixel_size = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "output_pixelsize");
+            this.samples_per_pixel = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "output_samples");
+            this.cb_algorithm = (ComboBox)LogicalTreeHelper.FindLogicalNode(element, "cb_algorithm");
+
+            
+            this.update_global_settings();
+            this.update_camera();
+            
+            // changed events
+            this.resolution_x.TextChanged += resolution_changed;
+            this.resolution_y.TextChanged += resolution_changed;
+            this.pixel_size.TextChanged += pixel_resize;
+            this.samples_per_pixel.TextChanged += samples_per_pixel_evt;
+            this.cb_algorithm.SelectionChanged += select_algorithm_evt;
+            
+        }
+
+        private void logger(string text)
+        {
+            if (this.log_output != null) this.log_output.Text = text + this.log_output.Text;
         }
         private void menu_file_exit(object sender, RoutedEventArgs e)
         {
             this.Close();
+        }
+
+        private void save_jpg(string filename, int quality, BitmapSource bmp)
+        {
+            JpegBitmapEncoder encoder = new JpegBitmapEncoder();
+            BitmapFrame outputFrame = BitmapFrame.Create(bmp);
+            encoder.Frames.Add(outputFrame);
+            encoder.QualityLevel = quality;
+            using (FileStream file = File.OpenWrite(filename))
+            {
+                encoder.Save(file);
+            }
+        }
+        private void save_png(string filename, BitmapSource bmp)
+        {
+            PngBitmapEncoder encoder = new PngBitmapEncoder();
+            BitmapFrame outputFrame = BitmapFrame.Create(bmp);
+            encoder.Frames.Add(outputFrame);
+            using (FileStream file = File.OpenWrite(filename))
+            {
+                encoder.Save(file);
+            }
+        }
+        private void menu_file_save_image(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.SaveFileDialog dlg = new Microsoft.Win32.SaveFileDialog();
+            dlg.FileName = "picture"; // Default file name
+            dlg.DefaultExt = ".png"; // Default file extension
+            dlg.Filter = "PNG (.png)|*.png"; // Filter files by extension
+
+            Nullable<bool> result = dlg.ShowDialog();
+            if (result == true)
+            {
+                string filename = dlg.FileName;
+                //this.save_jpg(filename, 100, this.FrameSource());
+                this.save_png(filename, this.FrameSource());
+            }
+        }
+        private void select_algorithm_evt(object sender, RoutedEventArgs e)
+        {
+            string text = (string)this.cb_algorithm.SelectedItem;
+            this.ren.SetProp("global_settings", "algorithm", text);
         }
         private void menu_run_script(object sender, RoutedEventArgs e)
         {
@@ -125,8 +223,8 @@ namespace RenmasWPF
                     // alert user about failure
                     return;
                 }
-                ren.PrepareForRendering();
                 this.update_camera();
+                this.update_global_settings();
             }
             
         }
@@ -139,21 +237,74 @@ namespace RenmasWPF
             //this.ren.SetProp("camera", "eye", value);
         }
 
+        private void resolution_changed(object sender, RoutedEventArgs e)
+        {
+            uint width, height;
+            try
+            {
+                width = Convert.ToUInt32(this.resolution_x.Text);
+            }
+            catch (Exception ex) { width = 200;  }
+            try
+            {
+                height = Convert.ToUInt32(this.resolution_y.Text);
+            }
+            catch (Exception ex) { height = 200; }
+            
+            string text = width.ToString() + "," + height.ToString();
+            this.ren.SetProp("global_settings", "resolution", text);
+        }
+
+        private void pixel_resize(object sender, RoutedEventArgs e)
+        {
+            float pix_size;
+            try
+            {
+                pix_size = Convert.ToSingle(this.pixel_size.Text);
+            }
+            catch (Exception ex) { pix_size = 1.0f; }
+
+            string text = pix_size.ToString();
+            this.ren.SetProp("global_settings", "pixel_size", text);
+        }
+        private void samples_per_pixel_evt(object sender, RoutedEventArgs e)
+        {
+            uint nsamples;
+            try
+            {
+                nsamples = Convert.ToUInt32(this.samples_per_pixel.Text);
+            }
+            catch (Exception ex) { nsamples = 1; }
+
+            string text = nsamples.ToString();
+            this.ren.SetProp("global_settings", "samples_per_pixel", text);
+        }
+
         private void menu_tools_render(object sender, RoutedEventArgs e)
         {
+            int ret = ren.PrepareForRendering();
+            string text = ren.GetProp("log", "");
+            this.logger(text);
+            if (ret == 0) return; //something is wrong, we quit rendering
             this.rendering = true;
+            DateTime start = DateTime.Now;
             while (true)
             {
-                ren.RenderTile();
+                int res = ren.RenderTile();
                 this.frame_buffer_control.Source = this.FrameSource();
-                int res = ren.IsRenderingFinished();
                 if (res != 0) break;
                 if (!rendering) break;
                 this.DoEvents();
             }
             this.rendering = false;
+            DateTime end = DateTime.Now;
+            long interval = end.Ticks - start.Ticks;
+            TimeSpan tm = new TimeSpan(interval);
         }
-        
+        private void menu_tools_stop(object sender, RoutedEventArgs e)
+        {
+            this.rendering = false;
+        }
 
         private void update_camera()
         {
@@ -169,6 +320,25 @@ namespace RenmasWPF
             this.camera_lookat_z.Text = words2[2];
             value = ren.GetProp("camera", "distance");
             this.camera_distance.Text = value;  
+        }
+
+        private void update_global_settings()
+        {
+            string value = ren.GetProp("global_settings", "resolution");
+            string[] words = value.Split(',');
+            this.resolution_x.Text = words[0];
+            this.resolution_y.Text = words[1];
+            value = ren.GetProp("global_settings", "pixel_size");
+            this.pixel_size.Text = value;
+            value = ren.GetProp("global_settings", "samples_per_pixel");
+            this.samples_per_pixel.Text = value;
+            this.cb_algorithm.Items.Clear();
+            this.cb_algorithm.Items.Add("raycast_py");
+            this.cb_algorithm.Items.Add("raycast_asm");
+            this.cb_algorithm.Items.Add("pathtracer_py");
+            this.cb_algorithm.Items.Add("pathtracer_asm");
+            this.cb_algorithm.SelectedIndex = 3;
+
         }
 
         [SecurityPermissionAttribute(SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
@@ -202,39 +372,6 @@ namespace RenmasWPF
             return image;
             
         }
-        private void button1_Click(object sender, RoutedEventArgs e)
-        {
-            this.image1.Source = this.FrameSource();
-        }
-
-        private void button2_Click(object sender, RoutedEventArgs e)
-        {
-            this.rendering = true;
-            DateTime start = DateTime.Now;
-            while (true)
-            {
-                ren.RenderTile();
-                this.image1.Source = this.FrameSource();
-                int res = ren.IsRenderingFinished();
-                if (res != 0) break;
-                if (!rendering) break;
-                this.DoEvents();
-            }
-            this.rendering = false;
-            DateTime end = DateTime.Now;
-            long interval = end.Ticks - start.Ticks;
-            TimeSpan tm = new TimeSpan(interval);
-            this.rendering = false;
-        }
-
-        private void button3_Click(object sender, RoutedEventArgs e)
-        {
-            ren.PrepareForRendering();
-        }
-
-        private void button4_Click(object sender, RoutedEventArgs e)
-        {
-            this.rendering = false;
-        }
+        
     }
 }

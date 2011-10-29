@@ -12,7 +12,7 @@ ASM += asm_structs + """
     hitpoint hp
     hitpoint background
     uint32 end_sam
-    float back[4] = 0.00, 0.00, 0.00, 0.00
+    float back[4] = 0.99, 0.99, 0.99, 0.00
     float minus_one[4] = -1.0, -1.0, -1.0, 0.0
     float one[4] = 1.0, 1.0, 1.0, 1.0
     float zero[4] = 0.0, 0.0, 0.0, 0.0

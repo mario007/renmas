@@ -13,6 +13,7 @@ import os
 import time
 from tdasm import Runtime
 from scenes import cornell_scene, dragon, sphere
+import x86
 
 dragon()
 #cornell_scene()
@@ -104,7 +105,7 @@ ASM += asm_structs + """
     ; in eax is result of intersection routine
     cmp eax, 0
     je _background
-
+    #END
 
     ; call shading routine
     mov eax, hp
@@ -233,6 +234,65 @@ ren.get_film().add_sample_asm(runtime, "add_sample")
 asm = renmas.utils.get_asm()
 mc = asm.assemble(ASM)
 ds = runtime.load("path_tracer", mc)
+
+def build_runtime():
+    runtime = Runtime()
+    sam = renmas.samplers.RandomSampler(800, 800, n=200000, pixel=0.8)
+    sam.get_sample_asm(runtime, "get_sample")
+    ren.get_camera().ray_asm(runtime, "generate_ray")
+
+    renmas.shapes.linear_isect_asm(runtime, "scene_isect", ren.dyn_arrays())
+    renmas.shapes.visible_asm(runtime, "visible", "scene_isect")
+    renmas.core.generate_shade(runtime, "shade", "visible")
+    ren.get_film().add_sample_asm(runtime, "add_sample")
+
+    asm = renmas.utils.get_asm()
+    mc = asm.assemble(ASM)
+    ds = runtime.load("path_tracer", mc)
+    return (sam, runtime)
+
+sam1, run1 = build_runtime()
+sam2, run2 = build_runtime()
+sam3, run3 = build_runtime()
+sam4, run4 = build_runtime()
+
+def path2():
+    sam1.tile(0, 0, 200, 200)
+    sam2.tile(200, 0, 200, 200)
+    sam3.tile(0, 400, 200, 200)
+    sam4.tile(200, 400, 200, 200)
+
+    adr1 = run1.address_module("path_tracer")
+    adr2 = run2.address_module("path_tracer")
+    adr3 = run3.address_module("path_tracer")
+    adr4 = run4.address_module("path_tracer")
+
+    #x86.ExecuteModules((adr1))
+    #x86.ExecuteModules((adr2))
+    #run1.run("path_tracer") #100% rendering in assembly language
+    #run2.run("path_tracer") #100% rendering in assembly language
+    #run3.run("path_tracer") #100% rendering in assembly language
+    #run4.run("path_tracer") #100% rendering in assembly language
+
+
+    #x86.ExecuteModules((adr1, adr2, adr3, adr4))
+    #x86.ExecuteModules((adr1, adr2))
+    #x86.ExecuteModules((adr3, adr4))
+    x86.ExecuteModules((adr1, adr2, adr3, adr4))
+
+    #x86.ExecuteModules((adr1, adr2))
+    #x86.ExecuteModules((adr3, adr4))
+    #x86.ExecuteModules((adr1, adr3))
+    #x86.ExecuteModules((adr4, adr3, adr2, adr1))
+    #x86.ExecuteModules((adr1, adr2, adr3, adr4))
+
+start = time.clock()
+path2()
+end = time.clock()
+print (end - start)
+raise ValueError('Finish')
+
+    
 
 def path_tracer(tile):
     sampler = ren.get_sampler()

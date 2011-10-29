@@ -100,7 +100,6 @@ def load_func(runtime, *names):
 
 def normalization(xmm, tmp1, tmp2):
     line0 = """
-    #DATA
     #CODE
     """
     line1 = line2 = line3 = ""

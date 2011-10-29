@@ -5,7 +5,7 @@ import renmas.interface as ren
 def dragon():
     width = 800 
     height = 800 
-    nsamples = 1 
+    nsamples = 8 
 
     s_props = {"type":"random", "pixel":0.8, "width": width, "height": height, "nsamples": nsamples}
     s =ren.create_sampler(s_props)
@@ -60,7 +60,8 @@ def dragon():
     #ren.add_brdf("m5", m_props)
     m_props = {"type":"oren_nayar", "R":(0.4, 0.4, 0.4), "alpha":0.1} 
     ren.add_brdf("m5", m_props)
-    m_props = {"type": "ward_anisotropic", "R":(0.2, 0.2, 0.2), "alpha":0.2, "beta":0.9}
+    #m_props = {"type": "ward_anisotropic", "R":(0.2, 0.2, 0.2), "alpha":0.2, "beta":0.9}
+    m_props = {"type":"phong", "R":(0.3, 0.4, 0.1), "e": 12.2, "k":0.3}
     ren.add_brdf("m5", m_props)
 
     #sh_props = {"type":"sphere", "position":(0,0,0), "radius":2, "material":"m1"}

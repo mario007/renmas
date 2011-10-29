@@ -13,3 +13,5 @@ from .funcs import intersect_ray_triangle_new
 from .funcs import intersect_ray_triangle
 from .funcs import intersect_ray_triangle_avx
 
+from .obj import OBJ
+

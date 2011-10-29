@@ -112,6 +112,13 @@ def set_camera_props(prop, value):
         camera = renderer.get_camera()
         x, y, z = value.split(',')
         camera.set_eye(float(x), float(y), float(z))
+    elif prop == "lookat":
+        camera = renderer.get_camera()
+        x, y, z = value.split(',')
+        camera.set_lookat(float(x), float(y), float(z))
+    elif prop == "distance":
+        camera = renderer.get_camera()
+        camera.set_distance(float(value))
 
     return 1
 

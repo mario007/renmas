@@ -42,7 +42,7 @@ def dot_ins(a, b):
 # dot_product c = a * b
 # dot_product xmm3 = a * b
 
-def dot_product(tokens):
+def dot_product(asm, tokens):
     allowed = ["xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"]
     
     tokens, allowed = filter_tokens(tokens, allowed)

@@ -3,7 +3,7 @@
 from .utils import pre_proces, filter_tokens
 import renmas.utils as util
 
-def macro_if(tokens):
+def macro_if(asm, tokens):
     xmm_regs = ["xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"]
     # remove last two tokens goto and label
     label = tokens.pop()

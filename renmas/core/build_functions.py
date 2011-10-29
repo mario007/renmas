@@ -68,7 +68,7 @@ class RendererUtils:
 
         return sphere
 
-    def create_triangle(self, props):
+    def _create_triangle(self, props):
         x0, y0, z0 = props["p0"] 
         x1, y1, z1 = props["p1"] 
         x2, y2, z2 = props["p2"] 
@@ -87,7 +87,7 @@ class RendererUtils:
         self.renderer.add_shape(name, tri)
         return tri
 
-    def create_rectangle(props):
+    def _create_rectangle(self, props):
         x, y, z = props["p"] 
         nx, ny, nz = props["normal"] 
         eda_x, eda_y, eda_z = props["edge_a"] 
@@ -106,6 +106,35 @@ class RendererUtils:
         rect = renmas.shapes.Rectangle(p, edge_a, edge_b, n,  mat_idx)
         self.renderer.add_shape(name, rect)
         return rect
+
+    def _create_mesh(self, props):
+        mat_name = props.get("material", None)
+        if mat_name is None: #logger
+            mat_name = "default_material"
+        mat_idx = self.renderer.material_index(mat_name)
+
+        name = props.get("name", "Mesh" + str(renmas.utils.unique()))
+
+        mesh = renmas.shapes.Mesh3D(mat_idx)
+
+        fnames = props.get("resource", None)
+        if fnames:
+            for fname in fnames:
+                mesh.load_mesh(fname)
+        scale = props.get("scale", None)
+        if scale:
+            mesh.scale(scale[0], scale[1], scale[2])
+            mesh.calculate_bbox()
+
+        translate = props.get("translate", None)
+        if translate:
+            mesh.translate(translate[0], translate[1], translate[2])
+            mesh.calculate_bbox()
+
+        mesh.prepare_isect()
+
+        self.renderer.add_shape(name, mesh)
+        return mesh
 
     def create_material(self, props):
         name = props.get("name")

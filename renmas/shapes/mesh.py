@@ -5,18 +5,20 @@ import renmas
 import renmas.utils as util
 from renmas.maths import Vector3
 from .grid_mesh import GridMesh
+from .obj import OBJ 
 import time
 import math
+import os.path
 
 class VertexType:
     def __init__(self, normal=None, uv=None):
         self.normal = bool(normal)
         self.uv = bool(uv)
 
-    def has_normal(self, yes):
+    def has_normal(self):
         return self.normal
 
-    def has_uv(self, yes):
+    def has_uv(self):
         return self.uv
 
 class VertexBuffer:
@@ -28,9 +30,19 @@ class VertexBuffer:
         if vertex_type is None:
             self.vertex_size = 16 #store x, y, z, xx(aligment)
         else:
-            if vertex_type.has_normal():
+            if vertex_type.has_normal() and vertex_type.has_uv():
+                self.normal_offset = 16
+                self.uv_offset = 32
+                self.vertex_size = 48 # store x,y,z,xx for vertex, x,y,z,xx for normal, u,v,xx,xx for texture
+            elif vertex_type.has_normal():
                 self.normal_offset = 16
                 self.vertex_size = 32 # store x,y,z,xx for vertex and than x,y,z,xx for normal 
+                pass
+            elif vertex_type.has_uv():
+                self.uv_offset = 16
+                self.vertex_size = 32 # store x,y,z,xx for vertex and u,v, xx,xx for texture coordinates
+            else:
+                self.vertex_size = 16
 
         if self.reserve > 0:
             self.address = x86.MemData(self.reserve*self.vertex_size)
@@ -51,7 +63,7 @@ class VertexBuffer:
         self.size = 0
         self.reserve = 0
 
-    def add_vertex(self, x, y, z, normal=None, uv=None): #TODO normal - nx, ny, nz dont't use Vector3
+    def add_vertex(self, x, y, z, nx=None, ny=None, nz=None, u=None, v=None):
         if self.address is None:
             self.address = x86.MemData(self.vertex_size)
             self.reserve += 1
@@ -69,17 +81,19 @@ class VertexBuffer:
             util.memcpy(temp.ptr(), self.address.ptr(), self.size*self.vertex_size) 
             self.address = temp
 
-        #x = x * 3.0
-        #y = y * 3.0
-        #z = z * 3.0
         offset = self.vertex_size * self.size
         x86.SetFloat(self.address.ptr()+offset, (x, y, z, 0.0), 0)
-        if normal is not None:
-            #print("Not tested") TODO
-            offset = offset + self.normal_offset
-            x86.SetFloat(self.address.ptr()+offset, (normal.x, normal.y, normal.z, 0.0), 0)
-        self.size += 1
 
+        if nx is not None:
+            noffset = offset + self.normal_offset
+            x86.SetFloat(self.address.ptr()+noffset, (nx, ny, nz, 0.0), 0)
+
+        if u is not None:
+            noffset = offset + self.uv_offset
+            x86.SetFloat(self.address.ptr()+noffset, (u, v, 0.0, 0.0), 0)
+
+        self.size += 1
+    
     def edit_position(self, index, x, y, z):
         addr = self.address.ptr() + index * self.vertex_size 
         x86.SetFloat(addr, (x, y, z, 0.0), 0)
@@ -95,21 +109,27 @@ class VertexBuffer:
         return normal 
 
     def get_uv(self, index):
-        pass
+        addr = self.address.ptr() + index * self.vertex_size + self.uv_offset
+        uv = x86.GetFloat(addr, 0, 2)
+        return uv 
 
 class Triangles:
-    def __init__(self, reserve=0):
+    def __init__(self, has_normal=True, reserve=0):
         # v0, v1, v2, material, normal
         self.size = 0
         self.reserve = reserve
-        self.tri_size = 32 
+        self.has_normal = has_normal
+        if has_normal:
+            self.tri_size = 32 
+        else:
+            self.tri_size = 16
 
         if self.reserve > 0:
             self.address = x86.MemData(self.reserve*self.tri_size)
         else:
             self.address = None
 
-    def add_triangle(self, v0, v1, v2, material, nx, ny, nz):
+    def add_triangle(self, v0, v1, v2, material, nx=None, ny=None, nz=None):
         if self.address is None:
             self.address = x86.MemData(self.tri_size)
             self.reserve += 1
@@ -129,8 +149,10 @@ class Triangles:
 
         offset = self.tri_size * self.size
         x86.SetInt32(self.address.ptr()+offset, (v0, v1, v2, material), 0)
-        offset = offset + 16 # offset to normal
-        x86.SetFloat(self.address.ptr()+offset, (nx, ny, nz, 0.0), 0)
+
+        if self.has_normal and nx is not None:
+            offset = offset + 16 # offset to normal
+            x86.SetFloat(self.address.ptr()+offset, (nx, ny, nz, 0.0), 0)
         self.size += 1
 
     def tsize(self):
@@ -222,6 +244,8 @@ def extend_bbox(vb, v0, v1, v2, bbox):
     if maxy > bbox.y1: bbox.y1 = maxy
     if maxz > bbox.z1: bbox.z1 = maxz
 
+def LoadObj(fname):
+    pass
 
 class Mesh3D:
     def __init__(self, material):
@@ -234,6 +258,44 @@ class Mesh3D:
         self.bounding_box = renmas.shapes.BBox(p0, p1, None) 
         self.grid = None
         self.ptr_isect = None
+
+    def load_mesh(self, fname, material=None):
+        root, ext = os.path.splitext(fname)
+        if ext == ".ply":
+            self.load_ply(fname, material)
+        elif ext == ".obj":
+            if material is None:
+                material = self.material
+            self.triangles = Triangles()
+            obj = OBJ()
+            obj.load(fname)
+            if obj.has_normal and obj.has_texcoords:
+                ver_type = VertexType(normal=True, uv=True)
+                self.vertex_buffer = VertexBuffer(ver_type)
+                for v in obj.vertex:
+                    x, y, z, nx, ny, nz, u1, v1 = v
+                    self.vertex_buffer.add_vertex(x, y, z, nx, ny, nz, u1, v1)
+            elif obj.has_normal:
+                ver_type = VertexType(normal=True)
+                self.vertex_buffer = VertexBuffer(ver_type)
+                for v in obj.vertex:
+                    x, y, z, nx, ny, nz = v
+                    self.vertex_buffer.add_vertex(x, y, z, nx, ny, nz)
+            elif obj.has_texcoords:
+                ver_type = VertexType(uv=True)
+                self.vertex_buffer = VertexBuffer(ver_type)
+                for ver in obj.vertex:
+                    x, y, z, u1, v1 = ver
+                    self.vertex_buffer.add_vertex(x, y, z, u=u1, v=v1)
+            else:
+                self.vertex_buffer = VertexBuffer()
+                for v in obj.vertex:
+                    x, y, z = v
+                    self.vertex_buffer.add_vertex(x, y, z)
+            for t in obj.triangles:
+                v0, v1, v2 = t
+                normal = calc_normal(self.vertex_buffer, v0, v1, v2, self.bounding_box)
+                self.triangles.add_triangle(v0, v1, v2, material, normal[0], normal[1], normal[2])
 
     def load_ply(self, fname, material=None):
         if material is None:
@@ -327,9 +389,9 @@ class Mesh3D:
                         self.triangles.add_triangle(v0, v1, v2, material, normal[0], normal[0], normal[0])
 
 
-                        v3 = int(words[3]) #not confirmed that this is good!!!
-                        v4 = int(words[4])
-                        v5 = int(words[0])
+                        v3 = int(words[1]) #not confirmed that this is good!!!
+                        v4 = int(words[3])
+                        v5 = int(words[4])
                         normal = calc_normal(self.vertex_buffer, v3, v4, v0, self.bounding_box)
                         self.triangles.add_triangle(v3, v4, v0, material, normal[0], normal[0], normal[0])
                     else:
@@ -714,8 +776,18 @@ class Mesh3D:
 
         hit_point = ray.origin + ray.dir * t
 
-        temp = self.triangles.get_normal(idx)
-        normal = Vector3(temp[0], temp[1], temp[2])
+        #temp = self.triangles.get_normal(idx)
+        #normal = Vector3(temp[0], temp[1], temp[2])
+
+        temp1 = vb.get_normal(v0)
+        temp2 = vb.get_normal(v1)
+        temp3 = vb.get_normal(v2)
+        normal1 = Vector3(temp1[0], temp1[1], temp1[2])
+        normal2 = Vector3(temp2[0], temp2[1], temp2[2])
+        normal3 = Vector3(temp3[0], temp3[1], temp3[2])
+        normal = normal1 * (1.0-beta-gamma) + normal2*beta + normal3*gamma
+        normal.normalize()
+
         return renmas.shapes.HitPoint(t, hit_point, normal, self.triangles.get_material(idx), ray)
 
     

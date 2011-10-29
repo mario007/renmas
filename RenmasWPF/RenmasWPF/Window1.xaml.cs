@@ -120,11 +120,8 @@ namespace RenmasWPF
 
             // TEXTBOX 
             this.camera_eye_x = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_eye_x");
-            if (this.camera_eye_x != null) this.camera_eye_x.TextChanged += camera_changed;
             this.camera_eye_y = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_eye_y");
-            if (this.camera_eye_y != null) this.camera_eye_y.TextChanged += camera_changed;
             this.camera_eye_z = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_eye_z");
-            if (this.camera_eye_z != null) this.camera_eye_z.TextChanged += camera_changed;
             this.camera_lookat_x = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_lookat_x");
             this.camera_lookat_y = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_lookat_y");
             this.camera_lookat_z = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_lookat_z");
@@ -154,6 +151,14 @@ namespace RenmasWPF
             this.pixel_size.TextChanged += pixel_resize;
             this.samples_per_pixel.TextChanged += samples_per_pixel_evt;
             this.cb_algorithm.SelectionChanged += select_algorithm_evt;
+
+            this.camera_eye_x.TextChanged += camera_eye_changed;
+            this.camera_eye_y.TextChanged += camera_eye_changed;
+            this.camera_eye_z.TextChanged += camera_eye_changed;
+            this.camera_lookat_x.TextChanged += camera_lookat_changed;
+            this.camera_lookat_y.TextChanged += camera_lookat_changed;
+            this.camera_lookat_z.TextChanged += camera_lookat_changed;
+            this.camera_distance.TextChanged += camera_distance_changed;
             
         }
 
@@ -228,13 +233,42 @@ namespace RenmasWPF
             }
             
         }
-        private void camera_changed(object sender, RoutedEventArgs e)
+        private void camera_eye_changed(object sender, RoutedEventArgs e)
         {
-            string eyex = this.camera_eye_x.Text;
-            string eyey = this.camera_eye_y.Text;
-            string eyez = this.camera_eye_z.Text;
-            string value = eyex + "," + eyey + "," + eyez;
-            //this.ren.SetProp("camera", "eye", value);
+            float eyex, eyey, eyez;
+            try { eyex = Convert.ToSingle(this.camera_eye_x.Text); }
+            catch (Exception ex) { eyex = 10.0f; }
+            try { eyey = Convert.ToSingle(this.camera_eye_y.Text); }
+            catch (Exception ex) { eyey = 10.0f; }
+            try { eyez = Convert.ToSingle(this.camera_eye_z.Text); }
+            catch (Exception ex) { eyez = 10.0f; }
+
+            string value = eyex.ToString() + "," + eyey.ToString() + "," + eyez.ToString();
+            this.ren.SetProp("camera", "eye", value);
+        }
+
+        private void camera_distance_changed(object sender, RoutedEventArgs e)
+        {
+            float distance;
+            try { distance = Convert.ToSingle(this.camera_distance.Text); }
+            catch (Exception ex) { distance = 400.0f; }
+            string value = distance.ToString();
+            this.ren.SetProp("camera", "distance", value);
+
+        }
+
+        private void camera_lookat_changed(object sender, RoutedEventArgs e)
+        {
+            float lookatx, lookaty, lookatz;
+            try { lookatx = Convert.ToSingle(this.camera_lookat_x.Text); }
+            catch (Exception ex) { lookatx = 0.0f; }
+            try { lookaty = Convert.ToSingle(this.camera_lookat_y.Text); }
+            catch (Exception ex) { lookaty = 0.0f; }
+            try { lookatz = Convert.ToSingle(this.camera_lookat_z.Text); }
+            catch (Exception ex) { lookatz = 0.0f; }
+
+            string value = lookatx.ToString() + "," + lookaty.ToString() + "," + lookatz.ToString();
+            this.ren.SetProp("camera", "lookat", value);
         }
 
         private void resolution_changed(object sender, RoutedEventArgs e)

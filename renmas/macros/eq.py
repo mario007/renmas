@@ -247,7 +247,7 @@ def eq(tokens, size, xmm):
     asm = (line1, line2, line3)
     return asm
 
-def eq128(tokens):
+def eq128(asm, tokens):
     allowed = ["xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"]
     tokens, allowed = filter_tokens(tokens, allowed)
     xmm = allowed[0]
@@ -258,7 +258,7 @@ def eq128(tokens):
         code += l + "\n" 
     return code
 
-def eq32(tokens):
+def eq32(asm, tokens):
     allowed = ["xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"]
     tokens, allowed = filter_tokens(tokens, allowed)
     xmm = allowed[0]
@@ -316,15 +316,15 @@ def eq_mix(tokens, art1, art2):
 
     return code
 
-def eq128_32(tokens):
+def eq128_32(asm, tokens):
     return eq_mix(tokens, 128, 32)
 
-def eq32_128(tokens):
+def eq32_128(asm, tokens):
     return eq_mix(tokens, 32, 128)
 
-def eq128_128(tokens):
+def eq128_128(asm, tokens):
     return eq_mix(tokens, 128, 128)
 
-def eq32_32(tokens):
+def eq32_32(asm, tokens):
     return eq_mix(tokens, 32, 32)
 

@@ -6,7 +6,7 @@ def path_integrator(tile, renderer):
     camera = renderer._camera
     film = renderer._film
 
-    background = renmas.core.Spectrum(0.00, 0.00, 0.00) 
+    background = renmas.core.Spectrum(0.99, 0.99, 0.99) 
     hp2 = renmas.shapes.HitPoint()
     hp3 = renmas.shapes.HitPoint()
     hp2.spectrum = background

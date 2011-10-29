@@ -16,7 +16,9 @@ class Renderer:
         self._film = Film(200, 200, 1)
         self._sampler = RandomSampler(200, 200, 1, 1.0)
         eye = Vector3(10.0, 10.0, 10.0)
+        eye = Vector3(-100.0, 10.0, -60.0)
         lookat = Vector3(0.0, 0.0, 0.0)
+        lookat = Vector3(-220.0, 80.0, 14.0)
         self._camera = PinholeCamera(eye, lookat, 400.0)
 
         # containers for lights  

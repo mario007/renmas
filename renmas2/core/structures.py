@@ -83,6 +83,7 @@ SAMPLE = """
     float xyxy[4] 
     uint32 ix, iy
     float weight 
+    ray cam_ray
     end struct
 """
 GRID = """
@@ -131,6 +132,8 @@ class Structures:
         if name in structures:
             asm_code = """ #DATA
             """
+            if name == "sample":
+                asm_code += structures['ray']
             asm_code += structures[name]
             asm_code += """
             #CODE

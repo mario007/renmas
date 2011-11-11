@@ -70,6 +70,7 @@ class DynamicArray:
         self.size += 1
 
     def add_default_instances(self, n): #TODO improve performnase of this!
+        
         for k in range(n):
             if self.address is None:
                 self.address = x86.MemData(self.sizeof)

@@ -9,10 +9,10 @@ sampler = renmas2.samplers.RegularSampler(20000, 500, pixel=1.0)
 sampler.set_ncore(2)
 sampler.python_version(False)
 
-rnd_sampler = renmas2.samplers.RandomSampler(1024, 768, n=128, pixel=1.0)
+rnd_sampler = renmas2.samplers.RandomSampler(1000, 1000, n=10, pixel=1.0)
 
 
-rnd_sampler.set_ncore(2)
+rnd_sampler.set_ncore(1)
 rnd_sampler.python_version(False)
 
 #rnd_sampler.generate_samples()

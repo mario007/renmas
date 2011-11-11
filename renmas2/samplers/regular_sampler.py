@@ -16,6 +16,8 @@ class RegularSampler(Sampler):
         xyxy_off = darr.member_offset('xyxy')
         ix_off = darr.member_offset('ix')
         iy_off = darr.member_offset('iy')
+        ray_origin = darr.member_offset('cam_ray.origin')
+        ray_dir = darr.member_offset('cam_ray.dir')
         darr_adr = darr.get_addr()
         sample_size = darr.obj_size()
 
@@ -44,10 +46,14 @@ class RegularSampler(Sampler):
             x86.SetFloat(adr + xyxy_off, (x,y,x,y), 0)
             x86.SetUInt32(adr + ix_off, ix, 0)
             x86.SetUInt32(adr + iy_off, iy, 0)
+            if self.camera:
+                self.camera.generate_ray(adr+xyxy_off, adr+ray_origin, adr+ray_dir)
+                
         return req_samples
 
     def _get_assembly_code(self):
-        asm_structs = self.structures.get_struct("sample")
+        asm_structs = self.structures.get_struct("ray")
+        asm_structs += self.structures.get_struct("sample")
 
         code = """
             #DATA
@@ -63,13 +69,12 @@ class RegularSampler(Sampler):
             uint32 adr_arr
 
             #CODE
+            mov esi, dword [adr_arr]
+            main_loop:
             macro eq128 xmm6 = w2h2
             macro eq128 xmm7 = xmm6 + pxpy
             macro eq128 xmm5 = pixel_size
-            mov edx, sizeof sample
-            mov esi, dword [adr_arr]
 
-            main_loop:
             add dword [cur_xyxy], 1 ;increment x
             mov eax, dword [cur_xyxy]
             cmp eax, dword [tile_endx]
@@ -95,7 +100,17 @@ class RegularSampler(Sampler):
             mov dword [esi + sample.ix], eax 
             mov dword [esi + sample.iy], ebx
             macro eq128 esi.sample.xyxy = xmm0 {xmm0}
+        """
+        if self.camera:
+            code += """
+                    push esi
+                    mov eax, esi
+                    call generate_ray
+                    pop esi
+            """
 
+        code += """
+            mov edx, sizeof sample
             add esi, edx
             jmp main_loop
 

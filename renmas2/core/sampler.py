@@ -34,6 +34,7 @@ class Sampler:
         self.end_sampling = False # mark that we are finished with samplings  
         self._batch_samples = 100000 #max number of samples to generate in array 
         self._sample_array = None
+        self.camera = None
         self.structures = Structures()
 
         self.resolution(width, height)
@@ -42,6 +43,9 @@ class Sampler:
     def _allocate_array(self):
         self._sample_array = DynamicArray(self.structures.get_compiled_struct('sample'))
         self._sample_array.add_default_instances(self._batch_samples)
+
+    def set_camera(self, camera):
+        self.camera = camera
 
     def set_max_samples(self, n):
         self.batch_samples = abs(int(n))
@@ -65,17 +69,28 @@ class Sampler:
 
     def _build_runtimes(self):
         if self.python: return #python will generate samples
-        self._runtime_arr = []
+        self._runtime_arr = [Runtime() for x in range(self.ncore)]
+        if self.camera:
+            self.camera.generate_ray_asm(self._runtime_arr, "generate_ray")
         adr = []
-        for n in range(self.ncore):
-            run = Runtime()
-            macro_call.set_runtimes([run])
-            mc = assembler.assemble(self._get_assembly_code())
-            #mc.print_machine_code()
-            run.load('generate_samples', mc)
-            self._runtime_arr.append(run)
-            adr.append(run.address_module('generate_samples'))
+        macro_call.set_runtimes(self._runtime_arr)
+        mc = assembler.assemble(self._get_assembly_code())
+        for r in self._runtime_arr:
+            r.load('generate_samples', mc)
+            adr.append(r.address_module('generate_samples'))
         self._exe_address = tuple(adr)
+
+        #self._runtime_arr = []
+        #adr = []
+        #for n in range(self.ncore):
+        #    run = Runtime()
+        #    macro_call.set_runtimes([run])
+        #    mc = assembler.assemble(self._get_assembly_code())
+        #    #mc.print_machine_code()
+        #    run.load('generate_samples', mc)
+        #    self._runtime_arr.append(run)
+        #    adr.append(run.address_module('generate_samples'))
+        #self._exe_address = tuple(adr)
         
     def set_ncore(self, n):
         nc = abs(int(n))

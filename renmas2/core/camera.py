@@ -1,9 +1,9 @@
 
+import x86
+from tdasm import Runtime
 from .vector3 import Vector3
 from .dynamic_array import DynamicArray
 from .structures import Structures
-import x86
-from tdasm import Runtime
 from ..macros import macro_call, assembler
 
 class Camera:

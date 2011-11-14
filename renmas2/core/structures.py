@@ -83,7 +83,6 @@ SAMPLE = """
     float xyxy[4] 
     uint32 ix, iy
     float weight 
-    ray cam_ray
     end struct
 """
 GRID = """
@@ -132,8 +131,6 @@ class Structures:
         if name in structures:
             asm_code = """ #DATA
             """
-            if name == "sample":
-                asm_code += structures['ray']
             asm_code += structures[name]
             asm_code += """
             #CODE
@@ -142,4 +139,13 @@ class Structures:
             mc = self.tdasm.assemble(asm_code)
             return mc.get_struct(name)
         return None
+
+    def structs(self, names):
+        code = ""
+        for name in names:
+            struct = self.get_struct(name)
+            if struct is None:
+               raise ValueError("Structure " + str(name) + " doesn't exist!")
+            code += struct
+        return code
 

@@ -1,147 +1,110 @@
 
 import renmas2
 import renmas2.core
-from ..core import Sampler
-from tdasm import Tdasm, Runtime
-import x86
+from .sample import Sample
+from ..core import Sampler, get_structs
+from ..macros import macro_call, assembler
 
 # xw = s(x - width/2 + 0.5)
 # yw = s(y - height/2 + 0.5)
 class RegularSampler(Sampler):
     def __init__(self, width, height, pixel=1.0):
         super(RegularSampler, self).__init__(width, height, 1, pixel)
+        self._ds = None
 
-    def _generate_samples_python(self, tile):
-        darr = self._sample_array
-        xyxy_off = darr.member_offset('xyxy')
-        ix_off = darr.member_offset('ix')
-        iy_off = darr.member_offset('iy')
-        ray_origin = darr.member_offset('cam_ray.origin')
-        ray_dir = darr.member_offset('cam_ray.dir')
-        darr_adr = darr.get_addr()
-        sample_size = darr.obj_size()
+    def _update_ds(self):
+        if self._ds is None: return
+        for x in range(len(self._tile.lst_tiles)):
+            ds = self._ds[x]
+            tile = self._tile.lst_tiles[x]
+            ds["endx"] = tile.x + tile.width 
+            ds["endy"] = tile.y + tile.height 
+            ds["tilex"] = tile.x 
+            ds["tiley"] = tile.y
+            curx = tile.x - 1
+            cury = tile.y
+            ds["cur_xyxy"] = (curx, cury, curx, cury)
+            ds["pixel_size"] = (self._pixel_size, self._pixel_size, self._pixel_size, self._pixel_size)
+            w2 = -float(self._width) * 0.5 + 0.5   
+            h2 = -float(self._height) * 0.5  + 0.5
+            ds["w2h2"] = (w2, h2, w2, h2)
 
-        req_samples = tile.width * tile.height * self.n
-        w2 = -float(self.width) / 2.0  
-        h2 = -float(self.height) / 2.0  
-        curx = tile.x - 1
-        cury = tile.y
-        tile_endx = tile.x + tile.width
-        tile_endy = tile.y + tile.height
 
-        for idx in range(req_samples):
-            curx += 1
-            if curx == tile_endx: 
-                curx = tile.x 
-                cury += 1
-            if cury == tile_endy: 
-                self.end_sampling = True
-                break
+    # xw = s(x - width/2 + 0.5)
+    # yw = s(y - height/2 + 0.5)
+    def get_sample(self):
 
-            x = self.pixel_size * (curx + w2 + 0.5)  
-            y = self.pixel_size * (cury + h2 + 0.5)
-            ix = curx
-            iy = cury
-            adr = darr_adr + idx*sample_size
-            x86.SetFloat(adr + xyxy_off, (x,y,x,y), 0)
-            x86.SetUInt32(adr + ix_off, ix, 0)
-            x86.SetUInt32(adr + iy_off, iy, 0)
-            if self.camera:
-                self.camera.generate_ray(adr+xyxy_off, adr+ray_origin, adr+ray_dir)
-                
-        return req_samples
+        self._curx += 1
+        if self._curx == self._endx:
+            self._curx = self._tile.x
+            self._cury += 1
+            if self._cury == self._endy:
+                return None
+        
+        x = self._pixel_size * (self._curx + self._w2)  
+        y = self._pixel_size * (self._cury + self._h2)
+        return Sample(x, y, self._curx, self._cury, 1.0)
 
-    def _get_assembly_code(self):
-        asm_structs = self.structures.get_struct("ray")
-        asm_structs += self.structures.get_struct("sample")
+    # eax - pointer to sample structure
+    def get_sample_asm(self, runtimes, label):
 
         code = """
             #DATA
         """
-        code += asm_structs + """
-            float pxpy[4] = 0.5, 0.5, 0.5, 0.5 
-            int32 tile_endx, tile_endy
-            int32 tilex, tiley
-            int32 cur_xyxy[4] ; we just use first two numbers for now
+        code += get_structs(('sample',)) + """
+            uint32 endx, endy
+            uint32 tilex, tiley
+            uint32 cur_xyxy[4] ; we just use first two numbers
             float pixel_size[4]
             float w2h2[4]
-
-            uint32 adr_arr
-
             #CODE
-            mov esi, dword [adr_arr]
-            main_loop:
-            macro eq128 xmm6 = w2h2
-            macro eq128 xmm7 = xmm6 + pxpy
-            macro eq128 xmm5 = pixel_size
-
-            add dword [cur_xyxy], 1 ;increment x
-            mov eax, dword [cur_xyxy]
-            cmp eax, dword [tile_endx]
-            jne _next
-            mov ebx, dword [tilex]
-            add dword [cur_xyxy + 4], 1 ;increment y
-            mov dword [cur_xyxy], ebx
-            _next:
-            mov eax, dword [cur_xyxy + 4] 
-            cmp eax, dword [tile_endy]
-            jne _next2
-            jmp _end_sampling
-            _next2:
-
-            macro eq128 xmm0 = cur_xyxy
-            macro call int_to_float xmm0, xmm0
-            macro eq128 xmm0 = xmm0 + xmm7
-            macro eq128 xmm0 = xmm0 * xmm5
-
-            mov eax, dword [cur_xyxy]
-            mov ebx, dword [cur_xyxy + 4]
-
-            mov dword [esi + sample.ix], eax 
-            mov dword [esi + sample.iy], ebx
-            macro eq128 esi.sample.xyxy = xmm0 {xmm0}
         """
-        if self.camera:
-            code += """
-                    push esi
-                    mov eax, esi
-                    call generate_ray
-                    pop esi
-            """
+        code += " global " + label + ":\n" + """
+            add dword [cur_xyxy], 1
+            mov ebx, dword [cur_xyxy] 
+            cmp ebx, dword [endx]
+            jne _gen_sam
+            mov ecx, dword [tilex]
+            mov dword [cur_xyxy], ecx
+            add dword [cur_xyxy + 4], 1
+            mov edx, dword [cur_xyxy + 4]
+            cmp edx, dword [endy]
+            jne _gen_sam
+            mov eax, 0 ;end of sampling
+            ret
 
-        code += """
-            mov edx, sizeof sample
-            add esi, edx
-            jmp main_loop
-
-            _end_sampling:
-            #END
+            _gen_sam:
+            macro eq128 xmm0 = cur_xyxy
+            macro call int_to_float xmm1, xmm0
+            macro eq128 xmm1 = xmm1 + w2h2
+            macro eq128 xmm1 = xmm1 * pixel_size
+            macro eq128 eax.sample.xyxy = xmm1 {xmm0}
+           
+            mov ebx, dword [cur_xyxy] 
+            mov ecx, dword [cur_xyxy + 4]
+            mov dword [eax + sample.ix] ,ebx
+            mov dword [eax + sample.iy] ,ecx
+            mov eax, 1
+            ret
             
         """
-        return code
-
-    def _populate_data(self, ds, tile, addr=None):
-        if ds is None: return
-        ds["tile_endx"] = tile.x + tile.width 
-        ds["tile_endy"] = tile.y + tile.height 
-        ds["tilex"] = tile.x 
-        ds["tiley"] = tile.y
-        curx = tile.x - 1
-        cury = tile.y
-        ds["cur_xyxy"] = (curx, cury, curx, cury)
-        ds["pixel_size"] = (self.pixel_size, self.pixel_size, self.pixel_size, self.pixel_size)
-        w2 = -float(self.width) * 0.5   
-        h2 = -float(self.height) * 0.5  
-        ds["w2h2"] = (w2, h2, w2, h2)
-        if addr:
-            ds["adr_arr"] = addr
-        else:
-            ds["adr_arr"] = self._sample_array.get_addr()
+        macro_call.set_runtimes(runtimes)
+        mc = assembler.assemble(code, True)
+        #mc.print_machine_code()
+        name = "get_sample" + str(hash(self))
+        self._ds = []
+        for r in runtimes:
+            self._ds.append(r.load(name, mc))
 
 
-    def nsamples(self):
-        return 1 
-
-    def set_samples_per_pixel(self, num):
+    def set_tile(self, tile):
+        super(RegularSampler, self).set_tile(tile)
+        self._curx = tile.x - 1
+        self._endx = tile.x + tile.width
+        self._endy = tile.y + tile.height
+        self._w2 = -float(self._width) * 0.5  + 0.5 
+        self._h2 = -float(self._height) * 0.5 + 0.5 
+        
+    def spp(self, dummy):
         pass
 

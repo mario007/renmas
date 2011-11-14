@@ -1,10 +1,5 @@
 
-import x86
-from tdasm import Runtime
 from .vector3 import Vector3
-from .dynamic_array import DynamicArray
-from .structures import Structures
-from ..macros import macro_call, assembler
 
 class Camera:
     def __init__(self, eye, lookat, distance=100):
@@ -13,9 +8,6 @@ class Camera:
         self.up = Vector3(0.0, 1.0, 0.0)
         self.distance = float(distance) #distance of image plane form eye point
         self._compute_uvw()
-        self.structures = Structures()
-
-        self._ds = None
 
     def _compute_uvw(self):
         self.w = self.eye - self.lookat #w is in oposite direction of view
@@ -46,10 +38,10 @@ class Camera:
         self.distance = float(distance)
         self._update_camera()
 
-    def generate_ray(self, sample, origin, direction):
+    def ray(self, sample):
         raise NotImplementedError()
 
-    def generate_ray_asm(self, runtimes, label):
+    def ray_asm(self, runtimes, label):
         raise NotImplementedError()
 
     def _update_data(self):

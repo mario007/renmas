@@ -4,10 +4,7 @@ class Shape:
     def __init__(self):
         pass
 
-    def isect(self, origin, direction, min_dist=99999.0):
-        pass
-
-    def isect(self, ray, min_dist=999999.0): #ray direction must be normalized
+    def isect(self, ray, min_dist=99999.0):
         pass
 
     def isect_b(self, ray, min_dist=999999.0): 

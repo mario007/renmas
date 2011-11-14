@@ -1,25 +1,20 @@
 
-import x86
-from ..core import Camera 
+from ..core import Camera, get_structs, Ray 
 from ..macros import macro_call, assembler
 
 class Pinhole(Camera):
     def __init__(self, eye, lookat, distance=100):
         super(Pinhole, self).__init__(eye, lookat, distance)
 
-    def generate_ray(self, sample, origin, direction):
-        x, y = x86.GetFloat(sample, 0, 2)
-        d = self.u * x + self.v * y - self.w * self.distance
-        d.normalize()
+    def ray(self, sample):
+        direction = self.u * sample.x + self.v * sample.y - self.w * self.distance
+        direction.normalize()
+        return Ray(self.eye, direction)
 
-        x86.SetFloat(origin, (self.eye.x, self.eye.y, self.eye.z, 0.0), 0)
-        x86.SetFloat(direction, (d.x, d.y, d.z, 0.0), 0)
-
-    #in eax is pointer to sample structure
-    def generate_ray_asm(self, runtimes, label):
-        asm_structs = self.structures.get_struct('ray')
-        asm_structs += self.structures.get_struct('sample')
-
+    #eax - pointer to sample structure
+    #ebx - pointer to ray structure
+    def ray_asm(self, runtimes, label):
+        asm_structs = get_structs(('ray', 'sample'))
         code = """
             #DATA
         """
@@ -28,8 +23,6 @@ class Pinhole(Camera):
             float v[4]
             float wdistance[4]
             float eye[4]
-
-
             #CODE
         """
         code += "global " + label + ":\n" + """
@@ -42,16 +35,18 @@ class Pinhole(Camera):
             macro eq128 xmm5 = xmm3 + xmm4 - wdistance
             macro normalization xmm5 {xmm6, xmm7}
             
-            macro eq128 eax.sample.cam_ray.origin = eye {xmm0}
-            macro eq128 eax.sample.cam_ray.dir = xmm5 {xmm0}
+            macro eq128 ebx.ray.origin = eye {xmm7}
+            macro eq128 ebx.ray.dir = xmm5 {xmm7}
             ret
 
         """
         macro_call.set_runtimes(runtimes)
         mc = assembler.assemble(code, True)
+        #mc.print_machine_code()
         self._ds = []
+        name = "ray" + str(hash(self))
         for r in runtimes:
-            ds = r.load("generate_ray", mc) 
+            ds = r.load(name, mc) 
             self._ds.append(ds)
 
         self._update_data()

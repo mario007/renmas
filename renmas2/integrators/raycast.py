@@ -16,16 +16,18 @@ class Raycast:
         if self._asm:
             self.render_asm(tile)
         else:
-            self.render_asm(tile)
-            #self.render_py(tile)
+            #self.render_asm(tile)
+            self.render_py(tile)
 
     def render_py(self, tile):
         sampler = self._renderer._get_sampler()
         sampler.set_tile(tile)
+        camera = self._renderer._camera
 
         while True:
             sam = sampler.get_sample()
             if sam is None: break 
+            ray = camera.ray(sam) 
 
     def render_asm(self, tile):
         sampler = self._renderer._get_sampler()
@@ -45,14 +47,20 @@ class Raycast:
         code = """
             #DATA
         """
-        code += get_structs(('sample',)) + """
+        code += get_structs(('sample', 'ray')) + """
             sample sample1
+            ray ray1
             #CODE
             _main_loop:
             mov eax, sample1
             call get_sample
             cmp eax, 0
             je _end_rendering
+
+            mov eax, sample1
+            mov ebx, ray1
+            call get_ray
+
 
             jmp _main_loop
 

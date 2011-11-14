@@ -2,6 +2,7 @@
 import math
 from tdasm import Runtime
 from ..samplers import RandomSampler, RegularSampler
+from ..cameras import Pinhole
 from ..integrators import Raycast
 from .tile import Tile
 
@@ -10,12 +11,13 @@ class Renderer:
         self._ready = False
 
         #default values for renderer
-        self._width =  1000 
-        self._height = 1000 
+        self._width =  200 
+        self._height = 200 
         self._spp = 2 
         self._algorithm = Raycast(self)
         #self._sampler = RegularSampler(self._width, self._height)
         self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
+        self._camera = Pinhole((2,3,4), (5,9,1))
         self._threads = 1
         self._max_samples = 100000 #max samples in tile
 
@@ -45,6 +47,7 @@ class Renderer:
     def _create_runtimes(self):
         self._runtimes = [Runtime() for n in range(self._threads)] 
         self._sampler.get_sample_asm(self._runtimes, 'get_sample')
+        self._camera.ray_asm(self._runtimes, 'get_ray')
 
         self._algorithm.algorithm_asm(self._runtimes)
 

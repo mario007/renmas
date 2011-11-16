@@ -1,5 +1,5 @@
 
-from .vector3 import Vector3
+from ..core import Vector3
 
 class Camera:
     def __init__(self, eye, lookat, distance=100):

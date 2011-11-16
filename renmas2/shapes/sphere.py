@@ -1,8 +1,9 @@
 import math
 from .hitpoint import HitPoint
 from .bbox import BBox
-from ..core import Vector3, Shape, get_structs
+from ..core import Vector3, get_structs
 from ..macros import macro_call, assembler
+from .shape import Shape
 
 class Sphere(Shape):
     def __init__(self, origin, radius, material):

@@ -1,9 +1,10 @@
 
 import renmas2
 import renmas2.core
-from .sample import Sample
-from ..core import Sampler, get_structs
+from ..core import get_structs
 from ..macros import macro_call, assembler
+from .sample import Sample
+from .sampler import Sampler
 
 # xw = s(x - width/2 + 0.5)
 # yw = s(y - height/2 + 0.5)

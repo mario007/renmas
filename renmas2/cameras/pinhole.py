@@ -1,6 +1,7 @@
 
-from ..core import Camera, get_structs, Ray 
+from ..core import get_structs, Ray 
 from ..macros import macro_call, assembler
+from .camera import Camera
 
 class Pinhole(Camera):
     def __init__(self, eye, lookat, distance=100):

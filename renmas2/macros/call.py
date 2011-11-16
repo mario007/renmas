@@ -40,6 +40,7 @@ class MacroCall:
 
         self.inline_macros = {} #normalization, cross product etc...
         self.inline_macros['int_to_float'] = self.int_to_float
+        self.inline_macros['sqrtss'] = self.sqrtss
 
     # first token is name of function
     # if inline is specified it must be second token [inline is optional]
@@ -98,4 +99,11 @@ class MacroCall:
             return 'vcvtdq2ps ' + xmm1 + ' , ' + xmm2 + '\n'
         else:
             return 'cvtdq2ps ' + xmm1 + ' , ' + xmm2 + '\n'
+
+    def sqrtss(self, asm, tokens):
+        xmm1, dummy, xmm2 = tokens
+        if proc.AVX:
+            return 'vsqrtss ' + xmm1 + ',' + xmm1 + ',' + xmm2 + '\n'
+        else:
+            return 'sqrtss ' + xmm1 + ',' + xmm2 + '\n'
 

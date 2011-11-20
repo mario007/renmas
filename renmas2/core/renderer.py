@@ -3,7 +3,8 @@ import math
 from tdasm import Runtime
 from ..samplers import RandomSampler, RegularSampler
 from ..cameras import Pinhole
-from ..integrators import Raycast
+from ..integrators import Raycast, IsectIntegrator
+from .intersector import Intersector
 from .tile import Tile
 
 class Renderer:
@@ -13,8 +14,9 @@ class Renderer:
         #default values for renderer
         self._width =  200 
         self._height = 200 
-        self._spp = 2 
-        self._algorithm = Raycast(self)
+        self._spp = 2
+        self._intersector = Intersector()
+        self._integrator = IsectIntegrator(self)
         #self._sampler = RegularSampler(self._width, self._height)
         self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
         self._camera = Pinhole((2,3,4), (5,9,1))
@@ -41,7 +43,8 @@ class Renderer:
 
     def prepare(self): #build acceleration structures 
         self.reset()
-        self._create_runtimes()
+        self._intersector.prepare()
+        self._integrator.prepare()
         self._ready = True
 
     def _create_runtimes(self):
@@ -68,7 +71,7 @@ class Renderer:
         except IndexError:
             return False # All tiles are rendererd
 
-        self._algorithm.render(tile)
+        self._integrator.render(tile)
         return True
 
     def reset(self):

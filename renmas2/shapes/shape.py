@@ -22,6 +22,13 @@ class Shape:
     def isect_asm_b(cls, runtimes, label):
         pass
     
+    def attributes(self):
+        pass
+
     def bbox(self):
+        pass
+
+    @classmethod
+    def name(cls):
         pass
 

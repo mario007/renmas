@@ -47,7 +47,7 @@ class Sphere(Shape):
         """
         code += get_structs(('ray', 'sphere', 'hitpoint')) + """
         float two[4] = 2.0, 2.0, 2.0, 0.0
-        float epsilon = 0.0001
+        float epsilon = 0.0005
         float minus_four = -4.0
         float zero = 0.0
         float one = 1.0
@@ -113,11 +113,25 @@ class Sphere(Shape):
 
         macro_call.set_runtimes(runtimes)
         mc = assembler.assemble(code, True)
-        mc.print_machine_code()
+        #mc.print_machine_code()
         name = "ray_sphere" + str(hash(cls))
         for r in runtimes:
             if not r.global_exists(label):
                 r.load(name, mc)
+
+    def attributes(self):
+        d = {}
+        d["origin"] = (self.origin.x, self.origin.y, self.origin.z, 0.0)
+        d["radius"] = self.radius
+        if self.material is None:
+            d["mat_index"] = 999999 #TODO solve this in better way 
+        else:
+            d["mat_index"] = self.material
+        return d
+
+    @classmethod
+    def name(cls):
+        return "sphere"
 
     def bbox(self):
 

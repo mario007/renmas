@@ -41,6 +41,7 @@ class MacroCall:
         self.inline_macros = {} #normalization, cross product etc...
         self.inline_macros['int_to_float'] = self.int_to_float
         self.inline_macros['sqrtss'] = self.sqrtss
+        self.inline_macros['set_pixel'] = self.set_pixel
 
     # first token is name of function
     # if inline is specified it must be second token [inline is optional]
@@ -106,4 +107,18 @@ class MacroCall:
             return 'vsqrtss ' + xmm1 + ',' + xmm1 + ',' + xmm2 + '\n'
         else:
             return 'sqrtss ' + xmm1 + ',' + xmm2 + '\n'
+
+    def set_pixel(self, asm, tokens):
+        # eax = x , ebx = y, esi = ptr_image, edx = pitch value = xmm0
+        asm_code = """
+            imul ebx, edx 
+            imul eax, eax, 16
+            add  eax, ebx
+            add eax, esi 
+        """
+        if proc.AVX:
+            line = "vmovaps oword [eax], xmm0"
+        else:
+            line = "movaps oword [eax], xmm0"
+        return asm_code + line
 

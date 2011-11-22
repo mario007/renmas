@@ -3,8 +3,9 @@
 import x86
 from tdasm import Runtime
 from .integrator import Integrator 
-from ..core import get_structs
+from ..core import get_structs, Spectrum
 from ..macros import macro_call, assembler
+from ..shapes import HitPoint
 
 class IsectIntegrator(Integrator):
     def __init__(self, renderer):
@@ -15,12 +16,24 @@ class IsectIntegrator(Integrator):
         sampler.set_tile(tile)
         camera = self._renderer._camera
         intersector = self._renderer._intersector
+        film = self._renderer._film
+
+        background = Spectrum(0.99, 0.0, 0.0)
+        foreground = Spectrum(0.0, 0.99, 0.0)
+        hp1 = HitPoint()
+        hp2 = HitPoint()
+        hp1.spectrum = background
+        hp2.spectrum = foreground
 
         while True:
             sam = sampler.get_sample()
             if sam is None: break 
             ray = camera.ray(sam) 
             hp = intersector.isect(ray) 
+            if hp:
+                film.add_sample(sam, hp2)
+            else:
+                film.add_sample(sam, hp1)
 
     def render_asm(self, tile):
         self._renderer._sampler.set_tile(tile)

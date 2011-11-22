@@ -5,6 +5,7 @@ from ..samplers import RandomSampler, RegularSampler
 from ..cameras import Pinhole
 from ..integrators import Raycast, IsectIntegrator
 from .intersector import Intersector
+from .film import Film
 from .tile import Tile
 
 class Renderer:
@@ -12,14 +13,15 @@ class Renderer:
         self._ready = False
 
         #default values for renderer
-        self._width =  200 
-        self._height = 200 
-        self._spp = 2
+        self._width =  400 
+        self._height = 400 
+        self._spp = 4 
         self._intersector = Intersector()
         self._integrator = IsectIntegrator(self)
         #self._sampler = RegularSampler(self._width, self._height)
         self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
-        self._camera = Pinhole((2,3,4), (5,9,1))
+        self._film = Film(self._width, self._height, self._spp)
+        self._camera = Pinhole((10,10,10), (0,0,0), 1600)
         self._threads = 1
         self._max_samples = 100000 #max samples in tile
 
@@ -45,6 +47,7 @@ class Renderer:
         self.reset()
         self._intersector.prepare()
         self._integrator.prepare()
+        self._film.reset()
         self._ready = True
 
     def _create_runtimes(self):

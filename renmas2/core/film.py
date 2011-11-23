@@ -3,6 +3,8 @@ import math
 from .image import ImageRGBA, ImageFloatRGBA
 from .blitter import Blitter
 from .spectrum import Spectrum
+from .methods import get_structs
+from ..macros import macro_call, assembler
 
 #TODO make flip image as option
 class Film:
@@ -14,10 +16,10 @@ class Film:
         self.image = ImageFloatRGBA(width, height)
         self.frame_buffer = ImageRGBA(width, height)
         self.blitter = Blitter()
+        self._ds = None
 
         self.spectrum = Spectrum(0.0, 0.0, 0.0)
         self.curn = nsamples
-        self.ds = None
         self.max_spectrum = Spectrum(0.0, 0.0, 0.0)
 
     def blt_image_to_buffer(self):
@@ -35,6 +37,7 @@ class Film:
         self.height = height
         self.image = ImageFloatRGBA(width, height)
         self.frame_buffer = ImageRGBA(width, height)
+        self._populate_ds()
 
     def get_resolution(self):
         return (self.width, self.height)
@@ -136,14 +139,11 @@ class Film:
         print(r_max, g_max, b_max)
 
 
-    def add_sample_asm(self, runtime, label):
-
-        lbl_name = "set_pixel" + str(hash(self))        
-        self.image.set_pixel_asm(runtime, lbl_name)
+    def add_sample_asm(self, runtimes, label):
 
         #eax - pointer to hitpoint structure
         #ebx - pointer to sample structure
-        asm_structs = renmas.utils.structs("hitpoint", "sample")
+        asm_structs = get_structs(("hitpoint", "sample"))
         ASM = """
         #DATA
         """
@@ -155,6 +155,8 @@ class Film:
             uint32 nsamples 
             uint32 curn
             uint32 height 
+            uint32 ptr_buffer
+            uint32 pitch_buffer
             float clamp[4] = 0.99, 0.99, 0.99, 0.99
 
             #CODE
@@ -175,36 +177,48 @@ class Film:
             mov ebx, dword [height] ;because of flipping image 
             sub ebx, ecx
             
-            ;call set pixel  x = eax , y = ebx, value = xmm0 
-        """
-        ASM += "call " + lbl_name + "\n" + """
+            ;call set pixel  x = eax , y = ebx, ptr_buff = esi pitch = edx value = xmm0 
+            mov esi, dword [ptr_buffer]
+            mov edx, dword [pitch_buffer]
+            macro call set_pixel
+
+
             mov edx, dword [nsamples]
-            macro eq128 spectrum = zero_spectrum
+            macro eq128 spectrum = zero_spectrum {xmm0}
             mov dword [curn], edx
             ret
 
             _next_sample:
-            macro eq128 spectrum = spectrum + eax.hitpoint.spectrum
+            macro eq128 spectrum = spectrum + eax.hitpoint.spectrum {xmm0}
             sub dword [curn], 1
             ret
 
         """
 
-        assembler = util.get_asm()
+        macro_call.set_runtimes(runtimes)
         mc = assembler.assemble(ASM, True)
         #mc.print_machine_code()
-        name = "film" + str(util.unique())
-        self.ds = runtime.load(name, mc)
+        name = "film" + str(hash(self))
+
+        self._ds = []
+        for r in runtimes:
+            if not r.global_exists(label):
+                self._ds.append(r.load(name, mc))
+
         self._populate_ds()
 
     def _populate_ds(self):
-        if self.ds is None: return
-        s = self.spectrum
-        self.ds["spectrum"] = (s.r, s.g, s.b, 0.0)
-        self.ds["nsamples"] = self.nsamples
-        self.ds["curn"] = self.curn
-        scale =  1.0 / self.nsamples
-        self.ds["scale"] = (scale, scale, scale, 0.0)
-        self.ds["height"] = self.height - 1 
+        if self._ds is None: return
+        for ds in self._ds:
+            s = self.spectrum
+            ds["spectrum"] = (s.r, s.g, s.b, 0.0)
+            ds["nsamples"] = self.nsamples
+            ds["curn"] = self.curn
+            scale =  1.0 / self.nsamples
+            ds["scale"] = (scale, scale, scale, 0.0)
+            ds["height"] = self.height - 1 
 
+            addr, pitch = self.image.get_addr()
+            ds["ptr_buffer"] = addr
+            ds["pitch_buffer"] = pitch
 

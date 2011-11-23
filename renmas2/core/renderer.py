@@ -13,17 +13,17 @@ class Renderer:
         self._ready = False
 
         #default values for renderer
-        self._width =  400 
-        self._height = 400 
-        self._spp = 4 
+        self._width =  1024 
+        self._height = 768 
+        self._spp = 1000 
         self._intersector = Intersector()
         self._integrator = IsectIntegrator(self)
         #self._sampler = RegularSampler(self._width, self._height)
         self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
         self._film = Film(self._width, self._height, self._spp)
         self._camera = Pinhole((10,10,10), (0,0,0), 1600)
-        self._threads = 1
-        self._max_samples = 100000 #max samples in tile
+        self._threads = 4
+        self._max_samples = 10000000 #max samples in tile
 
     def resolution(self, width, height):
         self._width = width

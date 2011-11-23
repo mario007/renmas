@@ -10,6 +10,7 @@ from ..shapes import HitPoint
 class IsectIntegrator(Integrator):
     def __init__(self, renderer):
         super(IsectIntegrator, self).__init__(renderer)
+        self._ds = None
 
     def render_py(self, tile):
         sampler = self._renderer._sampler
@@ -51,6 +52,7 @@ class IsectIntegrator(Integrator):
         self._renderer._sampler.get_sample_asm(self._runtimes, 'get_sample')
         self._renderer._camera.ray_asm(self._runtimes, 'get_ray')
         self._renderer._intersector.isect_asm(self._runtimes, 'ray_scene_intersection')
+        self._renderer._film.add_sample_asm(self._runtimes, 'add_sample')
         self._algorithm_asm(self._runtimes)
 
     def _algorithm_asm(self, runtimes):
@@ -62,6 +64,8 @@ class IsectIntegrator(Integrator):
             sample sample1
             ray ray1
             hitpoint hp1
+            hitpoint background
+            hitpoint foreground
             #CODE
             _main_loop:
             mov eax, sample1
@@ -78,6 +82,19 @@ class IsectIntegrator(Integrator):
             mov ebx, hp1 
             call ray_scene_intersection 
 
+            cmp eax, 0
+            je _write_background
+
+            mov eax, foreground 
+            mov ebx, sample1 
+            call add_sample
+            jmp _main_loop
+
+            _write_background:
+            mov eax, background 
+            mov ebx, sample1 
+            call add_sample
+
             jmp _main_loop
 
             _end_rendering:
@@ -92,4 +109,11 @@ class IsectIntegrator(Integrator):
         for r in runtimes:
             self._ds.append(r.load(name, mc))
 
+        self._populate_ds()
+
+    def _populate_ds(self):
+        if self._ds is None: return
+        for ds in self._ds:
+            ds['background.spectrum'] = (0.99, 0.0, 0.0, 0.0)
+            ds['foreground.spectrum'] = (0.0, 0.99, 0.0, 0.0)
     

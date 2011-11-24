@@ -10,7 +10,7 @@ class Sampler:
         self._pixel_size = float(pixel_size)
         self._spp = int(spp)
 
-    def resolution(self, width, height):
+    def set_resolution(self, width, height):
         self._width = width
         self._height = height
 

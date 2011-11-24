@@ -34,6 +34,15 @@ class Camera:
         self.lookat = renmas.maths.Vector3(float(x), float(y), float(z))
         self._update_camera()
 
+    def camera_moved(self, edx, edy, edz, ldx, ldy, ldz):#regulation of distance is missing for now
+        self.eye.x += edx
+        self.eye.y += edy
+        self.eye.z += edz
+        self.lookat.x += ldx
+        self.lookat.y += ldy
+        self.lookat.z += ldz
+        self._update_camera()
+
     def set_distance(self, distance):
         self.distance = float(distance)
         self._update_camera()
@@ -45,7 +54,7 @@ class Camera:
         raise NotImplementedError()
 
     def _update_data(self):
-        pass
+        raise NotImplementedError()
 
     def _update_camera(self):
         self._compute_uvw()

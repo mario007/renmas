@@ -1,42 +1,52 @@
 
-import math
 from tdasm import Runtime
 from ..samplers import RandomSampler, RegularSampler
 from ..cameras import Pinhole
 from ..integrators import Raycast, IsectIntegrator
+from ..shapes import Shape
 from .intersector import Intersector
 from .film import Film
-from .tile import Tile
+from .methods import create_tiles
 
 class Renderer:
     def __init__(self):
         self._ready = False
 
-        #default values for renderer
-        self._width =  1024 
-        self._height = 768 
-        self._spp = 1000 
+        self._default_values()
+
         self._intersector = Intersector()
         self._integrator = IsectIntegrator(self)
         #self._sampler = RegularSampler(self._width, self._height)
         self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
+        self._spp = self._sampler._spp
         self._film = Film(self._width, self._height, self._spp)
-        self._camera = Pinhole((10,10,10), (0,0,0), 1600)
-        self._threads = 4
+        self._camera = Pinhole(self._eye, self._lookat, self._distance)
+
+    def _default_values(self):
+        self._width =  200 
+        self._height = 200 
+        self._spp = 1 
+        self._threads = 1
         self._max_samples = 10000000 #max samples in tile
+        self._eye = (10, 10, 10)
+        self._lookat = (0, 0, 0)
+        self._distance = 400
 
     def resolution(self, width, height):
         self._width = width
         self._height = height
+        self._film.set_resolution(width, height)
+        self._sampler.set_resolution(width, height)
 
-    def set_samplers(self, sampler): #Tip: First solve for one sampler
-        pass
+    def spp(self, n):
+        self._sampler.spp(n)
+        self._spp = self._sampler._spp 
+        self._film.set_nsamples(self._spp)
 
-    def get_samplers(self):
-        pass
-
-    def _get_sampler(self):
-        return self._sampler
+    def set_samplers(self, samplers): #Tip: First solve for one sampler
+        self._sampler = samplers[0]
+        self._samplers = samplers
+        self._ready = False
 
     def threads(self, n):
         nc = abs(int(n))
@@ -50,21 +60,27 @@ class Renderer:
         self._film.reset()
         self._ready = True
 
-    def _create_runtimes(self):
-        self._runtimes = [Runtime() for n in range(self._threads)] 
-        self._sampler.get_sample_asm(self._runtimes, 'get_sample')
-        self._camera.ray_asm(self._runtimes, 'get_ray')
+    def reset(self):
+        self._tiles = create_tiles(self._width, self._height, self._spp, self._max_samples, self._threads)
+        self._tiles2 = list(self._tiles)
 
-        self._algorithm.algorithm_asm(self._runtimes)
+    def camera_moved(self, edx, edy, edz, ldx, ldy, ldz):#regulation of distance is missing for now
+        self._tiles = list(self._tiles2)
+        self._camera.camera_moved(edx, edy, edz, ldx, ldy, ldz)
 
-    def set_algorithm(self, name, asm=False):
-        pass
+    def set_integrator(self, name):
+        self._ready = False
 
-    def get_algorithm():
-        pass
+    def set_camera(self, camera):
+        self._camera = camera 
+        self._ready = False
 
-    def add(name, obj): #add material, shape, light etc...
-        pass
+    def add(self, name, obj): #add material, shape, light etc...
+        if isinstance(obj, Shape):
+            self._intersector.add(name, obj)
+        else:
+            raise ValueError("Unknown type of object!") #TODO log not exception !!! exception is just for testing
+        self._ready = False
 
     def render(self):
         if not self._ready: self.prepare()
@@ -76,41 +92,4 @@ class Renderer:
 
         self._integrator.render(tile)
         return True
-
-    def reset(self):
-        self._create_tiles()
-
-    def _create_tiles(self):
-
-        width = self._width
-        height = self._height
-
-        w = h = int(math.sqrt(self._max_samples / self._spp))
-        #w = h = 50
-        sx = sy = 0
-        xcoords = []
-        ycoords = []
-        tiles = []
-        while sx < width:
-            xcoords.append(sx)
-            sx += w
-        last_w = width - (sx - w) 
-        while sy < height:
-            ycoords.append(sy)
-            sy += h
-        last_h = height - (sy - h)
-
-        for i in xcoords:
-            for j in ycoords:
-                tw = w
-                th = h
-                if i == xcoords[-1]:
-                    tw = last_w
-                if j == ycoords[-1]:
-                    th = last_h
-                t = Tile(i, j, tw, th)
-                t.split(self._threads) #multithreading
-                tiles.append(t)
-
-        self._tiles = tiles
 

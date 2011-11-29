@@ -16,8 +16,8 @@ class Renderer:
 
         self._intersector = Intersector()
         self._integrator = IsectIntegrator(self)
-        #self._sampler = RegularSampler(self._width, self._height)
-        self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
+        self._sampler = RegularSampler(self._width, self._height)
+        #self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
         self._spp = self._sampler._spp
         self._film = Film(self._width, self._height, self._spp)
         self._camera = Pinhole(self._eye, self._lookat, self._distance)
@@ -27,10 +27,15 @@ class Renderer:
         self._height = 200 
         self._spp = 1 
         self._threads = 1
-        self._max_samples = 10000000 #max samples in tile
+        self._max_samples = 100000 #max samples in tile
         self._eye = (10, 10, 10)
         self._lookat = (0, 0, 0)
         self._distance = 400
+
+    def asm(self, flag):
+        self._asm = bool(flag)
+        self._integrator.asm(flag)
+        self._ready = False
 
     def resolution(self, width, height):
         self._width = width
@@ -43,6 +48,9 @@ class Renderer:
         self._spp = self._sampler._spp 
         self._film.set_nsamples(self._spp)
 
+    def blt_frame_buffer(self):
+        self._film.blt_image_to_buffer()
+        
     def set_samplers(self, samplers): #Tip: First solve for one sampler
         self._sampler = samplers[0]
         self._samplers = samplers

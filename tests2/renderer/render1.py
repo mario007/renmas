@@ -6,7 +6,8 @@ import renmas2
 import renmas2.core
 import renmas2.shapes
 
-rnd = renmas2.Renderer()
+renderer = renmas2.Renderer()
+irender = renmas2.IRender(renderer)
 
 blitter = renmas2.core.Blitter()
 def blt_float_img_to_window(x, y, img, win):
@@ -16,15 +17,10 @@ def blt_float_img_to_window(x, y, img, win):
     sw, sh = img.get_size()
     blitter.blt_floatTorgba(da, x, y, dw, dh, dpitch, sa, 0, 0, sw, sh, spitch)
 
-def random_spheres(renderer, n):
-    for i in range(n):
-        center = renmas2.core.Vector3(0.0, 0.0, 0.0)
-        radius = random.random() * 1.5 
-        sph = renmas2.shapes.Sphere(center, radius, 0)
-        renderer.add('sphere'+str(i), sph)
+filename = 'I:\\GitRENMAS\\scenes\\sphere1.py'
+exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(globals()))
 
-random_spheres(rnd, 1)
-rnd.prepare()
+renderer.prepare()
 
 #start = time.clock()
 #while True:
@@ -35,12 +31,12 @@ rnd.prepare()
 #print(end-start)
 
 def render_scene():
-    ret = rnd.render()
+    ret = renderer.render()
     if not ret: return 
-    blt_float_img_to_window(0, 0, rnd._film.image, win)
+    blt_float_img_to_window(0, 0, renderer._film.image, win)
 
 win = renmas2.core.MainWindow(600, 400, "Test")
-blt_float_img_to_window(0, 0, rnd._film.image, win)
+blt_float_img_to_window(0, 0, renderer._film.image, win)
 win.redraw()
 win.render_handler(render_scene)
 winlib.MainLoop()

@@ -23,7 +23,7 @@ namespace RenmasWPF
     /// </summary>
     public partial class Window1 : Window
     {
-        Renmas ren;
+        Renmas renmas;
         bool rendering = false;
 
         // -------------GUI MenuItems --------------------------
@@ -34,11 +34,7 @@ namespace RenmasWPF
         private TextBox camera_eye_x, camera_eye_y, camera_eye_z;
         private TextBox camera_lookat_x, camera_lookat_y, camera_lookat_z;
         private TextBox camera_distance;
-
-        private Grid main_grid;
-        private object content;
-        private object sve_zivo;
-
+       
         // -------------- GUI Image for represent FrameBuffer
         private Image frame_buffer_control;
 
@@ -52,58 +48,92 @@ namespace RenmasWPF
         public Window1()
         {
             InitializeComponent();
-            ren = new Renmas();
-            //ren.RunFile("G:\\renmas_scripts\\sphere.py");
-            //ren.RunFile("G:\\renmas_scripts\\sphere.py");
-            //ren.SetProp("camera", "eye", "3.3,4.4,5.5");
-            //string text = ren.GetProp("camera", "eye");
-            LoadGUI();
-            
+            try
+            {
+                renmas = new Renmas();
+                LoadGUI();
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(e.Message);
+            }
         }
 
         private void LoadGUI()
-        {
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
-            dlg.FileName = "Document"; // Default file name
-            dlg.DefaultExt = ".xaml"; // Default file extension
-            dlg.Filter = "GUI XAML (.xaml)|*.xaml"; // Filter files by extension
-
-            Nullable<bool> result = dlg.ShowDialog();
-            if (result == true)
-            {
-                string filename = dlg.FileName;
-                try
-                {
-                    FileStream s = new FileStream(filename, FileMode.Open);
-                    DependencyObject rootElement = (DependencyObject)XamlReader.Load(s);
-                    this.sve_zivo = rootElement;
-                    //this.main_grid = (Grid)LogicalTreeHelper.FindLogicalNode(rootElement, "LayoutRoot");
-                    //Window win = (Window)LogicalTreeHelper.FindLogicalNode(rootElement, "Window");
-                    
-
-                    //this.content = win.Content;
-                    //win.Content = null;
-                    
-                    
-                    //this.Content = this.main_grid;
-                    this.Content = rootElement;
-                    this.Width = 800;
-                    this.Height = 600;
+        { 
+            string filename = this.GuiPath();
+            if (filename == "") return;
+            try {
+                FileStream s = new FileStream(filename, FileMode.Open);
+                DependencyObject rootElement = (DependencyObject)XamlReader.Load(s);
+                this.Content = rootElement;
+                this.Width = 800;
+                this.Height = 600;
                   
-                    SolidColorBrush mySolidColorBrush = new SolidColorBrush();
-                    mySolidColorBrush.Color = Color.FromArgb(255, 47, 47, 47);
-                    this.Background = mySolidColorBrush;
-                    
-                    // Bind Events for Loaded GUI
-                    this.BindGuiEvents(rootElement);
-
-                }
-                catch (Exception e)
-                {
-                    this.Width = 640;
-                }
-            }     
+                SolidColorBrush mySolidColorBrush = new SolidColorBrush();
+                mySolidColorBrush.Color = Color.FromArgb(255, 47, 47, 47);
+                this.Background = mySolidColorBrush;
+                this.BindGui(rootElement);
+            }
+            catch (Exception e) {
+                this.Width = 640;
+            }
         }
+        private string GuiPath()
+        {
+            if (File.Exists(".\\GUI\\MainWindow.xaml")) {
+                return ".\\GUI\\MainWindow.xaml";
+            }
+            else {
+                Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
+                dlg.FileName = "Document"; // Default file name
+                dlg.DefaultExt = ".xaml"; // Default file extension
+                dlg.Filter = "GUI XAML (.xaml)|*.xaml"; // Filter files by extension  
+                Nullable<bool> result = dlg.ShowDialog();
+                if (result == true) {
+                    return dlg.FileName;
+                }
+                else {
+                    return "";
+                }
+            }
+        }
+        private void BindGui(DependencyObject el)
+        {
+            this.tools_run_script = (MenuItem)LogicalTreeHelper.FindLogicalNode(el, "tools_run_script");
+            if (this.tools_run_script != null) this.tools_run_script.Click += menu_run_script;
+            this.tools_render = (MenuItem)LogicalTreeHelper.FindLogicalNode(el, "tools_render");
+            if (this.tools_render != null) this.tools_render.Click += menu_tools_render;
+            this.frame_buffer_control = (Image)LogicalTreeHelper.FindLogicalNode(el, "render_window");
+
+            // Camera 
+            this.camera_eye_x = (TextBox)LogicalTreeHelper.FindLogicalNode(el, "camera_eye_x");
+            this.camera_eye_y = (TextBox)LogicalTreeHelper.FindLogicalNode(el, "camera_eye_y");
+            this.camera_eye_z = (TextBox)LogicalTreeHelper.FindLogicalNode(el, "camera_eye_z");
+            this.camera_lookat_x = (TextBox)LogicalTreeHelper.FindLogicalNode(el, "camera_lookat_x");
+            this.camera_lookat_y = (TextBox)LogicalTreeHelper.FindLogicalNode(el, "camera_lookat_y");
+            this.camera_lookat_z = (TextBox)LogicalTreeHelper.FindLogicalNode(el, "camera_lookat_z");
+            this.camera_distance = (TextBox)LogicalTreeHelper.FindLogicalNode(el, "camera_distance");
+
+            string value = this.renmas.GetProp("camera", "eye");
+            string[] words = value.Split(',');
+            this.camera_eye_x.Text = words[0];
+            this.camera_eye_y.Text = words[1];
+            this.camera_eye_z.Text = words[2];
+            this.camera_eye_x.LostFocus += cam_eye_lf;
+            this.camera_eye_y.LostFocus += cam_eye_lf;
+            this.camera_eye_z.LostFocus += cam_eye_lf;
+            this.camera_eye_x.KeyDown += enter_pressed;
+        }
+        private void enter_pressed(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Return) this.camera_eye_x.Text = "DDD";   
+        }
+        private void cam_eye_lf(object sender, RoutedEventArgs e)
+        {
+            this.camera_eye_x.Text = "SSS";
+        }
+
         private void BindGuiEvents(DependencyObject element)
         {
             // MENU GUI------------
@@ -204,13 +234,13 @@ namespace RenmasWPF
             {
                 string filename = dlg.FileName;
                 //this.save_jpg(filename, 100, this.FrameSource());
-                this.save_png(filename, this.FrameSource());
+                this.save_png(filename, this.renmas.BufferSource());
             }
         }
         private void select_algorithm_evt(object sender, RoutedEventArgs e)
         {
             string text = (string)this.cb_algorithm.SelectedItem;
-            this.ren.SetProp("global_settings", "algorithm", text);
+            this.renmas.SetProp("global_settings", "algorithm", text);
         }
         private void menu_run_script(object sender, RoutedEventArgs e)
         {
@@ -222,14 +252,14 @@ namespace RenmasWPF
             if (result == true)
             {
                 string filename = dlg.FileName;
-                int result2 = this.ren.RunFile(filename);
+                int result2 = this.renmas.RunFile(filename);
                 if (result2 == -1)
                 {
                     // alert user about failure
                     return;
                 }
-                this.update_camera();
-                this.update_global_settings();
+                //this.update_camera();
+                //this.update_global_settings();
             }
             
         }
@@ -244,7 +274,7 @@ namespace RenmasWPF
             catch (Exception ex) { eyez = 10.0f; }
 
             string value = eyex.ToString() + "," + eyey.ToString() + "," + eyez.ToString();
-            this.ren.SetProp("camera", "eye", value);
+            this.renmas.SetProp("camera", "eye", value);
         }
 
         private void camera_distance_changed(object sender, RoutedEventArgs e)
@@ -253,7 +283,7 @@ namespace RenmasWPF
             try { distance = Convert.ToSingle(this.camera_distance.Text); }
             catch (Exception ex) { distance = 400.0f; }
             string value = distance.ToString();
-            this.ren.SetProp("camera", "distance", value);
+            this.renmas.SetProp("camera", "distance", value);
 
         }
 
@@ -268,7 +298,7 @@ namespace RenmasWPF
             catch (Exception ex) { lookatz = 0.0f; }
 
             string value = lookatx.ToString() + "," + lookaty.ToString() + "," + lookatz.ToString();
-            this.ren.SetProp("camera", "lookat", value);
+            this.renmas.SetProp("camera", "lookat", value);
         }
 
         private void resolution_changed(object sender, RoutedEventArgs e)
@@ -286,7 +316,7 @@ namespace RenmasWPF
             catch (Exception ex) { height = 200; }
             
             string text = width.ToString() + "," + height.ToString();
-            this.ren.SetProp("global_settings", "resolution", text);
+            this.renmas.SetProp("global_settings", "resolution", text);
         }
 
         private void pixel_resize(object sender, RoutedEventArgs e)
@@ -299,7 +329,7 @@ namespace RenmasWPF
             catch (Exception ex) { pix_size = 1.0f; }
 
             string text = pix_size.ToString();
-            this.ren.SetProp("global_settings", "pixel_size", text);
+            this.renmas.SetProp("global_settings", "pixel_size", text);
         }
         private void samples_per_pixel_evt(object sender, RoutedEventArgs e)
         {
@@ -311,22 +341,22 @@ namespace RenmasWPF
             catch (Exception ex) { nsamples = 1; }
 
             string text = nsamples.ToString();
-            this.ren.SetProp("global_settings", "samples_per_pixel", text);
+            this.renmas.SetProp("global_settings", "samples_per_pixel", text);
         }
 
         private void menu_tools_render(object sender, RoutedEventArgs e)
         {
-            int ret = ren.PrepareForRendering();
-            string text = ren.GetProp("log", "");
-            this.logger(text);
-            if (ret == 0) return; //something is wrong, we quit rendering
+            this.renmas.Prepare();
+            //string text = renmas.GetProp("log", "");
+            //this.logger(text);
             this.rendering = true;
             DateTime start = DateTime.Now;
             while (true)
             {
-                int res = ren.RenderTile();
-                this.frame_buffer_control.Source = this.FrameSource();
-                if (res != 0) break;
+                int res = renmas.RenderTile();
+                this.renmas.BltBuffer();
+                this.frame_buffer_control.Source = this.renmas.BufferSource();
+                if (res == 0) break;
                 if (!rendering) break;
                 this.DoEvents();
             }
@@ -342,29 +372,29 @@ namespace RenmasWPF
 
         private void update_camera()
         {
-            string value = ren.GetProp("camera", "eye");
+            string value = renmas.GetProp("camera", "eye");
             string[] words = value.Split(',');
             this.camera_eye_x.Text = words[0];
             this.camera_eye_y.Text = words[1];
             this.camera_eye_z.Text = words[2];
-            value = ren.GetProp("camera", "lookat");
+            value = renmas.GetProp("camera", "lookat");
             string[] words2 = value.Split(',');
             this.camera_lookat_x.Text = words2[0];
             this.camera_lookat_y.Text = words2[1];
             this.camera_lookat_z.Text = words2[2];
-            value = ren.GetProp("camera", "distance");
+            value = renmas.GetProp("camera", "distance");
             this.camera_distance.Text = value;  
         }
 
         private void update_global_settings()
         {
-            string value = ren.GetProp("global_settings", "resolution");
+            string value = renmas.GetProp("global_settings", "resolution");
             string[] words = value.Split(',');
             this.resolution_x.Text = words[0];
             this.resolution_y.Text = words[1];
-            value = ren.GetProp("global_settings", "pixel_size");
+            value = renmas.GetProp("global_settings", "pixel_size");
             this.pixel_size.Text = value;
-            value = ren.GetProp("global_settings", "samples_per_pixel");
+            value = renmas.GetProp("global_settings", "samples_per_pixel");
             this.samples_per_pixel.Text = value;
             this.cb_algorithm.Items.Clear();
             this.cb_algorithm.Items.Add("raycast_py");
@@ -389,22 +419,6 @@ namespace RenmasWPF
             ((DispatcherFrame)f).Continue = false;
 
             return null;
-        }
-
-        private BitmapSource FrameSource()
-        {
-            int width = ren.WidthFrameBuffer();
-            int height = ren.HeightFrameBuffer();
-            int pitch = ren.PitchFrameBuffer();
-            uint addr = ren.AddrFrameBuffer();
-            //PixelFormat pixformat = PixelFormats.Rgb128Float;
-            PixelFormat pixformat = PixelFormats.Bgra32;
-            IntPtr ptr = new IntPtr(addr);
-
-            BitmapSource image = BitmapSource.Create(width, height,
-                96, 96, pixformat, null, ptr, height*pitch, pitch);
-            return image;
-            
         }
         
     }

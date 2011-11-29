@@ -26,6 +26,15 @@ class Camera:
             self.v = Vector3(0.0, 0.0, 1.0)
             self.w = Vector3(0.0, -1.0, 0.0)
 
+    def get_eye(self):
+        return (self.eye.x, self.eye.y, self.eye.z)
+
+    def get_lookat(self):
+        return (self.lookat.x, self.lookat.y, self.lookat.z)
+
+    def get_distance(self):
+        return self.distance
+
     def set_eye(self, x, y, z):
         self.eye = renmas.maths.Vector3(float(x), float(y), float(z))
         self._update_camera()

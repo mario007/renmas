@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="windows-1250"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="9.00"
 	Name="RenmasAPI"
 	ProjectGUID="{82B0157D-89E9-4A42-ACAA-4014A7797BEB}"
 	RootNamespace="RenmasAPI"

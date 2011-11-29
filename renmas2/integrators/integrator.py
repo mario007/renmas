@@ -12,8 +12,7 @@ class Integrator:
         if self._asm:
             self.render_asm(tile)
         else:
-            self.render_asm(tile)
-            #self.render_py(tile)
+            self.render_py(tile)
 
     def render_py(self, tile):
         raise NotImplementedError()

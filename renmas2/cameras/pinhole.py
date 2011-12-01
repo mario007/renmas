@@ -6,6 +6,7 @@ from .camera import Camera
 class Pinhole(Camera):
     def __init__(self, eye, lookat, distance=100):
         super(Pinhole, self).__init__(eye, lookat, distance)
+        self._ds = None
 
     def ray(self, sample):
         direction = self.u * sample.x + self.v * sample.y - self.w * self.distance

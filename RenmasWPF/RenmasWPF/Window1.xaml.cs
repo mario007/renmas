@@ -35,7 +35,7 @@ namespace RenmasWPF
         private TextBox camera_lookat_x, camera_lookat_y, camera_lookat_z;
         private TextBox camera_distance;
        
-        // -------------- GUI Image for represent FrameBuffer
+        // -------------- GUI Control for represent FrameBuffer
         private Image frame_buffer_control;
 
         // -------------- Logger
@@ -76,7 +76,7 @@ namespace RenmasWPF
                 this.BindGui(rootElement);
             }
             catch (Exception e) {
-                this.Width = 640;
+                throw new Exception(e.Message);
             }
         }
         private string GuiPath()
@@ -100,43 +100,83 @@ namespace RenmasWPF
         }
         private void BindGui(DependencyObject el)
         {
-            this.tools_run_script = (MenuItem)LogicalTreeHelper.FindLogicalNode(el, "tools_run_script");
-            if (this.tools_run_script != null) this.tools_run_script.Click += menu_run_script;
-            this.tools_render = (MenuItem)LogicalTreeHelper.FindLogicalNode(el, "tools_render");
-            if (this.tools_render != null) this.tools_render.Click += menu_tools_render;
+            this.BindCameraGUI(el);
+            this.get_camera();
+            this.BindMenuGUI(el);
+            
             this.frame_buffer_control = (Image)LogicalTreeHelper.FindLogicalNode(el, "render_window");
-
-            // Camera 
-            this.camera_eye_x = (TextBox)LogicalTreeHelper.FindLogicalNode(el, "camera_eye_x");
-            this.camera_eye_y = (TextBox)LogicalTreeHelper.FindLogicalNode(el, "camera_eye_y");
-            this.camera_eye_z = (TextBox)LogicalTreeHelper.FindLogicalNode(el, "camera_eye_z");
-            this.camera_lookat_x = (TextBox)LogicalTreeHelper.FindLogicalNode(el, "camera_lookat_x");
-            this.camera_lookat_y = (TextBox)LogicalTreeHelper.FindLogicalNode(el, "camera_lookat_y");
-            this.camera_lookat_z = (TextBox)LogicalTreeHelper.FindLogicalNode(el, "camera_lookat_z");
-            this.camera_distance = (TextBox)LogicalTreeHelper.FindLogicalNode(el, "camera_distance");
-
-            string value = this.renmas.GetProp("camera", "eye");
-            string[] words = value.Split(',');
-            this.camera_eye_x.Text = words[0];
-            this.camera_eye_y.Text = words[1];
-            this.camera_eye_z.Text = words[2];
-            this.camera_eye_x.LostFocus += cam_eye_lf;
-            this.camera_eye_y.LostFocus += cam_eye_lf;
-            this.camera_eye_z.LostFocus += cam_eye_lf;
-            this.camera_eye_x.KeyDown += enter_pressed;
+            this.log_output = (TextBox)LogicalTreeHelper.FindLogicalNode(el, "log_output");
+            this.BindGlobalSettingsGUI(el);
+            this.get_global_settings();
         }
-        private void enter_pressed(object sender, KeyEventArgs e)
+        private void camera_enter_pressed(object sender, KeyEventArgs e)
         {
-            if (e.Key == Key.Return) this.camera_eye_x.Text = "DDD";   
+            if (e.Key == Key.Return) this.update_camera();   
         }
-        private void cam_eye_lf(object sender, RoutedEventArgs e)
+        private void camera_lost_focus(object sender, RoutedEventArgs e)
         {
-            this.camera_eye_x.Text = "SSS";
+            this.update_camera();
         }
 
-        private void BindGuiEvents(DependencyObject element)
+        private void BindCameraGUI(DependencyObject element)
         {
-            // MENU GUI------------
+            this.camera_eye_x = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_eye_x");
+            this.camera_eye_y = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_eye_y");
+            this.camera_eye_z = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_eye_z");
+            this.camera_lookat_x = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_lookat_x");
+            this.camera_lookat_y = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_lookat_y");
+            this.camera_lookat_z = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_lookat_z");
+            this.camera_distance = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_distance");
+
+            this.camera_eye_x.LostFocus += camera_lost_focus;
+            this.camera_eye_y.LostFocus += camera_lost_focus;
+            this.camera_eye_z.LostFocus += camera_lost_focus;
+            this.camera_lookat_x.LostFocus += camera_lost_focus;
+            this.camera_lookat_y.LostFocus += camera_lost_focus;
+            this.camera_lookat_z.LostFocus += camera_lost_focus;
+            this.camera_distance.LostFocus += camera_lost_focus;
+
+            this.camera_eye_x.KeyDown += camera_enter_pressed;
+            this.camera_eye_y.KeyDown += camera_enter_pressed;
+            this.camera_eye_z.KeyDown += camera_enter_pressed;
+            this.camera_lookat_x.KeyDown += camera_enter_pressed;
+            this.camera_lookat_y.KeyDown += camera_enter_pressed;
+            this.camera_lookat_z.KeyDown += camera_enter_pressed;
+            this.camera_distance.KeyDown += camera_enter_pressed;
+        }
+
+        private void BindGlobalSettingsGUI(DependencyObject element)
+        {
+            this.resolution_x = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "output_resolution_x");
+            this.resolution_y = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "output_resolution_y");
+            this.pixel_size = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "output_pixelsize");
+            this.samples_per_pixel = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "output_samples");
+
+            this.resolution_x.LostFocus += global_settings_lost_focus;
+            this.resolution_y.LostFocus += global_settings_lost_focus;
+            this.samples_per_pixel.LostFocus += global_settings_lost_focus;
+            this.pixel_size.LostFocus += global_settings_lost_focus;
+
+            this.resolution_x.KeyDown += global_settings_enter_pressed;
+            this.resolution_y.KeyDown += global_settings_enter_pressed;
+            this.samples_per_pixel.KeyDown += global_settings_enter_pressed;
+            this.pixel_size.KeyDown += global_settings_enter_pressed;
+
+            this.cb_algorithm = (ComboBox)LogicalTreeHelper.FindLogicalNode(element, "cb_algorithm");
+        }
+
+        private void global_settings_enter_pressed(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Return) this.update_global_settings();
+        }
+
+        private void global_settings_lost_focus(object sender, RoutedEventArgs e)
+        {
+            this.update_global_settings();
+        }
+
+        private void BindMenuGUI(DependencyObject element)
+        {
             this.file_exit = (MenuItem)LogicalTreeHelper.FindLogicalNode(element, "file_exit");
             if (this.file_exit != null) this.file_exit.Click += menu_file_exit;
             this.tools_run_script = (MenuItem)LogicalTreeHelper.FindLogicalNode(element, "tools_run_script");
@@ -147,49 +187,6 @@ namespace RenmasWPF
             if (this.tools_stop != null) this.tools_stop.Click += menu_tools_stop;
             this.file_export_image = (MenuItem)LogicalTreeHelper.FindLogicalNode(element, "file_save_image");
             if (this.file_export_image != null) this.file_export_image.Click += menu_file_save_image;
-
-            // TEXTBOX 
-            this.camera_eye_x = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_eye_x");
-            this.camera_eye_y = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_eye_y");
-            this.camera_eye_z = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_eye_z");
-            this.camera_lookat_x = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_lookat_x");
-            this.camera_lookat_y = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_lookat_y");
-            this.camera_lookat_z = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_lookat_z");
-            this.camera_distance = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "camera_distance");
-
-            this.frame_buffer_control = (Image)LogicalTreeHelper.FindLogicalNode(element, "render_window");
-
-            this.log_output = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "log_output");
-
-            // Global Settings
-            this.resolution_x = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "output_resolution_x");
-            this.resolution_y = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "output_resolution_y");
-            
-            
-            
-            this.pixel_size = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "output_pixelsize");
-            this.samples_per_pixel = (TextBox)LogicalTreeHelper.FindLogicalNode(element, "output_samples");
-            this.cb_algorithm = (ComboBox)LogicalTreeHelper.FindLogicalNode(element, "cb_algorithm");
-
-            
-            this.update_global_settings();
-            this.update_camera();
-            
-            // changed events
-            this.resolution_x.TextChanged += resolution_changed;
-            this.resolution_y.TextChanged += resolution_changed;
-            this.pixel_size.TextChanged += pixel_resize;
-            this.samples_per_pixel.TextChanged += samples_per_pixel_evt;
-            this.cb_algorithm.SelectionChanged += select_algorithm_evt;
-
-            this.camera_eye_x.TextChanged += camera_eye_changed;
-            this.camera_eye_y.TextChanged += camera_eye_changed;
-            this.camera_eye_z.TextChanged += camera_eye_changed;
-            this.camera_lookat_x.TextChanged += camera_lookat_changed;
-            this.camera_lookat_y.TextChanged += camera_lookat_changed;
-            this.camera_lookat_z.TextChanged += camera_lookat_changed;
-            this.camera_distance.TextChanged += camera_distance_changed;
-            
         }
 
         private void logger(string text)
@@ -263,87 +260,7 @@ namespace RenmasWPF
             }
             
         }
-        private void camera_eye_changed(object sender, RoutedEventArgs e)
-        {
-            float eyex, eyey, eyez;
-            try { eyex = Convert.ToSingle(this.camera_eye_x.Text); }
-            catch (Exception ex) { eyex = 10.0f; }
-            try { eyey = Convert.ToSingle(this.camera_eye_y.Text); }
-            catch (Exception ex) { eyey = 10.0f; }
-            try { eyez = Convert.ToSingle(this.camera_eye_z.Text); }
-            catch (Exception ex) { eyez = 10.0f; }
-
-            string value = eyex.ToString() + "," + eyey.ToString() + "," + eyez.ToString();
-            this.renmas.SetProp("camera", "eye", value);
-        }
-
-        private void camera_distance_changed(object sender, RoutedEventArgs e)
-        {
-            float distance;
-            try { distance = Convert.ToSingle(this.camera_distance.Text); }
-            catch (Exception ex) { distance = 400.0f; }
-            string value = distance.ToString();
-            this.renmas.SetProp("camera", "distance", value);
-
-        }
-
-        private void camera_lookat_changed(object sender, RoutedEventArgs e)
-        {
-            float lookatx, lookaty, lookatz;
-            try { lookatx = Convert.ToSingle(this.camera_lookat_x.Text); }
-            catch (Exception ex) { lookatx = 0.0f; }
-            try { lookaty = Convert.ToSingle(this.camera_lookat_y.Text); }
-            catch (Exception ex) { lookaty = 0.0f; }
-            try { lookatz = Convert.ToSingle(this.camera_lookat_z.Text); }
-            catch (Exception ex) { lookatz = 0.0f; }
-
-            string value = lookatx.ToString() + "," + lookaty.ToString() + "," + lookatz.ToString();
-            this.renmas.SetProp("camera", "lookat", value);
-        }
-
-        private void resolution_changed(object sender, RoutedEventArgs e)
-        {
-            uint width, height;
-            try
-            {
-                width = Convert.ToUInt32(this.resolution_x.Text);
-            }
-            catch (Exception ex) { width = 200;  }
-            try
-            {
-                height = Convert.ToUInt32(this.resolution_y.Text);
-            }
-            catch (Exception ex) { height = 200; }
-            
-            string text = width.ToString() + "," + height.ToString();
-            this.renmas.SetProp("global_settings", "resolution", text);
-        }
-
-        private void pixel_resize(object sender, RoutedEventArgs e)
-        {
-            float pix_size;
-            try
-            {
-                pix_size = Convert.ToSingle(this.pixel_size.Text);
-            }
-            catch (Exception ex) { pix_size = 1.0f; }
-
-            string text = pix_size.ToString();
-            this.renmas.SetProp("global_settings", "pixel_size", text);
-        }
-        private void samples_per_pixel_evt(object sender, RoutedEventArgs e)
-        {
-            uint nsamples;
-            try
-            {
-                nsamples = Convert.ToUInt32(this.samples_per_pixel.Text);
-            }
-            catch (Exception ex) { nsamples = 1; }
-
-            string text = nsamples.ToString();
-            this.renmas.SetProp("global_settings", "samples_per_pixel", text);
-        }
-
+        
         private void menu_tools_render(object sender, RoutedEventArgs e)
         {
             this.renmas.Prepare();
@@ -370,32 +287,55 @@ namespace RenmasWPF
             this.rendering = false;
         }
 
-        private void update_camera()
+        private void update_global_settings()
         {
-            string value = renmas.GetProp("camera", "eye");
+            string value;
+            value = this.resolution_x.Text + "," + this.resolution_y.Text;
+            this.renmas.SetProp("misc", "resolution", value);
+            this.renmas.SetProp("misc", "spp", this.samples_per_pixel.Text);
+            this.renmas.SetProp("misc", "pixel_size", this.pixel_size.Text);
+            this.get_global_settings();
+        }
+        private void get_global_settings()
+        {
+            string value = this.renmas.GetProp("misc", "resolution");
+            string[] words = value.Split(',');
+            this.resolution_x.Text = words[0];
+            this.resolution_y.Text = words[1];
+            this.samples_per_pixel.Text = this.renmas.GetProp("misc", "spp");
+            this.pixel_size.Text = this.renmas.GetProp("misc", "pixel_size");
+        }
+        private void get_camera()
+        {
+            string value = this.renmas.GetProp("camera", "eye");
             string[] words = value.Split(',');
             this.camera_eye_x.Text = words[0];
             this.camera_eye_y.Text = words[1];
             this.camera_eye_z.Text = words[2];
-            value = renmas.GetProp("camera", "lookat");
-            string[] words2 = value.Split(',');
-            this.camera_lookat_x.Text = words2[0];
-            this.camera_lookat_y.Text = words2[1];
-            this.camera_lookat_z.Text = words2[2];
+
+            value = this.renmas.GetProp("camera", "lookat");
+            words = value.Split(',');
+            this.camera_lookat_x.Text = words[0];
+            this.camera_lookat_y.Text = words[1];
+            this.camera_lookat_z.Text = words[2];
             value = renmas.GetProp("camera", "distance");
             this.camera_distance.Text = value;  
         }
-
-        private void update_global_settings()
+        private void update_camera()
         {
-            string value = renmas.GetProp("global_settings", "resolution");
-            string[] words = value.Split(',');
-            this.resolution_x.Text = words[0];
-            this.resolution_y.Text = words[1];
-            value = renmas.GetProp("global_settings", "pixel_size");
-            this.pixel_size.Text = value;
-            value = renmas.GetProp("global_settings", "samples_per_pixel");
-            this.samples_per_pixel.Text = value;
+            string value;
+            value = this.camera_eye_x.Text + "," + this.camera_eye_y.Text + "," + this.camera_eye_z.Text;
+            this.renmas.SetProp("camera", "eye", value);
+            value = this.camera_lookat_x.Text + "," + this.camera_lookat_y.Text + "," + this.camera_lookat_z.Text;
+            this.renmas.SetProp("camera", "lookat", value);
+            value = this.camera_distance.Text;
+            this.renmas.SetProp("camera", "distance", value);
+            this.get_camera();
+        }
+
+        private void update_global_settings_old()
+        {
+            
             this.cb_algorithm.Items.Clear();
             this.cb_algorithm.Items.Add("raycast_py");
             this.cb_algorithm.Items.Add("raycast_asm");

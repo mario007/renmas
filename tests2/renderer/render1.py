@@ -17,6 +17,17 @@ def blt_float_img_to_window(x, y, img, win):
     sw, sh = img.get_size()
     blitter.blt_floatTorgba(da, x, y, dw, dh, dpitch, sa, 0, 0, sw, sh, spitch)
 
+irender.set_props("camera", "eye", "5.0,6.3,9.6")
+#renderer.set_pixel_size(1.5)
+#renderer.resolution(400, 300)
+irender.set_props('misc', 'pixel_size', '0.5')
+print(irender.get_props('misc', 'pixel_size'))
+irender.set_props('misc', 'resolution', '400,300')
+print (irender.get_props('misc', 'resolution'))
+irender.set_props('misc', 'spp', '64')
+print (irender.get_props('misc', 'spp'))
+#renderer.spp(1)
+renderer.threads(1)
 filename = 'I:\\GitRENMAS\\scenes\\sphere1.py'
 exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(globals()))
 

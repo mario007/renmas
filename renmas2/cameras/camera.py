@@ -35,15 +35,23 @@ class Camera:
     def get_distance(self):
         return self.distance
 
+    def _float(self, old, new):
+        try:
+            return float(new)
+        except:
+            return old 
+
     def set_eye(self, x, y, z):
-        self.eye = renmas.maths.Vector3(float(x), float(y), float(z))
+        eye = self.eye
+        self.eye = Vector3(self._float(eye.x, x), self._float(eye.y, y), self._float(eye.z, z))
         self._update_camera()
 
     def set_lookat(self, x, y, z):
-        self.lookat = renmas.maths.Vector3(float(x), float(y), float(z))
+        lookat = self.lookat
+        self.lookat = Vector3(self._float(lookat.x, x), self._float(lookat.y, y), self._float(lookat.z, z))
         self._update_camera()
 
-    def camera_moved(self, edx, edy, edz, ldx, ldy, ldz):#regulation of distance is missing for now
+    def camera_moved(self, edx, edy, edz, ldx, ldy, ldz):#regulation of distance is missing for now TODO not tested
         self.eye.x += edx
         self.eye.y += edy
         self.eye.z += edz
@@ -53,7 +61,7 @@ class Camera:
         self._update_camera()
 
     def set_distance(self, distance):
-        self.distance = float(distance)
+        self.distance = self._float(self.distance, distance)
         self._update_camera()
 
     def ray(self, sample):

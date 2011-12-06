@@ -14,13 +14,18 @@ class Intersector:
         self._shape_addr = {} # shape:idx  - using index in dynamic array we can calculate address
         self._shape_arrays = {} # DynamicArrays for assembly rendering
 
+    def shape(self, name):
+        if name in self._shape_names:
+            return self._shape_names[name]
+        return None
+
     def add(self, name, shape):
         if name in self._shape_names:
             log.info("Shape with that name allready exist!!!")
             return
         #TODO Check if shape has valid material - put default it it doesn't have
         self._shape_names[name] = shape #name:shape
-        # Tip: Be very carefull - dynamic are do automatic resize by himself
+        # Tip: Be very carefull - dynamic arrays do automatic resize by himself
         if type(shape) not in self._shape_arrays:
             darr = DynamicArray(compiled_struct(shape.name()))
             self._shape_arrays[type(shape)] = darr

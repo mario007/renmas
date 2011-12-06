@@ -4,9 +4,12 @@ from ..samplers import RandomSampler, RegularSampler
 from ..cameras import Pinhole
 from ..integrators import Raycast, IsectIntegrator
 from ..shapes import Shape
+from ..lights import Light
 from .intersector import Intersector
 from .film import Film
 from .methods import create_tiles
+from .shader import Shader
+from .material import Material
 
 class Renderer:
     def __init__(self):
@@ -15,12 +18,14 @@ class Renderer:
         self._default_values()
 
         self._intersector = Intersector()
-        self._integrator = IsectIntegrator(self)
+        #self._integrator = IsectIntegrator(self)
+        self._integrator = Raycast(self)
         #self._sampler = RegularSampler(self._width, self._height)
         self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
         self._spp = self._sampler._spp
         self._film = Film(self._width, self._height, self._spp)
         self._camera = Pinhole(self._eye, self._lookat, self._distance)
+        self._shader = Shader()
 
     def _default_values(self):
         self._width =  200 
@@ -101,10 +106,25 @@ class Renderer:
     def add(self, name, obj): #add material, shape, light etc...
         if isinstance(obj, Shape):
             self._intersector.add(name, obj)
+        elif isinstance(obj, Material) or isinstance(obj, Light):
+            self._shader.add(name, obj)
         else:
             raise ValueError("Unknown type of object!") #TODO log not exception !!! exception is just for testing
         self._ready = False
 
+    def assign_material(self, shape, material):
+        mat = self._shader.mat_idx(material) 
+        if mat is None:
+            #TODO Log
+            return False
+        shape = self._intersector.shape(shape)
+        if shape is None:
+            # TODO Log
+            return False
+        shape.material = mat 
+        self._intersector.update(shape)
+        self._ready = False
+        
     def render(self):
         if not self._ready: self.prepare()
         if not self._ready: return None #unexpected error ocur!!!! TODO

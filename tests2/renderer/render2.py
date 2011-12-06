@@ -9,6 +9,14 @@ import renmas2.shapes
 renderer = renmas2.Renderer()
 irender = renmas2.IRender(renderer)
 
+factory = renmas2.core.Factory()
+m1 = {"lambertian":{"spectrum":(0.0, 0.6, 0.0)}}
+m = factory.create_material(brdfs=(m1,))
+
+renderer.add("m1", m)
+l = factory.create_light(type="point", spectrum=(3.0,3.0,3.0), position=(10,10,10))
+renderer.add("l1", l)
+
 blitter = renmas2.core.Blitter()
 def blt_float_img_to_window(x, y, img, win):
     da, dpitch = win.get_addr()
@@ -17,19 +25,10 @@ def blt_float_img_to_window(x, y, img, win):
     sw, sh = img.get_size()
     blitter.blt_floatTorgba(da, x, y, dw, dh, dpitch, sa, 0, 0, sw, sh, spitch)
 
-irender.set_props("camera", "eye", "5.0,6.3,9.6")
-#renderer.set_pixel_size(1.5)
-#renderer.resolution(400, 300)
-irender.set_props('misc', 'pixel_size', '0.5')
-print(irender.get_props('misc', 'pixel_size'))
-irender.set_props('misc', 'resolution', '400,300')
-print (irender.get_props('misc', 'resolution'))
-irender.set_props('misc', 'spp', '1')
-print (irender.get_props('misc', 'spp'))
-#renderer.spp(1)
 renderer.threads(1)
 filename = 'I:\\GitRENMAS\\scenes\\sphere1.py'
 exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(globals()))
+renderer.assign_material("Sphere00", 'm1')
 
 renderer.prepare()
 
@@ -51,4 +50,5 @@ blt_float_img_to_window(0, 0, renderer._film.image, win)
 win.redraw()
 win.render_handler(render_scene)
 winlib.MainLoop()
+
 

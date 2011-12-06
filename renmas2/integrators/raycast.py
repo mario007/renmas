@@ -1,78 +1,44 @@
 
 import x86
-from ..core import get_structs
+from tdasm import Runtime
+from .integrator import Integrator 
+from ..core import get_structs, Spectrum
 from ..macros import macro_call, assembler
+from ..shapes import HitPoint
 
-class Raycast:
+class Raycast(Integrator):
     def __init__(self, renderer):
-        self._renderer = renderer
-        self._asm = False
+        super(Raycast, self).__init__(renderer)
         self._ds = None
 
-    def asm(self, flag):
-        self._asm = bool(flag)
-
-    def render(self, tile):
-        if self._asm:
-            self.render_asm(tile)
-        else:
-            #self.render_asm(tile)
-            self.render_py(tile)
-
     def render_py(self, tile):
-        sampler = self._renderer._get_sampler()
+        sampler = self._renderer._sampler
         sampler.set_tile(tile)
         camera = self._renderer._camera
+        intersector = self._renderer._intersector
+        film = self._renderer._film
+        shader = self._renderer._shader
+        renderer = self._renderer
+
+        background = Spectrum(0.99, 0.0, 0.0)
+        hp1 = HitPoint()
+        hp1.spectrum = background
 
         while True:
             sam = sampler.get_sample()
             if sam is None: break 
             ray = camera.ray(sam) 
+            hp = intersector.isect(ray) 
+            if hp:
+                hp.wo = ray.dir * -1.0
+                shader.shade(hp, renderer)
+                film.add_sample(sam, hp)
+            else:
+                film.add_sample(sam, hp1) #background
 
     def render_asm(self, tile):
-        sampler = self._renderer._get_sampler()
-        sampler.set_tile(tile)
-        runtimes = self._renderer._runtimes
-        
-        addrs = []
-        for i in range(len(tile.lst_tiles)):
-            r = runtimes[i]
-            addrs.append(r.address_module('raycast_integrator'))
+        pass
 
-        x86.ExecuteModules(tuple(addrs))
+    def prepare(self):
+        pass
 
-    def algorithm_asm(self, runtimes):
-        
-        code = """
-            #DATA
-        """
-        code += get_structs(('sample', 'ray')) + """
-            sample sample1
-            ray ray1
-            #CODE
-            _main_loop:
-            mov eax, sample1
-            call get_sample
-            cmp eax, 0
-            je _end_rendering
-
-            mov eax, sample1
-            mov ebx, ray1
-            call get_ray
-
-
-            jmp _main_loop
-
-            _end_rendering:
-            #END
-        """
-
-        macro_call.set_runtimes(runtimes)
-        mc = assembler.assemble(code)
-        #mc.print_machine_code()
-        name = "raycast_integrator"
-        self._ds = []
-        for r in runtimes:
-            self._ds.append(r.load(name, mc))
-
-    

@@ -214,7 +214,7 @@ class Renderer:
 
 
     def set_material_to_shape(self, material_name, shape_name):
-        mat = self_material(material_name)
+        mat = self.material(material_name)
         if mat is None:
             log.info("Add material to shape! Material doesn't exist!")
             return False

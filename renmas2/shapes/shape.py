@@ -15,7 +15,7 @@ class Shape:
     # ecx = pointer to minimum distance
     # edx = pointer to hitpoint
     @classmethod
-    def isect_asm(cls, runtimes, label):
+    def isect_asm(cls, runtimes, label, assembler, structures):
         pass
 
     @classmethod

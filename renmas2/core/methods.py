@@ -1,14 +1,5 @@
 import math
-from .structures import Structures
 from .tile import Tile
-
-_structs = Structures()
-
-def get_structs(names):
-    return _structs.structs(names)
-
-def compiled_struct(name):
-    return _structs.get_compiled_struct(name)
 
 def create_tiles(width, height, spp, max_samples, nthreads):
 

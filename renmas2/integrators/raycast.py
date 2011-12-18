@@ -2,8 +2,7 @@
 import x86
 from tdasm import Runtime
 from .integrator import Integrator 
-from ..core import get_structs, Spectrum
-from ..macros import macro_call, assembler
+from ..core import Spectrum
 from ..shapes import HitPoint
 
 class Raycast(Integrator):

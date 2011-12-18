@@ -1,6 +1,5 @@
 
-from ..core import get_structs, Ray 
-from ..macros import macro_call, assembler
+from ..core import Ray 
 from .camera import Camera
 
 class Pinhole(Camera):
@@ -15,8 +14,8 @@ class Pinhole(Camera):
 
     #eax - pointer to sample structure
     #ebx - pointer to ray structure
-    def ray_asm(self, runtimes, label):
-        asm_structs = get_structs(('ray', 'sample'))
+    def ray_asm(self, runtimes, label, assembler, structures):
+        asm_structs = structures.structs(('ray', 'sample'))
         code = """
             #DATA
         """
@@ -42,7 +41,6 @@ class Pinhole(Camera):
             ret
 
         """
-        macro_call.set_runtimes(runtimes)
         mc = assembler.assemble(code, True)
         #mc.print_machine_code()
         self._ds = []

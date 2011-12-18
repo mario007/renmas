@@ -67,7 +67,7 @@ class Camera:
     def ray(self, sample):
         raise NotImplementedError()
 
-    def ray_asm(self, runtimes, label):
+    def ray_asm(self, runtimes, label, assembler, structures):
         raise NotImplementedError()
 
     def _update_data(self):

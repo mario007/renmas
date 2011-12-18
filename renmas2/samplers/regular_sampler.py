@@ -1,8 +1,6 @@
 
 import renmas2
 import renmas2.core
-from ..core import get_structs
-from ..macros import macro_call, assembler
 from .sample import Sample
 from .sampler import Sampler
 
@@ -47,12 +45,12 @@ class RegularSampler(Sampler):
         return Sample(x, y, self._curx, self._cury, 1.0)
 
     # eax - pointer to sample structure
-    def get_sample_asm(self, runtimes, label):
+    def get_sample_asm(self, runtimes, label, assembler, structures):
 
         code = """
             #DATA
         """
-        code += get_structs(('sample',)) + """
+        code += structures.structs(('sample',)) + """
             uint32 endx, endy
             uint32 tilex, tiley
             uint32 cur_xyxy[4] ; we just use first two numbers
@@ -89,7 +87,6 @@ class RegularSampler(Sampler):
             ret
             
         """
-        macro_call.set_runtimes(runtimes)
         mc = assembler.assemble(code, True)
         #mc.print_machine_code()
         name = "get_sample" + str(hash(self))

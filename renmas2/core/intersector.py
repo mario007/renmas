@@ -1,13 +1,11 @@
 
-from .methods import compiled_struct 
 from .ray import Ray
 from .logger import log
 from .dynamic_array import DynamicArray
-from .methods import get_structs
-from ..macros import macro_call, assembler
 
 class Intersector:
-    def __init__(self):
+    def __init__(self, renderer):
+        self.renderer = renderer
         self.strategy = False # False means linear intersection, True using Grids 
 
         self._shape_names = {} #name:shape
@@ -27,7 +25,7 @@ class Intersector:
         self._shape_names[name] = shape #name:shape
         # Tip: Be very carefull - dynamic arrays do automatic resize by himself
         if type(shape) not in self._shape_arrays:
-            darr = DynamicArray(compiled_struct(shape.name()))
+            darr = DynamicArray(self.renderer.structures.get_compiled_struct(shape.name()))
             self._shape_arrays[type(shape)] = darr
             idx = 0
         else:
@@ -64,11 +62,11 @@ class Intersector:
         else:
             return self._linear_isect(ray)
 
-    def isect_asm(self, runtimes, label):
+    def isect_asm(self, runtimes, label, assembler, structures):
         if self.strategy:
             raise ValueError('Grids are not yet implemented.')
         else:
-            self._isect_ray_scene(runtimes, label, self._shape_arrays)
+            self._isect_ray_scene(runtimes, label, self._shape_arrays, assembler, structures)
 
     def _linear_isect(self, ray, min_dist=999999.0):
         hit_point = False 
@@ -117,11 +115,11 @@ class Intersector:
     # ecx - min_dist
     # esi - ptr_array
     # edi - nshapes 
-    def _isect_ray_shape_array_asm(self, name, runtimes, isect_ray_shapes, isect_ray_shape):
+    def _isect_ray_shape_array_asm(self, name, runtimes, isect_ray_shapes, isect_ray_shape, assembler, structures):
         ASM = """
         #DATA
         """
-        ASM += get_structs(('ray', name, 'hitpoint')) + """
+        ASM += structures.structs(('ray', name, 'hitpoint')) + """
         #CODE
         """
         ASM += " global " + isect_ray_shapes + ":\n" + """
@@ -160,7 +158,6 @@ class Intersector:
         ret
         """
 
-        macro_call.set_runtimes(runtimes)
         mc = assembler.assemble(ASM, True)
         #mc.print_machine_code()
         func_name = "isect_ray_array" + str(hash(self))
@@ -171,7 +168,7 @@ class Intersector:
 
     # eax - pointer to ray
     # ebx - pointer to hitpoint
-    def _isect_ray_scene(self, runtimes, label, dyn_arrays):
+    def _isect_ray_scene(self, runtimes, label, dyn_arrays, assembler, structures):
 
         data1 = """
         uint32 r1
@@ -182,10 +179,10 @@ class Intersector:
         float one = 1.0
         float epsilon = 0.00001
         """
-        asm_structs = get_structs(('ray', 'hitpoint')) 
+        asm_structs = structures.structs(('ray', 'hitpoint')) 
         data2 = ""
         for key, value in dyn_arrays.items():
-            asm_structs += get_structs((key.name(),)) 
+            asm_structs += structures.structs((key.name(),)) 
             data2 += "uint32 ptr_" + key.name() + "\n"
             data2 += "uint32 n_" + key.name() + "\n"
 
@@ -217,8 +214,8 @@ class Intersector:
             code = code1 + line1 + line2 + call
             ASM += code
 
-            key.isect_asm(runtimes, key.name() + "_intersect")
-            self._isect_ray_shape_array_asm(key.name(), runtimes, key.name() + '_array', key.name() + '_intersect')
+            key.isect_asm(runtimes, key.name() + "_intersect", assembler, structures)
+            self._isect_ray_shape_array_asm(key.name(), runtimes, key.name() + '_array', key.name() + '_intersect', assembler, structures)
         
         ASM += "macro eq32 xmm0 = min_dist \n" 
         ASM += "macro if xmm0 < max_dist goto _accept\n"
@@ -233,7 +230,6 @@ class Intersector:
         ASM += "mov eax, 0\n"
         ASM += "ret\n"
 
-        macro_call.set_runtimes(runtimes)
         mc = assembler.assemble(ASM, True)
         #mc.print_machine_code()
         name = "ray_scene_intersection" + str(hash(self))

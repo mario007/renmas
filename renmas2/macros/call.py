@@ -4,6 +4,7 @@ from ..asm_library import atan_ss, atan_ps, asin_ss, asin_ps, acos_ss, acos_ps, 
 from ..asm_library import random_float
 import random
 import renmas2.switch as proc
+import renmas2.core
 
 # caching asm library  
 class MacroCall:
@@ -36,7 +37,6 @@ class MacroCall:
         self.functions['fast_log_ps'] = log_ps
         self.functions['random'] = random_float
         
-
 
         self.inline_macros = {} #normalization, cross product etc...
         self.inline_macros['int_to_float'] = self.int_to_float

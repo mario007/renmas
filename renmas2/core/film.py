@@ -3,8 +3,6 @@ import math
 from .image import ImageRGBA, ImageFloatRGBA
 from .blitter import Blitter
 from .spectrum import Spectrum
-from .methods import get_structs
-from ..macros import macro_call, assembler
 
 #TODO make flip image as option
 class Film:
@@ -18,9 +16,9 @@ class Film:
         self.blitter = Blitter()
         self._ds = None
 
-        self.spectrum = Spectrum(0.0, 0.0, 0.0)
+        self.spectrum = Spectrum(False, (0.0, 0.0, 0.0))
         self.curn = nsamples
-        self.max_spectrum = Spectrum(0.0, 0.0, 0.0)
+        self.max_spectrum = Spectrum(False, (0.0, 0.0, 0.0))
 
     def blt_image_to_buffer(self):
         da, dpitch = self.frame_buffer.get_addr()
@@ -45,12 +43,12 @@ class Film:
     def set_nsamples(self, n):
         self.nsamples = n
         self.curn = n
-        self.spectrum = Spectrum(0.0, 0.0, 0.0)
+        self.spectrum = Spectrum(False, (0.0, 0.0, 0.0))
         self._populate_ds()
 
     def reset(self):
         self.curn = self.nsamples 
-        self.spectrum = Spectrum(0.0, 0.0, 0.0)
+        self.spectrum = Spectrum(False, (0.0, 0.0, 0.0))
         self._populate_ds()
 
     def add_sample(self, sample, hitpoint):
@@ -71,7 +69,7 @@ class Film:
             #    print(spec)
             self.image.set_pixel(sample.ix, iy, spec.r, spec.g, spec.b)
             self.curn = self.nsamples
-            self.spectrum = Spectrum(0.0, 0.0, 0.0)
+            self.spectrum = Spectrum(False, (0.0, 0.0, 0.0))
         else:
             self.spectrum = self.spectrum + hitpoint.spectrum
             self.curn -= 1
@@ -139,11 +137,11 @@ class Film:
         print(r_max, g_max, b_max)
 
 
-    def add_sample_asm(self, runtimes, label):
+    def add_sample_asm(self, runtimes, label, assembler, structures):
 
         #eax - pointer to hitpoint structure
         #ebx - pointer to sample structure
-        asm_structs = get_structs(("hitpoint", "sample"))
+        asm_structs = structures.structs(("hitpoint", "sample"))
         ASM = """
         #DATA
         """
@@ -195,7 +193,6 @@ class Film:
 
         """
 
-        macro_call.set_runtimes(runtimes)
         mc = assembler.assemble(ASM, True)
         #mc.print_machine_code()
         name = "film" + str(hash(self))

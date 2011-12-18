@@ -25,6 +25,9 @@ class Vector3:
     def __mul__(self, t):
         return Vector3(self.x * t, self.y * t, self.z * t)
 
+    def __rmul__(self, t):
+        return Vector3(self.x * t, self.y * t, self.z * t)
+
     def scale(self, t):
         self.x = t * self.x
         self.y = t * self.y

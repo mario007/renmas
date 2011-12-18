@@ -1,8 +1,7 @@
 import math
 from .hitpoint import HitPoint
 from .bbox import BBox
-from ..core import Vector3, get_structs
-from ..macros import macro_call, assembler
+from ..core import Vector3
 from .shape import Shape
 
 class Sphere(Shape):
@@ -41,11 +40,11 @@ class Sphere(Shape):
     # ecx = pointer to minimum distance
     # edx = pointer to hitpoint
     @classmethod
-    def isect_asm(cls, runtimes, label, populate=True):
+    def isect_asm(cls, runtimes, label, assembler, structures):
         code = """
             #DATA
         """
-        code += get_structs(('ray', 'sphere', 'hitpoint')) + """
+        code += structures.structs(('ray', 'sphere', 'hitpoint')) + """
         float two[4] = 2.0, 2.0, 2.0, 0.0
         float epsilon = 0.0005
         float minus_four = -4.0
@@ -111,7 +110,6 @@ class Sphere(Shape):
         ret
         """
 
-        macro_call.set_runtimes(runtimes)
         mc = assembler.assemble(code, True)
         #mc.print_machine_code()
         name = "ray_sphere" + str(hash(cls))

@@ -3,8 +3,7 @@
 import x86
 from tdasm import Runtime
 from .integrator import Integrator 
-from ..core import get_structs, Spectrum
-from ..macros import macro_call, assembler
+from ..core import Spectrum
 from ..shapes import HitPoint
 
 class IsectIntegrator(Integrator):
@@ -19,8 +18,8 @@ class IsectIntegrator(Integrator):
         intersector = self._renderer._intersector
         film = self._renderer._film
 
-        background = Spectrum(0.99, 0.0, 0.0)
-        foreground = Spectrum(0.0, 0.99, 0.0)
+        background = Spectrum(False, (0.99, 0.0, 0.0))
+        foreground = Spectrum(False, (0.0, 0.99, 0.0))
         hp1 = HitPoint()
         hp2 = HitPoint()
         hp1.spectrum = background
@@ -49,18 +48,20 @@ class IsectIntegrator(Integrator):
 
     def prepare(self):
         self._runtimes = [Runtime() for n in range(self._renderer._threads)] 
-        self._renderer._sampler.get_sample_asm(self._runtimes, 'get_sample')
-        self._renderer._camera.ray_asm(self._runtimes, 'get_ray')
-        self._renderer._intersector.isect_asm(self._runtimes, 'ray_scene_intersection')
-        self._renderer._film.add_sample_asm(self._runtimes, 'add_sample')
-        self._algorithm_asm(self._runtimes)
+        ren = self._renderer
+        ren.macro_call.set_runtimes(self._runtimes)
+        self._renderer._sampler.get_sample_asm(self._runtimes, 'get_sample', ren.assembler, ren.structures)
+        self._renderer._camera.ray_asm(self._runtimes, 'get_ray', ren.assembler, ren.structures)
+        self._renderer._intersector.isect_asm(self._runtimes, 'ray_scene_intersection', ren.assembler, ren.structures)
+        self._renderer._film.add_sample_asm(self._runtimes, 'add_sample', ren.assembler, ren.structures)
+        self._algorithm_asm(self._runtimes, ren.assembler, ren.structures)
 
-    def _algorithm_asm(self, runtimes):
+    def _algorithm_asm(self, runtimes, assembler, structures):
         
         code = """
             #DATA
         """
-        code += get_structs(('sample', 'ray', 'hitpoint')) + """
+        code += structures.structs(('sample', 'ray', 'hitpoint')) + """
             sample sample1
             ray ray1
             hitpoint hp1
@@ -101,7 +102,6 @@ class IsectIntegrator(Integrator):
             #END
         """
 
-        macro_call.set_runtimes(runtimes)
         mc = assembler.assemble(code)
         #mc.print_machine_code()
         name = "isect_integrator"

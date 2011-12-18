@@ -119,19 +119,29 @@ structures = {
         }
 
 class Structures:
-    def __init__(self):
+    def __init__(self, renderer):
         self.tdasm = Tdasm()
+        self.renderer = renderer
+
+        self._line1 = "struct spectrum \n"
+        self._line3 = "end struct \n"
     
     def get_struct(self, name):
         if name in structures:
             return structures[name]
+        elif name == "spectrum":
+            if self.renderer.spectrum_rendering:
+                line2 = "float values[" + str(self.renderer.nspectrum_samples) + "] \n"
+            else:
+                line2 = "float values[4] \n"
+            return self._line1 + line2 + self._line3
         return None
 
     def get_compiled_struct(self, name):
         if name in structures:
             asm_code = """ #DATA
             """
-            asm_code += structures[name]
+            asm_code += self.get_struct(name) 
             asm_code += """
             #CODE
             #END

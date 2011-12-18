@@ -1,7 +1,5 @@
 import math
 from tdasm import Runtime
-from ..macros import macro_call, assembler
-
 
 class Sampler:
     def __init__(self, width, height, spp=1, pixel_size=1.0):
@@ -17,7 +15,7 @@ class Sampler:
     def get_sample(self):
         raise NotImplementedError()
 
-    def get_sample_asm(self, runtimes, label):
+    def get_sample_asm(self, runtimes, label, assembler, structures):
         raise NotImplementedError()
 
     def _update_ds(self):

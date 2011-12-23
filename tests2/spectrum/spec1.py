@@ -20,13 +20,16 @@ ASM += structs +  """
     spectrum sp1
     spectrum sp2
     spectrum sp3
-    float re[4]
+    float re[8]
+    float x = 0.5
     #CODE
     mov ebx, sp1
     mov ecx, sp2
     mov eax, sp3
-    ;macro spectrum eax = ebx + ecx 
-    macro spectrum eax = ebx
+    macro eq32 xmm0 = x
+    ;macro spectrum eax = ebx * ecx
+    ;macro spectrum eax = ecx
+    macro spectrum eax = xmm0 * ecx
 
     #END
 """
@@ -39,31 +42,32 @@ runtime = Runtime()
 ds = runtime.load("test", mc)
 
 if renderer.spectrum_rendering:
-    arr1 = tuple([random.random() for i in range(renderer.nspectrum_samples)]) 
-    arr2 = tuple([random.random() for i in range(renderer.nspectrum_samples)]) 
+    arr1 = tuple([random.random() for i in range(renderer.nspectrum_samples)])
+    arr2 = tuple([random.random() for i in range(renderer.nspectrum_samples)])
+    sp1 = renmas2.core.Spectrum(True, arr1)
+    sp2 = renmas2.core.Spectrum(True, arr2)
 else:
-    arr1 = tuple([random.random() for i in range(4)]) 
-    arr2 = tuple([random.random() for i in range(4)]) 
-ds["sp1.values"] = arr1 
-ds["sp2.values"] = arr2 
+    arr1 = tuple([random.random() for i in range(3)])
+    arr2 = tuple([random.random() for i in range(3)])
+    sp1 = renmas2.core.Spectrum(False, arr1)
+    sp2 = renmas2.core.Spectrum(False, arr2)
+ds["sp1.values"] = sp1.to_ds()
+ds["sp2.values"] = sp2.to_ds()
 
-sp1 = renmas2.core.Spectrum(False, (0.3, 0.3, 0.3))
-sp2 = renmas2.core.Spectrum(False, (0.2, 0.2, 0.2))
-sp1 = renmas2.core.Spectrum(True, arr1)
-sp2 = renmas2.core.Spectrum(True, arr2)
-print(sp1)
-print(sp2)
-print(sp1 + sp2)
-print(sp1 - sp2)
-print(0.2 * sp1)
-print(sp1.mix_spectrum(sp2))
-print(sp1.scale(0.10))
-print(sp1.to_ds())
+#print(sp1)
+#print(sp2)
+#print(sp1 + sp2)
+#print(sp1 - sp2)
+#print(0.2 * sp1)
+#print(sp1.mix_spectrum(sp2))
+#print(sp1.scale(0.10))
+#print(sp1.to_ds())
 
 runtime.run("test")
 
-print(arr1)
-print(arr2)
+print(sp1)
+print(sp2)
 print(ds["sp3.values"]) 
+print(ds["re"])
 
 

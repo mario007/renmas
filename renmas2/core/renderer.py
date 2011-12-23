@@ -62,7 +62,7 @@ class Renderer:
         self._max_samples = 100000 #max samples in tile
         self._pixel_size = 1.0
         self._spectrum_rendering = False
-        self._nspectrum_samples = 8 
+        self._nspectrum_samples = 48
         self._start_lambda = 380
         self._end_lambda = 720
         self._default_material = "default" #name of default material

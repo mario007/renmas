@@ -10,7 +10,7 @@ renderer = renmas2.Renderer()
 irender = renmas2.IRender(renderer)
 
 factory = renmas2.core.Factory()
-m1 = {"lambertian":{"spectrum":(0.0, 0.6, 0.0)}}
+m1 = {"lambertian":{"spectrum":(0.0, 0.9, 0.0)}}
 m = factory.create_material(brdfs=(m1,))
 
 renderer.add("m1", m)
@@ -26,7 +26,7 @@ def blt_float_img_to_window(x, y, img, win):
     blitter.blt_floatTorgba(da, x, y, dw, dh, dpitch, sa, 0, 0, sw, sh, spitch)
 
 renderer.threads(1)
-filename = 'I:\\GitRENMAS\\scenes\\sphere1.py'
+filename = 'G:\\GitRENMAS\\renmas\\scenes\\sphere1.py'
 exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(globals()))
 renderer.assign_material("Sphere00", 'm1')
 

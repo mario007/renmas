@@ -28,7 +28,7 @@ irender.set_props('misc', 'spp', '1')
 print (irender.get_props('misc', 'spp'))
 #renderer.spp(1)
 renderer.threads(1)
-filename = 'I:\\GitRENMAS\\scenes\\sphere1.py'
+filename = 'G:\\GitRENMAS\\renmas\\scenes\\sphere1.py'
 exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(globals()))
 
 renderer.prepare()

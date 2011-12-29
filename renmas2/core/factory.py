@@ -33,7 +33,7 @@ class Factory:
         if typ == "point":
             p = kw.get("position")
             s = kw.get("spectrum")
-            spec = Spectrum(float(s[0]), float(s[1]), float(s[2]))
+            spec = Spectrum(False, (float(s[0]), float(s[1]), float(s[2])))
             pos = Vector3(float(p[0]), float(p[1]), float(p[2]))
             l = PointLight(pos, spec)
             return l
@@ -48,7 +48,7 @@ class Factory:
                 if lamb:
                     s = lamb.get("spectrum")
                     k = lamb.get("k", 1.0)
-                    spec = Spectrum(float(s[0]), float(s[1]), float(s[2]))
+                    spec = Spectrum(False, (float(s[0]), float(s[1]), float(s[2])))
                     l = Lambertian(spec, float(k))
                     mat.add(l)
         return mat

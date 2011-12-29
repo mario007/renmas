@@ -42,7 +42,7 @@ class Shader:
         # emisive material
         hp.le = material.Le(hp)
 
-        tmp_spec = Spectrum(0.0, 0.0, 0.0) 
+        tmp_spec = Spectrum(False, (0.0, 0.0, 0.0)) 
         for light in lights:
             if light.L(hp, renderer): #light is visible
                 material.brdf(hp)

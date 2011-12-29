@@ -22,10 +22,10 @@ class Material:
         if self._emiter:
             raise ValueError("Not yet implemented")
         else:
-            return Spectrum(0.0, 0.0, 0.0)
+            return Spectrum(False, (0.0, 0.0, 0.0))
 
     def brdf(self, hitpoint):
-        spectrum = Spectrum(0.0, 0.0, 0.0) 
+        spectrum = Spectrum(False, (0.0, 0.0, 0.0)) 
         for c in self._brdfs:
             spectrum = spectrum + c.brdf(hitpoint) 
         

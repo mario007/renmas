@@ -24,10 +24,10 @@ class Renderer:
 
     def _default_objects(self):
         self._intersector = Intersector(self)
-        self._integrator = IsectIntegrator(self)
-        #self._integrator = Raycast(self)
-        #self._sampler = RegularSampler(self._width, self._height)
-        self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
+        #self._integrator = IsectIntegrator(self)
+        self._integrator = Raycast(self)
+        self._sampler = RegularSampler(self._width, self._height)
+        #self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
         self._spp = self._sampler._spp
         self._film = Film(self._width, self._height, self._spp)
         eye = (10, 10, 10)

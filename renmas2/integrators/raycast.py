@@ -19,7 +19,7 @@ class Raycast(Integrator):
         shader = self._renderer._shader
         renderer = self._renderer
 
-        background = Spectrum(0.99, 0.0, 0.0)
+        background = Spectrum(False, (0.99, 0.0, 0.0))
         hp1 = HitPoint()
         hp1.spectrum = background
 

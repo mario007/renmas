@@ -164,7 +164,7 @@ class Film:
             jne _next_sample
             macro eq128 xmm0 = spectrum + eax.hitpoint.spectrum
             macro eq128 xmm0 = xmm0 * scale 
-            ;because of alpha channel - try solve this in better way
+            ;because of alpha channel - try solve this in better way , pxor xmm0, xmm0 da postavis na nulu
             macro eq128 xmm0 = xmm0 + alpha_channel
             ; for clamping 
             ;minps xmm0, oword [clamp] 

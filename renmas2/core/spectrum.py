@@ -76,11 +76,16 @@ class Spectrum:
         else:
             return (float(self.r), float(self.g), float(self.b), 0.0)
 
-    def clamp(self):
-        if self.r > 1.0: self.r = 0.99
-        if self.g > 1.0: self.g = 0.99
-        if self.b > 1.0: self.b = 0.99
-        if self.r < 0.0: self.r = 0.0
-        if self.g < 0.0: self.g = 0.0
-        if self.b < 0.0: self.b = 0.0
+    def clamp(self, low=0.0, high=100000000.0):
+        if self.sampled:
+            for i in range(len(self.samples)):
+                if self.samples[i] > high: self.samples[i] = high
+                if self.samples[i] < low: self.samples[i] = low
+        else:
+            if self.r > high: self.r = high 
+            if self.g > high: self.g = high 
+            if self.b > high: self.b = high 
+            if self.r < low: self.r = low 
+            if self.g < low: self.g = low 
+            if self.b < low: self.b = low 
 

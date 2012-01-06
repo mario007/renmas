@@ -1,6 +1,7 @@
 
 from .vector3 import Vector3
 from .spectrum import Spectrum
+from .spectrum_converter import SpectrumConverter
 from .ray import Ray
 from .tile import Tile
 from .dynamic_array import DynamicArray

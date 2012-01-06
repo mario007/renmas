@@ -1,6 +1,8 @@
 
 import renmas2.switch as proc
 
+#Implement for loops version for arithmetic!!!, its not har to do!
+
 class MacroSpectrum:
     def __init__(self, renderer):
         self.renderer = renderer
@@ -9,11 +11,74 @@ class MacroSpectrum:
 
     def macro_spectrum(self, asm, tokens):
         if len(tokens) == 0: return
+        if len(tokens) == 2:
+            return self._sum_spectrum(asm, tokens)
         if len(tokens) == 5:
             r1, equal, r2, operator, r3 = tokens
             if r2 in self.xmm_regs:
                 return self._scaling_spectrum(asm, tokens)
         return self._arithmetic_spectrum(asm, tokens)
+
+    def _sum_spectrum(self, asm, tokens):
+        sampled = self.renderer.spectrum_rendering
+        n = self.renderer.nspectrum_samples
+        s, reg = tokens
+        if proc.AVX:
+            if sampled:
+                code = "vpxor xmm0, xmm0, xmm0 \n"
+                rounds = n // 4
+                count = 0
+                for r in range(rounds):
+                    code += "vaddps xmm0, xmm0, oword [" + reg + " + " + str(count) +" ] \n"
+                    count += 16 
+                code += """
+                    vmovhlps xmm2, xmm2, xmm0 
+                    vmovaps xmm1, xmm0 
+                    vshufps xmm1, xmm1, xmm1, 0x55 
+                    vmovaps xmm3, xmm2
+                    vshufps xmm3, xmm3, xmm3, 0x55 
+                    vaddss xmm0, xmm0, xmm1
+                    vaddss xmm2, xmm2, xmm3
+                    vaddss xmm0, xmm0, xmm2
+                    """
+                return code
+            else:
+                code = "vmovaps xmm0, oword[" + reg + " + spectrum.values] \n"
+                code += """vmovhlps xmm1, xmm1, xmm0
+                        vshufps xmm2, xmm0, xmm0, 0x55 
+                        vaddss xmm0, xmm0, xmm1 
+                        vaddss xmm0, xmm0, xmm2 
+                """ 
+                return code
+        else:
+            if sampled:
+                code = "pxor xmm0, xmm0 \n"
+                rounds = n // 4
+                count = 0
+                for r in range(rounds):
+                    code += "addps xmm0, oword [" + reg + " + " + str(count) +" ] \n"
+                    count += 16
+                code += """
+                    movhlps xmm2, xmm0 
+                    movaps xmm1, xmm0 
+                    shufps xmm1, xmm1, 0x55 
+                    movaps xmm3, xmm2
+                    shufps xmm3, xmm3, 0x55 
+                    addss xmm0, xmm1
+                    addss xmm2, xmm3
+                    addss xmm0, xmm2
+                    """
+                return code
+            else:
+                code = "movaps xmm0, oword[" + reg + " + spectrum.values] \n"
+                code += """movhlps xmm1, xmm0
+                        movaps xmm2, xmm0
+                        shufps xmm2, xmm2, 0x55 
+                        addss xmm0, xmm1 
+                        addss xmm0, xmm2
+                """ 
+                return code
+            
 
     def _scaling_spectrum(self, asm, tokens):
         sampled = self.renderer.spectrum_rendering
@@ -60,14 +125,9 @@ class MacroSpectrum:
         return code
 
     def _expand(self):
-        ## vmovaps ymm0, ymm7 BUG in Tdasm that must be resolved
         if proc.AVX:
             code = """
-                        ;vmovaps yword [re], ymm7
                         vmovaps ymm0, ymm7
-                        ;vmovaps ymm7, ymm0
-                        vmovaps yword [re], ymm7
-                        #END
                         vmovaps ymm1, ymm7
                         vmovaps ymm2, ymm0
                         vmovaps ymm3, ymm1

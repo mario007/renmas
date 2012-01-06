@@ -20,21 +20,31 @@ ASM += structs +  """
     spectrum sp1
     spectrum sp2
     spectrum sp3
+    struct hitpoint 
+    spectrum d1
+    end struct
+
+    hitpoint sp4
     float re[8]
     float x = 0.5
+    float suma
     #CODE
-    mov ebx, sp1
+    ;mov ebx, sp1
     mov ecx, sp2
     mov eax, sp3
+    mov edx, sp4
     macro eq32 xmm0 = x
-    ;macro spectrum eax = ebx * ecx
+    lea ebx, dword [edx + hitpoint.d1]
+    macro spectrum eax = ebx * ecx
     ;macro spectrum eax = ecx
-    macro spectrum eax = xmm0 * ecx
+    ;macro spectrum eax = xmm0 * ecx
+    ;macro spectrum sum ebx
+    ;macro eq32 suma = xmm0 {xmm0}
 
     #END
 """
 
-print(ASM)
+#print(ASM)
 mc = renderer.assembler.assemble(ASM) 
 mc.print_machine_code()
 
@@ -51,11 +61,12 @@ else:
     arr2 = tuple([random.random() for i in range(3)])
     sp1 = renmas2.core.Spectrum(False, arr1)
     sp2 = renmas2.core.Spectrum(False, arr2)
-ds["sp1.values"] = sp1.to_ds()
+#ds["sp1.values"] = sp1.to_ds()
 ds["sp2.values"] = sp2.to_ds()
+ds["sp4.d1.values"] = sp1.to_ds()
 
-#print(sp1)
-#print(sp2)
+print(sp1)
+print(sp2)
 #print(sp1 + sp2)
 #print(sp1 - sp2)
 #print(0.2 * sp1)
@@ -65,9 +76,11 @@ ds["sp2.values"] = sp2.to_ds()
 
 runtime.run("test")
 
-print(sp1)
-print(sp2)
+#print(arr1)
+#print("Sum of arr1 array ", sum(arr1), ", ", ds["suma"])
+#print(sp1)
+#print(sp2)
 print(ds["sp3.values"]) 
-print(ds["re"])
+#print(ds["re"])
 
 

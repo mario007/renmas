@@ -47,20 +47,20 @@ HITPOINT = """
     struct hitpoint
     float hit[4]
     float normal[4]
-    float wi[4]
-    float wo[4]
-    float spectrum[4]
-    float brdf[4]
-    float light_normal[4]
-    float light_sample[4]
-    float le[4]
     float t
     uint32 mat_index
+    float wi[4]
+    float wo[4]
+    float light_normal[4]
+    float light_sample[4]
     uint32 visible 
     float ndotwi
     float pdf
     float light_pdf
     uint32 specular
+    spectrum le_spectrum
+    spectrum f_spectrum 
+    spectrum l_spectrum 
     end struct
 """
 
@@ -107,7 +107,6 @@ MESH3D = """
 structures = {
         "ray" : RAY, 
         "sphere": SPHERE,
-        "hitpoint": HITPOINT,
         "material": MATERIAL,
         "pointlight":POINT_LIGHT,
         "plane": PLANE,
@@ -130,11 +129,18 @@ class Structures:
         if name in structures:
             return structures[name]
         elif name == "spectrum":
-            if self.renderer.spectrum_rendering:
+            if self.renderer.spectral_rendering:
                 line2 = "float values[" + str(self.renderer.nspectrum_samples) + "] \n"
             else:
                 line2 = "float values[4] \n"
             return self._line1 + line2 + self._line3
+        elif name == "hitpoint":
+            if self.renderer.spectral_rendering:
+                line2 = "float values[" + str(self.renderer.nspectrum_samples) + "] \n"
+            else:
+                line2 = "float values[4] \n"
+            spec = self._line1 + line2 + self._line3
+            return spec + HITPOINT
         return None
 
     def get_compiled_struct(self, name):

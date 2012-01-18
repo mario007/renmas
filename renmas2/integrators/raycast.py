@@ -11,17 +11,15 @@ class Raycast(Integrator):
         self._ds = None
 
     def render_py(self, tile):
-        sampler = self._renderer._sampler
+        ren = self._renderer
+        sampler = ren.sampler
         sampler.set_tile(tile)
-        camera = self._renderer._camera
-        intersector = self._renderer._intersector
-        film = self._renderer._film
-        shader = self._renderer._shader
-        renderer = self._renderer
+        camera = ren.camera
+        intersector = ren.intersector
+        film = ren.film
+        shader = ren.shader
 
-        background = Spectrum(False, (0.99, 0.0, 0.0))
-        hp1 = HitPoint()
-        hp1.spectrum = background
+        background = ren.converter.create_spectrum((0.70, 0.0, 0.0))
 
         while True:
             sam = sampler.get_sample()
@@ -30,14 +28,102 @@ class Raycast(Integrator):
             hp = intersector.isect(ray) 
             if hp:
                 hp.wo = ray.dir * -1.0
-                shader.shade(hp, renderer)
-                film.add_sample(sam, hp)
+                spectrum = shader.shade(hp)
+                film.add_sample(sam, spectrum)
             else:
-                film.add_sample(sam, hp1) #background
+                film.add_sample(sam, background)
+
+    def _algorithm_asm(self, runtimes):
+        
+        code = """
+            #DATA
+        """
+        code += self._renderer.structures.structs(('sample', 'ray', 'hitpoint')) + """
+            sample sample1
+            ray ray1
+            float minus_one[4] = -1.0, -1.0, -1.0, 0.0
+            hitpoint hp1
+            spectrum background
+
+            #CODE
+            _main_loop:
+            mov eax, sample1
+            call get_sample
+            cmp eax, 0
+            je _end_rendering
+
+            mov eax, sample1
+            mov ebx, ray1
+            call get_ray
+
+            ; eax = pointer_to_ray, ebx = pointer_to_hitpoint
+            mov eax, ray1 
+            mov ebx, hp1 
+            call ray_scene_intersection 
+
+            cmp eax, 0
+            je _write_background
+
+            ; call shading routine
+            mov eax, hp1
+            mov ebx, ray1 
+            macro eq128 eax.hitpoint.wo = ebx.ray.dir * minus_one {xmm0} 
+            call shade
+
+            mov ecx, hp1
+            lea eax, dword [ecx + hitpoint.l_spectrum]
+            mov ebx, sample1 
+            call add_sample
+            jmp _main_loop
+
+            _write_background:
+            mov eax, background 
+            mov ebx, sample1 
+            call add_sample
+
+            jmp _main_loop
+
+            _end_rendering:
+            #END
+        """
+
+        mc = self._renderer.assembler.assemble(code)
+        #mc.print_machine_code()
+        name = "raycast_integrator"
+        self._ds = []
+        for r in runtimes:
+            self._ds.append(r.load(name, mc))
+
+        self._populate_ds()
+
+    def _populate_ds(self):
+        if self._ds is None: return
+        for ds in self._ds:
+            ds['background.values'] = self._background.to_ds()
 
     def render_asm(self, tile):
-        pass
+        self._renderer.sampler.set_tile(tile)
+        runtimes = self._runtimes
+        
+        addrs = []
+        for i in range(len(tile.lst_tiles)):
+            r = runtimes[i]
+            addrs.append(r.address_module('raycast_integrator'))
+
+        x86.ExecuteModules(tuple(addrs))
 
     def prepare(self):
-        pass
+        ren = self._renderer
+        self._background = ren.converter.create_spectrum((0.70, 0.0, 0.0))
+
+        self._runtimes = [Runtime() for n in range(ren.threads)] 
+        ren.macro_call.set_runtimes(self._runtimes)
+        ren.sampler.get_sample_asm(self._runtimes, 'get_sample', ren.assembler, ren.structures)
+        ren.camera.ray_asm(self._runtimes, 'get_ray', ren.assembler, ren.structures)
+        ren.intersector.isect_asm(self._runtimes, 'ray_scene_intersection')
+        ren.converter.to_rgb_asm("spectrum_to_rgb", self._runtimes)
+        ren.film.add_sample_asm(self._runtimes, "add_sample", "spectrum_to_rgb")
+        ren.intersector.visibility_asm(self._runtimes, "ray_scene_visibility")
+        ren.shader.shade_asm(self._runtimes, "shade", "ray_scene_visibility")
+        self._algorithm_asm(self._runtimes)
 

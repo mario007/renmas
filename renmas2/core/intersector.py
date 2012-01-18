@@ -3,6 +3,9 @@ from .ray import Ray
 from .logger import log
 from .dynamic_array import DynamicArray
 
+# add ready attribut ???? TODO -- so we can allways call isect
+# when call isect if ready is False call prepare TODO --- think???
+
 class Intersector:
     def __init__(self, renderer):
         self.renderer = renderer
@@ -49,7 +52,7 @@ class Intersector:
     def address_off(self, shape):
         idx = self._shape_addr.get(shape, None)
         if idx is None: 
-            log.info("Shape doesn't exist!")
+            log.info("Cannot return address of Shape because it doesn't exist!")
             return None
 
         darr = self._shape_arrays[type(shape)]
@@ -62,11 +65,27 @@ class Intersector:
         else:
             return self._linear_isect(ray)
 
-    def isect_asm(self, runtimes, label, assembler, structures):
+    def _isect_visibility(self, ray): #intersection ray with scene
         if self.strategy:
             raise ValueError('Grids are not yet implemented.')
         else:
-            self._isect_ray_scene(runtimes, label, self._shape_arrays, assembler, structures)
+            return self._linear_isect_visibility(ray)
+
+    def isect_asm(self, runtimes, label):
+        if self.strategy:
+            raise ValueError('Grids are not yet implemented.')
+        else:
+            self._isect_ray_scene(runtimes, label, self._shape_arrays)
+
+    def _linear_isect_visibility(self, ray, min_dist=999999.0):
+        hit_t = False 
+        for s in self._lst_shapes:
+            t = s.isect_b(ray, min_dist)
+            if t is False: continue
+            if t < min_dist:
+                min_dist = t
+                hit_t = t
+        return hit_t
 
     def _linear_isect(self, ray, min_dist=999999.0):
         hit_point = False 
@@ -85,18 +104,67 @@ class Intersector:
         distance = direction.length() - epsilon # self intersection!!! visiblity
 
         ray = Ray(p1, direction.normalize())
-        hp = self.isect(ray)
-
-        if not hp:
-            return True
+        t = self._isect_visibility(ray)
+        if not t: return True
         else:
-            if hp.t < distance:
+            if t < distance:
                 return False
             else:
                 return True
 
     def visibility_asm(self, runtimes, label):
-        pass
+        # visibility of two points # xmm0 = p1  xmm1 = p2
+        # xmm0 -- return value minimum distance
+
+        self._isect_ray_scene(runtimes, "__ray_scene_intersection_visibility__", self._shape_arrays, True)
+        asm_structs =  self.renderer.structures.structs(('ray',))
+
+        ASM = """
+        #DATA
+        """
+        ASM += asm_structs + """
+        ray r1
+        float distance
+        float epsilon = 0.0005
+        #CODE
+        """
+        ASM += " global " + label + ":\n" + """
+        macro eq128 xmm1 = xmm1 - xmm0 
+        macro eq128 r1.origin = xmm0 {xmm0} 
+        macro eq128 xmm5 = xmm1
+        macro dot xmm0 = xmm1 * xmm1 {xmm2, xmm3} 
+        macro call sqrtss xmm0 = xmm0
+        macro eq32 distance = xmm0 - epsilon {xmm2}
+        macro normalization xmm5 {xmm6, xmm7}
+        macro eq128 r1.dir = xmm5 {xmm2}
+        
+        ; call ray scene intersection
+        mov eax, r1
+        call __ray_scene_intersection_visibility__
+
+        cmp eax, 0
+        jne _maybe_visible
+        ;no intersection ocure that mean that points are visible
+        mov eax, 1 
+        ret
+
+        _maybe_visible:
+        macro if xmm0 > distance goto accept
+        xor eax, eax 
+        ret
+        
+        accept:
+        mov eax, 1
+        ret
+
+        """
+
+        mc = self.renderer.assembler.assemble(ASM, True)
+        #mc.print_machine_code()
+        name = "isect_ray_scene_visible" + str(hash(self))
+        for r in runtimes:
+            if not r.global_exists(label):
+                r.load(name, mc)
 
     def prepare(self): #build acceleration structure
         if self.strategy:  
@@ -115,11 +183,11 @@ class Intersector:
     # ecx - min_dist
     # esi - ptr_array
     # edi - nshapes 
-    def _isect_ray_shape_array_asm(self, name, runtimes, isect_ray_shapes, isect_ray_shape, assembler, structures):
+    def _isect_ray_shape_array_asm(self, name, runtimes, isect_ray_shapes, isect_ray_shape, visibility=False):
         ASM = """
         #DATA
         """
-        ASM += structures.structs(('ray', name, 'hitpoint')) + """
+        ASM += self.renderer.structures.structs(('ray', name, 'hitpoint')) + """
         #CODE
         """
         ASM += " global " + isect_ray_shapes + ":\n" + """
@@ -135,17 +203,29 @@ class Intersector:
         mov eax, dword [esp + 12] ; mov eax, ray
         mov ebx, dword [esp + 4] ; mov ebx, shape 
         mov ecx, dword [esp + 16]; address of minimum distance
-        mov edx, dword [esp + 8] ; mov edx, hp
         """
+        if not visibility:
+            ASM += " mov edx, dword [esp + 8] ; mov edx, hp \n "
+
         ASM += " call " + isect_ray_shape + "\n" + """
         cmp eax, 0  ; 0 - no intersection ocur
         je _next_object
-        mov eax, dword [esp + 8]
-        mov ebx, dword [eax + hitpoint.t]
+        """
+        if not visibility:
+            ASM += """
+                mov eax, dword [esp + 8]
+                mov ebx, dword [eax + hitpoint.t]
 
-        mov edx, dword [esp + 16] ;populate new minimum distance
-        mov dword [edx], ebx
+                mov edx, dword [esp + 16] ;populate new minimum distance
+                mov dword [edx], ebx
+                """
+        else:
+            ASM += """
+                mov edx, dword [esp + 16] ;populate new minimum distance
+                macro eq32 edx = xmm0 {xmm0}
+            """
 
+        ASM += """
         _next_object:
         sub dword [esp], 1  
         jz _end_objects
@@ -158,17 +238,16 @@ class Intersector:
         ret
         """
 
-        mc = assembler.assemble(ASM, True)
+        mc = self.renderer.assembler.assemble(ASM, True)
         #mc.print_machine_code()
         func_name = "isect_ray_array" + str(hash(self))
         for r in runtimes:
             if not r.global_exists(isect_ray_shapes):
                 r.load(func_name, mc)
 
-
     # eax - pointer to ray
     # ebx - pointer to hitpoint
-    def _isect_ray_scene(self, runtimes, label, dyn_arrays, assembler, structures):
+    def _isect_ray_scene(self, runtimes, label, dyn_arrays, visibility=False):
 
         data1 = """
         uint32 r1
@@ -179,27 +258,29 @@ class Intersector:
         float one = 1.0
         float epsilon = 0.00001
         """
-        asm_structs = structures.structs(('ray', 'hitpoint')) 
+        asm_structs = self.renderer.structures.structs(('ray', 'hitpoint')) 
         data2 = ""
         for key, value in dyn_arrays.items():
-            asm_structs += structures.structs((key.name(),)) 
+            asm_structs += self.renderer.structures.structs((key.name(),)) 
             data2 += "uint32 ptr_" + key.name() + "\n"
             data2 += "uint32 n_" + key.name() + "\n"
 
         ASM = """
         #DATA
         """
-        ASM += asm_structs
-        ASM += data1
-        ASM += data2
+        ASM += asm_structs + data1 + data2
         ASM += "#CODE \n"
         ASM += "global " + label + ":\n"
-        ASM += "mov dword [r1], eax \n"
-        ASM += "mov dword [hp], ebx \n"
-        ASM += "mov edx , dword [zero] \n"
-        ASM += "macro eq32 min_dist = max_dist + one {xmm0}\n"
-        ASM += "mov dword [ebx + hitpoint.t], edx \n"
-        
+        ASM += """
+            mov dword [r1], eax
+            mov edx , dword [zero]
+            macro eq32 min_dist = max_dist + one {xmm0}
+        """
+        if not visibility:
+            ASM += """
+            mov dword [hp], ebx
+            mov dword [ebx + hitpoint.t], edx
+            """
         code = ""
         for key, value in dyn_arrays.items():
             code1 = """ 
@@ -210,30 +291,42 @@ class Intersector:
             """
             line1 = "mov esi, dword [" + "ptr_" + key.name() + "] \n"
             line2 = "mov edi, dword [" + "n_" + key.name() + "]\n"
-            call = "call " + key.name() + "_array \n"
+            if not visibility:
+                call = "call " + key.name() + "_array \n"
+            else:
+                call = "call " + key.name() + "_array_bool \n"
             code = code1 + line1 + line2 + call
             ASM += code
 
-            key.isect_asm(runtimes, key.name() + "_intersect", assembler, structures)
-            self._isect_ray_shape_array_asm(key.name(), runtimes, key.name() + '_array', key.name() + '_intersect', assembler, structures)
+            if not visibility:
+                key.isect_asm(runtimes, key.name() + "_intersect", self.renderer.assembler, self.renderer.structures)
+                self._isect_ray_shape_array_asm(key.name(), runtimes, key.name() + '_array', key.name() + '_intersect')
+            else:
+                key.isect_asm_b(runtimes, key.name() + "_intersect_bool", self.renderer.assembler, self.renderer.structures)
+                self._isect_ray_shape_array_asm(key.name(), runtimes, key.name() + '_array_bool', key.name() + '_intersect_bool', True)
         
-        ASM += "macro eq32 xmm0 = min_dist \n" 
-        ASM += "macro if xmm0 < max_dist goto _accept\n"
-        ASM += "mov eax, 0\n"
-        ASM += "ret \n"
+        ASM += """
+            macro eq32 xmm0 = min_dist
+            macro if xmm0 < max_dist goto _accept
+            mov eax, 0
+            ret
 
-        ASM += "_accept: \n"
-        ASM += "macro if xmm0 < epsilon goto _reject\n"
-        ASM += "mov eax, 1 \n"
-        ASM += "ret\n"
-        ASM += "_reject:\n"
-        ASM += "mov eax, 0\n"
-        ASM += "ret\n"
-
-        mc = assembler.assemble(ASM, True)
+            _accept:
+            macro if xmm0 < epsilon goto _reject
+            mov eax, 1
+            ret
+            _reject:
+            mov eax, 0
+            ret
+        """
+        
+        mc = self.renderer.assembler.assemble(ASM, True)
         #mc.print_machine_code()
-        name = "ray_scene_intersection" + str(hash(self))
-
+        if not visibility:
+            name = "ray_scene_intersection" + str(hash(self))
+        else:
+            name = "ray_scene_intersection_visibility" + str(hash(self))
+        
         ds_arr = []
         for r in runtimes:
             if not r.global_exists(label):

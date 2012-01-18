@@ -1,5 +1,5 @@
 
-
+import time
 import x86
 from tdasm import Runtime
 from .integrator import Integrator 
@@ -12,18 +12,14 @@ class IsectIntegrator(Integrator):
         self._ds = None
 
     def render_py(self, tile):
-        sampler = self._renderer._sampler
+        ren = self._renderer
+        sampler = ren.sampler
         sampler.set_tile(tile)
-        camera = self._renderer._camera
-        intersector = self._renderer._intersector
-        film = self._renderer._film
-
-        background = Spectrum(False, (0.99, 0.0, 0.0))
-        foreground = Spectrum(False, (0.0, 0.99, 0.0))
-        hp1 = HitPoint()
-        hp2 = HitPoint()
-        hp1.spectrum = background
-        hp2.spectrum = foreground
+        camera = ren.camera
+        intersector = ren.intersector
+        film = ren.film
+        background = ren.converter.create_spectrum((0.70, 0.0, 0.0))
+        foreground = ren.converter.create_spectrum((0.0, 0.70, 0.0))
 
         while True:
             sam = sampler.get_sample()
@@ -31,12 +27,12 @@ class IsectIntegrator(Integrator):
             ray = camera.ray(sam) 
             hp = intersector.isect(ray) 
             if hp:
-                film.add_sample(sam, hp2)
+                film.add_sample(sam, foreground)
             else:
-                film.add_sample(sam, hp1)
+                film.add_sample(sam, background)
 
     def render_asm(self, tile):
-        self._renderer._sampler.set_tile(tile)
+        self._renderer.sampler.set_tile(tile)
         runtimes = self._runtimes
         
         addrs = []
@@ -47,26 +43,31 @@ class IsectIntegrator(Integrator):
         x86.ExecuteModules(tuple(addrs))
 
     def prepare(self):
-        self._runtimes = [Runtime() for n in range(self._renderer._threads)] 
         ren = self._renderer
-        ren.macro_call.set_runtimes(self._runtimes)
-        self._renderer._sampler.get_sample_asm(self._runtimes, 'get_sample', ren.assembler, ren.structures)
-        self._renderer._camera.ray_asm(self._runtimes, 'get_ray', ren.assembler, ren.structures)
-        self._renderer._intersector.isect_asm(self._runtimes, 'ray_scene_intersection', ren.assembler, ren.structures)
-        self._renderer._film.add_sample_asm(self._runtimes, 'add_sample', ren.assembler, ren.structures)
-        self._algorithm_asm(self._runtimes, ren.assembler, ren.structures)
+        self._background = ren.converter.create_spectrum((0.70, 0.0, 0.0))
+        self._foreground = ren.converter.create_spectrum((0.0, 0.70, 0.0))
 
-    def _algorithm_asm(self, runtimes, assembler, structures):
+        self._runtimes = [Runtime() for n in range(ren.threads)] 
+        ren.macro_call.set_runtimes(self._runtimes)
+        ren.sampler.get_sample_asm(self._runtimes, 'get_sample', ren.assembler, ren.structures)
+        ren.camera.ray_asm(self._runtimes, 'get_ray', ren.assembler, ren.structures)
+        ren.intersector.isect_asm(self._runtimes, 'ray_scene_intersection')
+        ren.converter.to_rgb_asm("spectrum_to_rgb", self._runtimes)
+        ren.film.add_sample_asm(self._runtimes, "add_sample", "spectrum_to_rgb")
+        self._algorithm_asm(self._runtimes)
+
+    def _algorithm_asm(self, runtimes):
         
         code = """
             #DATA
         """
-        code += structures.structs(('sample', 'ray', 'hitpoint')) + """
+        code += self._renderer.structures.structs(('sample', 'ray', 'hitpoint')) + """
             sample sample1
             ray ray1
             hitpoint hp1
-            hitpoint background
-            hitpoint foreground
+            spectrum background
+            spectrum foreground
+
             #CODE
             _main_loop:
             mov eax, sample1
@@ -102,7 +103,7 @@ class IsectIntegrator(Integrator):
             #END
         """
 
-        mc = assembler.assemble(code)
+        mc = self._renderer.assembler.assemble(code)
         #mc.print_machine_code()
         name = "isect_integrator"
         self._ds = []
@@ -114,6 +115,6 @@ class IsectIntegrator(Integrator):
     def _populate_ds(self):
         if self._ds is None: return
         for ds in self._ds:
-            ds['background.spectrum'] = (0.99, 0.0, 0.0, 0.0)
-            ds['foreground.spectrum'] = (0.0, 0.99, 0.0, 0.0)
+            ds['background.values'] = self._background.to_ds()
+            ds['foreground.values'] = self._foreground.to_ds() 
     

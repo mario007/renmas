@@ -1,6 +1,7 @@
 
 import renmas2.shapes
 from renmas2.core import Vector3
+from renmas2.lights import PointLight
 
 def generate_name(self, obj):
     pass
@@ -8,8 +9,21 @@ def generate_name(self, obj):
 class IRender:
     def __init__(self, renderer):
         self.renderer = renderer
+        self.factory = renmas2.Factory()
     
-    def create_shape(self, **kw):
+    def add_light(self, **kw):
+        typ = kw.get("type")
+        if typ == "pointlight":
+            p = kw.get("position")
+            s = kw.get("source")
+            name = kw.get("name", None)
+            spec = self.renderer.converter.create_spectrum(s, True)
+            pos = Vector3(float(p[0]), float(p[1]), float(p[2]))
+            l = PointLight(pos, spec)
+            self.renderer.add(name, l)
+            return l
+
+    def add_shape(self, **kw):
         t = kw.get("type", None)
         if t is None: return #log!!! TODO
         if t == "sphere": self._create_sphere(kw)
@@ -19,8 +33,7 @@ class IRender:
         position = kw.get("position", None)
         name = kw.get("name", None)
         if radius is None or position is None or name is None: return #LOG TODO
-        x, y, z = position
-        sph = renmas2.shapes.Sphere(Vector3(float(x), float(y), float(z)), float(radius), None)
+        sph = self.factory.create_sphere(origin=position, radius=radius)
         self.renderer.add(name, sph)
 
     def options(self, **kw):
@@ -56,22 +69,22 @@ class IRender:
     def _set_camera_props(self, name, value):
         if name == "eye":
             x, y, z = value.split(',')
-            self.renderer._camera.set_eye(x, y, z)
+            self.renderer.camera.set_eye(x, y, z)
         elif name == "lookat":
             x, y, z = value.split(',')
-            self.renderer._camera.set_lookat(x, y, z)
+            self.renderer.camera.set_lookat(x, y, z)
         elif name == "distance":
-            self.renderer._camera.set_distance(value)
+            self.renderer.camera.set_distance(value)
 
     def _get_camera_props(self, name):
         if name == "eye":
-            x, y, z = self.renderer._camera.get_eye()
+            x, y, z = self.renderer.camera.get_eye()
             return str(x) + "," + str(y) + "," + str(z) 
         elif name == "lookat":
-            x, y, z = self.renderer._camera.get_lookat()
+            x, y, z = self.renderer.camera.get_lookat()
             return str(x) + "," + str(y) + "," + str(z) 
         elif name == "distance":
-            return str(self.renderer._camera.get_distance())
+            return str(self.renderer.camera.get_distance())
         return ""
 
     def _set_misc(self, name, value):

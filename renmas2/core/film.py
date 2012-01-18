@@ -3,10 +3,12 @@ import math
 from .image import ImageRGBA, ImageFloatRGBA
 from .blitter import Blitter
 from .spectrum import Spectrum
+import renmas2.switch as proc
 
 #TODO make flip image as option
 class Film:
-    def __init__(self, width, height, nsamples=1):
+    def __init__(self, width, height, nsamples, renderer):
+        self._renderer = renderer
         self.width = width
         self.height = height
         self.nsamples = nsamples
@@ -16,9 +18,9 @@ class Film:
         self.blitter = Blitter()
         self._ds = None
 
-        self.spectrum = Spectrum(False, (0.0, 0.0, 0.0))
+        self.spectrum = self._renderer.converter.zero_spectrum()
         self.curn = nsamples
-        self.max_spectrum = Spectrum(False, (0.0, 0.0, 0.0))
+        self.max_spectrum = self._renderer.converter.zero_spectrum()
 
     def blt_image_to_buffer(self):
         da, dpitch = self.frame_buffer.get_addr()
@@ -43,23 +45,23 @@ class Film:
     def set_nsamples(self, n):
         self.nsamples = n
         self.curn = n
-        self.spectrum = Spectrum(False, (0.0, 0.0, 0.0))
+        self.spectrum = self._renderer.converter.zero_spectrum()
         self._populate_ds()
 
     def reset(self):
         self.curn = self.nsamples 
-        self.spectrum = Spectrum(False, (0.0, 0.0, 0.0))
+        self.spectrum = self._renderer.converter.zero_spectrum()
         self._populate_ds()
 
-    def add_sample(self, sample, hitpoint):
+    def add_sample(self, sample, spectrum):
         if self.curn == 1:
-            self.spectrum = self.spectrum + hitpoint.spectrum
+            self.spectrum = self.spectrum + spectrum
             self.spectrum.scale(1.0/self.nsamples)
-            spec = self.spectrum
+            #spec = self.spectrum
 
-            self.max_spectrum.r = max(self.max_spectrum.r, spec.r)
-            self.max_spectrum.g = max(self.max_spectrum.g, spec.g)
-            self.max_spectrum.b = max(self.max_spectrum.b, spec.b)
+            #self.max_spectrum.r = max(self.max_spectrum.r, spec.r)
+            #self.max_spectrum.g = max(self.max_spectrum.g, spec.g)
+            #self.max_spectrum.b = max(self.max_spectrum.b, spec.b)
 
             #spec.clamp() #FIXME make clamp to certen color so to know when picture is wrong 
             iy = self.height - sample.iy - 1 #flip the image
@@ -67,11 +69,21 @@ class Film:
             #print(sample.ix, iy, spec.r, spec.g, spec.b)
             #if spec.r > 0.99 or spec.g > 0.99 or spec.b > 0.99:
             #    print(spec)
-            self.image.set_pixel(sample.ix, iy, spec.r, spec.g, spec.b)
+
+            r, g, b = self._renderer.converter.to_rgb(self.spectrum) 
+            #TODO tone - mapping process
+            if r < 0.0: r = 0.0
+            if g < 0.0: g = 0.0
+            if b < 0.0: b = 0.0
+            if r > 0.99: r = 0.99
+            if g > 0.99: g = 0.99
+            if b > 0.99: b = 0.99
+            #print (r, g, b)
+            self.image.set_pixel(sample.ix, iy, r, g, b)
             self.curn = self.nsamples
-            self.spectrum = Spectrum(False, (0.0, 0.0, 0.0))
+            self.spectrum = self._renderer.converter.zero_spectrum()
         else:
-            self.spectrum = self.spectrum + hitpoint.spectrum
+            self.spectrum = self.spectrum + spectrum
             self.curn -= 1
 
     def tone_map(self):
@@ -137,18 +149,17 @@ class Film:
         print(r_max, g_max, b_max)
 
 
-    def add_sample_asm(self, runtimes, label, assembler, structures):
+    def add_sample_asm(self, runtimes, label, label_spec_to_rgb):
 
-        #eax - pointer to hitpoint structure
-        #ebx - pointer to sample structure
-        asm_structs = structures.structs(("hitpoint", "sample"))
+        #eax - pointer to spectrum
+        #ebx - pointer to sample 
+        asm_structs = self._renderer.structures.structs(("hitpoint", "sample"))
         ASM = """
         #DATA
         """
         ASM += asm_structs + """
-            float spectrum[4]
+            spectrum spec 
             float scale[4]
-            float zero_spectrum[4] = 0.0, 0.0, 0.0, 0.0
             float alpha_channel[4] = 0.0, 0.0, 0.0, 0.99
             uint32 nsamples 
             uint32 curn
@@ -156,20 +167,42 @@ class Film:
             uint32 ptr_buffer
             uint32 pitch_buffer
             float clamp[4] = 0.99, 0.99, 0.99, 0.99
+            float zero[4] = 0.0, 0.0, 0.0, 0.0
+
+            float temp[4]
 
             #CODE
         """
         ASM += "global " + label + ":\n " + """
             cmp dword [curn], 1
             jne _next_sample
-            macro eq128 xmm0 = spectrum + eax.hitpoint.spectrum
-            macro eq128 xmm0 = xmm0 * scale 
+            push ebx
+            mov edx, spec
+            macro spectrum edx = edx + eax 
+            macro eq128 xmm0 = scale
+            mov eax, spec
+            macro spectrum eax = xmm0 * eax 
+            """
+        ASM += "call " + label_spec_to_rgb + """
+
             ;because of alpha channel - try solve this in better way , pxor xmm0, xmm0 da postavis na nulu
             macro eq128 xmm0 = xmm0 + alpha_channel
+            """
+        if proc.AVX:
+            ASM += """
             ; for clamping 
-            ;minps xmm0, oword [clamp] 
+            vmaxps xmm0, xmm0, oword [zero]
+            vminps xmm0, xmm0, oword [clamp] 
+            """
+        else:
+            ASM += """
+            maxps xmm0, oword [zero]
+            minps xmm0, oword [clamp] 
+            """
+        ASM += """
 
             ;flip the image and call set pixel
+            pop ebx
             mov eax, dword [ebx + sample.ix]
             mov ecx, dword [ebx + sample.iy]
             mov ebx, dword [height] ;because of flipping image 
@@ -180,20 +213,25 @@ class Film:
             mov edx, dword [pitch_buffer]
             macro call set_pixel
 
+            ;remove this temp - this was just for testing --- think better test for this TODO
+            macro eq128 temp = xmm0 {xmm0} 
 
+            macro eq128 xmm0 = zero
+            mov eax, spec
+            macro spectrum eax = xmm0 * eax 
             mov edx, dword [nsamples]
-            macro eq128 spectrum = zero_spectrum {xmm0}
             mov dword [curn], edx
             ret
 
             _next_sample:
-            macro eq128 spectrum = spectrum + eax.hitpoint.spectrum {xmm0}
+            mov edx, spec
+            macro spectrum edx = edx + eax 
             sub dword [curn], 1
             ret
 
         """
 
-        mc = assembler.assemble(ASM, True)
+        mc = self._renderer.assembler.assemble(ASM, True)
         #mc.print_machine_code()
         name = "film" + str(hash(self))
 
@@ -207,8 +245,8 @@ class Film:
     def _populate_ds(self):
         if self._ds is None: return
         for ds in self._ds:
-            s = self.spectrum
-            ds["spectrum"] = (s.r, s.g, s.b, 0.0)
+            spec = self._renderer.converter.zero_spectrum()
+            ds["spec.values"] = spec.to_ds()
             ds["nsamples"] = self.nsamples
             ds["curn"] = self.curn
             scale =  1.0 / self.nsamples

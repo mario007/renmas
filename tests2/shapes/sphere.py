@@ -3,10 +3,13 @@ from tdasm import Tdasm, Runtime
 import renmas2.core
 import renmas2.shapes
 
+renderer = renmas2.core.Renderer()
+factory = renmas2.core.Factory()
+
 ASM_CODE = """
     #DATA
 """
-ASM_CODE += renmas2.core.get_structs(('ray', 'sphere', 'hitpoint')) + """
+ASM_CODE += renderer.structures.structs(('ray', 'sphere', 'hitpoint')) + """
     ray ray1
     sphere sph1
     hitpoint hp1

@@ -4,7 +4,10 @@ from ..materials import Lambertian
 from ..lights import PointLight
 from .spectrum import Spectrum
 from .material import Material
+from ..materials import Lambertian
 from .vector3 import Vector3
+from .ray import Ray
+from ..shapes import Sphere
 
 from renmas2.macros import MacroCall, arithmetic32, arithmetic128,\
                             broadcast, macro_if, dot_product, normalization
@@ -25,6 +28,23 @@ class Factory:
         assembler.register_macro('normalization', normalization)
         return assembler
 
+    def create_lambertian(self, spectrum, k=None):
+        return Lambertian(spectrum, k)
+
+    def create_ray(self, origin, direction):
+        x, y, z = origin
+        o = Vector3(float(x), float(y), float(z))
+        x, y, z = direction
+        d = Vector3(float(x), float(y), float(z))
+        d.normalize()
+        return Ray(o, d)
+
+    def create_sphere(self, origin, radius, material=None):
+        x, y, z = origin
+        o = Vector3(float(x), float(y), float(z))
+        radius = float(radius)
+        return Sphere(o, radius, material)
+
     def create_shape(self, **kw):
         pass
 
@@ -37,7 +57,6 @@ class Factory:
             pos = Vector3(float(p[0]), float(p[1]), float(p[2]))
             l = PointLight(pos, spec)
             return l
-
 
     def create_material(self, **kw): # TODO catch Exception and return None if exception ocur
         mat = Material()

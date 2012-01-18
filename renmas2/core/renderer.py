@@ -13,6 +13,8 @@ from .methods import create_tiles
 from .shader import Shader
 from .material import Material
 from .structures import Structures
+from .spectrum_converter import SpectrumConverter
+from .material import Material
 
 from .factory import Factory
 
@@ -23,22 +25,26 @@ class Renderer:
         self._default_objects()
 
     def _default_objects(self):
+        self._converter = SpectrumConverter(self)
         self._intersector = Intersector(self)
         #self._integrator = IsectIntegrator(self)
         self._integrator = Raycast(self)
-        self._sampler = RegularSampler(self._width, self._height)
-        #self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
+        #self._sampler = RegularSampler(self._width, self._height)
+        self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
         self._spp = self._sampler._spp
-        self._film = Film(self._width, self._height, self._spp)
-        eye = (10, 10, 10)
-        lookat = (0, 0, 0)
-        distance = 400
-        self._camera = Pinhole(eye, lookat, distance)
-        self._shader = Shader()
-        self.structures = Structures(self) 
-        self.factory = Factory()
+        self._film = Film(self._width, self._height, self._spp, self)
+        self._camera = Pinhole(eye=(10,10,10), lookat=(0,0,0), distance=400)
+        self._shader = Shader(self)
+        self._structures = Structures(self) 
+        self._factory = Factory()
         self._assembler = self._create_assembler()
-        #create default material TODO
+
+        #creation of default material
+        mat = Material(self.converter.zero_spectrum())
+        s = self.converter.create_spectrum((0.00, 0.77, 0.11))
+        lamb = self.factory.create_lambertian(s)
+        mat.add(lamb)
+        self.shader.add(self._default_material, mat)
 
     def _create_assembler(self):
         assembler = Tdasm()
@@ -58,21 +64,24 @@ class Renderer:
         self._width =  200 
         self._height = 200 
         self._spp = 1 
-        self._threads = 1
+        self._threads = 1 
         self._max_samples = 100000 #max samples in tile
         self._pixel_size = 1.0
         self._spectrum_rendering = False
-        self._nspectrum_samples = 48
+        self._nspectrum_samples = 32 
         self._start_lambda = 380
         self._end_lambda = 720
         self._default_material = "default" #name of default material
 
-    def set_spec(self, value):
+    def _set_spec(self, value):
         self._spectrum_rendering = bool(value)
+        self._ready = False 
+        self.shader.convert_spectrums()
+        #TODO -- resampled spectrums 
         #TODO prepare evething else needed for spectrum rendering
-    def get_spec(self):
+    def _get_spec(self):
         return self._spectrum_rendering
-    spectrum_rendering = property(get_spec, set_spec)
+    spectral_rendering = property(_get_spec, _set_spec)
 
     @property
     def nspectrum_samples(self):
@@ -94,6 +103,34 @@ class Renderer:
     def assembler(self):
         return self._assembler
 
+    @property
+    def intersector(self):
+        return self._intersector
+
+    @property
+    def structures(self):
+        return self._structures
+
+    @property
+    def factory(self):
+        return self._factory
+
+    @property
+    def sampler(self):
+        return self._sampler
+
+    @property
+    def film(self):
+        return self._film
+
+    @property
+    def converter(self):
+        return self._converter
+
+    @property
+    def shader(self):
+        return self._shader
+
     def spectrum_parameters(self, nsamples, start_lambda, end_lambda):
         n = self._int(self._nspectrum_samples, nsamples)
         n = abs(n)
@@ -101,11 +138,12 @@ class Renderer:
             self._nspectrum_samples = n - (n%8) #round samples 
         self._start_lambda = self._int(self._start_lambda, start_lambda)
         self._end_lambda = self._int(self._end_lambda, end_lambda)
+        ##TODO -- resampling spectrums 
 
     def asm(self, flag):
         self._asm = bool(flag)
         self._integrator.asm(flag)
-        if self._asm: self._max_samples = 10000000
+        if self._asm: self._max_samples = 20000000
         else: self._max_samples = 100000
         self._ready = False
 
@@ -136,12 +174,15 @@ class Renderer:
         self._samplers = samplers
         self._ready = False
 
-    def threads(self, n):
-        n = self._int(self._threads, n)
+    def _set_threads(self, value):
+        n = self._int(self._threads, value)
         nc = abs(n)
         if nc > 32: nc = 32 #max number of threads
         self._threads = nc
         self._ready = False
+    def _get_threads(self):
+        return self._threads
+    threads = property(_get_threads, _set_threads)
 
     def prepare(self): #prepare everything that is needed for rendering 
         self._tiles = create_tiles(self._width, self._height, self._spp, self._max_samples, self._threads)
@@ -170,22 +211,23 @@ class Renderer:
     def add(self, name, obj): #add material, shape, light etc...
         if isinstance(obj, Shape):
             self._intersector.add(name, obj)
+            self.assign_material(name, self._default_material)
         elif isinstance(obj, Material) or isinstance(obj, Light):
             self._shader.add(name, obj)
         else:
             raise ValueError("Unknown type of object!") #TODO log not exception !!! exception is just for testing
         self._ready = False
 
-    def assign_material(self, shape, material):
-        mat = self._shader.mat_idx(material) 
-        if mat is None:
+    def assign_material(self, shape_name, mat_name):
+        mat_idx = self._shader.mat_idx(mat_name) 
+        if mat_idx is None:
             #TODO Log
             return False
-        shape = self._intersector.shape(shape)
+        shape = self._intersector.shape(shape_name)
         if shape is None:
             # TODO Log
             return False
-        shape.material = mat 
+        shape.material = mat_idx 
         self._intersector.update(shape)
         self._ready = False
         
@@ -200,16 +242,16 @@ class Renderer:
         self._integrator.render(tile)
         return True
 
-    def save_project(self, full_path):
+    def save_project(self, path):
         pass
 
-    def load_project(self, full_path):
+    def load_project(self, path):
         pass
 
-    def export_project(self, full_path):
+    def export_project(self, path):
         pass
 
-    def import_project(self, full_path):
+    def import_project(self, path):
         pass
 
     def _float(self, old, new):

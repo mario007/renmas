@@ -599,7 +599,7 @@ class SpectrumConverter:
 
     def to_rgb_asm(self, label, runtimes):
         structs = self.renderer.structures.get_struct('spectrum')
-        sampled = self.renderer.spectrum_rendering
+        sampled = self.renderer.spectral_rendering
         if sampled:
             ASM = """
                 #DATA
@@ -714,7 +714,7 @@ class SpectrumConverter:
         return s
 
     def create_spectrum(self, vals, illum=False):
-        if self.renderer.spectrum_rendering:
+        if self.renderer.spectral_rendering:
             if len(vals) == 3:
                 return self.rgb_to_sampled(vals, illum)
             else:
@@ -726,6 +726,28 @@ class SpectrumConverter:
                 s = self._create_sampled_spectrum(vals)
                 rgb = self.to_rgb(s)
                 return Spectrum(False, rgb)
+
+    def convert_spectrum(self, spectrum, illum=False):
+        #TODO -- resampled spectrum 
+        if self.renderer.spectral_rendering:
+            if spectrum.sampled:
+                return spectrum
+            else:
+                return self.create_spectrum((spectrum.r, spectrum.g, spectrum.b), illum)
+        else:
+            if spectrum.sampled:
+                rgb = self.to_rgb(s)
+                return Spectrum(False, rgb)
+            else:
+                return spectrum
+
+    def zero_spectrum(self):
+        if self.renderer.spectral_rendering:
+            nspec = self.renderer.nspectrum_samples
+            vals = [0.0 for i in range(nspec)] 
+            return Spectrum(True, vals)
+        else:
+            return Spectrum(False, (0.0, 0.0, 0.0))
 
     def _create_sampled_spectrum(self, vals):
         samples = self._create_samples(vals)

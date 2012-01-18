@@ -58,9 +58,6 @@ class Spectrum:
         else:
             return Spectrum(False, (self.r * col.r, self.g * col.g, self.b * col.b))
 
-    def rgb(self):
-        return (int(256*self.r), int(256*self.g), int(256*self.b))
-
     def scale(self, t):
         if self.sampled:
             self.samples = [self.samples[i] * t for i in range(len(self.samples))]
@@ -88,4 +85,12 @@ class Spectrum:
             if self.r < low: self.r = low 
             if self.g < low: self.g = low 
             if self.b < low: self.b = low 
+
+    def zero_spectrum(self):
+        if self.sampled:
+            nspec = len(self.samples) 
+            vals = [0.0 for i in range(nspec)] 
+            return Spectrum(True, vals)
+        else:
+            return Spectrum(False, (0.0, 0.0, 0.0))
 

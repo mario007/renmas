@@ -133,7 +133,7 @@ def arithmetic(tokens, size):
     if size == 128:
         lines = _assign128(toks, dest_reg)
     else:
-        lines = _assign32(toks, dest_reg) #AVX fist two can add without asseigment TODO
+        lines = _assign32(toks, dest_reg) #AVX fist two can add without assigment TODO
 
     #Phase2 - preform operation on every next token 
     for idx in range(3, len(tokens), 2):

@@ -20,7 +20,7 @@ class MacroSpectrum:
         return self._arithmetic_spectrum(asm, tokens)
 
     def _sum_spectrum(self, asm, tokens):
-        sampled = self.renderer.spectrum_rendering
+        sampled = self.renderer.spectral_rendering
         n = self.renderer.nspectrum_samples
         s, reg = tokens
         if proc.AVX:
@@ -81,7 +81,7 @@ class MacroSpectrum:
             
 
     def _scaling_spectrum(self, asm, tokens):
-        sampled = self.renderer.spectrum_rendering
+        sampled = self.renderer.spectral_rendering
         n = self.renderer.nspectrum_samples
         r1, equal, xmm, mul, r3 = tokens
         code = ""
@@ -154,7 +154,7 @@ class MacroSpectrum:
         elif len(tokens) == 5:
             r1, equal, r2, operator, r3 = tokens
         
-        sampled = self.renderer.spectrum_rendering
+        sampled = self.renderer.spectral_rendering
         n = self.renderer.nspectrum_samples
         code = ""
         if proc.AVX:

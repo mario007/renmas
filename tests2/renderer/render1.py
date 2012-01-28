@@ -32,9 +32,10 @@ print (irender.get_props('misc', 'pixel_size'))
 irender.set_props('misc', 'threads', '1')
 filename = 'I:\\GitRENMAS\\scenes\\sphere1.py'
 exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(globals()))
-irender.set_props('misc', 'pixel_size', '1.4')
-print (irender.get_props('misc', 'pixel_size'))
-print (irender.get_props('light_spectrum', 'light1'))
+#irender.set_props('misc', 'pixel_size', '1.4')
+#print (irender.get_props('misc', 'pixel_size'))
+#print (irender.get_props('light_spectrum', 'light1'))
+irender.set_props('misc', 'spectral', 'True')
 
 for l  in renderer.shader.light_names():
     print(l)

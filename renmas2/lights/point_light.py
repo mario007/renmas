@@ -4,6 +4,7 @@ class PointLight(Light):
     def __init__(self, position, spectrum):
         self._position = position
         self._spectrum = spectrum
+        self._ds = []
 
     def _set_position(self, value):
         self._position = value
@@ -88,13 +89,13 @@ class PointLight(Light):
         mc = assembler.assemble(code, True)
         #mc.print_machine_code()
         self.l_asm_name = name = "pointlight_L" + str(hash(self))
-        self.ds = []
+        self._ds = []
         for r in runtimes:
-            self.ds.append(r.load(name, mc)) 
+            self._ds.append(r.load(name, mc)) 
         self._populate_ds()
 
     def _populate_ds(self):
-        for ds in self.ds:
+        for ds in self._ds:
             p = self._position
             ds["position"] = (p.x, p.y, p.z, 0.0)
             s = self._spectrum

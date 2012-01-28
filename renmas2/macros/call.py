@@ -42,6 +42,7 @@ class MacroCall:
         self.inline_macros['int_to_float'] = self.int_to_float
         self.inline_macros['sqrtss'] = self.sqrtss
         self.inline_macros['set_pixel'] = self.set_pixel
+        self.inline_macros['zero'] = self.zero_register
 
     # first token is name of function
     # if inline is specified it must be second token [inline is optional]
@@ -107,6 +108,13 @@ class MacroCall:
             return 'vsqrtss ' + xmm1 + ',' + xmm1 + ',' + xmm2 + '\n'
         else:
             return 'sqrtss ' + xmm1 + ',' + xmm2 + '\n'
+
+    def zero_register(self, asm, tokens):
+        xmm = tokens[0]
+        if proc.AVX:
+            return 'vpxor ' + xmm + ',' + xmm + ',' + xmm + '\n'
+        else:
+            return 'pxor ' + xmm + ',' + xmm + '\n'
 
     def set_pixel(self, asm, tokens):
         # eax = x , ebx = y, esi = ptr_image, edx = pitch value = xmm0

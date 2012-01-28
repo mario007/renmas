@@ -25,6 +25,14 @@ class Shader:
         if name in self._materials:
             return self._materials[name][0]
         return None
+    
+    def light_names(self):
+        return self._lights.keys()
+
+    def light(self, name):
+        if name in self._lights:
+            return self._lights[name]
+        return None
 
     def convert_spectrums(self):
         for l in self._lights_lst:
@@ -90,9 +98,9 @@ class Shader:
         code += "global " + label + ":\n" + """
             mov dword [hp_ptr], eax
             mov dword [cur_light], 0 
-            macro eq32 xmm0 = zero
             mov eax, temp_spectrum
-            macro spectrum eax = xmm0 * eax 
+            macro call zero xmm0
+            macro spectrum eax = xmm0
 
             ;light emmision --- later
 

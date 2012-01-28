@@ -589,6 +589,75 @@ class SpectrumConverter:
         Z = z_sum / self.yint  
         return (X, Y, Z)
 
+    def Y(self, spectrum):
+        if spectrum.sampled:
+            y = self._cie_y.mix_spectrum(spectrum)
+            y_sum = sum(y.samples)
+            return y_sum / self.yint  
+        else:
+            return spectrum.r*0.212671 + spectrum.g*0.715160 + spectrum.b*0.072169
+
+    #eax is pointer spectrum structure
+    def Y_asm(self, label, runtimes):
+        structs = self.renderer.structures.get_struct('spectrum')
+        sampled = self.renderer.spectral_rendering
+        if sampled:
+            ASM = """
+                #DATA
+            """
+            ASM += structs +  """
+                spectrum __y
+                spectrum temp
+                float one_over_yint
+                #CODE
+            """
+            ASM += " global " + label + ":\n" + """
+                mov ebx, __y
+                mov ecx, temp
+                macro spectrum ecx = eax * ebx
+                macro spectrum sum ecx
+                macro eq32 xmm0 = xmm0 * one_over_yint 
+                ret
+            """
+            self.ds = []
+            mc = self.renderer.assembler.assemble(ASM, True)
+            #mc.print_machine_code()
+            name = "lumminance" + str(hash(self))
+            for r in runtimes:
+                if not r.global_exists(label):
+                    ds = r.load(name, mc)
+                    self.ds.append(ds)
+            for ds in self.ds:
+                ds["one_over_yint"] = 1.0 / self.yint
+                ds["__y.values"] = self._cie_y.to_ds()
+        else:
+            #eax is pointer spectrum structure
+            ASM = """
+                #DATA
+                float lumm[4] = 0.212671, 0.715160, 0.072169, 0.0
+            """
+            ASM += structs +  """
+                #CODE
+                """
+            if proc.AVX:
+                ASM += " global " + label + ":\n" + """
+                    vmovaps xmm0, oword[eax + spectrum.values]
+                    macro dot xmm0 = xmm0 * lumm {xmm6, xmm7}
+                    ret
+                    """
+            else:
+                ASM += " global " + label + ":\n" + """
+                    movaps xmm0, oword[eax + spectrum.values]
+                    macro dot xmm0 = xmm0 * lumm {xmm6, xmm7}
+                    ret
+                    """
+            mc = self.renderer.assembler.assemble(ASM, True)
+            #mc.print_machine_code()
+            name = "Y_lumm" + str(hash(self))
+            for r in runtimes:
+                if not r.global_exists(label):
+                    r.load(name, mc)
+
     def to_rgb(self, spectrum):
         if spectrum.sampled:
             x, y, z = self._to_xyz(spectrum)
@@ -736,7 +805,7 @@ class SpectrumConverter:
                 return self.create_spectrum((spectrum.r, spectrum.g, spectrum.b), illum)
         else:
             if spectrum.sampled:
-                rgb = self.to_rgb(s)
+                rgb = self.to_rgb(spectrum)
                 return Spectrum(False, rgb)
             else:
                 return spectrum

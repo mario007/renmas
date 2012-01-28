@@ -3,13 +3,9 @@
 class Integrator:
     def __init__(self, renderer):
         self._renderer = renderer
-        self._asm = False
-
-    def asm(self, flag):
-        self._asm = bool(flag)
 
     def render(self, tile):
-        if self._asm:
+        if self._renderer.asm:
             self.render_asm(tile)
         else:
             self.render_py(tile)

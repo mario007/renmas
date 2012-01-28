@@ -9,7 +9,7 @@ import renmas2.core
 #factory.create_spectrum(6, s, 290, 410)
 
 renderer = renmas2.Renderer()
-renderer.spectrum_rendering = True
+renderer.spectral_rendering = False 
 structs = renderer.structures.get_struct('spectrum')
 
 
@@ -40,6 +40,10 @@ ASM += structs +  """
     ;macro spectrum eax = xmm0 * ecx
     ;macro spectrum sum ebx
     ;macro eq32 suma = xmm0 {xmm0}
+    mov eax, sp3
+    macro eq32 xmm3 = x
+    macro call zero xmm3
+    macro spectrum eax = xmm3
 
     #END
 """
@@ -51,7 +55,7 @@ mc.print_machine_code()
 runtime = Runtime()
 ds = runtime.load("test", mc)
 
-if renderer.spectrum_rendering:
+if renderer.spectral_rendering:
     arr1 = tuple([random.random() for i in range(renderer.nspectrum_samples)])
     arr2 = tuple([random.random() for i in range(renderer.nspectrum_samples)])
     sp1 = renmas2.core.Spectrum(True, arr1)

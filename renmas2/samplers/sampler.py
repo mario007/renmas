@@ -34,5 +34,7 @@ class Sampler:
         return self._pixel_size
 
     def spp(self, spp):
-        self._spp = int(spp) 
+        s = int(spp)
+        if s < 1: self._spp = 1
+        else: self._spp = s
 

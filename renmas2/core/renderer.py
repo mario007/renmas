@@ -33,7 +33,7 @@ class Renderer:
         self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
         self._spp = self._sampler._spp
         self._film = Film(self._width, self._height, self._spp, self)
-        self._camera = Pinhole(eye=(10,10,10), lookat=(0,0,0), distance=400)
+        self._camera = Pinhole(eye=(10,9,8), lookat=(0,0,0), distance=400)
         self._shader = Shader(self)
         self._structures = Structures(self) 
         self._factory = Factory()
@@ -72,6 +72,7 @@ class Renderer:
         self._start_lambda = 380
         self._end_lambda = 720
         self._default_material = "default" #name of default material
+        self._asm = False 
 
     def _set_spec(self, value):
         self._spectrum_rendering = bool(value)
@@ -140,12 +141,14 @@ class Renderer:
         self._end_lambda = self._int(self._end_lambda, end_lambda)
         ##TODO -- resampling spectrums 
 
-    def asm(self, flag):
-        self._asm = bool(flag)
-        self._integrator.asm(flag)
+    def _set_asm(self, value):
+        self._asm = bool(value)
         if self._asm: self._max_samples = 20000000
         else: self._max_samples = 100000
         self._ready = False
+    def _get_asm(self):
+        return self._asm
+    asm = property(_get_asm, _set_asm)
 
     def resolution(self, width, height):
         width = self._int(self._width, width)
@@ -155,16 +158,22 @@ class Renderer:
         self._film.set_resolution(width, height)
         self._sampler.set_resolution(width, height)
 
-    def spp(self, n):
-        n = self._int(self._spp, n)
+    def _set_spp(self, value):
+        n = self._int(self._spp, value)
         self._sampler.spp(n)
         self._spp = self._sampler._spp 
         self._film.set_nsamples(self._spp)
+    def _get_spp(self):
+        return self._spp
+    spp = property(_get_spp, _set_spp)
 
-    def set_pixel_size(self, size):
-        size = self._float(self._pixel_size, size)
+    def _set_pixel_size(self, value):
+        size = self._float(self._pixel_size, value)
         self._pixel_size = size
         self._sampler.set_pixel_size(self._pixel_size)
+    def _get_pixel_size(self):
+        return self._pixel_size
+    pixel_size = property(_get_pixel_size, _set_pixel_size)
 
     def blt_frame_buffer(self):
         self._film.blt_image_to_buffer()

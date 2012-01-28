@@ -14,6 +14,9 @@
 *.ply
 *.cpp~
 *.swp
+*.dll
+/RenmasWPF2/RenmasWPF2/bin
+/RenmasWPF2/RenmasWPF2/obj
 /ImageLoader/ImageLoader/Release
 /WindowLibrary/WindowLibrary/Release
 /WindowLibrary/WindowLibrary/x64

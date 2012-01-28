@@ -42,13 +42,12 @@ class Material:
         """
         code += structures.structs(('hitpoint',)) + """
             spectrum temp_spectrum 
-            float zero = 0.0
             uint32 hp_ptr
             #CODE
             mov dword [hp_ptr], eax ;save pointer to hitpoint
-            macro eq32 xmm0 = zero
             mov eax, temp_spectrum
-            macro spectrum eax = xmm0 * eax 
+            macro call zero xmm0
+            macro spectrum eax = xmm0
             mov eax, dword [hp_ptr]
         """
         for c in self._brdfs:

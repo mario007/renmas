@@ -3,7 +3,7 @@ from tdasm import Tdasm
 
 __asm = Tdasm()
 AVX = __asm.avx_supported()
-AVX = False
+#AVX = False
 
 SSSE3 = __asm.cpu["ssse3"]
 #SSSE3 = False

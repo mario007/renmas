@@ -151,6 +151,7 @@ class MacroSpectrum:
         if len(tokens) == 3:
             r1, equal, r2 = tokens
             assign = True
+            if r2 in self.xmm_regs: return self._set(asm, tokens)
         elif len(tokens) == 5:
             r1, equal, r2, operator, r3 = tokens
         
@@ -199,6 +200,38 @@ class MacroSpectrum:
                 code += "movaps oword[" + r1 + " + spectrum.values], xmm0 \n"
 
         return code
+
+    def _set(self, asm, tokens):
+        r1, equal, xmm = tokens
+        sampled = self.renderer.spectral_rendering
+        n = self.renderer.nspectrum_samples
+        code = ""
+        if proc.AVX:
+            code = "vshufps " + xmm + ", " + xmm + ", " + xmm + ", 0x00 \n"
+        else:
+            code = "shufps " + xmm + ", " + xmm + ", 0x00 \n"
+
+        if sampled:
+            off = 0
+            if proc.AVX:
+                rounds = n // 8
+                ymm = "y" + xmm[1:]
+                code += "vperm2f128 " + ymm + ", " + ymm + ", " + ymm + ", 0x00 \n"
+                for r in range(rounds):
+                    code += "vmovaps yword [" + r1 + " + spectrum.values + "  + str(off) + "]," + ymm + "\n"  
+                    off += 32 
+            else:
+                rounds = n // 4
+                for r in range(rounds):
+                    code += "vmovaps oword [" + r1 + " + spectrum.values + "  + str(off) + "]," + xmm + "\n"  
+                    off += 16 
+        else:
+            if proc.AVX:
+                code += "vmovaps oword [" + r1 + " + spectrum.values]," + xmm + "\n"  
+            else:
+                code += "movaps oword [" + r1 + " + spectrum.values]," + xmm + "\n"  
+        return code
+
 
     def _command(self, reg, command, n, to_reg, off):
         code = ""

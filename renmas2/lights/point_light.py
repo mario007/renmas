@@ -2,14 +2,28 @@ from .light import Light
 
 class PointLight(Light):
     def __init__(self, position, spectrum):
-        self.position = position
-        self.spectrum = spectrum
+        self._position = position
+        self._spectrum = spectrum
+
+    def _set_position(self, value):
+        self._position = value
+        self._populate_ds()
+    def _get_position(self):
+        return self._position
+    position = property(_get_position, _set_position)
+
+    def _set_spectrum(self, value):
+        self._spectrum = value
+        self._populate_ds()
+    def _get_spectrum(self):
+        return self._spectrum
+    spectrum = property(_get_spectrum, _set_spectrum)
 
     def L(self, hitpoint, renderer):
         # 1. check visibility
         # 2. populate light vector in hitpoint and spectrum of light
 
-        wi = self.position - hitpoint.hit_point
+        wi = self._position - hitpoint.hit_point
         wi.normalize()
         ndotwi = hitpoint.normal.dot(wi)
         hitpoint.wi = wi 
@@ -18,9 +32,9 @@ class PointLight(Light):
             hitpoint.visible = False
             return False
 
-        ret = renderer._intersector.visibility(self.position, hitpoint.hit_point)
+        ret = renderer._intersector.visibility(self._position, hitpoint.hit_point)
         if ret:
-            hitpoint.l_spectrum = self.spectrum #TODO reduce intesity, attenuation options  1/r^2
+            hitpoint.l_spectrum = self._spectrum #TODO reduce intesity, attenuation options  1/r^2
             hitpoint.visible = True
             return True
         else:
@@ -81,11 +95,11 @@ class PointLight(Light):
 
     def _populate_ds(self):
         for ds in self.ds:
-            p = self.position
+            p = self._position
             ds["position"] = (p.x, p.y, p.z, 0.0)
-            s = self.spectrum
+            s = self._spectrum
             ds["l_spectrum.values"] = s.to_ds()
 
     def convert_spectrums(self, converter):
-        self.spectrum = converter.convert_spectrum(self.spectrum, True)
+        self.spectrum = converter.convert_spectrum(self._spectrum, True)
 

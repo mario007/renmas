@@ -25,13 +25,19 @@ def blt_float_img_to_window(x, y, img, win):
 #print(irender.get_props('misc', 'pixel_size'))
 #irender.set_props('misc', 'resolution', '400,300')
 #print (irender.get_props('misc', 'resolution'))
-#irender.set_props('misc', 'spp', '1')
-#print (irender.get_props('misc', 'spp'))
-#renderer.spp(1)
-#renderer.threads(1)
+irender.set_props('misc', 'spp', '2')
+print (irender.get_props('misc', 'spectral'))
+print (irender.get_props('misc', 'pixel_size'))
+
+irender.set_props('misc', 'threads', '1')
 filename = 'I:\\GitRENMAS\\scenes\\sphere1.py'
 exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(globals()))
+irender.set_props('misc', 'pixel_size', '1.4')
+print (irender.get_props('misc', 'pixel_size'))
+print (irender.get_props('light_spectrum', 'light1'))
 
+for l  in renderer.shader.light_names():
+    print(l)
 #renderer.spectral_rendering = True
 renderer.prepare()
 

@@ -1,0 +1,36 @@
+﻿<Window x:Class="RenmasWPF2.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="MainWindow" Height="350" Width="525">
+    <Grid Name="main_grid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="25" />
+            <RowDefinition />
+            <RowDefinition />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition />
+            <ColumnDefinition MaxWidth="200" MinWidth="200" />
+        </Grid.ColumnDefinitions>
+        <Menu Grid.Row="0" Height="23" HorizontalAlignment="Left" Name="main_menu" VerticalAlignment="Top" Width="119">
+            <MenuItem Header="File">
+                <MenuItem Header="New Project" IsEnabled="False" />
+                <MenuItem Header="Save Project" IsEnabled="False" />
+                <MenuItem Header="Export Image" Click="MenuItem_ExportImage" />
+                <MenuItem Header="Exit" Click="MenuItem_Exit"/>
+            </MenuItem>
+            <MenuItem Header="Tools">
+                <MenuItem Header="Run Script" Click="MenuItem_RunScript" />
+                <MenuItem Header="Render" Click="MenuItem_Render" />
+                <MenuItem Header="Stop" Click="MenuItem_Stop" />
+            </MenuItem>
+            <MenuItem Header="Help">
+                <MenuItem Header="About" />
+            </MenuItem>
+        </Menu>
+        <ScrollViewer Height="Auto" Grid.Row="1" Name="scrollViewer1" HorizontalScrollBarVisibility="Visible" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Image Name="output_image" Stretch="None" />
+        </ScrollViewer>
+        <TextBox Height="23" Grid.Row="2" Grid.Column="0" HorizontalAlignment="Left" Margin="12,72,0,0" Name="txt_focus_problem" VerticalAlignment="Top" Width="86" Text="Focus problem" />
+    </Grid>
+</Window>

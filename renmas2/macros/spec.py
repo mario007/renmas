@@ -12,12 +12,81 @@ class MacroSpectrum:
     def macro_spectrum(self, asm, tokens):
         if len(tokens) == 0: return
         if len(tokens) == 2:
-            return self._sum_spectrum(asm, tokens)
+            if tokens[0] == "sum":
+                return self._sum_spectrum(asm, tokens)
+            elif tokens[0] == "clamp":
+                return self._clamp_spectrum(asm, tokens)
         if len(tokens) == 5:
             r1, equal, r2, operator, r3 = tokens
             if r2 in self.xmm_regs:
                 return self._scaling_spectrum(asm, tokens)
         return self._arithmetic_spectrum(asm, tokens)
+
+    # macro spectrum clamp ebx   # xmm0 - low  xmm1 - high
+    def _clamp_spectrum(self, asm, tokens):
+        sampled = self.renderer.spectral_rendering
+        n = self.renderer.nspectrum_samples
+        clamp, reg = tokens
+        if proc.AVX:
+            if sampled:
+                code = "vshufps xmm0, xmm0, xmm0, 0x00 \n"
+                code += "vperm2f128 ymm6, ymm0, ymm0, 0x00 \n"
+                code += "vshufps xmm1, xmm1, xmm1, 0x00 \n"
+                code += "vperm2f128 ymm7, ymm1, ymm1, 0x00 \n"
+                off = 0
+                while n > 0:
+                    rounds = n // 8
+                    if n > 48: rounds = 6
+                    code += self._command(reg, "mov", rounds, True, off)
+                    code += self._clamp_command(rounds)
+                    code += self._command(reg, "mov", rounds, False, off)
+                    n = n - 48 
+                    off += 192 
+                return code
+            else:
+                code = "vshufps xmm0, xmm0, xmm0, 0x00 \n"
+                code += "vshufps xmm1, xmm1, xmm1, 0x00 \n"
+                code += "vmovaps xmm2, oword[" + reg + " + spectrum.values] \n"
+                code += "vmaxps xmm2, xmm2, xmm0 \n"
+                code += "vminps xmm2, xmm2, xmm1 \n"
+                code += "vmovaps oword[" + reg + " + spectrum.values], xmm2 \n"
+                return code
+        else:
+            if sampled:
+                code = "shufps xmm0, xmm0, 0x00 \n"
+                code += "shufps xmm1, xmm1, 0x00 \n"
+                code += "movaps xmm6, xmm0 \n"
+                code += "movaps xmm7, xmm1 \n"
+                off = 0
+                while n > 0:
+                    rounds = n // 4
+                    if n > 24: rounds = 6
+                    code += self._command(reg, "mov", rounds, True, off)
+                    code += self._clamp_command(rounds)
+                    code += self._command(reg, "mov", rounds, False, off)
+                    n = n - 24 
+                    off += 96 
+                return code
+            else:
+                code = "shufps xmm0, xmm0, 0x00 \n"
+                code += "shufps xmm1, xmm1, 0x00 \n"
+                code += "movaps xmm2, oword[" + reg + " + spectrum.values] \n"
+                code += "maxps xmm2, xmm0 \n"
+                code += "minps xmm2, xmm1 \n"
+                code += "movaps oword[" + reg + " + spectrum.values], xmm2 \n"
+                return code
+
+    def _clamp_command(self, rounds):
+        code = ""
+        for i in range(rounds):
+            if proc.AVX:
+                code += "vmaxps ymm%d, ymm%d, ymm6 \n" % (i, i)
+                code += "vminps ymm%d, ymm%d, ymm7 \n" % (i, i)
+            else:
+                code += "maxps xmm%d, xmm6 \n" % i
+                code += "minps xmm%d, xmm7 \n" % i
+        return code
+
 
     def _sum_spectrum(self, asm, tokens):
         sampled = self.renderer.spectral_rendering

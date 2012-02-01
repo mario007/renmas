@@ -86,7 +86,7 @@ def _return_code(instructions):
     return code
 
 def preform_operation32(dest_reg, operation, source):
-    ar32_sse = {"+": " addss ", "-": " subss ", "*": " mulss ", "/": " divss "}
+    ar32_sse = {"+": " addss ", "-": " subss ", "*": " mulss ", "/": " divss " }
     ar32_avx = {"+": " vaddss ", "-": " vsubss ", "*": " vmulss ", "/": " vdivss "}
     if source in xmm_regs:
         if proc.AVX:
@@ -101,8 +101,8 @@ def preform_operation32(dest_reg, operation, source):
     return (line,)
 
 def preform_operation128(dest_reg, operation, source):
-    ar128_sse = {"+": " addps ", "-": " subps ", "*": " mulps ", "/": " divps "}
-    ar128_avx = {"+": " vaddps ", "-": " vsubps ", "*": " vmulps ", "/": " vdivps "}
+    ar128_sse = {"+": " addps ", "-": " subps ", "*": " mulps ", "/": " divps " }
+    ar128_avx = {"+": " vaddps ", "-": " vsubps ", "*": " vmulps ", "/": " vdivps " }
 
     if source in xmm_regs:
         if proc.AVX:

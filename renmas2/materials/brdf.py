@@ -7,3 +7,6 @@ class BRDF:
     def brdf(self, hitpoint):
         pass
 
+    def f_asm(self, runtimes, assembler, structures):
+        pass
+

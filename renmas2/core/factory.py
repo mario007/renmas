@@ -10,7 +10,7 @@ from .ray import Ray
 from ..shapes import Sphere
 
 from renmas2.macros import MacroCall, arithmetic32, arithmetic128,\
-                            broadcast, macro_if, dot_product, normalization
+                            broadcast, macro_if, dot_product, normalization, cross_product
 
 class Factory:
     def __init__(self):
@@ -26,10 +26,14 @@ class Factory:
         assembler.register_macro('if', macro_if)
         assembler.register_macro('dot', dot_product)
         assembler.register_macro('normalization', normalization)
+        assembler.register_macro('cross', cross_product)
         return assembler
 
     def create_lambertian(self, spectrum, k=None):
         return Lambertian(spectrum, k)
+
+    def vector(self, x, y, z):
+        return Vector3(float(x), float(y), float(z))
 
     def create_ray(self, origin, direction):
         x, y, z = origin
@@ -48,6 +52,7 @@ class Factory:
     def create_shape(self, **kw):
         pass
 
+    #TODO FIXME THIS two methods light, material
     def create_light(self, **kw):
         typ = kw.get("type")
         if typ == "point":

@@ -2,11 +2,12 @@
 from tdasm import Tdasm, Runtime
 from ..samplers import RandomSampler, RegularSampler
 from ..cameras import Pinhole
-from ..integrators import Raycast, IsectIntegrator
+from ..integrators import Raycast, IsectIntegrator, Pathtracer
 from ..shapes import Shape
 from ..lights import Light
 from ..macros import MacroSpectrum, MacroCall, arithmetic128, arithmetic32, broadcast,\
-                                        macro_if, dot_product, normalization
+                                        macro_if, dot_product, normalization, cross_product
+from ..materials import HemisphereCos
 from .intersector import Intersector
 from .film import Film
 from .methods import create_tiles
@@ -14,7 +15,6 @@ from .shader import Shader
 from .material import Material
 from .structures import Structures
 from .spectrum_converter import SpectrumConverter
-from .material import Material
 
 from .factory import Factory
 
@@ -28,7 +28,8 @@ class Renderer:
         self._converter = SpectrumConverter(self)
         self._intersector = Intersector(self)
         #self._integrator = IsectIntegrator(self)
-        self._integrator = Raycast(self)
+        #self._integrator = Raycast(self)
+        self._integrator = Pathtracer(self)
         #self._sampler = RegularSampler(self._width, self._height)
         self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
         self._spp = self._sampler._spp
@@ -45,6 +46,8 @@ class Renderer:
         lamb = self.factory.create_lambertian(s)
         mat.add(lamb)
         self.shader.add(self._default_material, mat)
+        sampling = HemisphereCos()
+        mat.add(sampling)
 
     def _create_assembler(self):
         assembler = Tdasm()
@@ -56,6 +59,7 @@ class Renderer:
         assembler.register_macro('if', macro_if)
         assembler.register_macro('dot', dot_product)
         assembler.register_macro('normalization', normalization)
+        assembler.register_macro('cross', cross_product)
         self._macro_spectrum = MacroSpectrum(self)
         assembler.register_macro('spectrum', self._macro_spectrum.macro_spectrum)
         return assembler

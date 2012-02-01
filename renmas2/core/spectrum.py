@@ -94,3 +94,12 @@ class Spectrum:
         else:
             return Spectrum(False, (0.0, 0.0, 0.0))
 
+    def set(self, value):
+        value = float(value)
+        if self.sampled:
+            self.samples = [value for i in range(len(self.samples))]
+        else:
+            self.r = value
+            self.g = value
+            self.b = value
+

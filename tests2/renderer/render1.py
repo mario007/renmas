@@ -25,7 +25,7 @@ def blt_float_img_to_window(x, y, img, win):
 #print(irender.get_props('misc', 'pixel_size'))
 #irender.set_props('misc', 'resolution', '400,300')
 #print (irender.get_props('misc', 'resolution'))
-irender.set_props('misc', 'spp', '2')
+irender.set_props('misc', 'spp', '1')
 print (irender.get_props('misc', 'spectral'))
 print (irender.get_props('misc', 'pixel_size'))
 
@@ -35,7 +35,7 @@ exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(glob
 #irender.set_props('misc', 'pixel_size', '1.4')
 #print (irender.get_props('misc', 'pixel_size'))
 #print (irender.get_props('light_spectrum', 'light1'))
-irender.set_props('misc', 'spectral', 'True')
+#irender.set_props('misc', 'spectral', 'True')
 
 for l  in renderer.shader.light_names():
     print(l)

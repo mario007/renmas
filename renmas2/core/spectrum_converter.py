@@ -822,6 +822,9 @@ class SpectrumConverter:
         samples = self._create_samples(vals)
         return Spectrum(True, samples)
 
+    #val - values at certain wavelength - tuple (lambda, value)
+    #start - start lambda
+    #end - end lambda
     def _create_samples(self, vals):
         nspec = self.renderer.nspectrum_samples
         start, end = self.renderer.spectrum_region

@@ -53,8 +53,6 @@ class PointLight(Light):
         spectrum l_spectrum
         float zero = 0.0
         uint32 ptr_hp
-        float p1[4]
-        float p2[4]
         #CODE
         mov dword [ptr_hp], eax ; save pointer to hitpoint
         macro eq128 xmm0 = position - eax.hitpoint.hit 
@@ -67,8 +65,6 @@ class PointLight(Light):
         ; test visibility of two points
         macro eq128 xmm0 = position
         macro eq128 xmm1 = eax.hitpoint.hit
-        macro eq128 xmm0 = p1
-        macro eq128 xmm1 = p2
         """
         code += "call " + visible_label + "\n" + """
         cmp eax, 1

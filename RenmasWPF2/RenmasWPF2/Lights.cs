@@ -13,6 +13,7 @@ namespace RenmasWPF2
         Renmas renmas;
         string _selected_light = "";
         public event EventHandler LightTypeChanged;
+        string _selected_lambda = "";
 
         public Lights(Renmas renmas)
         {
@@ -28,6 +29,60 @@ namespace RenmasWPF2
                 return words;
             }
         }
+
+        public string[] Lambdas
+        {
+            get
+            {
+                if (this.Spectral == false)
+                {
+                    return "RED,GREEN,BLUE".Split(',');
+                }
+                else
+                {
+                    string s = this.renmas.GetProp("misc", "lambdas");
+                    string[] words = s.Split(',');
+                    return words;
+                }
+            }
+        }
+
+        public float Intesity
+        {
+            get { 
+                if (this._selected_light == "") return 0.0f;
+                string [] lam = this.Lambdas;
+                int idx = 0;
+                for (int i=0; i<lam.Length; i++)
+                {
+                    if (this._selected_lambda == lam[i]) 
+                    {
+                        idx = i;
+                        break;
+                    }
+                }
+                string s = this.renmas.GetProp("light_intesity", this.SelectedLight);
+                if (s == "") return 0.0f;
+                string[] words = s.Split(',');
+                return Convert.ToSingle(words[idx]);
+            }
+            set
+            {
+                this.renmas.SetProp("light_intesity", this.SelectedLight, this._selected_lambda + "," + value.ToString());
+                this.OnPropertyChanged("Intesity");
+            }
+        }
+
+        public string SelectedLambda
+        {
+            get { return this._selected_lambda;  }
+            set
+            {
+                this._selected_lambda = value;
+                this.OnPropertyChanged("Intesity");
+            }
+        }
+
 
         public string SelectedLight
         {
@@ -48,6 +103,7 @@ namespace RenmasWPF2
                 this.OnPropertyChanged("PositionY");
                 this.OnPropertyChanged("PositionZ");
                 this.OnPropertyChanged("Spectrum");
+                this.OnPropertyChanged("Intesity");
             }
         }
 
@@ -83,19 +139,16 @@ namespace RenmasWPF2
                 this.OnPropertyChanged("PositionZ");
             }
         }
-        public string Spectrum
+
+        public bool Spectral
         {
-            get { return this.renmas.GetProp("light_spectrum", this.SelectedLight);  }
-            set 
-            {
-                this.OnPropertyChanged("Spectrum");
-            }
+            get { return System.Convert.ToBoolean(this.renmas.GetProp("misc", "spectral")); }
         }
 
         public void scale_spectrum(float scaler)
         {
             this.renmas.SetProp("light_spectrum_scale", this.SelectedLight, scaler.ToString());
-            this.OnPropertyChanged("Spectrum");
+            this.OnPropertyChanged("Intesity");
         }
         private float get_position(string prop)
         {
@@ -140,12 +193,16 @@ namespace RenmasWPF2
         {
             string[] tmp = this.LightNames;
             if (tmp.Length > 0) { this.SelectedLight = tmp[0]; }
+            tmp = this.Lambdas;
+            if (tmp.Length > 0) { this.SelectedLambda = tmp[0]; }
+            this.LightTypeChanged(this, new EventArgs());
             this.OnPropertyChanged("LightNames");
             this.OnPropertyChanged("SelectedLight");
             this.OnPropertyChanged("PositionX");
             this.OnPropertyChanged("PositionY");
             this.OnPropertyChanged("PositionZ");
-            this.OnPropertyChanged("Spectrum");
+            this.OnPropertyChanged("Intesity");
+            
         }
         public event PropertyChangedEventHandler PropertyChanged;
         private void OnPropertyChanged(string property_name)

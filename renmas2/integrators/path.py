@@ -26,7 +26,7 @@ class Pathtracer(Integrator):
         path = background.zero_spectrum()
         path.set(1.0)
         max_depth = 3
-        treshold = 0.1
+        treshold = 0.7 
         counter = 0
 
         while True:
@@ -44,6 +44,7 @@ class Pathtracer(Integrator):
                     spectrum = shader.shade(hp)
                     L = L + spectrum.mix_spectrum(path)
                     Y = conv.Y(path)
+                    #print(cur_depth, Y)
                     if cur_depth >= max_depth or Y < treshold: break
                     material = shader._materials_idx[hp.material]
                     material.next_direction(hp)
@@ -77,13 +78,13 @@ class Pathtracer(Integrator):
             float minus_one[4] = -1.0, -1.0, -1.0, 0.0
             float one[4] = 1.0, 1.0, 1.0, 1.0
             hitpoint hp1
-            uint32 max_depth = 3
+            uint32 max_depth = 8
             uint32 cur_depth = 0
             spectrum path
             spectrum L
             spectrum background
             spectrum temp_spectrum
-            float treshold = 0.1
+            float treshold = 0.01
             uint32 absolute[4] = 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF
             """
         code += "uint32 materials_ptrs[" + str(len(mat_list)) + "]\n"
@@ -132,6 +133,7 @@ class Pathtracer(Integrator):
             macro spectrum ecx = ebx * eax 
             mov eax, L
             macro spectrum eax = eax + ecx 
+            mov eax, path
             call lumminance
             macro if xmm0 < treshold goto _write_sample
             mov eax, dword [max_depth]

@@ -35,11 +35,17 @@ RECTANGLE = """
 
 TRIANGLE = """
     struct triangle
-    float p0[4]
-    float p1[4]
-    float p2[4]
+    float v0[4]
+    float v1[4]
+    float v2[4]
+    float n0[4]
+    float n1[4]
+    float n2[4]
     float normal[4]
+    float u
+    float v
     uint32 mat_index
+    uint32 flags
     end struct
 """
 
@@ -68,13 +74,6 @@ MATERIAL = """
     struct material
     float spectrum[4]
     uint32 ptr_function
-    end struct
-"""
-
-POINT_LIGHT = """
-    struct pointlight
-    float spectrum[4]
-    float position[4]
     end struct
 """
 
@@ -108,7 +107,6 @@ structures = {
         "ray" : RAY, 
         "sphere": SPHERE,
         "material": MATERIAL,
-        "pointlight":POINT_LIGHT,
         "plane": PLANE,
         "rectangle": RECTANGLE,
         "triangle": TRIANGLE,

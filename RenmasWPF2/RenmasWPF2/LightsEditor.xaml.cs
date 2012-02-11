@@ -69,8 +69,6 @@ namespace RenmasWPF2
                 sp_type.Children.Add(light_t);
                 sp_type.Children.Add(light_type);
 
-                StackPanel spectrum = this.build_lbltxt("Intesity: ", "Spectrum");
-
                 TextBlock scale = new TextBlock();
                 scale.Text = "Scaler";
                 TextBox scaler_txt = new TextBox();
@@ -87,11 +85,21 @@ namespace RenmasWPF2
                 scaler_sp.Children.Add(scaler_txt);
                 scaler_sp.Children.Add(btn);
 
+                ComboBox cb_lambdas = new ComboBox();
+                Binding bind_lambdas = new Binding("Lambdas");
+                cb_lambdas.SetBinding(ComboBox.ItemsSourceProperty, bind_lambdas);
+                Binding bind_sel_lam = new Binding("SelectedLambda");
+                cb_lambdas.SetBinding(ComboBox.SelectedItemProperty, bind_sel_lam);
+                TextBox txt_intesity = new TextBox();
+                Binding bind_intesity = new Binding("Intesity");
+                txt_intesity.SetBinding(TextBox.TextProperty, bind_intesity);
+
                 StackPanel sp_new = new StackPanel();
                 sp_new.Children.Add(sp);
                 sp_new.Children.Add(sp_type);
                 sp_new.Children.Add(position);
-                sp_new.Children.Add(spectrum);
+                sp_new.Children.Add(cb_lambdas);
+                sp_new.Children.Add(txt_intesity);
                 sp_new.Children.Add(scaler_sp);
                 this.Content = sp_new;
 
@@ -104,9 +112,14 @@ namespace RenmasWPF2
 
         void btn_Click(object sender, RoutedEventArgs e)
         {
-            //TODO try catch
-            float t = System.Convert.ToSingle(this.txt_scaler.Text);
-            this.lights.scale_spectrum(t);
+            try
+            {
+                float t = System.Convert.ToSingle(this.txt_scaler.Text);
+                this.lights.scale_spectrum(t);
+            }
+            catch (Exception)
+            {
+            }
            
         }
 

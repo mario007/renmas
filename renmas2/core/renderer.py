@@ -34,7 +34,9 @@ class Renderer:
         self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
         self._spp = self._sampler._spp
         self._film = Film(self._width, self._height, self._spp, self)
-        self._camera = Pinhole(eye=(10,9,8), lookat=(0,0,0), distance=400)
+        #self._camera = Pinhole(eye=(0,0,10), lookat=(0,0,0), distance=400)
+        #self._camera = Pinhole(eye=(0.278,0.273,-0.800), lookat=(0.278,0.273,0.0), distance=280)
+        self._camera = Pinhole(eye=(27.6,27.4,-80.0), lookat=(27.6,27.4,0.0), distance=400)
         self._shader = Shader(self)
         self._structures = Structures(self) 
         self._factory = Factory()
@@ -65,8 +67,8 @@ class Renderer:
         return assembler
 
     def _default_values(self):
-        self._width =  200 
-        self._height = 200 
+        self._width =  600 
+        self._height = 600 
         self._spp = 1 
         self._threads = 1 
         self._max_samples = 100000 #max samples in tile
@@ -224,6 +226,7 @@ class Renderer:
     def add(self, name, obj): #add material, shape, light etc...
         if isinstance(obj, Shape):
             self._intersector.add(name, obj)
+            #TODO material exist dont assign default think!!!
             self.assign_material(name, self._default_material)
         elif isinstance(obj, Material) or isinstance(obj, Light):
             self._shader.add(name, obj)

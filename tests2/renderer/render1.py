@@ -25,18 +25,21 @@ def blt_float_img_to_window(x, y, img, win):
 #print(irender.get_props('misc', 'pixel_size'))
 #irender.set_props('misc', 'resolution', '400,300')
 #print (irender.get_props('misc', 'resolution'))
-irender.set_props('misc', 'spp', '1')
+irender.set_props('misc', 'spp', '1000')
 print (irender.get_props('misc', 'spectral'))
 print (irender.get_props('misc', 'pixel_size'))
 
-irender.set_props('misc', 'threads', '1')
-filename = 'I:\\GitRENMAS\\scenes\\sphere1.py'
+irender.set_props('misc', 'threads', '4')
+#filename = 'I:\\GitRENMAS\\scenes\\sphere1.py'
+filename = 'I:\\GitRENMAS\\scenes\\cornel2.py'
 exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(globals()))
 #irender.set_props('misc', 'pixel_size', '1.4')
 #print (irender.get_props('misc', 'pixel_size'))
 #print (irender.get_props('light_spectrum', 'light1'))
 #irender.set_props('misc', 'spectral', 'True')
 
+#irender.set_props("light_intesity", "light1", "380,1.5")
+#irender.set_props("light_intesity", "light1", "RED,1.5")
 for l  in renderer.shader.light_names():
     print(l)
 #renderer.spectral_rendering = True

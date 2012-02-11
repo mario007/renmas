@@ -18,6 +18,7 @@ class SphereIsectTest(unittest.TestCase):
         o = sphere.origin
         ds[name+".origin"] = (o.x, o.y, o.z, 0.0) 
         ds[name+".radius"] = sphere.radius
+        #TODO -- test this if material is None -- fix this in assembler - raise exception
         ds[name+".mat_index"] = sphere.material
 
     def asm_code(self, ren):

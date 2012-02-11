@@ -57,7 +57,7 @@ namespace RenmasWPF2
             set
             {
                 this.renmas.SetProp("misc", "spectral", value.ToString());
-                this.OnPropertyChanged("Spectral");
+                this.renmas.Refresh();
             }
         }
         public uint Width

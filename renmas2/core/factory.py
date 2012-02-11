@@ -7,7 +7,7 @@ from .material import Material
 from ..materials import Lambertian
 from .vector3 import Vector3
 from .ray import Ray
-from ..shapes import Sphere
+from ..shapes import Sphere, Triangle, Rectangle
 
 from renmas2.macros import MacroCall, arithmetic32, arithmetic128,\
                             broadcast, macro_if, dot_product, normalization, cross_product
@@ -49,87 +49,47 @@ class Factory:
         radius = float(radius)
         return Sphere(o, radius, material)
 
-    def create_shape(self, **kw):
-        pass
+    def create_triangle(self, v0, v1, v2, material=None, n0=None, n1=None, n2=None, u=None, v=None):
+        x, y, z = v0 
+        V0 = Vector3(float(x), float(y), float(z))
+        x, y, z = v1 
+        V1 = Vector3(float(x), float(y), float(z))
+        x, y, z = v2 
+        V2 = Vector3(float(x), float(y), float(z))
+        N0 = N1 = N2 = U = V = None
+        if n0 is not None:
+            x, y, z = n0 
+            N0 = Vector3(float(x), float(y), float(z))
+        if n1 is not None:
+            x, y, z = n1 
+            N1 = Vector3(float(x), float(y), float(z))
+        if n2 is not None:
+            x, y, z = n2 
+            N2 = Vector3(float(x), float(y), float(z))
+        if u is not None:
+            U = float(u)
+        if v is not None:
+            V = float(v)
+        tr = Triangle(V0, V1, V2, material, N0, N1, N2, U, V)
+        return tr
 
-    #TODO FIXME THIS two methods light, material
-    def create_light(self, **kw):
-        typ = kw.get("type")
-        if typ == "point":
-            p = kw.get("position")
-            s = kw.get("spectrum")
-            spec = Spectrum(False, (float(s[0]), float(s[1]), float(s[2])))
-            pos = Vector3(float(p[0]), float(p[1]), float(p[2]))
-            l = PointLight(pos, spec)
-            return l
-
-    def create_material(self, **kw): # TODO catch Exception and return None if exception ocur
-        mat = Material()
-        brdfs = kw.get("brdfs", None)
-        if brdfs:
-            for c in brdfs:
-                lamb = c.get("lambertian", None)
-                if lamb:
-                    s = lamb.get("spectrum")
-                    k = lamb.get("k", 1.0)
-                    spec = Spectrum(False, (float(s[0]), float(s[1]), float(s[2])))
-                    l = Lambertian(spec, float(k))
-                    mat.add(l)
-        return mat
+    def create_rectangle(self, point, e1, e2, normal, material=None):
+        x, y, z = point 
+        p = Vector3(float(x), float(y), float(z))
+        x, y, z = e1 
+        e1 = Vector3(float(x), float(y), float(z))
+        x, y, z = e2 
+        e2 = Vector3(float(x), float(y), float(z))
+        x, y, z = normal 
+        n = Vector3(float(x), float(y), float(z))
+        r = Rectangle(p, e1, e2, n, material)
+        return r
 
     def create_sampler(self, **kw):
         pass
 
     def create_camera(self, **kw):
         pass
-
-    #nspec - number of desired spectral samples
-    #val - values at certain wavelength - tuple (lambda, value)
-    #start - start lambda
-    #end - end lambda
-    def create_spectrum(self, nspec, vals, start, end):
-        s = []
-        for i in range(nspec):
-            lambda0 = self.lerp(float(i)/float(nspec), start, end)
-            lambda1 = self.lerp(float(i+1)/float(nspec), start, end)
-            s.append(self._average_spectrum(vals, lambda0, lambda1))
-        print(s)
-
-    def _average_spectrum(self, vals, lambda1, lambda2):
-        # out of bounds or single value
-        lam1, val1 = vals[0]
-        if lambda2 <= lam1: return val1 
-        lam2, val2 = vals[-1]
-        if lambda1 >= lam2: return val2 
-        if len(vals) == 1: return val1
-
-        # add contribution of constant segments before and after samples
-        s = 0.0
-        if lambda1 < lam1: 
-            s += val1 * (lam1 - lambda1)
-        if lambda2 > lam2:
-            s += val2 * (lambda2 - lam2)
-        
-        # advance to first relevant wavelength segment
-        i = 0
-        while lambda1 > vals[i+1][0]:
-            i += 1
-
-        def interp(w, i):
-            return self.lerp((w-vals[i][0])/(vals[i+1][0]-vals[i][0]), vals[i][1], vals[i+1][1])
-
-        def average(seg_start, seg_end, i):
-            return 0.5 * (interp(seg_start, i) + interp(seg_end, i)) 
-
-        # loop over wavelength sample segments and add contributions
-        n = len(vals)
-        while i+1 < n and lambda2 >= vals[i][0]:
-            seg_start = max(lambda1, vals[i][0])
-            seg_end = min(lambda2, vals[i+1][0])
-            s += average(seg_start, seg_end, i) * (seg_end - seg_start)
-            i += 1
-        print(lambda1, lambda2, s / (lambda2 - lambda1))
-        return s / (lambda2 - lambda1)
 
     # linear intepolation 
     def lerp(self, t, v1, v2):

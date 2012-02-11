@@ -11,4 +11,6 @@ from .intersector import Intersector
 from .main_window import MainWindow
 from .blitter import Blitter
 from .factory import Factory
+from .buffers import VertexBuffer, VertexNBuffer, TriangleBuffer, TriangleNBuffer
+from .buffers import FlatTriangleBuffer, FlatTriangleNBuffer, SmoothTriangleBuffer 
 

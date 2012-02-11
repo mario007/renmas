@@ -2,6 +2,9 @@
 import renmas2.shapes
 from renmas2.core import Vector3
 from renmas2.lights import PointLight
+from .material import Material
+from renmas2.materials import HemisphereCos
+
 
 def generate_name(self, obj):
     pass
@@ -17,6 +20,7 @@ class IRender:
             p = kw.get("position")
             s = kw.get("source")
             name = kw.get("name", None)
+            #TODO -- creation of spectrum from spectrum database
             spec = self.renderer.converter.create_spectrum(s, True)
             pos = Vector3(float(p[0]), float(p[1]), float(p[2]))
             l = PointLight(pos, spec)
@@ -27,6 +31,50 @@ class IRender:
         t = kw.get("type", None)
         if t is None: return #log!!! TODO
         if t == "sphere": self._create_sphere(kw)
+        if t == "triangle": self._create_triangle(kw)
+        if t == "rectangle": self._create_rectangle(kw)
+
+    def add_material(self, **kw):
+        t = kw.get("type", None)
+        if t is None: return #log!!! TODO
+        if t == "lambertian": self._create_lambertian(kw)
+
+    def _create_lambertian(self, kw):
+        name = kw.get("name", None)
+        s = kw.get("source", None)
+        if name is None or s is None: return
+        mat = Material(self.renderer.converter.zero_spectrum())
+        spec = self.renderer.converter.create_spectrum(s)
+        lamb = self.factory.create_lambertian(spec)
+        mat.add(lamb)
+        sampling = HemisphereCos()
+        mat.add(sampling)
+        self.renderer.add(name, mat)
+
+    def _create_rectangle(self, kw):
+        P = kw.get("P", None)
+        ea = kw.get("Edge_a", None)
+        eb = kw.get("Edge_b", None)
+        n = kw.get("Normal", None)
+        name = kw.get("name", None)
+        if name is None or P is None or ea is None or eb is None or n is None: return #LOG TODO
+        rect = self.factory.create_rectangle(P, ea, eb, n)
+        self.renderer.add(name, rect)
+        material = kw.get("material", None)
+        if material is not None:
+            self.renderer.assign_material(name, material)
+
+    def _create_triangle(self, kw):
+        p0 = kw.get("P0", None)
+        p1 = kw.get("P1", None)
+        p2 = kw.get("P2", None)
+        name = kw.get("name", None)
+        if name is None or p0 is None or p1 is None or p2 is None: return #LOG TODO
+        triangle = self.factory.create_triangle(v0=p0, v1=p1, v2=p2)
+        self.renderer.add(name, triangle)
+        material = kw.get("material", None)
+        if material is not None:
+            self.renderer.assign_material(name, material)
 
     def _create_sphere(self, kw):
         radius = kw.get("radius", None)
@@ -35,6 +83,9 @@ class IRender:
         if radius is None or position is None or name is None: return #LOG TODO
         sph = self.factory.create_sphere(origin=position, radius=radius)
         self.renderer.add(name, sph)
+        material = kw.get("material", None)
+        if material is not None:
+            self.renderer.assign_material(name, material)
 
     def options(self, **kw):
         asm = kw.get("asm", None)
@@ -59,6 +110,8 @@ class IRender:
             self._set_light_position(name, value)
         elif category == "light_spectrum_scale":
             self._scale_light_spectrum(name, value)
+        elif category == "light_intesity":
+            self._set_light_intesity(name, value)
         return 1
 
     def get_props(self, category, name):
@@ -77,8 +130,8 @@ class IRender:
             return self._get_light_type(name)
         elif category == "light_position":
             return self._get_light_position(name)
-        elif category == "light_spectrum":
-            return self._get_light_spectrum(name)
+        elif category == "light_intesity":
+            return self._get_light_intesity(name)
         return ""
 
     def _scale_light_spectrum(self, name, value):
@@ -86,21 +139,40 @@ class IRender:
         if light is None: return
         light.spectrum = light.spectrum * float(value)
 
-    def _get_light_spectrum(self, name):
+    def _set_light_intesity(self, name, value):
+        val = value.split(',')
+        if len(val) != 2: return
+        w, v = val
         light = self.renderer.shader.light(name)
         if light is None: return ""
         s = light.spectrum
         if s.sampled:
-            sam = s.samples
-            lam = self.renderer.converter.lambdas()
+            lambdas = self.renderer.converter.lambdas() 
+            for i in range(len(s.samples)):
+                if str(int(lambdas[i])) == w: s.samples[i] = float(v) 
+            light.spectrum = s
+
+        else:
+            if w == "RED": s.r = float(v) 
+            if w == "GREEN": s.g = float(v)
+            if w == "BLUE": s.b = float(v)
+            light.spectrum = s
+
+    def _get_light_intesity(self, name):
+        light = self.renderer.shader.light(name)
+        if light is None: return ""
+        s = light.spectrum
+        if s.sampled:
             ret = ""
-            #TODO -- round values
+            sam = s.samples
             for i in range(len(sam)):
-                ret += "(" + str(lam[i]) + "," + str(sam[i]) + "),"
-            return ret 
+                ret += str(sam[i]) + ','
+            if ret != "":
+                return ret[:-1]
         else:
             return str(s.r) + "," + str(s.g) + "," + str(s.b) 
         return ""
+        
 
     def _get_light_type(self, name):
         light = self.renderer.shader.light(name)
@@ -190,4 +262,12 @@ class IRender:
             return str(self.renderer.asm)
         elif name == 'spectral':
             return str(self.renderer.spectral_rendering)
+        elif name == 'lambdas':
+            lambdas = self.renderer.converter.lambdas() 
+            ret = ""
+            for l in lambdas:
+                ret += str(int(l)) + ","
+            if ret != "":
+                return ret[:-1]
+            return ret
 

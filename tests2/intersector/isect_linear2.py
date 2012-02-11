@@ -13,11 +13,19 @@ class LinearIsectTest(unittest.TestCase):
         origin = (random(), random(), random())
         radius = random()
         sph = factory.create_sphere(origin, radius)
-        ren.add("sphere" + str(hash(factory)), sph)
+        ren.add("sphere" + str(hash(sph)), sph)
+
+    def add_rnd_triangle(self, ren):
+        factory = renmas2.Factory()
+        v0 = (random()*5, random()*5, random()*5)
+        v1 = (random(), random(), random()*5)
+        v2 = (random()*10, random(), random()*5)
+        triangle = factory.create_triangle(v0=v0, v1=v1, v2=v2)
+        ren.add("triangle" + str(hash(triangle)), triangle)
 
     def random_ray(self):
         factory = renmas2.Factory()
-        origin = (random(), random(), random())
+        origin = (random()*10, random(), random()*10)
         direction = (random(), random(), random())
         return factory.create_ray(origin, direction)
 
@@ -77,8 +85,9 @@ class LinearIsectTest(unittest.TestCase):
         ren = renmas2.Renderer()
         runtime = Runtime()
         
-        for i in range(10000):
+        for i in range(100):
             self.add_rnd_sphere(ren)
+            self.add_rnd_triangle(ren)
 
         ren.prepare()
         ren.intersector.isect_asm([runtime], "ray_scene_intersection")
@@ -86,7 +95,9 @@ class LinearIsectTest(unittest.TestCase):
         ds = runtime.load("test", mc)
 
         ray = self.random_ray()
-        self.intersect(ray, runtime, ds, ren.intersector)
+        for i in range(1000):
+            ray = self.random_ray()
+            self.intersect(ray, runtime, ds, ren.intersector)
 
     def asm_code2(self, ren):
         # eax - ray

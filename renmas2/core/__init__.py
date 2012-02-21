@@ -1,5 +1,7 @@
 
 from .vector3 import Vector3
+from .buffers import VertexBuffer, VertexNBuffer, TriangleBuffer, TriangleNBuffer
+from .buffers import FlatTriangleBuffer, FlatTriangleNBuffer, SmoothTriangleBuffer 
 from .spectrum import Spectrum
 from .spectrum_converter import SpectrumConverter
 from .ray import Ray
@@ -11,6 +13,5 @@ from .intersector import Intersector
 from .main_window import MainWindow
 from .blitter import Blitter
 from .factory import Factory
-from .buffers import VertexBuffer, VertexNBuffer, TriangleBuffer, TriangleNBuffer
-from .buffers import FlatTriangleBuffer, FlatTriangleNBuffer, SmoothTriangleBuffer 
+from .ply import Ply
 

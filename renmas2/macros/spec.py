@@ -292,7 +292,7 @@ class MacroSpectrum:
             else:
                 rounds = n // 4
                 for r in range(rounds):
-                    code += "vmovaps oword [" + r1 + " + spectrum.values + "  + str(off) + "]," + xmm + "\n"  
+                    code += "movaps oword [" + r1 + " + spectrum.values + "  + str(off) + "]," + xmm + "\n"  
                     off += 16 
         else:
             if proc.AVX:

@@ -25,7 +25,7 @@ def blt_float_img_to_window(x, y, img, win):
 #print(irender.get_props('misc', 'pixel_size'))
 #irender.set_props('misc', 'resolution', '400,300')
 #print (irender.get_props('misc', 'resolution'))
-irender.set_props('misc', 'spp', '1000')
+irender.set_props('misc', 'spp', '1')
 print (irender.get_props('misc', 'spectral'))
 print (irender.get_props('misc', 'pixel_size'))
 
@@ -44,6 +44,8 @@ for l  in renderer.shader.light_names():
     print(l)
 #renderer.spectral_rendering = True
 renderer.prepare()
+#print(renderer.get_log())
+print(irender.get_props("misc", "log"))
 
 #start = time.clock()
 #while True:
@@ -64,6 +66,7 @@ def render_scene():
     #if not ret: return 
     end = time.clock()
     print (end-start)
+    #renderer._film.tone_map()
     blt_float_img_to_window(0, 0, renderer._film.image, win)
 
 win = renmas2.core.MainWindow(600, 400, "Test")

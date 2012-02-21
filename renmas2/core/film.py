@@ -86,6 +86,36 @@ class Film:
             self.spectrum = self.spectrum + spectrum
             self.curn -= 1
 
+    def tone_map2(self):
+        width, height = self.image.get_size()
+        sum_lw = 0.0
+        for j in range(height):
+            for i in range(width):
+                r, g, b, a = self.image.get_pixel(i, j)
+                lw = 0.27 * r + 0.67 * g + 0.06 * b + 0.00001
+                sum_lw += math.log(lw)
+        sum_lw = sum_lw / (width*height)
+        sum_lw = math.exp(sum_lw)
+        lav = 0.18 / sum_lw
+
+        for j in range(height):
+            for i in range(width):
+                r, g, b, a = self.image.get_pixel(i, j)
+                lw = 0.27 * r + 0.67 * g + 0.06 * b + 0.00001
+                l = lav *  lw
+                ldisp = l / (1+l)
+                rd = ldisp * r / lw
+                gd = ldisp * g / lw
+                bd = ldisp * b / lw
+
+                if rd > 0.99: rd = 0.99
+                if bd > 0.99: bd = 0.99
+                if gd > 0.99: gd = 0.99
+                self.image.set_pixel(i, j, rd, gd, bd, 0.99)
+
+
+
+
     def tone_map(self):
         width, height = self.image.get_size()
         delta = 0.001
@@ -96,9 +126,9 @@ class Film:
             for i in range(width):
                 r, g, b, a = self.image.get_pixel(i, j)
                 lw = 0.27 * r + 0.67 * g + 0.06 * b
+                lw += delta
                 lw_min = min(lw_min, lw)
                 lw_max = max(lw_max, lw)
-                lw += delta
                 sum_pix += math.log(lw)
 
         if lw_min == 0.0: lw_min = 0.001
@@ -131,9 +161,13 @@ class Film:
 
                 lx = scaling * lw 
                 ldisp = (lx * (1 + lx / (lwhite*lwhite))) / (1.0 + lx)
-                rd = ldisp * r / lw
-                gd = ldisp * g / lw
-                bd = ldisp * b / lw
+                #rd = ldisp * r / lw
+                #gd = ldisp * g / lw
+                #bd = ldisp * b / lw
+
+                rd = ldisp * math.pow(r / lw, 0.8)
+                gd = ldisp * math.pow(g / lw, 0.8)
+                bd = ldisp * math.pow(b / lw, 0.8)
 
                 rd_max = max(rd, rd_max)
                 gd_max = max(gd, gd_max)

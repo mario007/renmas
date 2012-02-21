@@ -11,6 +11,7 @@ PyObject *irender = NULL;
 extern "C" __declspec(dllexport) int __cdecl Init()
 {
 	Py_SetPath(L".\\DistPython\\Lib;I:\\GitTDASM;I:\\GitRENMAS");
+	//Py_SetPath(L".\\DistPython\\Lib;.\\GitTDASM;.\\GitRENMAS");
 	Py_Initialize();  
 	
 	renmas = PyImport_ImportModule("renmas2");

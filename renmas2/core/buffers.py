@@ -70,6 +70,75 @@ class VertexBuffer(Buffer):
             return x86.GetFloat(addr, 0, 3)
         return None #think Trowing exception TODO
 
+    def bbox_triangle(self, idx1, idx2, idx3):
+        address = self._address.ptr()
+        addr = address + idx1 * self._item_size 
+        p0 = x86.GetFloat(addr, 0, 3)
+        addr = address + idx2 * self._item_size 
+        p1 = x86.GetFloat(addr, 0, 3)
+        addr = address + idx3 * self._item_size 
+        p2 = x86.GetFloat(addr, 0, 3)
+        epsilon = 0.0001
+        minx = p0[0]
+        if p1[0] < minx: minx = p1[0]
+        if p2[0] < minx: minx = p2[0]
+        minx -= epsilon
+        maxx = p0[0]
+        if p1[0] > maxx: maxx = p1[0]
+        if p2[0] > maxx: maxx = p2[0]
+        maxx += epsilon
+        miny = p0[1]
+        if p1[1] < miny: miny = p1[1]
+        if p2[1] < miny: miny = p2[1]
+        miny -= epsilon
+        maxy = p0[1]
+        if p1[1] > maxy: maxy = p1[1]
+        if p2[1] > maxy: maxy = p2[1]
+        maxy += epsilon
+        minz = p0[2]
+        if p1[2] < minz: minz = p1[2]
+        if p2[2] < minz: minz = p2[2]
+        minz -= epsilon
+        maxz = p0[2]
+        if p1[2] > maxz: maxz = p1[2]
+        if p2[2] > maxz: maxz = p2[2]
+        maxz += epsilon
+        #minx = min(min(p0[0], p1[0]), p2[0]) - epsilon
+        #maxx = max(max(p0[0], p1[0]), p2[0]) + epsilon
+        #miny = min(min(p0[1], p1[1]), p2[1]) - epsilon
+        #maxy = max(max(p0[1], p1[1]), p2[1]) + epsilon
+        #minz = min(min(p0[2], p1[2]), p2[2]) - epsilon
+        #maxz = max(max(p0[2], p1[2]), p2[2]) + epsilon
+        return((minx, miny, minz), (maxx, maxy, maxz))
+
+
+    #TODO --- asm version of this method is required!!! lucy is slow??
+    def bbox(self):
+        if self.addr():
+            minx = miny = minz = 9999999.0
+            maxx = maxy = maxz = -9999999.0
+            epsilon = 0.0001
+            addr = self._address.ptr()
+
+            for i in range(self._size):
+                p = x86.GetFloat(addr, 0, 3)
+                if p[0] < minx: minx = p[0]
+                if p[1] < miny: miny = p[1]
+                if p[2] < minz: minz = p[2]
+                if p[0] > maxx: maxx = p[0]
+                if p[1] > maxy: maxy = p[1]
+                if p[2] > maxz: maxz = p[2]
+                addr += self._item_size
+            
+            minx = minx - epsilon
+            miny = miny - epsilon
+            minz = minz - epsilon
+            maxx = maxx + epsilon
+            maxy = maxy + epsilon
+            maxz = maxz + epsilon
+            return((minx, miny, minz), (maxx, maxy, maxz))
+        return None
+
 #Buffer that stores x,y,z and normal(nx,ny,nz) of vertex
 class VertexNBuffer(Buffer):
     def __init__(self, reserve=0):
@@ -98,6 +167,37 @@ class VertexNBuffer(Buffer):
             n = x86.GetFloat(addr+16, 0, 3)
             return(p,n)
         return None #think Trowing exception TODO
+
+    #TODO --- asm version of this method is required!!! lucy is slow??
+    def bbox(self):
+        if self.addr():
+            minx = 9999999.0
+            miny = 9999999.0
+            minz = 9999999.0
+            maxx = -9999999.0
+            maxy = -9999999.0
+            maxz = -9999999.0
+            epsilon = 0.0001
+            addr = self._address.ptr()
+
+            for i in range(self._size):
+                p = x86.GetFloat(addr, 0, 3)
+                if p[0] < minx: minx = p[0]
+                if p[1] < miny: miny = p[1]
+                if p[2] < minz: minz = p[2]
+                if p[0] > maxx: maxx = p[0]
+                if p[1] > maxy: maxy = p[1]
+                if p[2] > maxz: maxz = p[2]
+                addr += self._item_size
+            
+            minx = minx - epsilon
+            miny = miny - epsilon
+            minz = minz - epsilon
+            maxx = maxx + epsilon
+            maxy = maxy + epsilon
+            maxz = maxz + epsilon
+            return((minx, miny, minz), (maxx, maxy, maxz))
+        return None
 
 #Buffer that stores 3 triangle indexes in vertex buffer v0, v1, v2
 class TriangleBuffer(Buffer):

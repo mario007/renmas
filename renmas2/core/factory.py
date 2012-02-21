@@ -7,7 +7,7 @@ from .material import Material
 from ..materials import Lambertian
 from .vector3 import Vector3
 from .ray import Ray
-from ..shapes import Sphere, Triangle, Rectangle
+from ..shapes import Sphere, Triangle, Rectangle, FlatMesh
 
 from renmas2.macros import MacroCall, arithmetic32, arithmetic128,\
                             broadcast, macro_if, dot_product, normalization, cross_product
@@ -84,6 +84,10 @@ class Factory:
         n = Vector3(float(x), float(y), float(z))
         r = Rectangle(p, e1, e2, n, material)
         return r
+
+    def create_flat_mesh(self, vb, tb, material=None):
+        mesh = FlatMesh(vb, tb, material)
+        return mesh
 
     def create_sampler(self, **kw):
         pass

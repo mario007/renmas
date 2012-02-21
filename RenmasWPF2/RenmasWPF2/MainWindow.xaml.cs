@@ -29,6 +29,7 @@ namespace RenmasWPF2
         public MainWindow()
         {
             InitializeComponent();
+            
             renmas = new Renmas();
             cam_editor = new Camera_editor(renmas.camera);
             op_editor = new Options_editor(renmas.options);
@@ -45,6 +46,12 @@ namespace RenmasWPF2
             sp.Children.Add(op_editor);
             sp.Children.Add(lights_editor);
             this.main_grid.Children.Add(sp);
+
+            SolidColorBrush mySolidColorBrush = new SolidColorBrush();
+            mySolidColorBrush.Color = Color.FromArgb(255, 47, 47, 47);
+            this.Background = mySolidColorBrush;
+            
+            
 
         }
 
@@ -78,10 +85,9 @@ namespace RenmasWPF2
         private void MenuItem_Render(object sender, RoutedEventArgs e)
         {
             //refresh GUI --- Lost Focus Problem -- TODO
-            this.txt_focus_problem.Focus(); // -- intersting solution for focus problem
+            this.txt_output_window.Focus(); // -- intersting solution for focus problem
             this.renmas.Prepare();
-            //string text = renmas.GetProp("log", "");
-            //this.logger(text);
+            this.txt_output_window.Text = this.renmas.Log();
             this.rendering = true;
             DateTime start = DateTime.Now;
             // TODO -- get resolution from data model not from buffer source
@@ -102,6 +108,7 @@ namespace RenmasWPF2
             DateTime end = DateTime.Now;
             long interval = end.Ticks - start.Ticks;
             TimeSpan tm = new TimeSpan(interval);
+            this.txt_output_window.Text += "Rendering took " + tm.TotalMinutes.ToString() + " minutes.";
         }
 
         private void MenuItem_RunScript(object sender, RoutedEventArgs e)
@@ -122,6 +129,7 @@ namespace RenmasWPF2
                     return;
                 }
                 this.renmas.Refresh();
+                this.txt_output_window.Text = this.renmas.Log();
             }
         }
 

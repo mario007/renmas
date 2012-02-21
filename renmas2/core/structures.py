@@ -14,13 +14,6 @@ SPHERE = """
     uint32 mat_index
     end struct
 """
-PLANE = """
-    struct plane
-    float point[4] 
-    float normal[4]
-    uint32 mat_index
-    end struct
-"""
 RECTANGLE = """
     struct rectangle
     float point[4] 
@@ -70,13 +63,6 @@ HITPOINT = """
     end struct
 """
 
-MATERIAL = """
-    struct material
-    float spectrum[4]
-    uint32 ptr_function
-    end struct
-"""
-
 SAMPLE = """
     struct sample
     float xyxy[4] 
@@ -97,22 +83,23 @@ GRID = """
     end struct
 """
 
-MESH3D = """
-    struct mesh3d
-    uint32 ptr_isect
+FLAT_MESH = """
+    struct flat_mesh
+    uint32 vertex_buffer_ptr
+    uint32 triangle_buffer_ptr
+    uint32 mat_index
+
     end struct
 """
 
 structures = {
         "ray" : RAY, 
         "sphere": SPHERE,
-        "material": MATERIAL,
-        "plane": PLANE,
         "rectangle": RECTANGLE,
         "triangle": TRIANGLE,
         "sample": SAMPLE,
         'grid': GRID,
-        "mesh3d": MESH3D
+        "flat_mesh": FLAT_MESH
         }
 
 class Structures:

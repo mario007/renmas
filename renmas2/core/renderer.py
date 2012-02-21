@@ -1,4 +1,5 @@
 
+import time
 from tdasm import Tdasm, Runtime
 from ..samplers import RandomSampler, RegularSampler
 from ..cameras import Pinhole
@@ -15,6 +16,7 @@ from .shader import Shader
 from .material import Material
 from .structures import Structures
 from .spectrum_converter import SpectrumConverter
+from .logger import log
 
 from .factory import Factory
 
@@ -34,9 +36,7 @@ class Renderer:
         self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
         self._spp = self._sampler._spp
         self._film = Film(self._width, self._height, self._spp, self)
-        #self._camera = Pinhole(eye=(0,0,10), lookat=(0,0,0), distance=400)
-        #self._camera = Pinhole(eye=(0.278,0.273,-0.800), lookat=(0.278,0.273,0.0), distance=280)
-        self._camera = Pinhole(eye=(27.6,27.4,-80.0), lookat=(27.6,27.4,0.0), distance=400)
+        self._camera = Pinhole(eye=(0,0,10), lookat=(0,0,0), distance=400)
         self._shader = Shader(self)
         self._structures = Structures(self) 
         self._factory = Factory()
@@ -50,6 +50,9 @@ class Renderer:
         self.shader.add(self._default_material, mat)
         sampling = HemisphereCos()
         mat.add(sampling)
+
+    def get_log(self):
+        return log.handlers[0].get_log()
 
     def _create_assembler(self):
         assembler = Tdasm()
@@ -149,7 +152,7 @@ class Renderer:
 
     def _set_asm(self, value):
         self._asm = bool(value)
-        if self._asm: self._max_samples = 20000000
+        if self._asm: self._max_samples = 2000000
         else: self._max_samples = 100000
         self._ready = False
     def _get_asm(self):
@@ -200,12 +203,15 @@ class Renderer:
     threads = property(_get_threads, _set_threads)
 
     def prepare(self): #prepare everything that is needed for rendering 
+        start = time.clock()
         self._tiles = create_tiles(self._width, self._height, self._spp, self._max_samples, self._threads)
         self._tiles2 = list(self._tiles)
         self._intersector.prepare()
         self._integrator.prepare()
         self._film.reset()
         self._ready = True
+        end = time.clock()
+        log.info("Time that took to prepare renderer for rendering: " + str(end-start) + " seconds.")
 
     def reset(self): #restart of rendering
         self._tiles = list(self._tiles2)
@@ -237,15 +243,16 @@ class Renderer:
     def assign_material(self, shape_name, mat_name):
         mat_idx = self._shader.mat_idx(mat_name) 
         if mat_idx is None:
-            #TODO Log
-            return False
+            log.info("Material " + mat_name + " doesn't exist!!!")
         shape = self._intersector.shape(shape_name)
         if shape is None:
-            # TODO Log
+            log.info("Shape " + shape_name + " doesn't exist!!!")
+        if mat_idx is None or shape is None:
             return False
         shape.material = mat_idx 
         self._intersector.update(shape)
         self._ready = False
+        return True
         
     def render(self):
         if not self._ready: self.prepare()

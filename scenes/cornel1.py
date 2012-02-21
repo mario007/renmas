@@ -1,5 +1,6 @@
 
 irender.options(asm=True, spectral=True, pixel_size=0.5)
+irender.set_camera(type="perspective", eye=(27.6, 27.4, -80.0), lookat=(27.6,27.4,0.0), distance=400)
 
 #irender.add_light(type="pointlight", name="light3", source=(1.0,1.0,1.0), position=(0.3,0.5,0.3))
 #irender.add_light(type="pointlight", name="light3", source=[(400,0.0), (500,1.0), (600,1.95), (700,2.3)], position=(0.3,0.5,0.3))

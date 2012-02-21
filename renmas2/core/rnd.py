@@ -4,6 +4,7 @@ from renmas2.core import Vector3
 from renmas2.lights import PointLight
 from .material import Material
 from renmas2.materials import HemisphereCos
+from ..cameras import Pinhole
 
 
 def generate_name(self, obj):
@@ -98,8 +99,16 @@ class IRender:
     def create_samplers(self, **kw):
         pass
 
-    def create_camera(self, **kw):
-        pass
+    def set_camera(self, **kw):
+        t = kw.get("type", None)
+        if t is None: return #log!!! TODO
+        #TODO -- implementation of other types of cameras
+        eye = kw.get("eye", None)
+        lookat = kw.get("lookat", None)
+        distance = kw.get("distance", None)
+        if eye is not None and lookat is not None and distance is not None:
+            camera = Pinhole(eye=eye, lookat=lookat, distance=distance)
+            self.renderer.set_camera(camera)
 
     def set_props(self, category, name, value):
         if category == "camera":
@@ -270,4 +279,9 @@ class IRender:
             if ret != "":
                 return ret[:-1]
             return ret
+        elif name == "log":
+            return self.renderer.get_log()
+        else:
+            return ""
+
 

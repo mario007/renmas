@@ -21,7 +21,7 @@ class Pathtracer(Integrator):
         shader = ren.shader
         conv = ren.converter
 
-        background = ren.converter.create_spectrum((0.70, 0.0, 0.0))
+        background = ren.converter.create_spectrum((0.00, 0.0, 0.0))
 
         path = background.zero_spectrum()
         path.set(1.0)
@@ -225,7 +225,7 @@ class Pathtracer(Integrator):
 
     def prepare(self):
         ren = self._renderer
-        self._background = ren.converter.create_spectrum((0.70, 0.0, 0.0))
+        self._background = ren.converter.create_spectrum((0.00, 0.0, 0.0))
 
         self._runtimes = [Runtime() for n in range(ren.threads)] 
         ren.macro_call.set_runtimes(self._runtimes)

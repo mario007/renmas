@@ -76,6 +76,10 @@ namespace RenmasWPF2
         {
             BltBackBuffer();
         }
+        public string Log()
+        {
+            return this.GetProp("misc", "log");
+        }
         public BitmapSource BufferSource()
         {
             string value = this.GetProp("frame_buffer", "dummy");

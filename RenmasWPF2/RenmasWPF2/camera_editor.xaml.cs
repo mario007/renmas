@@ -32,30 +32,40 @@ namespace RenmasWPF2
         {
             this.DataContext = camera;
 
-            StackPanel sp_x = this.build_lbltxt("X: ", "Eye_x");
-            StackPanel sp_y = this.build_lbltxt("Y: ", "Eye_y");
-            StackPanel sp_z = this.build_lbltxt("Z: ", "Eye_z");
-            StackPanel row1 = build_row(sp_x, sp_y, sp_z);
-            StackPanel look_x = this.build_lbltxt("X: ", "Lookat_x");
-            StackPanel look_y = this.build_lbltxt("Y: ", "Lookat_y");
-            StackPanel loop_z = this.build_lbltxt("Z: ", "Lookat_z");
-            StackPanel row2 = build_row(look_x, look_y, loop_z);
+            StackPanel sp_x = this.build_lbltxt("  X: ", "Eye_x");
+            StackPanel sp_y = this.build_lbltxt("  Y: ", "Eye_y");
+            StackPanel sp_z = this.build_lbltxt("  Z: ", "Eye_z");
+            StackPanel row1 = build_row(" Eye :      ", sp_x, sp_y, sp_z);
+            StackPanel look_x = this.build_lbltxt("  X: ", "Lookat_x");
+            StackPanel look_y = this.build_lbltxt("  Y: ", "Lookat_y");
+            StackPanel loop_z = this.build_lbltxt("  Z: ", "Lookat_z");
+            StackPanel row2 = build_row(" LookAt : ", look_x, look_y, loop_z);
 
             StackPanel sp = new StackPanel();
             sp.Children.Add(row1);
             sp.Children.Add(row2);
 
             // Distance 
-            StackPanel dist = this.build_lbltxt("Distance: ", "Distance");
+            StackPanel dist = this.build_lbltxt(" Distance: ", "Distance");
 
             sp.Children.Add(dist);
-            this.Content = sp;
+
+            Expander expand = new Expander();
+            expand.Header = "Camera";
+            expand.Foreground = Brushes.White;
+            expand.Content = sp;
+            this.Content = expand;
         }
 
-        private StackPanel build_row(StackPanel sp1, StackPanel sp2, StackPanel sp3)
+        private StackPanel build_row(string name, StackPanel sp1, StackPanel sp2, StackPanel sp3)
         {
             StackPanel sp = new StackPanel();
             sp.Orientation = Orientation.Horizontal;
+            TextBlock tb = new TextBlock();
+            tb.Text = name;
+            tb.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+            tb.Width = 50;
+            sp.Children.Add(tb);
             sp.Children.Add(sp1);
             sp.Children.Add(sp2);
             sp.Children.Add(sp3);
@@ -65,8 +75,13 @@ namespace RenmasWPF2
         {
             TextBlock label = new TextBlock();
             label.Text = text;
+            label.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+           
             TextBox tb = new TextBox();
-            tb.Width = 40;
+            tb.Width = 50;
+            tb.Height = 20;
+            tb.Foreground = Brushes.White;
+            tb.CaretBrush = Brushes.White;
 
             StackPanel sp = new StackPanel();
             sp.Orientation = Orientation.Horizontal;
@@ -76,7 +91,7 @@ namespace RenmasWPF2
             Binding binder = new Binding(property);
             binder.Source = camera;
             tb.SetBinding(TextBox.TextProperty, binder);
-            sp.Height = 20;
+            sp.Height = 25;
             return sp;
         }
     }

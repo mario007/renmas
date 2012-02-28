@@ -44,7 +44,7 @@ namespace RenmasWPF2
             ComboBox cb = new ComboBox();
             cb.Width = 150;
             cb.Foreground = Brushes.White;
-            Binding bind = new Binding(" LightNames");
+            Binding bind = new Binding("LightNames");
             cb.SetBinding(ComboBox.ItemsSourceProperty, bind);
 
             Binding bind2 = new Binding("SelectedLight");

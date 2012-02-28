@@ -43,6 +43,10 @@ class MacroCall:
         self.inline_macros['sqrtss'] = self.sqrtss
         self.inline_macros['set_pixel'] = self.set_pixel
         self.inline_macros['zero'] = self.zero_register
+        self.inline_macros['minps'] = self.minps
+        self.inline_macros['maxps'] = self.maxps
+        self.inline_macros['minss'] = self.minss
+        self.inline_macros['maxss'] = self.maxss
 
     # first token is name of function
     # if inline is specified it must be second token [inline is optional]
@@ -108,6 +112,34 @@ class MacroCall:
             return 'vsqrtss ' + xmm1 + ',' + xmm1 + ',' + xmm2 + '\n'
         else:
             return 'sqrtss ' + xmm1 + ',' + xmm2 + '\n'
+
+    def minps(self, asm, tokens):
+        xmm1, dummy, xmm2 = tokens
+        if proc.AVX:
+            return 'vminps ' + xmm1 + ',' + xmm1 + ',' + xmm2 + '\n'
+        else:
+            return 'minps ' + xmm1 + ',' + xmm2 + '\n'
+
+    def minss(self, asm, tokens):
+        xmm1, dummy, xmm2 = tokens
+        if proc.AVX:
+            return 'vminss ' + xmm1 + ',' + xmm1 + ',' + xmm2 + '\n'
+        else:
+            return 'minss ' + xmm1 + ',' + xmm2 + '\n'
+
+    def maxps(self, asm, tokens):
+        xmm1, dummy, xmm2 = tokens
+        if proc.AVX:
+            return 'vmaxps ' + xmm1 + ',' + xmm1 + ',' + xmm2 + '\n'
+        else:
+            return 'maxps ' + xmm1 + ',' + xmm2 + '\n'
+
+    def maxss(self, asm, tokens):
+        xmm1, dummy, xmm2 = tokens
+        if proc.AVX:
+            return 'vmaxss ' + xmm1 + ',' + xmm1 + ',' + xmm2 + '\n'
+        else:
+            return 'maxss ' + xmm1 + ',' + xmm2 + '\n'
 
     def zero_register(self, asm, tokens):
         xmm = tokens[0]

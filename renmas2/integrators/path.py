@@ -41,6 +41,8 @@ class Pathtracer(Integrator):
                 cur_depth = 1
                 while True:
                     hp.wo = ray.dir * -1.0
+                    if hp.normal.dot(ray.dir) > 0.0:
+                        hp.normal = hp.normal * -1.0
                     spectrum = shader.shade(hp)
                     L = L + spectrum.mix_spectrum(path)
                     Y = conv.Y(path)
@@ -77,6 +79,7 @@ class Pathtracer(Integrator):
             ray ray1
             float minus_one[4] = -1.0, -1.0, -1.0, 0.0
             float one[4] = 1.0, 1.0, 1.0, 1.0
+            float zero[4] = 0.0, 0.0, 0.0, 0.0
             hitpoint hp1
             uint32 max_depth = 8
             uint32 cur_depth = 0
@@ -124,8 +127,12 @@ class Pathtracer(Integrator):
             mov eax, hp1
             mov ebx, ray1 
             macro eq128 eax.hitpoint.wo = ebx.ray.dir * minus_one {xmm0} 
+            macro dot xmm1 = eax.hitpoint.normal * ebx.ray.dir {xmm5, xmm6}
+            macro if xmm1 < zero goto __shade
+            macro eq128 xmm0 = eax.hitpoint.normal * minus_one
+            macro eq128 eax.hitpoint.normal = xmm0 {xmm1}
+            __shade:
             call shade
-
             mov ecx, hp1
             lea eax, dword [ecx + hitpoint.l_spectrum]
             mov ebx, path

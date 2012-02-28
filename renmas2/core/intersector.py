@@ -15,6 +15,9 @@ class Intersector:
         self._shape_addr = {} # shape:idx  - using index in dynamic array we can calculate address
         self._shape_arrays = {} # DynamicArrays for assembly rendering
 
+    def names(self):
+        return self._shape_names.keys()
+
     def shape(self, name):
         if name in self._shape_names:
             return self._shape_names[name]

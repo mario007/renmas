@@ -121,6 +121,8 @@ class IRender:
             self._scale_light_spectrum(name, value)
         elif category == "light_intesity":
             self._set_light_intesity(name, value)
+        elif category == "material_assign":
+            self.renderer.assign_material(name, value)
         return 1
 
     def get_props(self, category, name):
@@ -141,7 +143,17 @@ class IRender:
             return self._get_light_position(name)
         elif category == "light_intesity":
             return self._get_light_intesity(name)
+        elif category == "material_name":
+            return self._get_material_name(name)
         return ""
+
+    def _get_material_name(self, shape_name):
+        shape = self.renderer.intersector.shape(shape_name)
+        if shape is None: return ""
+        mat_name = self.renderer.shader.material_name(shape.material)
+        if mat_name:
+            return mat_name
+        return "" 
 
     def _scale_light_spectrum(self, name, value):
         light = self.renderer.shader.light(name)
@@ -209,12 +221,7 @@ class IRender:
 
     def _get_light_props(self, name):
         if name == "light_names":
-            s = ""
-            for l in self.renderer.shader.light_names():
-                s += l + ","
-            if s != "":
-                return s[:-1]
-            return s
+            return ",".join(self.renderer.shader.light_names())
 
     def _set_camera_props(self, name, value):
         if name == "eye":
@@ -281,6 +288,14 @@ class IRender:
             return ret
         elif name == "log":
             return self.renderer.get_log()
+        elif name == "shapes":
+            names = self.renderer.intersector.names()
+            if names is None: return ""
+            return ",".join(names)
+        elif name == "materials":
+            names = self.renderer.shader.material_names()
+            if names is None: return ""
+            return ",".join(names)
         else:
             return ""
 

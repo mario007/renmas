@@ -86,8 +86,12 @@ GRID = """
 FLAT_MESH = """
     struct flat_mesh
     uint32 vertex_buffer_ptr
+    uint32 vertex_size
     uint32 triangle_buffer_ptr
+    uint32 triangle_size
     uint32 mat_index
+    float bbox_min[4]
+    float bbox_max[4]
 
     end struct
 """

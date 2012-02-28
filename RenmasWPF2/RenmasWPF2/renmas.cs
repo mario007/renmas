@@ -30,6 +30,7 @@ namespace RenmasWPF2
         public Camera camera;
         public Options options;
         public Lights lights;
+        public Shapes shapes;
         public Renmas()
         {
             int ret = Init();//throw exception if error ocured!!!
@@ -37,6 +38,7 @@ namespace RenmasWPF2
             this.camera = new Camera(this);
             this.options = new Options(this);
             this.lights = new Lights(this);
+            this.shapes = new Shapes(this);
         }
 
         public string GetProp(string category, string name)
@@ -62,6 +64,7 @@ namespace RenmasWPF2
             this.camera.Refresh();
             this.options.Refresh();
             this.lights.Refresh();
+            this.shapes.Refresh();
         }
         public int RenderTile()
         {

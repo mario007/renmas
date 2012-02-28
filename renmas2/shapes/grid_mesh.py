@@ -4,6 +4,7 @@ from array import array
 import x86
 from ..core import Vector3
 from .bbox import BBox
+import renmas2.switch as proc
 
 def clamp(x, minimum, maximum):
     return max(minimum, min(maximum, x))
@@ -193,7 +194,76 @@ class GridMesh:
         print("Memory required for grid = ", self.nx * self.ny * self.nz * 4, " bytes")
         print("Memory required for array =", self.num_arrays*4 + self.num_objects*4 + 4, " bytes")
 
-   
+    def _get_addr_in_array(self, i, j, k):
+        idx = i + self.nx * j + self.nx * self.ny * k
+        addr = self.asm_cells.ptr() + idx * 4
+        offset_in_array = x86.GetUInt32(addr, 0, 0) 
+        if offset_in_array != 0:
+            return self.lin_array.ptr() + offset_in_array
+        return None
+
+    # eax = pointer to ray structure
+    # ebx = pointer to mesh structure
+    # ecx = pointer to minimum distance
+    # edx = pointer to hitpoint
+    @classmethod
+    def isect_asm(cls, runtimes, label, assembler, structures, name_struct):
+        code = """
+            #DATA
+        """
+        code += structures.structs(('ray', 'hitpoint', name_struct)) + """
+        uint32 hp_ptr, ray_ptr, mesh_ptr, min_dist_ptr
+        float one[4] = 1.0, 1.0, 1.0, 0.0
+        float zero[4] = 0.0, 0.0, 0.0, 0.0
+        #CODE
+        """
+        code += " global " + label + ":\n" + """
+            mov dword [hp_ptr], edx
+            mov dword [ray_ptr], eax
+            mov dword [mesh_ptr], ebx
+            mov dword [min_dist_ptr], ecx
+
+            macro eq128 xmm0 = one / eax.ray.dir
+            macro eq128 xmm1 = ebx.bbox_min
+            macro eq128 xmm2 = ebx.bbox_max
+
+            macro eq128 xmm1 = xmm1 - eax.ray.origin
+            macro eq128 xmm1 = xmm1 * xmm0
+
+            macro eq128 xmm2 = xmm2 - eax.ray.origin
+            macro eq128 xmm2 = xmm2 * xmm0
+
+            macro eq128 xmm3 = xmm1
+            macro eq128 xmm4 = xmm2
+
+            macro call minps xmm3, xmm2 ; tx_min, ty_min, tz_min
+            macro call maxps xmm4, xmm1 ; tx_max, ty_max, tz_max
+
+            macro broadcast xmm5 = xmm3[1]
+            macro call maxss xmm5, xmm3
+            macro broadcast xmm6 = xmm3[2]
+            macro call maxss xmm6, xmm5 ;t0
+
+            macro broadcast xmm5 = xmm4[1]
+            macro call minss xmm5, xmm4
+            macro broadcast xmm7 = xmm4[2]
+            macro call minss xmm7, xmm5 ;t1 
+            
+            macro if xmm7 > xmm6 goto next_section
+            mov eax, 0 ;no intersection ocur
+            ret
+            
+            next_section:
+            ret
+        """
+
+        mc = assembler.assemble(code, True)
+        #mc.print_machine_code()
+        name = "ray_mesh_isect" + str(hash(cls))
+        for r in runtimes:
+            if not r.global_exists(label):
+                r.load(name, mc)
+
     def isect(self, ray, min_dist = 999999.0):
         ox = ray.origin.x
         oy = ray.origin.y

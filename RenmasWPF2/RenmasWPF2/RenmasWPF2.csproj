@@ -84,6 +84,10 @@
       <DependentUpon>options_editor.xaml</DependentUpon>
     </Compile>
     <Compile Include="renmas.cs" />
+    <Compile Include="Shapes.cs" />
+    <Compile Include="Shapes_editor.xaml.cs">
+      <DependentUpon>Shapes_editor.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Utils.cs" />
     <Page Include="camera_editor.xaml">
       <SubType>Designer</SubType>
@@ -106,6 +110,10 @@
       <SubType>Code</SubType>
     </Compile>
     <Page Include="options_editor.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Shapes_editor.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

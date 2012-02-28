@@ -38,6 +38,14 @@ exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(glob
 #print (irender.get_props('light_spectrum', 'light1'))
 #irender.set_props('misc', 'spectral', 'True')
 
+print(irender.get_props("misc", "shapes"))
+print(irender.get_props("misc", "materials"))
+print ("Materials for shapes")
+print(irender.get_props("material_name", "Ceiling"))
+print(irender.get_props("material_name", "Left_wall"))
+print(irender.set_props("material_assign", "Left_wall", "default"))
+print(irender.get_props("material_name", "Left_wall"))
+
 #irender.set_props("light_intesity", "light1", "380,1.5")
 #irender.set_props("light_intesity", "light1", "RED,1.5")
 for l  in renderer.shader.light_names():

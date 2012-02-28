@@ -20,12 +20,22 @@ class Shader:
         if name in self._materials:
             return self._materials[name][1]
         return None
+    
+    def material_name(self, idx):
+        material = self._materials_idx[idx]
+        for key, value in self._materials.items():
+            if value[0] == material:
+                return key
+        return None
 
     def material(self, name):
         if name in self._materials:
             return self._materials[name][0]
         return None
-    
+   
+    def material_names(self):
+        return self._materials.keys()
+
     def light_names(self):
         return self._lights.keys()
 

@@ -251,7 +251,7 @@ class Renderer:
             return False
         shape.material = mat_idx 
         self._intersector.update(shape)
-        self._ready = False
+        self._ready = False #TODO -- think -- ready = False is not needed here
         return True
         
     def render(self):

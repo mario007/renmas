@@ -13,6 +13,8 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Security.Permissions;
 using System.Windows.Threading;
+using System.Threading;
+using System.Globalization;
 
 namespace RenmasWPF2
 {
@@ -26,14 +28,16 @@ namespace RenmasWPF2
         Camera_editor cam_editor;
         Options_editor op_editor;
         LightsEditor lights_editor;
+        Shapes_editor shapes_editor;
         public MainWindow()
         {
             InitializeComponent();
-            
+            Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
             renmas = new Renmas();
             cam_editor = new Camera_editor(renmas.camera);
             op_editor = new Options_editor(renmas.options);
             lights_editor = new LightsEditor(renmas.lights);
+            shapes_editor = new Shapes_editor(renmas.shapes);
             //this.main_grid.Children.Add(cam_editor);
             //this.output_image.SetValue(Grid.ColumnProperty, 1);
 
@@ -45,6 +49,7 @@ namespace RenmasWPF2
             sp.Children.Add(cam_editor);
             sp.Children.Add(op_editor);
             sp.Children.Add(lights_editor);
+            sp.Children.Add(shapes_editor);
             this.main_grid.Children.Add(sp);
 
             SolidColorBrush mySolidColorBrush = new SolidColorBrush();

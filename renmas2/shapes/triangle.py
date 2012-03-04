@@ -78,7 +78,7 @@ class Triangle(Shape):
         return t
 
     # eax = pointer to ray structure
-    # ebx = pointer to sphere structure
+    # ebx = pointer to triangle structure
     # ecx = pointer to minimum distance
     @classmethod
     def isect_asm_b(cls, runtimes, label, assembler, structures):

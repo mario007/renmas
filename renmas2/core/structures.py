@@ -92,6 +92,31 @@ FLAT_MESH = """
     uint32 mat_index
     float bbox_min[4]
     float bbox_max[4]
+    float nbox_width[4]
+    float n_1[4]
+    float one_overn[4]
+    int32 grid_size[4]
+    uint32 grid_ptr
+    uint32 array_ptr
+
+    end struct
+"""
+
+SMOOTH_MESH = """
+    struct smooth_mesh
+    uint32 vertex_buffer_ptr
+    uint32 vertex_size
+    uint32 triangle_buffer_ptr
+    uint32 triangle_size
+    uint32 mat_index
+    float bbox_min[4]
+    float bbox_max[4]
+    float nbox_width[4]
+    float n_1[4]
+    float one_overn[4]
+    int32 grid_size[4]
+    uint32 grid_ptr
+    uint32 array_ptr
 
     end struct
 """
@@ -103,7 +128,8 @@ structures = {
         "triangle": TRIANGLE,
         "sample": SAMPLE,
         'grid': GRID,
-        "flat_mesh": FLAT_MESH
+        "flat_mesh": FLAT_MESH,
+        "smooth_mesh": SMOOTH_MESH
         }
 
 class Structures:

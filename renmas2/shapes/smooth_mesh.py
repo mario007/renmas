@@ -5,12 +5,12 @@ from .bbox import BBox
 from ..core import Vector3
 from .shape import Shape
 from .grid_mesh import GridMesh
-from ..core import VertexBuffer, TriangleBuffer 
+from ..core import VertexNBuffer, TriangleBuffer 
 from .ray_triangle import ray_triangle_intersection
 
-class FlatMesh(Shape):
+class SmoothMesh(Shape):
     def __init__(self, vb, tb, material):
-        if not isinstance(vb, VertexBuffer):
+        if not isinstance(vb, VertexNBuffer):
             raise ValueError("Wrong vertex buffer " + str(type(vb)))
         if not isinstance(tb, TriangleBuffer):
             raise ValueError("Wrong triangle buffer " + str(type(tb)))
@@ -23,6 +23,9 @@ class FlatMesh(Shape):
         self._grid.setup(self)
         #print(time.clock() - start)
         #print(self._grid._show_info())
+        bbox = self._grid.bbox
+        print(bbox.x0, bbox.y0, bbox.z0)
+        print(bbox.x1, bbox.y1, bbox.z1)
 
     def isect_b(self, ray, min_dist=999999.0): #ray direction must be normalized
         hp = self._grid.isect(ray, min_dist)
@@ -31,13 +34,13 @@ class FlatMesh(Shape):
         return hp
 
     # eax = pointer to ray structure
-    # ebx = pointer to flat mesh structure
+    # ebx = pointer to smooth mesh structure
     # ecx = pointer to minimum distance
     @classmethod
     def isect_asm_b(cls, runtimes, label, assembler, structures):
         lbl_name = "ray_tri_b" + str(abs(hash(cls)))
         cls._isect_triangles_asm_b(runtimes, lbl_name, assembler, structures)
-        GridMesh.isect_asm(runtimes, label, assembler, structures, "flat_mesh", lbl_name, True)
+        GridMesh.isect_asm(runtimes, label, assembler, structures, "smooth_mesh", lbl_name, True)
 
     def isect(self, ray, min_dist=999999.0): #ray direction must be normalized
         return self._grid.isect(ray, min_dist)
@@ -50,7 +53,7 @@ class FlatMesh(Shape):
     def isect_asm(cls, runtimes, label, assembler, structures):
         lbl_name = "ray_tri" + str(abs(hash(cls)))
         cls._isect_triangles_asm(runtimes, lbl_name, assembler, structures)
-        GridMesh.isect_asm(runtimes, label, assembler, structures, "flat_mesh", lbl_name)
+        GridMesh.isect_asm(runtimes, label, assembler, structures, "smooth_mesh", lbl_name)
 
     def attributes(self):
         d = {}
@@ -82,7 +85,7 @@ class FlatMesh(Shape):
 
     @classmethod
     def name(cls):
-        return "flat_mesh"
+        return "smooth_mesh"
 
     def bbox(self):
         min_p, max_p = self._vb.bbox()
@@ -110,7 +113,7 @@ class FlatMesh(Shape):
         return hit_point
 
     # eax = pointer to ray structure
-    # ebx = pointer to flat mesh structure
+    # ebx = pointer to smooth mesh structure
     # ecx = pointer to minimum distance
     # edx = address in linear grid array --- n:idx1, idx2, ... 
     @classmethod
@@ -118,14 +121,14 @@ class FlatMesh(Shape):
         code = """
             #DATA
         """
-        code += structures.structs(('ray', 'flat_mesh')) + """
+        code += structures.structs(('ray', 'smooth_mesh')) + """
         float epsilon= 0.00001
         float one = 1.0
         uint32 num_triangles
         uint32 ptr_triangles
 
         uint32 ptr_ray
-        uint32 ptr_flat_mesh
+        uint32 ptr_smooth_mesh
         uint32 ptr_min_dist
 
         uint32 isect_ocur 
@@ -133,7 +136,7 @@ class FlatMesh(Shape):
         """
         code += " global " + label + ":\n" + """
         mov dword [ptr_ray], eax
-        mov dword [ptr_flat_mesh], ebx 
+        mov dword [ptr_smooth_mesh], ebx 
         mov dword [ptr_min_dist], ecx
         mov dword [isect_ocur], 0
 
@@ -144,29 +147,29 @@ class FlatMesh(Shape):
 
         _triangle_loop:
         mov eax, dword [ptr_ray]
-        mov ebx, dword [ptr_flat_mesh]
+        mov ebx, dword [ptr_smooth_mesh]
         mov ecx, dword [ptr_min_dist]
 
         
         mov ebp, dword [ptr_triangles]
         mov edx, dword [ebp]
-        imul edx, dword [ebx + flat_mesh.triangle_size]
-        add edx, dword [ebx + flat_mesh.triangle_buffer_ptr]
+        imul edx, dword [ebx + smooth_mesh.triangle_size]
+        add edx, dword [ebx + smooth_mesh.triangle_buffer_ptr]
         
         mov esi, dword [edx]
         mov edi, dword [edx + 4]
         mov ebp, dword [edx + 8]
 
-        imul esi, dword [ebx + flat_mesh.vertex_size]
-        add esi, dword [ebx + flat_mesh.vertex_buffer_ptr]
+        imul esi, dword [ebx + smooth_mesh.vertex_size]
+        add esi, dword [ebx + smooth_mesh.vertex_buffer_ptr]
 
-        imul edi, dword [ebx + flat_mesh.vertex_size]
-        add edi, dword [ebx + flat_mesh.vertex_buffer_ptr]
+        imul edi, dword [ebx + smooth_mesh.vertex_size]
+        add edi, dword [ebx + smooth_mesh.vertex_buffer_ptr]
 
-        imul ebp, dword [ebx + flat_mesh.vertex_size]
-        add ebp, dword [ebx + flat_mesh.vertex_buffer_ptr]
+        imul ebp, dword [ebx + smooth_mesh.vertex_size]
+        add ebp, dword [ebx + smooth_mesh.vertex_buffer_ptr]
 
-        ; eax - ray, ebx - flat mesh, ecx - distance, esi - p0, edi - p1, ebp - p2
+        ; eax - ray, ebx - smooth mesh, ecx - distance, esi - p0, edi - p1, ebp - p2
         ;call ray_triangle_function
         """
         code += ray_triangle_intersection() + """
@@ -203,7 +206,7 @@ class FlatMesh(Shape):
 
 
     # eax = pointer to ray structure
-    # ebx = pointer to flat mesh structure
+    # ebx = pointer to smooth mesh structure
     # ecx = pointer to minimum distance
     # edx = address in linear grid array --- n:idx1, idx2, ... 
     @classmethod
@@ -212,14 +215,14 @@ class FlatMesh(Shape):
         code = """
             #DATA
         """
-        code += structures.structs(('ray', 'flat_mesh')) + """
+        code += structures.structs(('ray', 'smooth_mesh')) + """
         float epsilon= 0.00001
         float one = 1.0
         uint32 num_triangles
         uint32 ptr_triangles
 
         uint32 ptr_ray
-        uint32 ptr_flat_mesh
+        uint32 ptr_smooth_mesh
         uint32 ptr_min_dist
 
         float tmp_normal[4]
@@ -228,7 +231,7 @@ class FlatMesh(Shape):
         """
         code += " global " + label + ":\n" + """
         mov dword [ptr_ray], eax
-        mov dword [ptr_flat_mesh], ebx 
+        mov dword [ptr_smooth_mesh], ebx 
         mov dword [ptr_min_dist], ecx
         mov dword [isect_ocur], 0
 
@@ -239,48 +242,56 @@ class FlatMesh(Shape):
 
         _triangle_loop:
         mov eax, dword [ptr_ray]
-        mov ebx, dword [ptr_flat_mesh]
+        mov ebx, dword [ptr_smooth_mesh]
         mov ecx, dword [ptr_min_dist]
 
         
         mov ebp, dword [ptr_triangles]
         mov edx, dword [ebp]
-        imul edx, dword [ebx + flat_mesh.triangle_size]
-        add edx, dword [ebx + flat_mesh.triangle_buffer_ptr]
+        imul edx, dword [ebx + smooth_mesh.triangle_size]
+        add edx, dword [ebx + smooth_mesh.triangle_buffer_ptr]
         
         mov esi, dword [edx]
         mov edi, dword [edx + 4]
         mov ebp, dword [edx + 8]
 
-        imul esi, dword [ebx + flat_mesh.vertex_size]
-        add esi, dword [ebx + flat_mesh.vertex_buffer_ptr]
+        imul esi, dword [ebx + smooth_mesh.vertex_size]
+        add esi, dword [ebx + smooth_mesh.vertex_buffer_ptr]
 
-        imul edi, dword [ebx + flat_mesh.vertex_size]
-        add edi, dword [ebx + flat_mesh.vertex_buffer_ptr]
+        imul edi, dword [ebx + smooth_mesh.vertex_size]
+        add edi, dword [ebx + smooth_mesh.vertex_buffer_ptr]
 
-        imul ebp, dword [ebx + flat_mesh.vertex_size]
-        add ebp, dword [ebx + flat_mesh.vertex_buffer_ptr]
+        imul ebp, dword [ebx + smooth_mesh.vertex_size]
+        add ebp, dword [ebx + smooth_mesh.vertex_buffer_ptr]
 
-        ; eax - ray, ebx - flat mesh, ecx - distance, esi - p0, edi - p1, ebp - p2
+        ; eax - ray, ebx - smooth mesh, ecx - distance, esi - p0, edi - p1, ebp - p2
         ;call ray_triangle_function
         """
         code += ray_triangle_intersection() + """
         cmp eax, 0
         je _next_triangle
-        ; intersection ocur, t = xmm6
+        ; intersection ocur, t = xmm6, gamma = xmm5, beta = xmm2 
         mov dword [isect_ocur], 1
         ; update distance
         macro eq32 ecx = xmm6 {xmm0}
-        ; calculate normal
-        macro eq128 xmm0 = esi
-        macro eq128 xmm1 = edi
-        macro eq128 xmm2 = ebp
 
-        macro eq128 xmm3 = xmm1 - xmm0
-        macro eq128 xmm4 = xmm2 - xmm0
-        macro cross xmm3 x xmm4 {xmm5, xmm6}
-        macro normalization xmm3 {xmm5, xmm6}
-        macro eq128 tmp_normal = xmm3 {xmm0}
+        ; calculate normal
+        add esi, 16
+        macro eq128 xmm0 = esi
+        add edi, 16
+        macro eq128 xmm1 = edi
+        add ebp, 16
+        macro eq128 xmm3 = ebp
+        macro eq32 xmm4 = one - xmm5 - xmm2
+        macro broadcast xmm4 = xmm4[0]
+        macro eq128 xmm4 = xmm4 * xmm0
+        macro broadcast xmm2 = xmm2[0]
+        macro eq128 xmm2 = xmm2 * xmm1
+        macro broadcast xmm5 = xmm5[0]
+        macro eq128 xmm5 = xmm5 * xmm3
+        macro eq128 xmm4 = xmm4 + xmm2 + xmm5
+        macro normalization xmm4 {xmm6, xmm7} 
+        macro eq128 tmp_normal = xmm4 {xmm0}
 
         _next_triangle:
         add dword [ptr_triangles], 4
@@ -313,9 +324,9 @@ class FlatMesh(Shape):
 
     def ray_triangle(self, ray, idx, min_dist = 999999.0):
         v0, v1, v2 = self._tb.get(idx)
-        p0 = self._vb.get(v0)
-        p1 = self._vb.get(v1)
-        p2 = self._vb.get(v2)
+        p0,n0 = self._vb.get(v0)
+        p1,n1 = self._vb.get(v1)
+        p2,n2 = self._vb.get(v2)
 
         a = p0[0] - p1[0]
         b = p0[0] - p2[0] 
@@ -360,11 +371,13 @@ class FlatMesh(Shape):
 
         hit_point = ray.origin + ray.dir * t
 
-        normal0 = Vector3(p0[0], p0[1], p0[2])
-        normal1 = Vector3(p1[0], p1[1], p1[2])
-        normal2 = Vector3(p2[0], p2[1], p2[2])
-        normal = (normal1 - normal0).cross(normal2 - normal0)
+        normal0 = Vector3(n0[0], n0[1], n0[2])
+        normal1 = Vector3(n1[0], n1[1], n1[2])
+        normal2 = Vector3(n2[0], n2[1], n2[2])
+
+        normal = normal0 * (1.0 - beta - gamma) + beta * normal1 + gamma * normal2  
         normal.normalize()
 
         return HitPoint(t, hit_point, normal, self.material, ray)
+
 

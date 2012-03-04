@@ -136,6 +136,7 @@ class Material:
         """
         mc = assembler.assemble(code, True)
         #print(code)
+        #mc.print_machine_code()
         self.f_asm_name = name = "material" + str(hash(self))
         self.ds = []
         for r in runtimes:

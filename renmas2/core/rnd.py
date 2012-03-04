@@ -1,4 +1,5 @@
 
+import renmas2
 import renmas2.shapes
 from renmas2.core import Vector3
 from renmas2.lights import PointLight
@@ -21,8 +22,11 @@ class IRender:
             p = kw.get("position")
             s = kw.get("source")
             name = kw.get("name", None)
+            scaler = kw.get("scale", None)
             #TODO -- creation of spectrum from spectrum database
             spec = self.renderer.converter.create_spectrum(s, True)
+            if scaler is not None:
+                spec.scale(float(scaler))
             pos = Vector3(float(p[0]), float(p[1]), float(p[2]))
             l = PointLight(pos, spec)
             self.renderer.add(name, l)
@@ -34,11 +38,31 @@ class IRender:
         if t == "sphere": self._create_sphere(kw)
         if t == "triangle": self._create_triangle(kw)
         if t == "rectangle": self._create_rectangle(kw)
+        if t == "mesh": self._create_mesh(kw)
 
     def add_material(self, **kw):
         t = kw.get("type", None)
         if t is None: return #log!!! TODO
         if t == "lambertian": self._create_lambertian(kw)
+        if t == "phong": self._create_phong(kw)
+
+    def _create_phong(self, kw):
+        name = kw.get("name", None)
+        diffuse = kw.get("diffuse", None)
+        specular = kw.get("specular", None)
+        n = kw.get("n", None)
+        if name is None or diffuse is None or specular is None or n is None: return
+        mat = Material(self.renderer.converter.zero_spectrum())
+        diff = self.renderer.converter.create_spectrum(diffuse)
+        spec = self.renderer.converter.create_spectrum(specular)
+        n = float(n)
+        lamb = self.factory.create_lambertian(diff)
+        phong_specular = self.factory.create_phong(spec, n)
+        mat.add(lamb)
+        mat.add(phong_specular)
+        sampling = HemisphereCos()
+        mat.add(sampling)
+        self.renderer.add(name, mat)
 
     def _create_lambertian(self, kw):
         name = kw.get("name", None)
@@ -87,6 +111,22 @@ class IRender:
         material = kw.get("material", None)
         if material is not None:
             self.renderer.assign_material(name, material)
+
+    def _create_mesh(self, kw):
+        name = kw.get("name", None)
+        filename = kw.get("filename", None)
+        material = kw.get("material", None)
+
+        if name is None or filename is None: return #LOG TODO
+        ply = renmas2.core.Ply()
+        ply.load(filename)
+        vb = ply.vertex_buffer
+        tb = ply.triangle_buffer
+        mesh = self.factory.create_mesh(vb, tb)
+        self.renderer.add(name, mesh)
+        if material is not None:
+            self.renderer.assign_material(name, material)
+
 
     def options(self, **kw):
         asm = kw.get("asm", None)

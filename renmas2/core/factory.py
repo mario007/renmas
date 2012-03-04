@@ -4,10 +4,11 @@ from ..materials import Lambertian
 from ..lights import PointLight
 from .spectrum import Spectrum
 from .material import Material
-from ..materials import Lambertian
+from ..materials import Lambertian, Phong
 from .vector3 import Vector3
 from .ray import Ray
-from ..shapes import Sphere, Triangle, Rectangle, FlatMesh
+from .buffers import VertexNBuffer
+from ..shapes import Sphere, Triangle, Rectangle, FlatMesh, SmoothMesh
 
 from renmas2.macros import MacroCall, arithmetic32, arithmetic128,\
                             broadcast, macro_if, dot_product, normalization, cross_product
@@ -31,6 +32,9 @@ class Factory:
 
     def create_lambertian(self, spectrum, k=None):
         return Lambertian(spectrum, k)
+
+    def create_phong(self, spectrum, n, k=None):
+        return Phong(spectrum, float(n), k)
 
     def vector(self, x, y, z):
         return Vector3(float(x), float(y), float(z))
@@ -85,8 +89,11 @@ class Factory:
         r = Rectangle(p, e1, e2, n, material)
         return r
 
-    def create_flat_mesh(self, vb, tb, material=None):
-        mesh = FlatMesh(vb, tb, material)
+    def create_mesh(self, vb, tb, material=None):
+        if type(vb) == VertexNBuffer:
+            mesh = SmoothMesh(vb, tb, material)
+        else:
+            mesh = FlatMesh(vb, tb, material)
         return mesh
 
     def create_sampler(self, **kw):

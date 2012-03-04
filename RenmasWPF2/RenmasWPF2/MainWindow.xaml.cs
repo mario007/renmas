@@ -135,6 +135,7 @@ namespace RenmasWPF2
                 }
                 this.renmas.Refresh();
                 this.txt_output_window.Text = this.renmas.Log();
+                this.txt_output_window.Text += "Script is finished executing.";
             }
         }
 

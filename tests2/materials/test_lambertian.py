@@ -36,7 +36,7 @@ class LambertianTest(unittest.TestCase):
 
         mc = ren.assembler.assemble(self.asm_code1(ren))
         ds = runtime.load("test", mc)
-        ds["brdf_ptr"] = runtime.address_module(mat1.asm_name)
+        ds["brdf_ptr"] = runtime.address_module(mat1.f_asm_name)
         runtime.run("test")
         print(ds["hp.f_spectrum.values"])
 

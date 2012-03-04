@@ -29,9 +29,11 @@ irender.set_props('misc', 'spp', '1')
 print (irender.get_props('misc', 'spectral'))
 print (irender.get_props('misc', 'pixel_size'))
 
-irender.set_props('misc', 'threads', '4')
-#filename = 'I:\\GitRENMAS\\scenes\\sphere1.py'
-filename = 'I:\\GitRENMAS\\scenes\\cornel2.py'
+irender.set_props('misc', 'threads', '1')
+filename = 'I:\\GitRENMAS\\scenes\\sphere1.py'
+#filename = 'I:\\GitRENMAS\\scenes\\cornel2.py'
+#filename = 'I:\\GitRENMAS\\scenes\\cube_mesh.py'
+#filename = 'I:\\GitRENMAS\\scenes\\horse.py'
 exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(globals()))
 #irender.set_props('misc', 'pixel_size', '1.4')
 #print (irender.get_props('misc', 'pixel_size'))

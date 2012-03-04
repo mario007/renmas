@@ -26,11 +26,14 @@ class GridMesh:
         s = math.pow(wx * wy * wz / float(ntriangles), 0.333333)
 
         self.nx = nx = int(multiplier * wx / s + 1)
-        if nx > 256: self.nx = nx = 256 
+        #if nx > 256: self.nx = nx = 256 
+        if nx > 192: self.nx = nx = 192 
         self.ny = ny = int(multiplier * wy / s + 1)
-        if ny > 256: self.ny = ny = 256 
+        if ny > 192: self.ny = ny = 192 
+        #if ny > 256: self.ny = ny = 256 
         self.nz = nz = int(multiplier * wz / s + 1)
-        if nz > 256: self.nz = nz = 256 
+        #if nz > 256: self.nz = nz = 256 
+        if nz > 192: self.nz = nz = 192 
         num_cells = int(nx * ny * nz)
 
         cells = [] # we need to initialize empty lists
@@ -207,7 +210,7 @@ class GridMesh:
     # ecx = pointer to minimum distance
     # edx = pointer to hitpoint
     @classmethod
-    def isect_asm(cls, runtimes, label, assembler, structures, name_struct):
+    def isect_asm(cls, runtimes, label, assembler, structures, name_struct, label_ray_triangles, visibility=False):
         code = """
             #DATA
         """
@@ -215,6 +218,18 @@ class GridMesh:
         uint32 hp_ptr, ray_ptr, mesh_ptr, min_dist_ptr
         float one[4] = 1.0, 1.0, 1.0, 0.0
         float zero[4] = 0.0, 0.0, 0.0, 0.0
+        uint32 ones = 0xFFFFFFFF
+        int32 ixyz[4]
+        float dtxyz[4]
+        int32 ix_step, iy_step, iz_step
+        int32 ix_stop, iy_stop, iz_stop
+        float tx_next, ty_next, tz_next
+        float khuge = 999999.999
+        float minimum_distance = 999999.0
+        int32 n[4]
+        uint32 grid_ptr
+        uint32 arr_ptr
+        uint32 mat_idx
         #CODE
         """
         code += " global " + label + ":\n" + """
@@ -222,10 +237,22 @@ class GridMesh:
             mov dword [ray_ptr], eax
             mov dword [mesh_ptr], ebx
             mov dword [min_dist_ptr], ecx
+            mov ebp, dword [khuge]
+            mov dword [minimum_distance], ebp
+        """
+        code += "mov ebp, dword [ebx + %s.grid_ptr]\n" % name_struct
+        code += "mov dword [grid_ptr], ebp\n"
+        code += "mov ebp, dword [ebx + %s.array_ptr]\n" % name_struct
+        code += "mov dword [arr_ptr], ebp\n"
+        code += "mov ebp, dword [ebx + %s.mat_index]\n" % name_struct
+        code += "mov dword [mat_idx], ebp\n"
 
+        code += """
             macro eq128 xmm0 = one / eax.ray.dir
-            macro eq128 xmm1 = ebx.bbox_min
-            macro eq128 xmm2 = ebx.bbox_max
+        """
+        code += "macro eq128 xmm1 = ebx.%s.bbox_min\n" % name_struct
+        code += "macro eq128 xmm2 = ebx.%s.bbox_max\n" % name_struct
+        code += """
 
             macro eq128 xmm1 = xmm1 - eax.ray.origin
             macro eq128 xmm1 = xmm1 * xmm0
@@ -236,25 +263,348 @@ class GridMesh:
             macro eq128 xmm3 = xmm1
             macro eq128 xmm4 = xmm2
 
-            macro call minps xmm3, xmm2 ; tx_min, ty_min, tz_min
-            macro call maxps xmm4, xmm1 ; tx_max, ty_max, tz_max
+            ; tx_min, ty_min, tz_min
+            macro call minps xmm3, xmm2
+            ; tx_max, ty_max, tz_max
+            macro call maxps xmm4, xmm1
 
             macro broadcast xmm5 = xmm3[1]
             macro call maxss xmm5, xmm3
             macro broadcast xmm6 = xmm3[2]
-            macro call maxss xmm6, xmm5 ;t0
+            ;t0
+            macro call maxss xmm6, xmm5
 
             macro broadcast xmm5 = xmm4[1]
             macro call minss xmm5, xmm4
             macro broadcast xmm7 = xmm4[2]
-            macro call minss xmm7, xmm5 ;t1 
+            ;t1
+            macro call minss xmm7, xmm5
             
             macro if xmm7 > xmm6 goto next_section
             mov eax, 0 ;no intersection ocur
             ret
             
+            ;now we must check this if self.bbox.inside(ray.origin) 
             next_section:
+            macro eq128 xmm0 = eax.ray.origin
+            macro eq128 xmm2 = xmm0
+        """
+        code += "macro eq128 xmm1 = ebx.%s.bbox_max\n" % name_struct
+        code += """
+            ; le - less or equal (xmm0 <= xmm1)
+            macro call cmpps xmm0, xmm1, 2
+        """
+        code += "macro eq128 xmm5 = ebx.%s.bbox_min\n" % name_struct
+        code += """
+            macro call cmpps xmm5, xmm2, 2 
+            macro call andps xmm0, xmm5
+            macro broadcast xmm1 = xmm0[1]
+            macro broadcast xmm2 = xmm0[2]
+            macro call andps xmm0, xmm1
+            macro call andps xmm0, xmm2
+        """
+        if proc.AVX:
+            code += "vcomiss xmm0, dword [ones] \n"
+        else:
+            code += "comiss xmm0, dword [ones] \n"
+
+        code += """
+            jz point_inside ; point is inside bbox
+
+            macro eq128 xmm0 = eax.ray.dir * xmm6 + eax.ray.origin
+            jmp next_section2
+
+            point_inside:
+            macro eq128 xmm0 = eax.ray.origin
+
+            next_section2:
+        """
+        code +=  "macro eq128 xmm0 = xmm0 - ebx.%s.bbox_min\n" % name_struct
+        code +=  "macro eq128 xmm0 = xmm0 * ebx.%s.nbox_width\n" % name_struct
+        code +=  "macro eq128 xmm2 = ebx.%s.n_1\n" % name_struct
+        code += """
+            macro call zero xmm1
+            macro call minps xmm0, xmm2
+            macro call maxps xmm0, xmm1
+            ; ix, iy, iz
+        """
+        if proc.AVX:
+            code += """
+            vcvttps2dq xmm1, xmm0
+            vcvtdq2ps xmm0, xmm1
+            """
+        else:
+            code += """
+            cvttps2dq xmm1, xmm0
+            cvtdq2ps xmm0, xmm1
+            """
+        code += """
+            macro eq128 ixyz = xmm1 {xmm7}
+            macro eq128 xmm5 = xmm4
+            macro eq128 xmm5 = xmm5 - xmm3
+        """
+        code += "macro eq128 xmm5 = xmm5 * ebx.%s.one_overn\n" % name_struct 
+        code += """
+            ; xmm5 = dtx, dty, dtz
+            macro eq128 dtxyz = xmm5 {xmm7}
+
+            ;tx_next = tx_min + (ix + 1) * dtx
+            ;tx_next = tx_min + (self.nx - ix) * dtx
+            macro eq128 xmm6 = one
+            macro eq128 xmm6 = xmm6 + xmm0
+            macro eq128 xmm6 = xmm6 * xmm5
+            macro eq128 xmm6 = xmm6 + xmm3
+        """
+        code += "macro eq128 xmm7 = ebx.%s.grid_size\n" % name_struct 
+        code += """
+            macro eq128 n = xmm7 {xmm0}
+            macro eq128 xmm2 = xmm7
+            macro call int_to_float xmm7, xmm7
+            macro eq128 xmm7 = xmm7 - xmm0
+            macro eq128 xmm7 = xmm7 * xmm5
+            macro eq128 xmm7 = xmm7 + xmm3
+
+            macro eq128 xmm0 = eax.ray.dir
+        """
+        if proc.AVX:
+            code += "vcomiss xmm0, dword [zero]\n" 
+        else:
+            code += "comiss xmm0, dword [zero]\n" 
+        code += """
+            jz _equal1
+            jnc _greater1
+
+            mov dword [ix_step], -1
+            mov dword [ix_stop], -1
+            macro eq32 tx_next = xmm7 {xmm0}
+
+            jmp _next_dx
+
+            _greater1:
+            mov dword [ix_step], 1
+            macro eq32 ix_stop = xmm2 {xmm0}
+            macro eq32 tx_next = xmm6 {xmm0}
+            jmp _next_dx
+
+            _equal1:
+            mov ebp, dword [khuge]
+            mov dword [ix_step], -1
+            mov dword [ix_stop], -1
+            mov dword [tx_next], ebp 
+
+            _next_dx:
+            macro broadcast xmm1 = xmm0[1]
+        """
+        if proc.AVX:
+            code += "vcomiss xmm1, dword [zero]\n" 
+        else:
+            code += "comiss xmm1, dword [zero]\n" 
+        code += """
+            jz _equal2
+            jnc _greater2
+
+            mov dword [iy_step], -1
+            mov dword [iy_stop], -1
+            macro broadcast xmm5 = xmm7[1]
+            macro eq32 ty_next = xmm5 {xmm0}
+
+            jmp _next_dx2
+
+            _greater2:
+            mov dword [iy_step], 1
+            macro broadcast xmm4 = xmm2[1]
+            macro eq32 iy_stop = xmm4 {xmm0}
+            macro broadcast xmm5 = xmm6[1]
+            macro eq32 ty_next = xmm5 {xmm0}
+            jmp _next_dx2
+
+            _equal2:
+            mov ebp, dword [khuge]
+            mov dword [iy_step], -1
+            mov dword [iy_stop], -1
+            mov dword [ty_next], ebp 
+
+            _next_dx2:
+            macro broadcast xmm1 = xmm0[2]
+        """
+        if proc.AVX:
+            code += "vcomiss xmm1, dword [zero]\n" 
+        else:
+            code += "comiss xmm1, dword [zero]\n" 
+        code += """
+            jz _equal3
+            jnc _greater3
+
+            mov dword [iz_step], -1
+            mov dword [iz_stop], -1
+            macro broadcast xmm5 = xmm7[2]
+            macro eq32 tz_next = xmm5 {xmm0}
+
+            jmp _next_dx3
+
+            _greater3:
+            mov dword [iz_step], 1
+            macro broadcast xmm4 = xmm2[2]
+            macro eq32 iz_stop = xmm4 {xmm0}
+            macro broadcast xmm5 = xmm6[2]
+            macro eq32 tz_next = xmm5 {xmm0}
+            jmp _next_dx3
+
+            _equal3:
+            mov ebp, dword [khuge]
+            mov dword [iz_step], -1
+            mov dword [iz_stop], -1
+            mov dword [tz_next], ebp 
+
+            _next_dx3:
+
+            _traverse:
+            mov ebp, dword [khuge]
+            mov dword [minimum_distance], ebp
+
+            ;cell = self.cells[ix + self.nx * iy + self.nx * self.ny * iz]
+            mov eax, dword [n] ;self.nx
+            mov ebx, dword [n+4] ;self.ny
+            imul ebx, dword [ixyz+8]
+            imul ebx, eax
+            imul eax, dword [ixyz+4]
+            add eax, ebx
+            add eax, dword [ixyz] ; in eax we have index
+            imul eax, eax, 4 ; offset in bytes
+
+            ;if tx_next < ty_next and tx_next < tz_next:
+            macro eq32 xmm0 = tx_next
+            macro if xmm0 > ty_next goto _next_part
+            macro if xmm0 > tz_next goto _next_part
+
+            mov ebp, dword [grid_ptr]
+            add ebp, eax ;address + offset in bytes
+            mov eax, dword [ebp]
+            cmp eax, 0 ;empty cell
+            je _next_calc
+
+            ; call ray triangles intersection method eax = ray, ebx = mesh, ecx = ptr_min_dist, edx = addr in array
+            mov edx, dword [arr_ptr]
+            add edx, eax
+            mov eax, dword [ray_ptr]
+            mov ebx, dword [mesh_ptr]
+            mov ecx, minimum_distance
+        """
+        code += "call " + label_ray_triangles + "\n" + """
+            ;if hp and hp.t < tx_next: return hp
+            cmp eax, 0
+            je _next_calc
+            macro if xmm0 < tx_next goto _return_hp
+
+            _next_calc:
+            macro eq32 xmm0 = dtxyz + tx_next
+            macro eq32 tx_next = xmm0 {xmm7}
+            mov eax, dword [ix_step]
+            mov ebx, dword [ix_stop]
+            mov ecx, dword [ixyz]
+            add ecx, eax
+            mov dword [ixyz], ecx
+            cmp ecx, ebx
+            jne _traverse
+            mov eax, 0
             ret
+
+            _next_part:
+            ;if ty_next < tz_next:
+            macro eq32 xmm0 = ty_next
+            macro if xmm0 > tz_next goto _next_part2
+
+            mov ebp, dword [grid_ptr]
+            add ebp, eax ;address + offset in bytes
+            mov eax, dword [ebp]
+            cmp eax, 0 ;empty cell
+            je _next_calc2
+
+            ; call ray triangles intersection method eax = ray, ebx = mesh, ecx = ptr_min_dist, edx = addr in array
+            mov edx, dword [arr_ptr]
+            add edx, eax
+            mov eax, dword [ray_ptr]
+            mov ebx, dword [mesh_ptr]
+            mov ecx, minimum_distance
+        """
+        code += "call " + label_ray_triangles + "\n" + """
+            ;if hp and hp.t < ty_next: return hp
+            cmp eax, 0
+            je _next_calc2
+            macro if xmm0 < ty_next goto _return_hp
+
+            _next_calc2:
+            macro eq128 xmm0 = dtxyz
+            macro broadcast xmm0 = xmm0[1]
+            macro eq32 xmm0 = xmm0 + ty_next
+            macro eq32 ty_next = xmm0 {xmm7}
+            mov eax, dword [iy_step]
+            mov ebx, dword [iy_stop]
+            mov ecx, dword [ixyz+4]
+            add ecx, eax
+            mov dword [ixyz+4], ecx
+            cmp ecx, ebx
+            jne _traverse
+            mov eax, 0
+            ret
+
+            _next_part2:
+            mov ebp, dword [grid_ptr]
+            add ebp, eax ;address + offset in bytes
+            mov eax, dword [ebp]
+            cmp eax, 0 ;empty cell
+            je _next_calc3
+
+            ; call ray triangles intersection method eax = ray, ebx = mesh, ecx = ptr_min_dist, edx = addr in array
+            mov edx, dword [arr_ptr]
+            add edx, eax
+            mov eax, dword [ray_ptr]
+            mov ebx, dword [mesh_ptr]
+            mov ecx, minimum_distance
+        """
+        code += "call " + label_ray_triangles + "\n" + """
+            ;if hp and hp.t < tz_next: return hp
+            cmp eax, 0
+            je _next_calc3
+            macro if xmm0 < tz_next goto _return_hp
+
+            _next_calc3:
+            macro eq128 xmm0 = dtxyz
+            macro broadcast xmm0 = xmm0[2]
+            macro eq32 xmm0 = xmm0 + tz_next
+            macro eq32 tz_next = xmm0 {xmm7}
+            mov eax, dword [iz_step]
+            mov ebx, dword [iz_stop]
+            mov ecx, dword [ixyz+8]
+            add ecx, eax
+            mov dword [ixyz+8], ecx
+            cmp ecx, ebx
+            jne _traverse
+            mov eax, 0
+            ret
+
+            _return_hp:
+            mov ebp, dword [min_dist_ptr]
+            macro if xmm0 > ebp goto _end_isect
+        """
+        if not visibility:
+            code += """
+
+            mov edx, dword [hp_ptr]
+            macro eq32 edx.hitpoint.t = xmm0 {xmm7}
+            macro eq128 edx.hitpoint.hit = xmm1 {xmm7}
+            macro eq128 edx.hitpoint.normal = xmm2 {xmm7}
+            macro eq32 edx.hitpoint.mat_index = mat_idx {xmm7}
+            """
+        code += """
+            mov eax, 1
+            ret
+
+            _end_isect:
+            mov eax, 0
+            ret 
+            
+
         """
 
         mc = assembler.assemble(code, True)

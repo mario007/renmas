@@ -47,6 +47,8 @@ class MacroCall:
         self.inline_macros['maxps'] = self.maxps
         self.inline_macros['minss'] = self.minss
         self.inline_macros['maxss'] = self.maxss
+        self.inline_macros['andps'] = self.andps
+        self.inline_macros['cmpps'] = self.cmpps
 
     # first token is name of function
     # if inline is specified it must be second token [inline is optional]
@@ -140,6 +142,20 @@ class MacroCall:
             return 'vmaxss ' + xmm1 + ',' + xmm1 + ',' + xmm2 + '\n'
         else:
             return 'maxss ' + xmm1 + ',' + xmm2 + '\n'
+
+    def cmpps(self, asm, tokens):
+        xmm1, dummy, xmm2, dummy2, num = tokens
+        if proc.AVX:
+            return 'vcmpps ' + xmm1 + ',' + xmm1 + ',' + xmm2 + ',' + num + '\n'
+        else:
+            return 'cmpps ' + xmm1 + ',' + xmm2 + ',' + num +'\n'
+
+    def andps(self, asm, tokens):
+        xmm1, dummy, xmm2 = tokens
+        if proc.AVX:
+            return 'vandps ' + xmm1 + ',' + xmm1 + ',' + xmm2 + '\n'
+        else:
+            return 'andps ' + xmm1 + ',' + xmm2 + '\n'
 
     def zero_register(self, asm, tokens):
         xmm = tokens[0]

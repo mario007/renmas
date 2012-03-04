@@ -70,6 +70,32 @@ class VertexBuffer(Buffer):
             return x86.GetFloat(addr, 0, 3)
         return None #think Trowing exception TODO
 
+    def scale(self, xs, ys, zs):
+        xs = float(xs)
+        ys = float(ys)
+        zs = float(zs)
+        addr = self._address.ptr()
+        for i in range(self._size):
+            p = x86.GetFloat(addr, 0, 3)
+            v0 = xs * p[0]
+            v1 = xy * p[1]
+            v2 = xz * p[2]
+            x86.SetFloat(addr, (v0, v1, v2, 0.0), 0)
+            addr += self._item_size
+
+    def translate(self, dx, dy, dz):
+        dx = float(dx)
+        dy = float(dy)
+        dz = float(dz)
+        addr = self._address.ptr()
+        for i in range(self._size):
+            p = x86.GetFloat(addr, 0, 3)
+            v0 = dx + p[0]
+            v1 = dy + p[1]
+            v2 = dz + p[2]
+            x86.SetFloat(addr, (v0, v1, v2, 0.0), 0)
+            addr += self._item_size
+
     def bbox_triangle(self, idx1, idx2, idx3):
         address = self._address.ptr()
         addr = address + idx1 * self._item_size 
@@ -168,6 +194,47 @@ class VertexNBuffer(Buffer):
             return(p,n)
         return None #think Trowing exception TODO
 
+    def bbox_triangle(self, idx1, idx2, idx3):
+        address = self._address.ptr()
+        addr = address + idx1 * self._item_size 
+        p0 = x86.GetFloat(addr, 0, 3)
+        addr = address + idx2 * self._item_size 
+        p1 = x86.GetFloat(addr, 0, 3)
+        addr = address + idx3 * self._item_size 
+        p2 = x86.GetFloat(addr, 0, 3)
+        epsilon = 0.0001
+        minx = p0[0]
+        if p1[0] < minx: minx = p1[0]
+        if p2[0] < minx: minx = p2[0]
+        minx -= epsilon
+        maxx = p0[0]
+        if p1[0] > maxx: maxx = p1[0]
+        if p2[0] > maxx: maxx = p2[0]
+        maxx += epsilon
+        miny = p0[1]
+        if p1[1] < miny: miny = p1[1]
+        if p2[1] < miny: miny = p2[1]
+        miny -= epsilon
+        maxy = p0[1]
+        if p1[1] > maxy: maxy = p1[1]
+        if p2[1] > maxy: maxy = p2[1]
+        maxy += epsilon
+        minz = p0[2]
+        if p1[2] < minz: minz = p1[2]
+        if p2[2] < minz: minz = p2[2]
+        minz -= epsilon
+        maxz = p0[2]
+        if p1[2] > maxz: maxz = p1[2]
+        if p2[2] > maxz: maxz = p2[2]
+        maxz += epsilon
+        #minx = min(min(p0[0], p1[0]), p2[0]) - epsilon
+        #maxx = max(max(p0[0], p1[0]), p2[0]) + epsilon
+        #miny = min(min(p0[1], p1[1]), p2[1]) - epsilon
+        #maxy = max(max(p0[1], p1[1]), p2[1]) + epsilon
+        #minz = min(min(p0[2], p1[2]), p2[2]) - epsilon
+        #maxz = max(max(p0[2], p1[2]), p2[2]) + epsilon
+        return((minx, miny, minz), (maxx, maxy, maxz))
+
     #TODO --- asm version of this method is required!!! lucy is slow??
     def bbox(self):
         if self.addr():
@@ -198,6 +265,32 @@ class VertexNBuffer(Buffer):
             maxz = maxz + epsilon
             return((minx, miny, minz), (maxx, maxy, maxz))
         return None
+
+    def scale(self, xs, ys, zs):
+        xs = float(xs)
+        ys = float(ys)
+        zs = float(zs)
+        addr = self._address.ptr()
+        for i in range(self._size):
+            p = x86.GetFloat(addr, 0, 3)
+            v0 = xs * p[0]
+            v1 = xy * p[1]
+            v2 = xz * p[2]
+            x86.SetFloat(addr, (v0, v1, v2, 0.0), 0)
+            addr += self._item_size
+
+    def translate(self, dx, dy, dz):
+        dx = float(dx)
+        dy = float(dy)
+        dz = float(dz)
+        addr = self._address.ptr()
+        for i in range(self._size):
+            p = x86.GetFloat(addr, 0, 3)
+            v0 = dx + p[0]
+            v1 = dy + p[1]
+            v2 = dz + p[2]
+            x86.SetFloat(addr, (v0, v1, v2, 0.0), 0)
+            addr += self._item_size
 
 #Buffer that stores 3 triangle indexes in vertex buffer v0, v1, v2
 class TriangleBuffer(Buffer):

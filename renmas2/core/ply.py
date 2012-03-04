@@ -11,12 +11,20 @@ class Ply:
         self._vertex_buffer = None
         self._triangle_buffer = None
 
+    @property
+    def vertex_buffer(self):
+        return self._vertex_buffer
+
+    @property
+    def triangle_buffer(self):
+        return self._triangle_buffer
+
     def _read_bin_to_asci_line(self, f):
         a = b''
         for i in range(5000):
             c = f.read(1)
             d = str(c, "ascii")
-            if d == "\n":
+            if d =='\r' or d == "\n":
                 break
             a += c 
         return str(a, "ascii") 

@@ -29,7 +29,8 @@ class PointLight(Light):
         ndotwi = hitpoint.normal.dot(wi)
         hitpoint.wi = wi 
         hitpoint.ndotwi = ndotwi
-        if ndotwi < 0.0: # ray strike back of object so that mean point is not visible to light. dielectric?? FIXME Think
+        ndotwo = hitpoint.normal.dot(hitpoint.wo)
+        if ndotwi < 0.0:
             hitpoint.visible = False
             return False
 

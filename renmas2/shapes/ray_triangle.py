@@ -120,6 +120,7 @@ def ray_triangle_intersection():
         ; xmm7 = d  xmm6 = td  xmm5 = gamma   xmm4 = beta
 
         vpxor xmm3, xmm3, xmm3
+        macro eq128 xmm2 = xmm4
         macro if xmm4 < xmm3 goto _reject_092
         macro if xmm5 < xmm3 goto _reject_092
         vaddss xmm4, xmm4, xmm5
@@ -273,6 +274,7 @@ def ray_triangle_intersection():
         ; xmm7 = d  xmm6 = td  xmm5 = gamma   xmm4 = beta
 
         pxor xmm3, xmm3
+        macro eq128 xmm2 = xmm4
         macro if xmm4 < xmm3 goto _reject_092
         macro if xmm5 < xmm3 goto _reject_092
         addss xmm4, xmm5

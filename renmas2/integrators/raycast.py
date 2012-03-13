@@ -42,6 +42,7 @@ class Raycast(Integrator):
             sample sample1
             ray ray1
             float minus_one[4] = -1.0, -1.0, -1.0, 0.0
+            float zero = 0.0
             hitpoint hp1
             spectrum background
 
@@ -68,6 +69,11 @@ class Raycast(Integrator):
             mov eax, hp1
             mov ebx, ray1 
             macro eq128 eax.hitpoint.wo = ebx.ray.dir * minus_one {xmm0} 
+            macro dot xmm1 = eax.hitpoint.normal * ebx.ray.dir {xmm5, xmm6}
+            macro if xmm1 < zero goto __shade
+            macro eq128 xmm0 = eax.hitpoint.normal * minus_one
+            macro eq128 eax.hitpoint.normal = xmm0 {xmm1}
+            __shade:
             call shade
 
             mov ecx, hp1

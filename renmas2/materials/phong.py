@@ -41,6 +41,7 @@ class Phong(BRDF):
         ASM += "macro broadcast xmm0 = xmm0[0]\n"
         ASM += "macro eq128 xmm0 = xmm0 * eax.hitpoint.normal - eax.hitpoint.wi\n"
         ASM += "macro dot xmm0 = xmm0 * eax.hitpoint.wo {xmm6, xmm7}\n"
+
         ASM += "macro call zero xmm1\n"
         ASM += "macro if xmm0 > xmm1 goto %saccept\n" % name
         ASM += "mov eax, %szero_spectrum \n" %name
@@ -50,10 +51,11 @@ class Phong(BRDF):
         ASM += "macro eq32 xmm1 = %sn\n" % name
         ASM += "macro call fast_pow_ss\n"
         ASM += "macro eq32 xmm0 = xmm0 * %sk\n" % name
+
         ASM += "mov eax, %sret_spectrum\n" % name
         ASM += "mov ecx, %sspectrum\n" % name
-        ASM += "macro spectrum eax = xmm0 * ecx\n"
 
+        ASM += "macro spectrum eax = xmm0 * ecx\n"
         ASM += "%send:\n" % name
         return ASM
 

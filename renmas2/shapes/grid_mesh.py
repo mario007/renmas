@@ -247,6 +247,7 @@ class GridMesh:
         code += "mov ebp, dword [ebx + %s.mat_index]\n" % name_struct
         code += "mov dword [mat_idx], ebp\n"
 
+        #TODO --- think if ray direction has zero component -- put some epsilon!!!
         code += """
             macro eq128 xmm0 = one / eax.ray.dir
         """
@@ -629,6 +630,7 @@ class GridMesh:
         y1 = self.bbox.y1
         z1 = self.bbox.z1
 
+        if dx == 0.0: dx = 0.00001
         a = 1.0 / dx
         if a >= 0:
             tx_min = (x0 - ox) * a
@@ -636,7 +638,8 @@ class GridMesh:
         else:
             tx_min = (x1 - ox) * a
             tx_max = (x0 - ox) * a
-
+        
+        if dy == 0.0: dy = 0.00001
         b = 1.0 / dy
         if b >= 0:
             ty_min = (y0 - oy) * b
@@ -645,6 +648,7 @@ class GridMesh:
             ty_min = (y1 - oy) * b
             ty_max = (y0 - oy) * b
 
+        if dz == 0.0: dz = 0.00001
         c = 1.0 / dz
         if c >= 0:
             tz_min = (z0 - oz) * c

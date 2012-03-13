@@ -24,8 +24,8 @@ class SmoothMesh(Shape):
         #print(time.clock() - start)
         #print(self._grid._show_info())
         bbox = self._grid.bbox
-        print(bbox.x0, bbox.y0, bbox.z0)
-        print(bbox.x1, bbox.y1, bbox.z1)
+        #print(bbox.x0, bbox.y0, bbox.z0)
+        #print(bbox.x1, bbox.y1, bbox.z1)
 
     def isect_b(self, ray, min_dist=999999.0): #ray direction must be normalized
         hp = self._grid.isect(ray, min_dist)

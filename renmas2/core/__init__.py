@@ -14,4 +14,6 @@ from .main_window import MainWindow
 from .blitter import Blitter
 from .factory import Factory
 from .ply import Ply
+from .obj import Obj
+from .mtl import Mtl
 

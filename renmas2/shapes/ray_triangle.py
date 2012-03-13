@@ -135,14 +135,14 @@ def ray_triangle_intersection():
         ; t is in xmm6
         
         mov eax, 1
-        ret
+        jmp _accept_092
 
         _reject_092:
         xor eax, eax
-        ret
+        _accept_092:
 
         """
-
+        
     else:
     #eax - ray, ebx - flat mesh, ecx - distance, esi - p0, edi - p1, ebp - p2
         code = """

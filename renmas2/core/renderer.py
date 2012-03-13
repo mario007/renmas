@@ -152,8 +152,8 @@ class Renderer:
 
     def _set_asm(self, value):
         self._asm = bool(value)
-        if self._asm: self._max_samples = 2000000
-        else: self._max_samples = 100000
+        if self._asm: self._max_samples = 200000 
+        else: self._max_samples = 10000
         self._ready = False
     def _get_asm(self):
         return self._asm
@@ -261,7 +261,7 @@ class Renderer:
             tile = self._tiles.pop()
         except IndexError:
             return False # All tiles are rendererd
-
+        
         self._integrator.render(tile)
         return True
 

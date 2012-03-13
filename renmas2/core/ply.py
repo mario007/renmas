@@ -1,5 +1,7 @@
+import os
+import os.path
 import struct
-from .buffers import VertexBuffer, VertexNBuffer, TriangleBuffer, TriangleNBuffer
+from .buffers import VertexBuffer, VertexNBuffer, TriangleBuffer
 
 class Ply:
     def __init__(self):
@@ -281,6 +283,7 @@ class Ply:
 
 
     def load(self, fname):
+        if not os.path.exists(fname): return False
         self._detect_format(fname)
         if self.format == "ASCII":
             f = open(fname)
@@ -307,6 +310,7 @@ class Ply:
             self._read_binary_faces(element, f)
 
             f.close()
+        return True
 
 
 

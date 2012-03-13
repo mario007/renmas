@@ -2,6 +2,7 @@
 from .ray import Ray
 from .logger import log
 from .dynamic_array import DynamicArray
+from ..shapes import Grid
 
 # add ready attribut ???? TODO -- so we can allways call isect
 # when call isect if ready is False call prepare TODO --- think???
@@ -10,6 +11,7 @@ class Intersector:
     def __init__(self, renderer):
         self.renderer = renderer
         self.strategy = False # False means linear intersection, True using Grids 
+        self._grid = Grid()
 
         self._shape_names = {} #name:shape
         self._shape_addr = {} # shape:idx  - using index in dynamic array we can calculate address
@@ -25,7 +27,7 @@ class Intersector:
 
     def add(self, name, shape):
         if name in self._shape_names:
-            log.info("Shape with that name allready exist!!!")
+            log.info("Shape with that " + name + " allready exist!!!")
             return
         #TODO Check if shape has valid material - put default it it doesn't have
         self._shape_names[name] = shape #name:shape
@@ -64,19 +66,24 @@ class Intersector:
 
     def isect(self, ray): #intersection ray with scene
         if self.strategy:
-            raise ValueError('Grids are not yet implemented.')
+            if len(self._lst_shapes) > 0:
+                return self._grid.isect(ray)
+            return False
         else:
             return self._linear_isect(ray)
 
     def _isect_visibility(self, ray): #intersection ray with scene
         if self.strategy:
-            raise ValueError('Grids are not yet implemented.')
+            if len(self._lst_shapes) > 0:
+                return self._grid.isect_b(ray)
+            return False
         else:
             return self._linear_isect_visibility(ray)
 
     def isect_asm(self, runtimes, label):
         if self.strategy:
-            raise ValueError('Grids are not yet implemented.')
+            ren = self.renderer
+            self._grid.isect_asm(runtimes, label, ren.assembler, ren.structures, self._shape_arrays, self)
         else:
             self._isect_ray_scene(runtimes, label, self._shape_arrays)
 
@@ -119,7 +126,12 @@ class Intersector:
         # visibility of two points # xmm0 = p1  xmm1 = p2
         # xmm0 -- return value minimum distance
 
-        self._isect_ray_scene(runtimes, "__ray_scene_intersection_visibility__", self._shape_arrays, True)
+        if self.strategy:
+            ren = self.renderer
+            self._grid.isect_asm_b(runtimes, "__ray_scene_intersection_visibility__", ren.assembler, ren.structures, self._shape_arrays, self)
+        else:
+            self._isect_ray_scene(runtimes, "__ray_scene_intersection_visibility__", self._shape_arrays, True)
+
         asm_structs =  self.renderer.structures.structs(('ray',))
 
         ASM = """
@@ -171,7 +183,9 @@ class Intersector:
 
     def prepare(self): #build acceleration structure
         if self.strategy:  
-            pass #build grid
+            self._lst_shapes = list(self._shape_names.values())
+            if len(self._lst_shapes) > 0:
+                self._grid.setup(self._lst_shapes)
         else:
             self._lst_shapes = list(self._shape_names.values())
 

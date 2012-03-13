@@ -30,23 +30,25 @@ print (irender.get_props('misc', 'spectral'))
 print (irender.get_props('misc', 'pixel_size'))
 
 irender.set_props('misc', 'threads', '1')
-filename = 'I:\\GitRENMAS\\scenes\\sphere1.py'
+#filename = 'I:\\GitRENMAS\\scenes\\sphere1.py'
 #filename = 'I:\\GitRENMAS\\scenes\\cornel2.py'
 #filename = 'I:\\GitRENMAS\\scenes\\cube_mesh.py'
-#filename = 'I:\\GitRENMAS\\scenes\\horse.py'
+filename = 'I:\\GitRENMAS\\scenes\\lux_ball.py'
+#filename = 'I:\\GitRENMAS\\scenes\\cube.py'
+#filename = 'I:\\GitRENMAS\\scenes\\random_spheres.py'
 exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(globals()))
 #irender.set_props('misc', 'pixel_size', '1.4')
 #print (irender.get_props('misc', 'pixel_size'))
 #print (irender.get_props('light_spectrum', 'light1'))
 #irender.set_props('misc', 'spectral', 'True')
 
-print(irender.get_props("misc", "shapes"))
-print(irender.get_props("misc", "materials"))
-print ("Materials for shapes")
-print(irender.get_props("material_name", "Ceiling"))
-print(irender.get_props("material_name", "Left_wall"))
-print(irender.set_props("material_assign", "Left_wall", "default"))
-print(irender.get_props("material_name", "Left_wall"))
+#print(irender.get_props("misc", "shapes"))
+#print(irender.get_props("misc", "materials"))
+#print ("Materials for shapes")
+#print(irender.get_props("material_name", "Ceiling"))
+#print(irender.get_props("material_name", "Left_wall"))
+#print(irender.set_props("material_assign", "Left_wall", "default"))
+#print(irender.get_props("material_name", "Left_wall"))
 
 #irender.set_props("light_intesity", "light1", "380,1.5")
 #irender.set_props("light_intesity", "light1", "RED,1.5")
@@ -75,7 +77,7 @@ def render_scene():
         if not ret: break
     #if not ret: return 
     end = time.clock()
-    print (end-start)
+    print ("Rendering took:", end-start)
     #renderer._film.tone_map()
     blt_float_img_to_window(0, 0, renderer._film.image, win)
 

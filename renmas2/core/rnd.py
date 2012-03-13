@@ -1,4 +1,5 @@
 
+import os
 import renmas2
 import renmas2.shapes
 from renmas2.core import Vector3
@@ -7,9 +8,6 @@ from .material import Material
 from renmas2.materials import HemisphereCos
 from ..cameras import Pinhole
 
-
-def generate_name(self, obj):
-    pass
 
 class IRender:
     def __init__(self, renderer):
@@ -112,12 +110,10 @@ class IRender:
         if material is not None:
             self.renderer.assign_material(name, material)
 
-    def _create_mesh(self, kw):
+    def _create_from_ply(self, kw):
         name = kw.get("name", None)
         filename = kw.get("filename", None)
         material = kw.get("material", None)
-
-        if name is None or filename is None: return #LOG TODO
         ply = renmas2.core.Ply()
         ply.load(filename)
         vb = ply.vertex_buffer
@@ -126,6 +122,36 @@ class IRender:
         self.renderer.add(name, mesh)
         if material is not None:
             self.renderer.assign_material(name, material)
+
+    def _create_from_obj(self, kw):
+        name = kw.get("name", None)
+        filename = kw.get("filename", None)
+        material = kw.get("material", None)
+        mtl_fname = kw.get("mtl", None)
+        if mtl_fname is not None:
+            mtl = renmas2.core.Mtl()
+            mtl.load(mtl_fname, self.renderer)
+
+        obj = renmas2.core.Obj()
+        ret = obj.load(filename)
+        if ret is False: return # file is not corretly loaded! TODO log
+        meshes = obj.meshes
+        for m in meshes:
+            mesh = self.factory.create_mesh(m.vb, m.tb)
+            self.renderer.add(m.name, mesh)
+            self.renderer.assign_material(m.name, m.mat_name)
+
+    def _create_mesh(self, kw):
+        name = kw.get("name", None)
+        filename = kw.get("filename", None)
+        material = kw.get("material", None)
+
+        if name is None or filename is None: return #LOG TODO
+        fname, ext = os.path.splitext(filename)
+        if ext == ".ply":
+            self._create_from_ply(kw)
+        elif ext == ".obj":
+            self._create_from_obj(kw)
 
 
     def options(self, **kw):

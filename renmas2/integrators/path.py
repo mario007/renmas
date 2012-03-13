@@ -81,7 +81,7 @@ class Pathtracer(Integrator):
             float one[4] = 1.0, 1.0, 1.0, 1.0
             float zero[4] = 0.0, 0.0, 0.0, 0.0
             hitpoint hp1
-            uint32 max_depth = 8
+            uint32 max_depth = 5
             uint32 cur_depth = 0
             spectrum path
             spectrum L
@@ -234,7 +234,7 @@ class Pathtracer(Integrator):
         ren = self._renderer
         self._background = ren.converter.create_spectrum((0.00, 0.0, 0.0))
 
-        self._runtimes = [Runtime() for n in range(ren.threads)] 
+        self._runtimes = [Runtime(code=2, data=2) for n in range(ren.threads)] 
         ren.macro_call.set_runtimes(self._runtimes)
         ren.sampler.get_sample_asm(self._runtimes, 'get_sample', ren.assembler, ren.structures)
         ren.camera.ray_asm(self._runtimes, 'get_ray', ren.assembler, ren.structures)

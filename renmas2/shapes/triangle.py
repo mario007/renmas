@@ -606,7 +606,7 @@ class Triangle(Shape):
             shufps xmm6, xmm6, 0xFF
 
             ; xmm7 = d  xmm6 = td  xmm5 = gamma   xmm4 = beta
-
+            
             pxor xmm3, xmm3
             macro if xmm4 < xmm3 goto _reject
             macro if xmm5 < xmm3 goto _reject

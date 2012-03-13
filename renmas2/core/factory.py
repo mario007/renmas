@@ -7,7 +7,7 @@ from .material import Material
 from ..materials import Lambertian, Phong
 from .vector3 import Vector3
 from .ray import Ray
-from .buffers import VertexNBuffer
+from .buffers import VertexBuffer, VertexNBuffer, VertexUVBuffer, VertexNUVBuffer
 from ..shapes import Sphere, Triangle, Rectangle, FlatMesh, SmoothMesh
 
 from renmas2.macros import MacroCall, arithmetic32, arithmetic128,\
@@ -92,6 +92,18 @@ class Factory:
     def create_mesh(self, vb, tb, material=None):
         if type(vb) == VertexNBuffer:
             mesh = SmoothMesh(vb, tb, material)
+        elif type(vb) == VertexUVBuffer:
+            vn_buff = VertexBuffer(vb.size())
+            for i in range(vb.size()):
+                p, uv = vb.get(i)
+                vn_buff.add(p[0], p[1], p[2])
+            mesh = FlatMesh(vn_buff, tb, material)
+        elif type(vb) == VertexNUVBuffer:
+            vn_buff = VertexNBuffer(vb.size())
+            for i in range(vb.size()):
+                p, n, uv = vb.get(i)
+                vn_buff.add(p[0], p[1], p[2], n[0], n[1], n[2])
+            mesh = SmoothMesh(vn_buff, tb, material)
         else:
             mesh = FlatMesh(vb, tb, material)
         return mesh

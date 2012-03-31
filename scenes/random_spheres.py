@@ -7,7 +7,7 @@ irender.add_light(type="pointlight", name="light2", source=(1.0,1.0,1.0), positi
 irender.add_material(name="phong1", type="phong", diffuse=(0.3,0.4,0.2), specular=(0.3,0.3,0.3), n=2.2, samplings="default")
 
 
-for i in range(300):
+for i in range(30):
     irender.add_shape(type="sphere", name="Sphere00" + str(i), radius=random()*0.5, 
             position=(random()*5.0, random()*5.0, random()*5.0), material="phong1")
 

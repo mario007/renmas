@@ -52,7 +52,7 @@ class Grid:
         self.nz = nz = int(multiplier * wz / s + 1)
         if nz > 192: self.nz = nz = 192 
         num_cells = int(nx * ny * nz)
-
+        
         self.cells = cells = [] # we need to initialize empty lists
         for c in range(num_cells):
             cells.append([])
@@ -98,6 +98,7 @@ class Grid:
         self.max_length_in_cell = max_len
         self.num_objects = num_objects
         self.num_arrays = num_arrays
+        print(max_len, num_objects, num_arrays)
 
     #linear array looks like nobjects:{ptr_obj, ptr_func}
     def _create_grid(self, runtimes, intersector, visibility=False):

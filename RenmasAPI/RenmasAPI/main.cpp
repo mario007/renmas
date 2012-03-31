@@ -83,9 +83,9 @@ extern "C" __declspec(dllexport) void __cdecl PrepareScene()
 	}
 }
 
-extern "C" __declspec(dllexport) void __cdecl BltBackBuffer()
+extern "C" __declspec(dllexport) void __cdecl ToneMapping()
 {
-	PyObject *result = PyObject_CallMethod(renderer, "blt_frame_buffer", "");
+	PyObject *result = PyObject_CallMethod(renderer, "tone_map", "");
 	if (result != NULL) {
 		Py_DECREF(result);
 	}
@@ -149,7 +149,7 @@ main(int argc, char *argv[])
   RunScript("I:\\GitRENMAS\\scenes\\sphere1.py");
   PrepareScene();
   Render();
-  BltBackBuffer();
+  ToneMapping();
   Render();
   result = GetProps("frame_buffer", "dummy", &value);
   

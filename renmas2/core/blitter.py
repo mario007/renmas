@@ -152,6 +152,9 @@ if proc.AVX:
     _petlja:
     """
     code += "vmovups xmm2, oword [" + esi + "]" + """
+    vminps xmm2, xmm2, oword [clamp] 
+    vpxor xmm6, xmm6, xmm6
+    vmaxps xmm2, xmm2, xmm6
     vmulps xmm2, xmm2, xmm1
     vcvtps2dq xmm2, xmm2
     vpshufb xmm2, xmm2, xmm0
@@ -166,6 +169,9 @@ else:
         _petlja:
         """
         code += "movups xmm2, oword [" + esi + "]" + """
+        minps xmm2, oword [clamp] 
+        pxor xmm6, xmm6
+        maxps xmm2, xmm6
         mulps xmm2, xmm1
         cvtps2dq xmm2, xmm2
         pshufb xmm2, xmm0 
@@ -179,6 +185,9 @@ else:
         _petlja:
         """
         code += "movups xmm2, oword [" + esi + "]" + """
+        minps xmm2, oword [clamp] 
+        pxor xmm6, xmm6
+        maxps xmm2, xmm6
         mulps xmm2, xmm1
         cvtps2dq xmm2, xmm2
 
@@ -211,6 +220,7 @@ if bits == "64bit":
         uint32 y, y2, spitch, dpitch
         float scale[4] = 255.9, 255.9, 255.9, 255.9
         uint8 mask[16] = 8, 4, 0, 12, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
+        float clamp[4] = 0.99, 0.99, 0.99, 0.99
         float temp[4] 
 
         #CODE
@@ -261,6 +271,7 @@ else:
         uint32 y, y2, spitch, dpitch
         float scale[4] = 255.9, 255.9, 255.9, 255.9
         uint8 mask[16] = 8, 4, 0, 12, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
+        float clamp[4] = 0.99, 0.99, 0.99, 0.99
         float temp[4] ; fo
 
         #CODE

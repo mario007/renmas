@@ -1,4 +1,5 @@
 
+import time
 import math
 from .image import ImageRGBA, ImageFloatRGBA
 from .blitter import Blitter
@@ -22,6 +23,9 @@ class Film:
         self.curn = nsamples
         self.max_spectrum = self._renderer.converter.zero_spectrum()
 
+        self._current_pass = 0.0 
+        self._inv_pass = 1.0 / (0.0 + 1.0)
+
     def blt_image_to_buffer(self):
         da, dpitch = self.frame_buffer.get_addr()
         dw, dh = self.frame_buffer.get_size()
@@ -31,6 +35,11 @@ class Film:
 
     def numsamples(self):
         return self.nsamples
+
+    def set_pass(self, n):
+        self._current_pass = float(n)
+        self._inv_pass = 1.0 / (float(n) + 1.0)
+        self._populate_ds()
 
     def set_resolution(self, width, height):
         self.width = width
@@ -53,15 +62,91 @@ class Film:
         self.spectrum = self._renderer.converter.zero_spectrum()
         self._populate_ds()
 
+    #TODO -- currently only box filter are suported
     def add_sample(self, sample, spectrum):
+        r, g, b = self._renderer.converter.to_rgb(spectrum) 
+        if r < 0.0: r = 0.0
+        if g < 0.0: g = 0.0
+        if b < 0.0: b = 0.0
+
+        iy = self.height - sample.iy - 1 #flip the image
+        r1, g1, b1, a1 = self.image.get_pixel(sample.ix, iy) 
+        scaler = self._current_pass
+        inv_scaler = self._inv_pass
+
+        r = (r1 * scaler + r) * inv_scaler
+        g = (g1 * scaler + g) * inv_scaler
+        b = (b1 * scaler + b) * inv_scaler
+        self.image.set_pixel(sample.ix, iy, r, g, b)
+        
+    def add_sample_asm(self, runtimes, label, label_spec_to_rgb):
+
+        #eax - pointer to spectrum
+        #ebx - pointer to sample 
+        asm_structs = self._renderer.structures.structs(("hitpoint", "sample"))
+        ASM = """
+        #DATA
+        """
+        ASM += asm_structs + """
+            float alpha_channel[4] = 0.0, 0.0, 0.0, 0.99
+            uint32 height 
+            uint32 ptr_buffer
+            uint32 pitch_buffer
+            uint32 mask[4] = 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00
+            float scaler[4]
+            float inv_scaler[4]
+
+            #CODE
+        """
+        ASM += "global " + label + ":\n " + """
+            push ebx
+            """
+        ASM += "call " + label_spec_to_rgb + """
+
+            macro eq128 xmm4 = mask
+            macro call andps xmm0, xmm4
+            macro eq128 xmm0 = xmm0 + alpha_channel
+            macro call zero xmm5
+            macro call maxps xmm0, xmm5
+
+            ;flip the image and call set pixel
+            pop ebx
+            mov eax, dword [ebx + sample.ix]
+            mov ecx, dword [ebx + sample.iy]
+            mov ebx, dword [height] ;because of flipping image 
+            sub ebx, ecx
+            mov edx, dword [pitch_buffer]
+            mov esi, dword [ptr_buffer]
+
+            imul ebx, edx
+            imul eax, eax, 16
+            add eax, ebx
+            add eax, esi
+            macro eq128 xmm1 = eax
+            macro eq128 xmm1 = xmm1 * scaler + xmm0
+            macro eq128 xmm1 = xmm1 * inv_scaler
+            macro eq128 eax = xmm1 {xmm7}
+            
+            ret
+
+        """
+
+        mc = self._renderer.assembler.assemble(ASM, True)
+        #mc.print_machine_code()
+        name = "film" + str(hash(self))
+
+        self._ds = []
+        for r in runtimes:
+            if not r.global_exists(label):
+                self._ds.append(r.load(name, mc))
+
+        self._populate_ds()
+
+    def add_sample_old(self, sample, spectrum):
         if self.curn == 1:
             self.spectrum = self.spectrum + spectrum
             self.spectrum.scale(1.0/self.nsamples)
             #spec = self.spectrum
-
-            #self.max_spectrum.r = max(self.max_spectrum.r, spec.r)
-            #self.max_spectrum.g = max(self.max_spectrum.g, spec.g)
-            #self.max_spectrum.b = max(self.max_spectrum.b, spec.b)
 
             #spec.clamp() #FIXME make clamp to certen color so to know when picture is wrong 
             iy = self.height - sample.iy - 1 #flip the image
@@ -71,13 +156,9 @@ class Film:
             #    print(spec)
 
             r, g, b = self._renderer.converter.to_rgb(self.spectrum) 
-            #TODO tone - mapping process
             if r < 0.0: r = 0.0
             if g < 0.0: g = 0.0
             if b < 0.0: b = 0.0
-            if r > 0.99: r = 0.99
-            if g > 0.99: g = 0.99
-            if b > 0.99: b = 0.99
             #print (r, g, b)
             self.image.set_pixel(sample.ix, iy, r, g, b)
             self.curn = self.nsamples
@@ -86,104 +167,8 @@ class Film:
             self.spectrum = self.spectrum + spectrum
             self.curn -= 1
 
-    def tone_map2(self):
-        width, height = self.image.get_size()
-        sum_lw = 0.0
-        for j in range(height):
-            for i in range(width):
-                r, g, b, a = self.image.get_pixel(i, j)
-                lw = 0.27 * r + 0.67 * g + 0.06 * b + 0.00001
-                sum_lw += math.log(lw)
-        sum_lw = sum_lw / (width*height)
-        sum_lw = math.exp(sum_lw)
-        lav = 0.18 / sum_lw
-
-        for j in range(height):
-            for i in range(width):
-                r, g, b, a = self.image.get_pixel(i, j)
-                lw = 0.27 * r + 0.67 * g + 0.06 * b + 0.00001
-                l = lav *  lw
-                ldisp = l / (1+l)
-                rd = ldisp * r / lw
-                gd = ldisp * g / lw
-                bd = ldisp * b / lw
-
-                if rd > 0.99: rd = 0.99
-                if bd > 0.99: bd = 0.99
-                if gd > 0.99: gd = 0.99
-                self.image.set_pixel(i, j, rd, gd, bd, 0.99)
-
-
-
-
-    def tone_map(self):
-        width, height = self.image.get_size()
-        delta = 0.001
-        sum_pix = 0.0
-        lw_min = 100000.0
-        lw_max = 0.0
-        for j in range(height):
-            for i in range(width):
-                r, g, b, a = self.image.get_pixel(i, j)
-                lw = 0.27 * r + 0.67 * g + 0.06 * b
-                lw += delta
-                lw_min = min(lw_min, lw)
-                lw_max = max(lw_max, lw)
-                sum_pix += math.log(lw)
-
-        if lw_min == 0.0: lw_min = 0.001
-        lw_min_log2 = math.log(lw_min, 2)
-        lw_max_log2 = math.log(lw_max, 2)
-        log_av = math.exp(sum_pix / float(width*height))
-
-        den = 2.0 * math.log(log_av, 2) - lw_min_log2 - lw_max_log2
-        nom = lw_max_log2 - lw_min_log2
-        alpha = 0.18 * math.pow(4.0, den/nom)
-
-        lwhite = 1.5 * math.pow(2.0, lw_max_log2 - lw_min_log2 - 5.0)
-
-        print("Log_average", log_av, lw_min, lw_max)
-        print("alpha = ", alpha, "  Lwhite = ", lwhite)
-
-        rd_max = gd_max = bd_max = 0.0
-        r_max = g_max = b_max = 0.0
-
-        scaling = alpha / log_av
-        for j in range(height):
-            for i in range(width):
-                r, g, b, a = self.image.get_pixel(i, j)
-                r_max = max(r, r_max)
-                g_max = max(g, g_max)
-                b_max = max(b, b_max)
-
-                lw = 0.27 * r + 0.67 * g + 0.06 * b
-                lw += delta
-
-                lx = scaling * lw 
-                ldisp = (lx * (1 + lx / (lwhite*lwhite))) / (1.0 + lx)
-                #rd = ldisp * r / lw
-                #gd = ldisp * g / lw
-                #bd = ldisp * b / lw
-
-                rd = ldisp * math.pow(r / lw, 0.8)
-                gd = ldisp * math.pow(g / lw, 0.8)
-                bd = ldisp * math.pow(b / lw, 0.8)
-
-                rd_max = max(rd, rd_max)
-                gd_max = max(gd, gd_max)
-                bd_max = max(bd, bd_max)
-
-                if rd > 0.99: rd = 0.99
-                if bd > 0.99: bd = 0.99
-                if gd > 0.99: gd = 0.99
-
-                self.image.set_pixel(i, j, rd, gd, bd)
-
-        print(rd_max, gd_max, bd_max)
-        print(r_max, g_max, b_max)
-
-
-    def add_sample_asm(self, runtimes, label, label_spec_to_rgb):
+ 
+    def add_sample_asm_old(self, runtimes, label, label_spec_to_rgb):
 
         #eax - pointer to spectrum
         #ebx - pointer to sample 
@@ -202,6 +187,7 @@ class Film:
             uint32 pitch_buffer
             float clamp[4] = 0.99, 0.99, 0.99, 0.99
             float zero[4] = 0.0, 0.0, 0.0, 0.0
+            uint32 mask[4] = 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00
 
             float temp[4]
 
@@ -219,21 +205,11 @@ class Film:
             """
         ASM += "call " + label_spec_to_rgb + """
 
-            ;because of alpha channel - try solve this in better way , pxor xmm0, xmm0 da postavis na nulu
+            macro eq128 xmm4 = mask
+            macro call andps xmm0, xmm4
             macro eq128 xmm0 = xmm0 + alpha_channel
-            """
-        if proc.AVX:
-            ASM += """
-            ; for clamping 
-            vmaxps xmm0, xmm0, oword [zero]
-            vminps xmm0, xmm0, oword [clamp] 
-            """
-        else:
-            ASM += """
-            maxps xmm0, oword [zero]
-            minps xmm0, oword [clamp] 
-            """
-        ASM += """
+            macro call zero xmm5
+            macro call maxps xmm0, xmm5
 
             ;flip the image and call set pixel
             pop ebx
@@ -277,6 +253,19 @@ class Film:
         self._populate_ds()
 
     def _populate_ds(self):
+        if self._ds is None: return
+        for ds in self._ds:
+            ds["height"] = self.height - 1 
+            scaler = self._current_pass
+            inv_scaler = self._inv_pass
+            ds["scaler"] = (scaler, scaler, scaler, 1.0)
+            ds["inv_scaler"] = (inv_scaler, inv_scaler, inv_scaler, 1.0)
+
+            addr, pitch = self.image.get_addr()
+            ds["ptr_buffer"] = addr
+            ds["pitch_buffer"] = pitch
+
+    def _populate_ds_old(self):
         if self._ds is None: return
         for ds in self._ds:
             spec = self._renderer.converter.zero_spectrum()

@@ -40,6 +40,7 @@ class MacroCall:
 
         self.inline_macros = {} #normalization, cross product etc...
         self.inline_macros['int_to_float'] = self.int_to_float
+        self.inline_macros['float_to_int'] = self.float_to_int
         self.inline_macros['sqrtss'] = self.sqrtss
         self.inline_macros['set_pixel'] = self.set_pixel
         self.inline_macros['zero'] = self.zero_register
@@ -49,6 +50,7 @@ class MacroCall:
         self.inline_macros['maxss'] = self.maxss
         self.inline_macros['andps'] = self.andps
         self.inline_macros['cmpps'] = self.cmpps
+        self.inline_macros['orps'] = self.orps
 
     # first token is name of function
     # if inline is specified it must be second token [inline is optional]
@@ -108,6 +110,13 @@ class MacroCall:
         else:
             return 'cvtdq2ps ' + xmm1 + ' , ' + xmm2 + '\n'
 
+    def float_to_int(self, asm, tokens):
+        xmm1, dummy, xmm2 = tokens
+        if proc.AVX:
+            return 'vcvtps2dq ' + xmm1 + ' , ' + xmm2 + '\n'
+        else:
+            return 'cvtps2dq ' + xmm1 + ' , ' + xmm2 + '\n'
+
     def sqrtss(self, asm, tokens):
         xmm1, dummy, xmm2 = tokens
         if proc.AVX:
@@ -156,6 +165,13 @@ class MacroCall:
             return 'vandps ' + xmm1 + ',' + xmm1 + ',' + xmm2 + '\n'
         else:
             return 'andps ' + xmm1 + ',' + xmm2 + '\n'
+
+    def orps(self, asm, tokens):
+        xmm1, dummy, xmm2 = tokens
+        if proc.AVX:
+            return 'vorps ' + xmm1 + ',' + xmm1 + ',' + xmm2 + '\n'
+        else:
+            return 'orps ' + xmm1 + ',' + xmm2 + '\n'
 
     def zero_register(self, asm, tokens):
         xmm = tokens[0]

@@ -9,6 +9,7 @@ from ..lights import Light
 from ..macros import MacroSpectrum, MacroCall, arithmetic128, arithmetic32, broadcast,\
                                         macro_if, dot_product, normalization, cross_product
 from ..materials import HemisphereCos
+from ..tone_mapping import PhotoreceptorOperator, ReinhardOperator, ToneMapping
 from .intersector import Intersector
 from .film import Film
 from .methods import create_tiles
@@ -41,6 +42,8 @@ class Renderer:
         self._structures = Structures(self) 
         self._factory = Factory()
         self._assembler = self._create_assembler()
+        #self._tone_mapper = PhotoreceptorOperator()
+        self._tone_mapper = ReinhardOperator()
 
         #creation of default material
         mat = Material(self.converter.zero_spectrum())
@@ -82,6 +85,8 @@ class Renderer:
         self._end_lambda = 720
         self._default_material = "default" #name of default material
         self._asm = False 
+        self._tone_mapping = True 
+        self._current_pass = 0
 
     def _set_spec(self, value):
         self._spectrum_rendering = bool(value)
@@ -92,6 +97,24 @@ class Renderer:
     def _get_spec(self):
         return self._spectrum_rendering
     spectral_rendering = property(_get_spec, _set_spec)
+
+    def _set_tone_mapping(self, value):
+        try:
+            self._tone_mapping = bool(value) 
+        except:
+            pass
+        self.tone_map()
+    def _get_tone_mapping(self):
+        return self._tone_mapping
+    tone_mapping = property(_get_tone_mapping, _set_tone_mapping)
+
+    def _set_tone_mapping_operator(self, value):
+        if isinstance(value, ToneMapping):
+            self._tone_mapper = value 
+        self.tone_map()
+    def _get_tone_mapping_operator(self):
+        return self._tone_mapper
+    tone_mapping_operator = property(_get_tone_mapping_operator, _set_tone_mapping_operator)
 
     @property
     def nspectrum_samples(self):
@@ -166,6 +189,7 @@ class Renderer:
         self._height = height
         self._film.set_resolution(width, height)
         self._sampler.set_resolution(width, height)
+        self._tiles3 = create_tiles(self._width, self._height, 1, self._max_samples, self._threads)
 
     def _set_spp(self, value):
         n = self._int(self._spp, value)
@@ -184,9 +208,13 @@ class Renderer:
         return self._pixel_size
     pixel_size = property(_get_pixel_size, _set_pixel_size)
 
-    def blt_frame_buffer(self):
-        self._film.blt_image_to_buffer()
-        
+    def tone_map(self): #tone mapping of whole image
+        if self._tone_mapping: 
+            f = self._film
+            self._tone_mapper.tone_map(f.frame_buffer, f.image, 0, 0, f.image.width, f.image.height) 
+        else:
+            self._film.blt_image_to_buffer()
+
     def set_samplers(self, samplers): #Tip: First solve for one sampler
         self._sampler = samplers[0]
         self._samplers = samplers
@@ -206,16 +234,17 @@ class Renderer:
         start = time.clock()
         self._tiles = create_tiles(self._width, self._height, self._spp, self._max_samples, self._threads)
         self._tiles2 = list(self._tiles)
+        self._tiles3 = create_tiles(self._width, self._height, 1, self._max_samples, self._threads)
         self._intersector.prepare()
         self._integrator.prepare()
         self._film.reset()
         self._ready = True
+        self._current_pass = 0
         end = time.clock()
         log.info("Time that took to prepare renderer for rendering: " + str(end-start) + " seconds.")
 
     def reset(self): #restart of rendering
-        self._tiles = list(self._tiles2)
-        #TODO -- wipe- erase back baffer!!!!
+        self._current_pass = 0
 
     def camera_moved(self, edx, edy, edz, ldx, ldy, ldz):#regulation of distance is missing for now - TODO - test this
         self._tiles = list(self._tiles2)
@@ -254,7 +283,7 @@ class Renderer:
         self._ready = False #TODO -- think -- ready = False is not needed here
         return True
         
-    def render(self):
+    def render_old(self):
         if not self._ready: self.prepare()
         if not self._ready: return None #unexpected error ocur!!!! TODO
         try:
@@ -264,6 +293,19 @@ class Renderer:
         
         self._integrator.render(tile)
         return True
+
+    def render(self):
+        if not self._ready: self.prepare()
+        if not self._ready: return None #unexpected error ocur!!!! TODO
+        self._film.set_pass(self._current_pass) #required for assembly rendering
+        for tile in self._tiles3:
+            self._integrator.render(tile)
+
+        self._current_pass += 1
+        if self._current_pass >= self._spp:
+            return False
+        else:
+            return True
 
     def save_project(self, path):
         pass

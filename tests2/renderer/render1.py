@@ -18,6 +18,13 @@ def blt_float_img_to_window(x, y, img, win):
     sw, sh = img.get_size()
     blitter.blt_floatTorgba(da, x, y, dw, dh, dpitch, sa, 0, 0, sw, sh, spitch)
 
+def blt_framebuffer_to_window(x, y, img, win):
+    da, dpitch = win.get_addr()
+    dw, dh = win.get_size()
+    sa, spitch = img.get_addr()
+    sw, sh = img.get_size()
+    blitter.blt_rgba(da, x, y, dw, dh, dpitch, sa, 0, 0, sw, sh, spitch)
+
 #irender.set_props("camera", "eye", "5.0,6.3,9.6")
 #renderer.set_pixel_size(1.5)
 #renderer.resolution(400, 300)
@@ -25,22 +32,27 @@ def blt_float_img_to_window(x, y, img, win):
 #print(irender.get_props('misc', 'pixel_size'))
 #irender.set_props('misc', 'resolution', '400,300')
 #print (irender.get_props('misc', 'resolution'))
-irender.set_props('misc', 'spp', '1')
+#irender.set_props('misc', 'spp', '1')
 print (irender.get_props('misc', 'spectral'))
 print (irender.get_props('misc', 'pixel_size'))
 
-irender.set_props('misc', 'threads', '1')
+#irender.set_props('misc', 'threads', '1')
 #filename = 'I:\\GitRENMAS\\scenes\\sphere1.py'
-#filename = 'I:\\GitRENMAS\\scenes\\cornel2.py'
+filename = 'I:\\GitRENMAS\\scenes\\cornel2.py'
 #filename = 'I:\\GitRENMAS\\scenes\\cube_mesh.py'
-filename = 'I:\\GitRENMAS\\scenes\\lux_ball.py'
+#filename = 'I:\\GitRENMAS\\scenes\\lux_ball.py'
 #filename = 'I:\\GitRENMAS\\scenes\\cube.py'
 #filename = 'I:\\GitRENMAS\\scenes\\random_spheres.py'
+#filename = 'I:\\GitRENMAS\\scenes\\mini_moris.py'
 exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(globals()))
 #irender.set_props('misc', 'pixel_size', '1.4')
 #print (irender.get_props('misc', 'pixel_size'))
 #print (irender.get_props('light_spectrum', 'light1'))
 #irender.set_props('misc', 'spectral', 'True')
+
+irender.set_props('misc', 'selected_operator',  "Reinhard")
+print("Operator", irender.get_props("misc", "selected_operator"))
+print("Tonemapping", irender.get_props("misc", "tone_mapping"))
 
 #print(irender.get_props("misc", "shapes"))
 #print(irender.get_props("misc", "materials"))
@@ -57,7 +69,7 @@ for l  in renderer.shader.light_names():
 #renderer.spectral_rendering = True
 renderer.prepare()
 #print(renderer.get_log())
-print(irender.get_props("misc", "log"))
+#print(irender.get_props("misc", "log"))
 
 #start = time.clock()
 #while True:
@@ -78,8 +90,9 @@ def render_scene():
     #if not ret: return 
     end = time.clock()
     print ("Rendering took:", end-start)
-    #renderer._film.tone_map()
-    blt_float_img_to_window(0, 0, renderer._film.image, win)
+    
+    renderer.tone_map()
+    blt_framebuffer_to_window(0, 0, renderer._film.frame_buffer, win)
 
 win = renmas2.core.MainWindow(600, 400, "Test")
 blt_float_img_to_window(0, 0, renderer._film.image, win)

@@ -19,8 +19,6 @@ class Factory:
 
     def create_assembler(self):
         assembler = Tdasm()
-        macro_call = MacroCall()
-        assembler.register_macro('call', macro_call.macro_call)
         assembler.register_macro('eq128', arithmetic128)
         assembler.register_macro('eq32', arithmetic32)
         assembler.register_macro('broadcast', broadcast)

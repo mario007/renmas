@@ -3,7 +3,7 @@ import random
 import unittest
 import math
 from tdasm import Runtime
-
+import renmas2
 import renmas2.macros as mac
 
 SIN_CODE = """
@@ -216,10 +216,14 @@ class TestTrigs(unittest.TestCase):
 
     def setUp(self):
         self.runtime = Runtime()
-        mac.macro_call.set_runtimes([self.runtime])
+        self.macro_call = mac.MacroCall()
+        self.macro_call.set_runtimes([self.runtime])
+        factory = renmas2.Factory()
+        self.assembler = factory.create_assembler() 
+        self.assembler.register_macro('call', self.macro_call.macro_call)
 
     def test_sin(self):
-        mc = mac.assembler.assemble(SIN_CODE)
+        mc = self.assembler.assemble(SIN_CODE)
         ds = self.runtime.load('sin', mc)
 
         for x in range(1000):
@@ -231,7 +235,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm, rez_py, 3)
 
     def test_sin_ps(self):
-        mc = mac.assembler.assemble(SIN_CODE_PS)
+        mc = self.assembler.assemble(SIN_CODE_PS)
         ds = self.runtime.load('sin_ps', mc)
 
         for x in range(1000):
@@ -253,7 +257,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm[3], rez_py4, 3)
 
     def test_cos(self):
-        mc = mac.assembler.assemble(COS_CODE)
+        mc = self.assembler.assemble(COS_CODE)
         ds = self.runtime.load('cos', mc)
 
         for x in range(1000):
@@ -265,7 +269,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm, rez_py, 3)
 
     def test_cos_ps(self):
-        mc = mac.assembler.assemble(COS_CODE_PS)
+        mc = self.assembler.assemble(COS_CODE_PS)
         ds = self.runtime.load('cos_ps', mc)
 
         for x in range(1000):
@@ -287,7 +291,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm[3], rez_py4, 3)
 
     def test_sincos(self):
-        mc = mac.assembler.assemble(SINCOS_CODE)
+        mc = self.assembler.assemble(SINCOS_CODE)
         ds = self.runtime.load('sincos', mc)
 
         for x in range(1000):
@@ -302,7 +306,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm2, rez_py2, 3)
 
     def test_sincos_ps(self):
-        mc = mac.assembler.assemble(SINCOS_CODE_PS)
+        mc = self.assembler.assemble(SINCOS_CODE_PS)
         ds = self.runtime.load('sincos_ps', mc)
 
         for x in range(1000):
@@ -334,7 +338,7 @@ class TestTrigs(unittest.TestCase):
 
 
     def test_exp(self):
-        mc = mac.assembler.assemble(EXP_CODE)
+        mc = self.assembler.assemble(EXP_CODE)
         ds = self.runtime.load('exp', mc)
 
         for x in range(1000):
@@ -346,7 +350,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm, rez_py, 2)
 
     def test_exp_ps(self):
-        mc = mac.assembler.assemble(EXP_CODE_PS)
+        mc = self.assembler.assemble(EXP_CODE_PS)
         ds = self.runtime.load('exp_ps', mc)
 
         for x in range(1000):
@@ -368,7 +372,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm[3], rez_py4, 2)
 
     def test_pow(self):
-        mc = mac.assembler.assemble(POW_CODE)
+        mc = self.assembler.assemble(POW_CODE)
         ds = self.runtime.load('pow', mc)
 
         for x in range(1000):
@@ -382,7 +386,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm, rez_py, 1)
 
     def test_pow_ps(self):
-        mc = mac.assembler.assemble(POW_CODE_PS)
+        mc = self.assembler.assemble(POW_CODE_PS)
         ds = self.runtime.load('pow_ps', mc)
 
         for x in range(1000):
@@ -409,7 +413,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm[3], rez_py4, 1)
 
     def test_atan(self):
-        mc = mac.assembler.assemble(ATAN_CODE)
+        mc = self.assembler.assemble(ATAN_CODE)
         ds = self.runtime.load('atan', mc)
 
         for x in range(1000):
@@ -421,7 +425,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm, rez_py, 3)
 
     def test_atan_ps(self):
-        mc = mac.assembler.assemble(ATAN_CODE_PS)
+        mc = self.assembler.assemble(ATAN_CODE_PS)
         ds = self.runtime.load('atan_ps', mc)
 
         for x in range(1000):
@@ -443,7 +447,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm[3], rez_py4, 3)
 
     def test_asin(self):
-        mc = mac.assembler.assemble(ASIN_CODE)
+        mc = self.assembler.assemble(ASIN_CODE)
         ds = self.runtime.load('asin', mc)
 
         for x in range(1000):
@@ -455,7 +459,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm, rez_py, 3)
 
     def test_asin_ps(self):
-        mc = mac.assembler.assemble(ASIN_CODE_PS)
+        mc = self.assembler.assemble(ASIN_CODE_PS)
         ds = self.runtime.load('asin_ps', mc)
 
         for x in range(1000):
@@ -477,7 +481,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm[3], rez_py4, 3)
 
     def test_acos(self):
-        mc = mac.assembler.assemble(ACOS_CODE)
+        mc = self.assembler.assemble(ACOS_CODE)
         ds = self.runtime.load('acos', mc)
 
         for x in range(1000):
@@ -489,7 +493,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm, rez_py, 2)
 
     def test_acos_ps(self):
-        mc = mac.assembler.assemble(ACOS_CODE_PS)
+        mc = self.assembler.assemble(ACOS_CODE_PS)
         ds = self.runtime.load('acos_ps', mc)
 
         for x in range(1000):
@@ -511,7 +515,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm[3], rez_py4, 2)
 
     def test_tan(self):
-        mc = mac.assembler.assemble(TAN_CODE)
+        mc = self.assembler.assemble(TAN_CODE)
         ds = self.runtime.load('tan', mc)
 
         for x in range(1000):
@@ -523,7 +527,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm, rez_py, 1)
 
     def test_tan_ps(self):
-        mc = mac.assembler.assemble(TAN_CODE_PS)
+        mc = self.assembler.assemble(TAN_CODE_PS)
         ds = self.runtime.load('tan_ps', mc)
 
         for x in range(1000):
@@ -545,7 +549,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm[3], rez_py4, 1)
 
     def test_log(self):
-        mc = mac.assembler.assemble(LOG_CODE)
+        mc = self.assembler.assemble(LOG_CODE)
         ds = self.runtime.load('log', mc)
 
         for x in range(1000):
@@ -557,7 +561,7 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm, rez_py, 3)
 
     def test_log_ps(self):
-        mc = mac.assembler.assemble(LOG_CODE_PS)
+        mc = self.assembler.assemble(LOG_CODE_PS)
         ds = self.runtime.load('log_ps', mc)
 
         for x in range(1000):

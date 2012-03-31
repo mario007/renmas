@@ -68,7 +68,8 @@ class Intersector:
         if self.strategy:
             if len(self._lst_shapes) > 0:
                 return self._grid.isect(ray)
-            return False
+            else:
+                return self._linear_isect(ray)
         else:
             return self._linear_isect(ray)
 
@@ -76,7 +77,8 @@ class Intersector:
         if self.strategy:
             if len(self._lst_shapes) > 0:
                 return self._grid.isect_b(ray)
-            return False
+            else:
+                return self._linear_isect_visibility(ray)
         else:
             return self._linear_isect_visibility(ray)
 

@@ -1,5 +1,5 @@
 
-irender.options(asm=True, spectral=False, pixel_size=0.5)
+irender.options(asm=True, spectral=False, pixel_size=1.25)
 #irender.set_camera(type="perspective", eye=(-250, 400, -100), lookat=(0,0,0), distance=400)
 irender.set_camera(type="perspective", eye=(9000, 1600, -3000), lookat=(0,0,0), distance=400)
 
@@ -13,4 +13,5 @@ irender.add_material(name="phong2", type="phong", diffuse=(0.3,0.1,0.2), specula
 #irender.add_shape(type="mesh", name="cube1", filename="I:/Obj_files/auto_high.obj", mtl="I:/Obj_files/auto_high.mtl")
 #irender.add_shape(type="mesh", name="cube1", filename="I:/Obj_files/test.obj", material="phong1")
 irender.add_shape(type="mesh", name="cube1", filename="I:/Obj_files/primaca.obj", mtl="i:/Obj_files/primaca.mtl")
+#irender.add_shape(type="mesh", name="cube1", filename="I:/Obj_files/AFHBC.obj", mtl="i:/Obj_files/AFHBC.mtl")
 

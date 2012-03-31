@@ -230,6 +230,8 @@ class GridMesh:
         uint32 grid_ptr
         uint32 arr_ptr
         uint32 mat_idx
+        float flt_max[4] = 999999999.0, 999999999.0, 999999999.0, 0.0
+        float flt_min[4] = -999999999.0, -999999999.0, -999999999.0, 0.0
         #CODE
         """
         code += " global " + label + ":\n" + """
@@ -247,7 +249,7 @@ class GridMesh:
         code += "mov ebp, dword [ebx + %s.mat_index]\n" % name_struct
         code += "mov dword [mat_idx], ebp\n"
 
-        #TODO --- think if ray direction has zero component -- put some epsilon!!!
+        #TODO --- think if ray direction has zero component -- put some epsilon or better!!!
         code += """
             macro eq128 xmm0 = one / eax.ray.dir
         """
@@ -261,13 +263,29 @@ class GridMesh:
             macro eq128 xmm2 = xmm2 - eax.ray.origin
             macro eq128 xmm2 = xmm2 * xmm0
 
-            macro eq128 xmm3 = xmm1
+            ;filter NaN
+            macro eq128 xmm7 = flt_max
+            macro eq128 xmm6 = xmm1
+            macro call minps xmm6, xmm7
             macro eq128 xmm4 = xmm2
+            macro call minps xmm4, xmm7
+            macro call maxps xmm4, xmm6
+
+            macro eq128 xmm7 = flt_min
+            macro eq128 xmm6 = xmm1
+            macro call maxps xmm6, xmm7
+            macro eq128 xmm3 = xmm2
+            macro call maxps xmm3, xmm7
+            macro call minps xmm3, xmm6
+
+
+            ;macro eq128 xmm3 = xmm1
+            ;macro eq128 xmm4 = xmm2
 
             ; tx_min, ty_min, tz_min
-            macro call minps xmm3, xmm2
+            ;macro call minps xmm3, xmm2
             ; tx_max, ty_max, tz_max
-            macro call maxps xmm4, xmm1
+            ;macro call maxps xmm4, xmm1
 
             macro broadcast xmm5 = xmm3[1]
             macro call maxss xmm5, xmm3

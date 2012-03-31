@@ -29,15 +29,19 @@ namespace RenmasWPF2
         Options_editor op_editor;
         LightsEditor lights_editor;
         Shapes_editor shapes_editor;
+        ToneMappingEditor tm_editor;
         public MainWindow()
         {
             InitializeComponent();
             Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
-            renmas = new Renmas();
+            renmas = new Renmas(this.output_image);
             cam_editor = new Camera_editor(renmas.camera);
             op_editor = new Options_editor(renmas.options);
             lights_editor = new LightsEditor(renmas.lights);
             shapes_editor = new Shapes_editor(renmas.shapes);
+            tm_editor = new ToneMappingEditor(renmas.tone_mapping_operators);
+
+            
             //this.main_grid.Children.Add(cam_editor);
             //this.output_image.SetValue(Grid.ColumnProperty, 1);
 
@@ -50,6 +54,7 @@ namespace RenmasWPF2
             sp.Children.Add(op_editor);
             sp.Children.Add(lights_editor);
             sp.Children.Add(shapes_editor);
+            sp.Children.Add(tm_editor);
             this.main_grid.Children.Add(sp);
 
             SolidColorBrush mySolidColorBrush = new SolidColorBrush();
@@ -103,8 +108,6 @@ namespace RenmasWPF2
             while (true)
             {
                 int res = renmas.RenderTile();
-                this.renmas.BltBuffer();
-                this.output_image.Source = this.renmas.BufferSource();
                 if (res == 0) break;
                 if (!rendering) break;
                 this.DoEvents();

@@ -117,11 +117,12 @@ class Vertices(Buffer):
         return((minx, miny, minz), (maxx, maxy, maxz))
 
     #TODO --- asm version of this method is required!!! lucy is slow??
+    #TODO --- make adaptive epsilon - depend how big values are in the buffer
     def bbox(self):
         if self.addr():
             minx = miny = minz = 9999999.0
             maxx = maxy = maxz = -9999999.0
-            epsilon = 0.0001
+            epsilon = 0.001
             addr = self._address.ptr()
 
             for i in range(self._size):

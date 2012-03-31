@@ -16,4 +16,6 @@ from .factory import Factory
 from .ply import Ply
 from .obj import Obj
 from .mtl import Mtl
+from .image import ImageRGBA
+from .rgbe import load_rgbe
 

@@ -1,10 +1,13 @@
 
-irender.options(asm=True, spectral=True, pixel_size=0.5)
+irender.options(asm=True, spectral=True, pixel_size=0.5, width=600, height=600, spp=1, threads=1)
 irender.set_camera(type="perspective", eye=(27.6, 27.4, -80.0), lookat=(27.6,27.4,0.0), distance=400)
+
+#origina data for light
+irender.add_light(type="pointlight", name="light3", source=[(400,0.0), (500,8.0), (600,15.6), (700,18.4)], position=(26,50.8,22))
 
 #irender.add_light(type="pointlight", name="light3", source=(1.0,1.0,1.0), position=(0.3,0.5,0.3))
 #irender.add_light(type="pointlight", name="light3", source=[(400,0.0), (500,2.0), (600,3.9), (700,4.6)], position=(26,50.8,22))
-irender.add_light(type="pointlight", name="light3", source=[(400,0.0), (500,1.6), (600,3.12), (700,3.68)], position=(26,50.8,22))
+#irender.add_light(type="pointlight", name="light3", source=[(400,0.0), (500,1.6), (600,3.12), (700,3.68)], position=(26,50.8,22))
 #irender.add_light(type="pointlight", name="light4", source=[(400,0.0), (500,6.4), (600,12.48), (700,14.72)], position=(26,50.8,22))
 #irender.add_light(type="pointlight", name="light4", source=[(400,0.0), (500,6.4), (600,12.48), (700,14.72)], position=(36,5.8,12))
 #irender.add_light(type="pointlight", name="light3", source=[(400,0.0), (500,8.0), (600,15.6), (700,18.4)], position=(26,50.8,22))

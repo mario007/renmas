@@ -7,12 +7,17 @@ from renmas2.lights import PointLight
 from .material import Material
 from renmas2.materials import HemisphereCos
 from ..cameras import Pinhole
+from ..tone_mapping import PhotoreceptorOperator, ReinhardOperator
 
 
 class IRender:
     def __init__(self, renderer):
         self.renderer = renderer
         self.factory = renmas2.Factory()
+
+        #just because of speed in C# gui
+        self._reinhard = ReinhardOperator()
+        self._photoreceptor = PhotoreceptorOperator()
     
     def add_light(self, **kw):
         typ = kw.get("type")
@@ -161,6 +166,17 @@ class IRender:
         if spectral is not None: self.renderer.spectral_rendering = bool(spectral)
         pixel_size = kw.get("pixel_size", None)
         if pixel_size is not None: self.renderer.pixel_size = pixel_size
+        width = self.renderer._width 
+        height = self.renderer._height
+        w = kw.get("width", width)
+        h = kw.get("height", height)
+        self.renderer.resolution(w, h)
+        spp = self.renderer.spp
+        s = kw.get("spp", spp)
+        self.renderer.spp = s 
+        threads = self.renderer.threads
+        n = kw.get("threads", spp)
+        self.renderer.threads = n
 
     def create_samplers(self, **kw):
         pass
@@ -189,6 +205,10 @@ class IRender:
             self._set_light_intesity(name, value)
         elif category == "material_assign":
             self.renderer.assign_material(name, value)
+        elif category == "ReinhardOperator":
+            self._set_reinhard_props(name, value)
+        elif category == "PhotoreceptorOperator":
+            self._set_photoreceptor_props(name, value)
         return 1
 
     def get_props(self, category, name):
@@ -211,7 +231,57 @@ class IRender:
             return self._get_light_intesity(name)
         elif category == "material_name":
             return self._get_material_name(name)
+        elif category == "ReinhardOperator":
+            return self._get_reinhard_props(name)
+        elif category == 'PhotoreceptorOperator':
+            return self._get_photoreceptor_props(name)
         return ""
+
+    def _get_photoreceptor_props(self, name):
+        tm = self.renderer.tone_mapping_operator
+        if isinstance(tm, PhotoreceptorOperator):
+            if name == "contrast":
+                return str(tm.m) 
+            elif name == "adaptation":
+                return str(tm.c)
+            elif name == "colornes":
+                return str(tm.a)
+            elif name == "lightnes":
+                return str(tm.f)
+            else:
+                return '0.0'
+        return '0.0'
+
+    def _set_photoreceptor_props(self, name, value):
+        tm = self.renderer.tone_mapping_operator
+        if isinstance(tm, PhotoreceptorOperator):
+            if name == "contrast":
+                tm.m = value
+            elif name == "adaptation":
+                tm.c = value
+            elif name == "colornes":
+                tm.a = value
+            elif name == "lightnes":
+                tm.f = value
+
+    def _get_reinhard_props(self, name):
+        tm = self.renderer.tone_mapping_operator
+        if isinstance(tm, ReinhardOperator):
+            if name == "scene_key":
+                return str(tm.scene_key)
+            elif name == "saturation":
+                return str(tm.saturation)
+            else:
+                return "0.0"
+        return "0.0" 
+
+    def _set_reinhard_props(self, name, value):
+        tm = self.renderer.tone_mapping_operator
+        if isinstance(tm, ReinhardOperator):
+            if name == "scene_key":
+                tm.scene_key = value
+            elif name == "saturation":
+                tm.saturation = value
 
     def _get_material_name(self, shape_name):
         shape = self.renderer.intersector.shape(shape_name)
@@ -330,6 +400,16 @@ class IRender:
                 self.renderer.spectral_rendering = False
             else:
                 self.renderer.spectral_rendering = True
+        elif name == "tone_mapping":
+            if value == "False" or value == 'false': 
+                self.renderer.tone_mapping = False
+            else:
+                self.renderer.tone_mapping = True 
+        elif name == "selected_operator":
+            if value == "Reinhard":
+                self.renderer.tone_mapping_operator = self._reinhard 
+            elif value == "Photoreceptor":
+                self.renderer.tone_mapping_operator = self._photoreceptor 
 
     def _get_misc(self, name):
         if name == 'resolution':
@@ -346,12 +426,7 @@ class IRender:
             return str(self.renderer.spectral_rendering)
         elif name == 'lambdas':
             lambdas = self.renderer.converter.lambdas() 
-            ret = ""
-            for l in lambdas:
-                ret += str(int(l)) + ","
-            if ret != "":
-                return ret[:-1]
-            return ret
+            return ",".join([str(int(l)) for l in lambdas])
         elif name == "log":
             return self.renderer.get_log()
         elif name == "shapes":
@@ -362,6 +437,18 @@ class IRender:
             names = self.renderer.shader.material_names()
             if names is None: return ""
             return ",".join(names)
+        elif name == 'tone_mapping_operators':
+            return "Reinhard,Photoreceptor"
+        elif name == 'tone_mapping':
+            return str(self.renderer.tone_mapping)
+        elif name == "selected_operator":
+            tm = self.renderer.tone_mapping_operator
+            if isinstance(tm, ReinhardOperator):
+                return "Reinhard"
+            elif isinstance(tm, PhotoreceptorOperator):
+                return "Photoreceptor"
+            else:
+                return ""
         else:
             return ""
 

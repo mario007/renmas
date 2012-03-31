@@ -37,7 +37,7 @@ namespace RenmasWPF2
             tb_shapes.Height = 20;
 
             ComboBox cb = new ComboBox();
-            cb.Width = 150;
+            cb.Width = 210;
             cb.Height = 20;
             cb.Foreground = Brushes.White;
             Binding bind = new Binding("ShapeNames");
@@ -56,7 +56,7 @@ namespace RenmasWPF2
             tb_materials.Text = " Materials: ";
             tb_materials.Width = 60;
             ComboBox cb_mat = new ComboBox();
-            cb_mat.Width = 150;
+            cb_mat.Width = 210;
             cb_mat.Height = 20;
             cb_mat.Foreground = Brushes.White;
 

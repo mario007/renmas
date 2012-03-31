@@ -5,6 +5,7 @@ using System.Text;
 using System.Runtime.InteropServices;
 using System.Windows.Media.Imaging;
 using System.Windows.Media;
+using System.Windows.Controls;
 
 namespace RenmasWPF2
 {
@@ -25,13 +26,15 @@ namespace RenmasWPF2
         [System.Runtime.InteropServices.DllImport("RenmasAPI.dll")]
         public static extern int SetProps(string category, string name, string value);
         [System.Runtime.InteropServices.DllImport("RenmasAPI.dll")]
-        public static extern void BltBackBuffer();
+        public static extern void ToneMapping();
 
         public Camera camera;
         public Options options;
         public Lights lights;
         public Shapes shapes;
-        public Renmas()
+        public ToneMappingOperators tone_mapping_operators;
+        public Image output_image;
+        public Renmas(Image output_image)
         {
             int ret = Init();//throw exception if error ocured!!!
             if (ret != 0) throw new Exception("Interface to renmas if failed to create.");
@@ -39,6 +42,9 @@ namespace RenmasWPF2
             this.options = new Options(this);
             this.lights = new Lights(this);
             this.shapes = new Shapes(this);
+            this.output_image = output_image;
+            this.tone_mapping_operators = new ToneMappingOperators(this);
+
         }
 
         public string GetProp(string category, string name)
@@ -65,19 +71,29 @@ namespace RenmasWPF2
             this.options.Refresh();
             this.lights.Refresh();
             this.shapes.Refresh();
+            this.tone_mapping_operators.Refresh();
         }
         public int RenderTile()
         {
-            return Render();
+            int ret = Render();
+            this.ToneMap();
+            this.RefreshImage();
+            return ret;
         }
+
+        public void RefreshImage()
+        {
+            this.output_image.Source = this.BufferSource();
+        }
+
         public void Prepare()
         {
             PrepareScene();
         }
 
-        public void BltBuffer()
+        public void ToneMap()
         {
-            BltBackBuffer();
+            ToneMapping();
         }
         public string Log()
         {

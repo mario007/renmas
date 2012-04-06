@@ -28,10 +28,10 @@ class Factory:
         assembler.register_macro('cross', cross_product)
         return assembler
 
-    def create_lambertian(self, spectrum, k=None):
+    def create_lambertian(self, spectrum, k=1.0):
         return Lambertian(spectrum, k)
 
-    def create_phong(self, spectrum, n, k=None):
+    def create_phong(self, spectrum, n, k=1.0):
         return Phong(spectrum, float(n), k)
 
     def vector(self, x, y, z):

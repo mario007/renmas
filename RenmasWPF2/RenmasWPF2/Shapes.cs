@@ -54,7 +54,7 @@ namespace RenmasWPF2
             set
             {
                 this.renmas.SetProp("material_assign", this._selected_shape, value);
-                this.OnPropertyChanged("SelectedMaterial");
+                this.OnPropertyChanged("SelectedMaterial");   
             }
         }
 

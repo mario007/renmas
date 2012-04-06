@@ -1,6 +1,6 @@
 
 
-irender.options(asm=False, spectral=False, pixel_size=1.0, width=200, height=200, spp=1)
+irender.options(asm=True, spectral=False, pixel_size=1.0, width=200, height=200, spp=1)
 
 irender.add_light(type="pointlight", name="light2", source=(1.0,1.0,1.0), position=(6,10,10))
 irender.add_material(name="phong1", type="phong", diffuse=(0.3,0.4,0.2), specular=(0.4,0.4,0.4), n=2.2, samplings="default")

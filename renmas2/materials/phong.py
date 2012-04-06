@@ -3,24 +3,42 @@ import math
 from .brdf import BRDF
 
 class Phong(BRDF):
-    def __init__(self, spectrum, n, k=None):
-        self.spectrum = spectrum
-        self.n = float(n)
-        self.k = k
+    def __init__(self, spectrum, n, k=1.0):
+        self._spectrum = spectrum
+        self._n = float(n)
+        self._k = float(k)
+
+    def _set_n(self, value):
+        self._n = value
+    def _get_n(self):
+        return self._n
+    n = property(_get_n, _set_n)
+
+    def _set_k(self, value):
+        self._k = value
+    def _get_k(self):
+        return self._k
+    k = property(_get_k, _set_k)
+
+    def _set_spectrum(self, value):
+        self._spectrum = value
+    def _get_spectrum(self):
+        return self._spectrum
+    spectrum = property(_get_spectrum, _set_spectrum)
 
     def brdf(self, hp):
         r = hp.normal * hp.ndotwi * 2.0 - hp.wi
         rdotwo = r.dot(hp.wo)
         if rdotwo > 0.0:
-            if self.k:
-                s = (self.n + 2.0) / (2 * math.pi) * self.k
+            if self._k:
+                s = (self._n + 2.0) / (2 * math.pi) * self._k
             else:
-                s = (self.n + 2.0) / (2 * math.pi)
+                s = (self._n + 2.0) / (2 * math.pi)
 
-            phong = self.spectrum * (math.pow(rdotwo, self.n) * s)
+            phong = self._spectrum * (math.pow(rdotwo, self._n) * s)
             return phong
 
-        return self.spectrum.zero_spectrum()
+        return self._spectrum.zero_spectrum()
 
     # eax pointer to hitpoint
     # in eax must return reflectance
@@ -63,19 +81,19 @@ class Phong(BRDF):
     def populate_ds(self, ds):
 
         name = "phong" + str(abs(hash(self)))
-        ds[name + "spectrum.values"] = self.spectrum.to_ds() 
-        if self.k:
-            s = (self.n + 2.0) / (2 * math.pi) * self.k
+        ds[name + "spectrum.values"] = self._spectrum.to_ds() 
+        if self._k:
+            s = (self._n + 2.0) / (2 * math.pi) * self._k
             ds[name + "k"] = s
         else:
-            s = (self.n + 2.0) / (2 * math.pi)
+            s = (self._n + 2.0) / (2 * math.pi)
             ds[name + "k"] = s
-        ds[name + "n"] = self.n
-        ds[name + "zero_spectrum.values"] = self.spectrum.zero_spectrum().to_ds()
+        ds[name + "n"] = self._n
+        ds[name + "zero_spectrum.values"] = self._spectrum.zero_spectrum().to_ds()
 
 
 
     def convert_spectrums(self, converter):
-        spectrum = converter.convert_spectrum(self.spectrum)
-        self.spectrum = spectrum
+        spectrum = converter.convert_spectrum(self._spectrum)
+        self._spectrum = spectrum
 

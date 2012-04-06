@@ -33,6 +33,7 @@ namespace RenmasWPF2
         public Lights lights;
         public Shapes shapes;
         public ToneMappingOperators tone_mapping_operators;
+        public Materials materials;
         public Image output_image;
         public Renmas(Image output_image)
         {
@@ -44,6 +45,7 @@ namespace RenmasWPF2
             this.shapes = new Shapes(this);
             this.output_image = output_image;
             this.tone_mapping_operators = new ToneMappingOperators(this);
+            this.materials = new Materials(this);
 
         }
 
@@ -72,6 +74,7 @@ namespace RenmasWPF2
             this.lights.Refresh();
             this.shapes.Refresh();
             this.tone_mapping_operators.Refresh();
+            this.materials.Refresh();
         }
         public int RenderTile()
         {

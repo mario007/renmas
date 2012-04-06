@@ -7,6 +7,7 @@ class Material:
         self._brdfs = []
         self._btdfs = []
         self._samplers = []
+        self._btdf_samplers = []
         self._emiter = None
         self._spectrum = spectrum
 

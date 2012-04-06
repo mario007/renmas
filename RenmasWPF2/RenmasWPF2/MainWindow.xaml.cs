@@ -30,6 +30,7 @@ namespace RenmasWPF2
         LightsEditor lights_editor;
         Shapes_editor shapes_editor;
         ToneMappingEditor tm_editor;
+        MaterialEditor mat_editor;
         public MainWindow()
         {
             InitializeComponent();
@@ -40,7 +41,7 @@ namespace RenmasWPF2
             lights_editor = new LightsEditor(renmas.lights);
             shapes_editor = new Shapes_editor(renmas.shapes);
             tm_editor = new ToneMappingEditor(renmas.tone_mapping_operators);
-
+            mat_editor = new MaterialEditor(renmas.materials);
             
             //this.main_grid.Children.Add(cam_editor);
             //this.output_image.SetValue(Grid.ColumnProperty, 1);
@@ -54,14 +55,14 @@ namespace RenmasWPF2
             sp.Children.Add(op_editor);
             sp.Children.Add(lights_editor);
             sp.Children.Add(shapes_editor);
+            sp.Children.Add(mat_editor);
             sp.Children.Add(tm_editor);
+
             this.main_grid.Children.Add(sp);
 
             SolidColorBrush mySolidColorBrush = new SolidColorBrush();
             mySolidColorBrush.Color = Color.FromArgb(255, 47, 47, 47);
-            this.Background = mySolidColorBrush;
-            
-            
+            this.Background = mySolidColorBrush;            
 
         }
 

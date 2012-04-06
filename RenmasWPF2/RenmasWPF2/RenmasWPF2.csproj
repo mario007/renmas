@@ -81,6 +81,10 @@
     <Compile Include="LightsEditor.xaml.cs">
       <DependentUpon>LightsEditor.xaml</DependentUpon>
     </Compile>
+    <Compile Include="MaterialEditor.xaml.cs">
+      <DependentUpon>MaterialEditor.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Materials.cs" />
     <Compile Include="Options.cs" />
     <Compile Include="options_editor.xaml.cs">
       <DependentUpon>options_editor.xaml</DependentUpon>
@@ -89,6 +93,13 @@
     <Compile Include="Shapes.cs" />
     <Compile Include="Shapes_editor.xaml.cs">
       <DependentUpon>Shapes_editor.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Spectrum.cs" />
+    <Compile Include="SpectrumDialog.xaml.cs">
+      <DependentUpon>SpectrumDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="SpectrumEditor.xaml.cs">
+      <DependentUpon>SpectrumEditor.xaml</DependentUpon>
     </Compile>
     <Compile Include="ToneMappingEditor.xaml.cs">
       <DependentUpon>ToneMappingEditor.xaml</DependentUpon>
@@ -115,11 +126,23 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="MaterialEditor.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="options_editor.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Shapes_editor.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SpectrumDialog.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="SpectrumEditor.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -8,6 +8,7 @@ from .material import Material
 from renmas2.materials import HemisphereCos
 from ..cameras import Pinhole
 from ..tone_mapping import PhotoreceptorOperator, ReinhardOperator
+from ..materials import Lambertian, Phong
 
 
 class IRender:
@@ -235,6 +236,38 @@ class IRender:
             return self._get_reinhard_props(name)
         elif category == 'PhotoreceptorOperator':
             return self._get_photoreceptor_props(name)
+        elif category == 'material_components':
+            return self._get_material_components(name)
+        elif category == "component_type":
+            return self._get_component_type(name)
+        elif category == "material_params":
+            return self._get_material_param(name)
+        return ""
+
+    def _get_component_type(self, name):
+        val = name.split(',')
+        if len(val) != 2: return ""
+        mat_name, comp_name = val
+        material = self.renderer.shader.material(mat_name)
+        if material is None: return ""
+        if comp_name.startswith('brdf'):
+            components = material._brdfs
+        elif comp_name.startswith('btdf'):
+            components = material._btdfs
+        else:
+            return ""
+        try:
+            num = int(comp_name[4:])
+            comp = components[num]
+            return self._get_component_name(comp)
+        except:
+            return ""
+
+    def _get_component_name(self, component):
+        if type(component) == Lambertian:
+            return "Lambertian"
+        elif type(component) == Phong:
+            return "PhongSpecular"
         return ""
 
     def _get_photoreceptor_props(self, name):
@@ -283,6 +316,15 @@ class IRender:
             elif name == "saturation":
                 tm.saturation = value
 
+    def _get_material_components(self, name):
+        material = self.renderer.shader.material(name)
+        if material is None:
+            return ""
+        names = ["brdf"+ str(c) for c in range(len(material._brdfs))]
+        names2 = ["btdf"+ str(c) for c in range(len(material._btdfs))]
+        all_names = names + names2
+        return ",".join(all_names)
+
     def _get_material_name(self, shape_name):
         shape = self.renderer.intersector.shape(shape_name)
         if shape is None: return ""
@@ -290,6 +332,50 @@ class IRender:
         if mat_name:
             return mat_name
         return "" 
+
+    def _get_material_component(self, mat_name, comp_name):
+        material = self.renderer.shader.material(mat_name)
+        if material is None: return None 
+        if comp_name.startswith('brdf'):
+            components = material._brdfs
+        elif comp_name.startswith('btdf'):
+            components = material._btdfs
+        else:
+            return None 
+        try:
+            num = int(comp_name[4:])
+            return components[num]
+        except:
+            return None 
+
+    def _spectrum_to_string(self, spec):
+        if spec.sampled:
+            return ",".join([str(l) for l in spec.samples])
+        else:
+            return str(spec.r) + "," + str(spec.g) + "," + str(spec.b) 
+
+    def _get_param_value(self, component, param_name):
+        if type(component) == Lambertian:
+            if param_name == "reflectance":
+                return self._spectrum_to_string(component.spectrum)
+            elif param_name == "k":
+                return str(component.k)
+        elif type(component) == Phong:
+            if param_name == "reflectance":
+                return self._spectrum_to_string(component.spectrum)
+            elif param_name == "n":
+                return str(component.n)
+            elif param_name == "k":
+                return str(component.k)
+        return ""
+
+    def _get_material_param(self, name):
+        val = name.split(',')
+        if len(val) != 3: return ""
+        mat_name, comp_name, param_name = val
+        component = self._get_material_component(mat_name, comp_name)
+        if component is None: return ""
+        return self._get_param_value(component, param_name)
 
     def _scale_light_spectrum(self, name, value):
         light = self.renderer.shader.light(name)
@@ -319,17 +405,7 @@ class IRender:
         light = self.renderer.shader.light(name)
         if light is None: return ""
         s = light.spectrum
-        if s.sampled:
-            ret = ""
-            sam = s.samples
-            for i in range(len(sam)):
-                ret += str(sam[i]) + ','
-            if ret != "":
-                return ret[:-1]
-        else:
-            return str(s.r) + "," + str(s.g) + "," + str(s.b) 
-        return ""
-        
+        return self._spectrum_to_string(s)
 
     def _get_light_type(self, name):
         light = self.renderer.shader.light(name)

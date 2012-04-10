@@ -9,7 +9,7 @@ class Phong(BRDF):
         self._k = float(k)
 
     def _set_n(self, value):
-        self._n = value
+        self._n = float(value)
     def _get_n(self):
         return self._n
     n = property(_get_n, _set_n)

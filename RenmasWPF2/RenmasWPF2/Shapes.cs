@@ -49,7 +49,7 @@ namespace RenmasWPF2
         {
             get 
             {
-                return this.renmas.GetProp("material_name", this._selected_shape);
+                return this.renmas.GetProp("material_name", this._selected_shape);   
             }
             set
             {

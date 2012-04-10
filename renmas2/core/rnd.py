@@ -210,6 +210,8 @@ class IRender:
             self._set_reinhard_props(name, value)
         elif category == "PhotoreceptorOperator":
             self._set_photoreceptor_props(name, value)
+        elif category == "material_params":
+            self._set_material_param(name, value)
         return 1
 
     def get_props(self, category, name):
@@ -353,21 +355,71 @@ class IRender:
             return ",".join([str(l) for l in spec.samples])
         else:
             return str(spec.r) + "," + str(spec.g) + "," + str(spec.b) 
+    
+    def _rgb_reflectance(self, spectrum):
+        r, g, b = self.renderer.converter.to_rgb(spectrum) 
+        r = int(r * 255)
+        g = int(g * 255)
+        b = int(b * 255)
+        if r < 0: r = 0
+        if g < 0: g = 0
+        if b < 0: b = 0
+        if r > 255: r = 255
+        if g > 255: g = 255
+        if b > 255: b = 255
+
+        return "%s,%s,%s" % (r, g, b) 
+    
+    def _create_spectrum(self, rgb):
+        val = rgb.split(',')
+        if len(val) != 3:
+            return self.renderer.converter.zero_spectrum()
+        r = float(val[0]) / 255.0
+        g = float(val[1]) / 255.0
+        b = float(val[2]) / 255.0
+        return self.renderer.converter.create_spectrum([r, g, b])
 
     def _get_param_value(self, component, param_name):
         if type(component) == Lambertian:
             if param_name == "reflectance":
                 return self._spectrum_to_string(component.spectrum)
-            elif param_name == "k":
+            elif param_name == "rgb_reflectance":
+                return self._rgb_reflectance(component.spectrum)
+            elif param_name == "scaler":
                 return str(component.k)
         elif type(component) == Phong:
             if param_name == "reflectance":
                 return self._spectrum_to_string(component.spectrum)
-            elif param_name == "n":
+            elif param_name == "rgb_reflectance":
+                return self._rgb_reflectance(component.spectrum)
+            elif param_name == "shinines":
                 return str(component.n)
-            elif param_name == "k":
+            elif param_name == "scaler":
                 return str(component.k)
         return ""
+
+    def _set_param_value(self, component, param_name, value):
+        if type(component) == Lambertian:
+            if param_name == "reflectance":
+                lam, val = value.split(',')
+                s = self._set_spectrum_value(component.spectrum, lam, val)
+                component.spectrum = s
+            elif param_name == "rgb_reflectance":
+                s = self._create_spectrum(value)
+                component.spectrum = s
+            elif param_name == "scaler":
+                component.k = float(value)
+        elif type(component) == Phong:
+            if param_name == "reflectance":
+                lam, val = value.split(',')
+                s = self._set_spectrum_value(component.spectrum, lam, val)
+            elif param_name == "rgb_reflectance":
+                s = self._create_spectrum(value)
+                component.spectrum = s
+            elif param_name == "shinines":
+                component.n = float(value)
+            elif param_name == "scaler":
+                component.k = float(value)
 
     def _get_material_param(self, name):
         val = name.split(',')
@@ -377,10 +429,29 @@ class IRender:
         if component is None: return ""
         return self._get_param_value(component, param_name)
 
+    def _set_material_param(self, name, value):
+        val = name.split(',')
+        if len(val) != 3: return
+        mat_name, comp_name, param_name = val
+        component = self._get_material_component(mat_name, comp_name)
+        if component is None: return
+        self._set_param_value(component, param_name, value)
+
     def _scale_light_spectrum(self, name, value):
         light = self.renderer.shader.light(name)
         if light is None: return
         light.spectrum = light.spectrum * float(value)
+
+    def _set_spectrum_value(self, spectrum, lam, value):
+        if spectrum.sampled:
+            lambdas = self.renderer.converter.lambdas() 
+            for i in range(len(spectrum.samples)):
+                if str(int(lambdas[i])) == lam: spectrum.samples[i] = float(value) 
+        else:
+            if lam == "RED": spectrum.r = float(value) 
+            elif lam == "GREEN": spectrum.g = float(value)
+            elif lam == "BLUE": spectrum.b = float(value)
+        return spectrum
 
     def _set_light_intesity(self, name, value):
         val = value.split(',')
@@ -388,18 +459,8 @@ class IRender:
         w, v = val
         light = self.renderer.shader.light(name)
         if light is None: return ""
-        s = light.spectrum
-        if s.sampled:
-            lambdas = self.renderer.converter.lambdas() 
-            for i in range(len(s.samples)):
-                if str(int(lambdas[i])) == w: s.samples[i] = float(v) 
-            light.spectrum = s
-
-        else:
-            if w == "RED": s.r = float(v) 
-            if w == "GREEN": s.g = float(v)
-            if w == "BLUE": s.b = float(v)
-            light.spectrum = s
+        s = self._set_spectrum_value(light.spectrum, w, v)
+        light.spectrum = s
 
     def _get_light_intesity(self, name):
         light = self.renderer.shader.light(name)

@@ -75,30 +75,14 @@ namespace RenmasWPF2
             comp_type.Text = " ComponentType: " + this.materials.ComponentType;
             comp_type.Width = 200;
             comp_type.Height = 20;
-
-            TextBlock tb_wavelength = new TextBlock();
-            tb_wavelength.Text = " Wavelength: ";
-            tb_wavelength.Width = 70;
-            tb_wavelength.TextAlignment = TextAlignment.Right;
-            tb_wavelength.VerticalAlignment = System.Windows.VerticalAlignment.Center;
-            ComboBox cb_lambdas = new ComboBox();
-            Binding bind_lambdas = new Binding("Lambdas");
-            cb_lambdas.SetBinding(ComboBox.ItemsSourceProperty, bind_lambdas);
-            Binding bind_sel_lam = new Binding("SelectedLambda");
-            cb_lambdas.SetBinding(ComboBox.SelectedItemProperty, bind_sel_lam);
-            cb_lambdas.Foreground = Brushes.White;
-            cb_lambdas.Width = 80;
-            StackPanel sp_wave = new StackPanel();
-            sp_wave.Orientation = Orientation.Horizontal;
-            sp_wave.Height = 25;
-            sp_wave.Children.Add(tb_wavelength);
-            sp_wave.Children.Add(cb_lambdas);
-
+            StackPanel sp_wave = this.build_wavelength();
             sp.Children.Add(comp_type);
             sp.Children.Add(sp_wave);
 
-            StackPanel refl = this.build_lbltxt("Reflectance:", "Reflectance");
+            StackPanel refl = this.build_reflectance(" Reflectance: ", "Reflectance", "RGBReflectanceBrush");
+            StackPanel scaler = this.label_txtbox(" Scaler: ", "Scaler");
             sp.Children.Add(refl);
+            sp.Children.Add(scaler);
 
         }
 
@@ -108,7 +92,17 @@ namespace RenmasWPF2
             comp_type.Text = " ComponentType: " + this.materials.ComponentType;
             comp_type.Width = 200;
             comp_type.Height = 20;
+
+            StackPanel sp_wave = this.build_wavelength();
             sp.Children.Add(comp_type);
+            sp.Children.Add(sp_wave);
+
+            StackPanel refl = this.build_reflectance(" Reflectance: ", "Reflectance", "RGBReflectanceBrush");
+            StackPanel shinines = this.label_txtbox(" Shinines: ", "Shinines");
+            StackPanel scaler = this.label_txtbox(" Scaler: ", "Scaler");
+            sp.Children.Add(refl);
+            sp.Children.Add(shinines);
+            sp.Children.Add(scaler);
         }
 
         private StackPanel build_combo(string label_name, string prop_names, string selected_prop)
@@ -137,13 +131,38 @@ namespace RenmasWPF2
             return sp_materials;
         }
 
-        private StackPanel build_lbltxt(string text, string property)
+        private StackPanel build_wavelength()
+        {
+            TextBlock tb_wavelength = new TextBlock();
+            tb_wavelength.Text = " Wavelength: ";
+            tb_wavelength.Width = 80;
+            tb_wavelength.TextAlignment = TextAlignment.Right;
+            tb_wavelength.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+            ComboBox cb_lambdas = new ComboBox();
+            Binding bind_lambdas = new Binding("Lambdas");
+            cb_lambdas.SetBinding(ComboBox.ItemsSourceProperty, bind_lambdas);
+            Binding bind_sel_lam = new Binding("SelectedLambda");
+            cb_lambdas.SetBinding(ComboBox.SelectedItemProperty, bind_sel_lam);
+            cb_lambdas.Foreground = Brushes.White;
+            cb_lambdas.Width = 80;
+            cb_lambdas.Height = 20;
+            StackPanel sp_wave = new StackPanel();
+            sp_wave.Orientation = Orientation.Horizontal;
+            sp_wave.Height = 25;
+            sp_wave.Children.Add(tb_wavelength);
+            sp_wave.Children.Add(cb_lambdas);
+            return sp_wave;
+        }
+
+        private StackPanel label_txtbox(string text, string property)
         {
             TextBlock label = new TextBlock();
             label.Text = text;
             label.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+            label.TextAlignment = TextAlignment.Right;
+            label.Width = 80;
             TextBox tb = new TextBox();
-            tb.Width = 50;
+            tb.Width = 80;
             tb.Height = 20;
             tb.Foreground = Brushes.White;
             tb.CaretBrush = Brushes.White;
@@ -157,6 +176,57 @@ namespace RenmasWPF2
             tb.SetBinding(TextBox.TextProperty, binder);
             sp.Height = 25;
             return sp;
+        }
+
+        private StackPanel build_reflectance(string text, string property, string property_brush)
+        {
+            TextBlock label = new TextBlock();
+            label.Text = text;
+            label.Width = 80;
+            label.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+            label.TextAlignment = TextAlignment.Right;
+            TextBox tb = new TextBox();
+            tb.Width = 80;
+            tb.Height = 20;
+            tb.Foreground = Brushes.White;
+            tb.CaretBrush = Brushes.White;
+
+            StackPanel sp = new StackPanel();
+            sp.Orientation = Orientation.Horizontal;
+            sp.Children.Add(label);
+            sp.Children.Add(tb);
+
+            Rectangle rect = new Rectangle();
+            rect.Width = 50;
+            rect.Height = 15;
+            rect.Margin = new Thickness(5);
+            Binding bind_brush = new Binding(property_brush);
+            rect.SetBinding(Rectangle.FillProperty, bind_brush);
+            rect.MouseLeftButtonUp += new MouseButtonEventHandler(rect_MouseLeftButtonUp);
+            sp.Children.Add(rect);
+
+            Binding binder = new Binding(property);
+            tb.SetBinding(TextBox.TextProperty, binder);
+            sp.Height = 25;
+            return sp;
+        }
+
+        void rect_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            string value = this.materials.get_rgb_reflectance();
+            string[] rgb = value.Split(',');
+            byte r = Convert.ToByte(rgb[0]);
+            byte g = Convert.ToByte(rgb[1]);
+            byte b = Convert.ToByte(rgb[2]);
+            Spectrum spec = new Spectrum(r, g, b);
+            SpectrumDialog sd = new SpectrumDialog(spec);
+            sd.ShowDialog();
+            bool ret = (bool)sd.DialogResult;
+            if (ret)
+            {
+                string col = spec.R.ToString() + "," + spec.G.ToString() + "," + spec.B.ToString();
+                this.materials.set_rgb_reflectance(col);
+            }
         }
     }
 }

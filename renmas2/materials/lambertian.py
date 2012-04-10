@@ -20,9 +20,9 @@ class Lambertian(BRDF):
     k = property(_get_k, _set_k)
 
     def _set_spectrum(self, value):
-        self._spectrum = value
+        self._spectrum = value * ( 1 / math.pi)
     def _get_spectrum(self):
-        return self._spectrum
+        return self._spectrum * math.pi
     spectrum = property(_get_spectrum, _set_spectrum)
 
     # eax pointer to hitpoint

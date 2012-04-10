@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.ComponentModel;
+using System.Windows.Media;
 
 namespace RenmasWPF2
 {
@@ -77,6 +78,7 @@ namespace RenmasWPF2
             set
             {
                 this._selected_lambda = value;
+                this.OnPropertyChanged("SelectedLambda");
                 this.OnPropertyChanged("Reflectance");
             }
         }
@@ -103,9 +105,79 @@ namespace RenmasWPF2
             }
             set
             {
-                this.renmas.SetProp("material_params", this._selected_material + "," + this._selected_component + ",reflectance"  , this._selected_lambda + "," + value.ToString());
-                this.OnPropertyChanged("Reflectance");
+                if (value > 0.0f && value < 1.0f)
+                {
+                    this.renmas.SetProp("material_params", this._selected_material + "," + this._selected_component + ",reflectance", this._selected_lambda + "," + value.ToString());
+                    this.OnPropertyChanged("Reflectance");
+                    this.OnPropertyChanged("RGBReflectanceBrush");
+                }
             }
+        }
+
+        public float Scaler
+        {
+            get
+            {
+                string s = this.renmas.GetProp("material_params", this._selected_material + "," + this._selected_component + "," + "scaler");
+                if (s == "") return 0.0f;
+                return Convert.ToSingle(s);
+            }
+            set
+            {
+                if (value > 0.0f)
+                {
+                    this.renmas.SetProp("material_params", this._selected_material + "," + this._selected_component + ",scaler", value.ToString());
+                    this.OnPropertyChanged("Scaler");
+                }
+            }
+        }
+
+        public float Shinines
+        {
+            get
+            {
+                string s = this.renmas.GetProp("material_params", this._selected_material + "," + this._selected_component + "," + "shinines");
+                if (s == "") return 0.0f;
+                return Convert.ToSingle(s);
+            }
+            set
+            {
+                if (value > 0.0f)
+                {
+                    this.renmas.SetProp("material_params", this._selected_material + "," + this._selected_component + ",shinines", value.ToString());
+                    this.OnPropertyChanged("Shinines");
+                }
+            }
+        }
+        public SolidColorBrush RGBReflectanceBrush
+        {
+            get
+            {
+                if (this._selected_component == "") return new SolidColorBrush(Color.FromRgb(0,0,0));
+                string s = this.renmas.GetProp("material_params", this._selected_material + "," + this._selected_component + "," + "rgb_reflectance");
+                if (s == "") return new SolidColorBrush(Color.FromRgb(0, 0, 0));
+                string[] rgb = s.Split(',');
+                byte r = Convert.ToByte(rgb[0]);
+                byte g = Convert.ToByte(rgb[1]);
+                byte b = Convert.ToByte(rgb[2]);
+                return new SolidColorBrush(Color.FromRgb(r, g, b));
+            }
+        }
+
+        public string get_rgb_reflectance()
+        {
+            if (this._selected_component == "") return "0,0,0";
+            string s = this.renmas.GetProp("material_params", this._selected_material + "," + this._selected_component + "," + "rgb_reflectance");
+            if (s == "") return "0,0,0";
+            return s;
+        }
+
+        public void set_rgb_reflectance(string rgb)
+        {
+            if (this._selected_component == "") return;
+            this.renmas.SetProp("material_params", this._selected_material + "," + this._selected_component + ",rgb_reflectance", rgb);
+            this.OnPropertyChanged("Reflectance");
+            this.OnPropertyChanged("RGBReflectanceBrush");
         }
 
         public string[] Components
@@ -167,6 +239,10 @@ namespace RenmasWPF2
             this.OnPropertyChanged("Components");
             this.OnPropertyChanged("SelectedMaterial");
             this.OnPropertyChanged("SelectedComponent");
+            this.OnPropertyChanged("Lambdas");
+            this.SelectedLambda = this.Lambdas[0];
+            this.OnPropertyChanged("Scaler");
+    
         }
     }
 }

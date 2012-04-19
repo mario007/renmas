@@ -3,7 +3,7 @@ import os
 import os.path
 from .material import Material
 from .factory import Factory
-from renmas2.materials import HemisphereCos
+from renmas2.materials import HemisphereCos, PhongSampling
 
 class Mtl:
     def __init__(self):
@@ -46,13 +46,16 @@ class Mtl:
             specular = ren.converter.create_spectrum(self._ks)
             lamb = factory.create_lambertian(diffuse)
             if self._ns is not None:
-                phong_specular = factory.create_phong(specular, self._ns)
+                spec_sampling = PhongSampling(self._ns)
+                phong_specular = factory.create_phong(specular, self._ns, sampling=spec_sampling)
             else:
-                phong_specular = factory.create_phong(specular, 1.0)
+                spec_sampling = PhongSampling(1.0)
+                phong_specular = factory.create_phong(specular, 1.0, sampling=spec_sampling)
             mat.add(lamb)
             mat.add(phong_specular)
             sampling = HemisphereCos()
             mat.add(sampling)
+            mat.add(spec_sampling)
             ren.add(self._name, mat)
 
         elif self._kd is not None:

@@ -28,6 +28,9 @@ class Raycast(Integrator):
             hp = intersector.isect(ray) 
             if hp:
                 hp.wo = ray.dir * -1.0
+                if hp.normal.dot(ray.dir) > 0.0:
+                    hp.normal = hp.normal * -1.0
+                hp.specular = 0
                 spectrum = shader.shade(hp)
                 film.add_sample(sam, spectrum)
             else:
@@ -74,6 +77,7 @@ class Raycast(Integrator):
             macro eq128 xmm0 = eax.hitpoint.normal * minus_one
             macro eq128 eax.hitpoint.normal = xmm0 {xmm1}
             __shade:
+            mov dword [eax + hitpoint.specular], 0
             call shade
 
             mov ecx, hp1

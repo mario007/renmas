@@ -43,12 +43,14 @@ class Pathtracer(Integrator):
                     hp.wo = ray.dir * -1.0
                     if hp.normal.dot(ray.dir) > 0.0:
                         hp.normal = hp.normal * -1.0
+                    hp.specular = 0
                     spectrum = shader.shade(hp)
                     L = L + spectrum.mix_spectrum(path)
                     Y = conv.Y(path)
                     #print(cur_depth, Y)
                     if cur_depth >= max_depth or Y < treshold: break
                     material = shader._materials_idx[hp.material]
+                    hp.specular = 0
                     material.next_direction(hp)
                     material.f(hp)
                     path = path.mix_spectrum(hp.f_spectrum * (abs(hp.ndotwi)/hp.pdf))
@@ -132,6 +134,7 @@ class Pathtracer(Integrator):
             macro eq128 xmm0 = eax.hitpoint.normal * minus_one
             macro eq128 eax.hitpoint.normal = xmm0 {xmm1}
             __shade:
+            mov dword [eax + hitpoint.specular], 0
             call shade
             mov ecx, hp1
             lea eax, dword [ecx + hitpoint.l_spectrum]
@@ -148,6 +151,7 @@ class Pathtracer(Integrator):
             je _write_sample
             ; call next direction and  brdf of material
             mov eax, hp1 
+            mov dword [eax + hitpoint.specular], 0
             mov ebx, dword [eax + hitpoint.mat_index]
             call dword [samplings + 4*ebx] 
             mov eax, hp1

@@ -5,10 +5,10 @@ import renmas2.shapes
 from renmas2.core import Vector3
 from renmas2.lights import PointLight
 from .material import Material
-from renmas2.materials import HemisphereCos
+from renmas2.materials import HemisphereCos, PerfectSpecularSampling, LambertianSampling, PhongSampling
 from ..cameras import Pinhole
 from ..tone_mapping import PhotoreceptorOperator, ReinhardOperator
-from ..materials import Lambertian, Phong
+from ..materials import Lambertian, Phong, OrenNayar
 
 
 class IRender:
@@ -28,6 +28,10 @@ class IRender:
             name = kw.get("name", None)
             scaler = kw.get("scale", None)
             #TODO -- creation of spectrum from spectrum database
+            if type(s) == str:
+                s = self.renderer.spd.load("light", s)
+                if s is None: return None
+
             spec = self.renderer.converter.create_spectrum(s, True)
             if scaler is not None:
                 spec.scale(float(scaler))
@@ -45,40 +49,126 @@ class IRender:
         if t == "mesh": self._create_mesh(kw)
 
     def add_material(self, **kw):
+        components = kw.get("components", None)
+        if components is not None:
+            self._create_material(kw)
         t = kw.get("type", None)
         if t is None: return #log!!! TODO
         if t == "lambertian": self._create_lambertian(kw)
         if t == "phong": self._create_phong(kw)
 
+    def _add_brdf_samplings(self, mat, samplings):
+        if samplings is None:
+            #mat.add(HemisphereCos())
+            mat.add(LambertianSampling())
+            return
+        samplings = samplings.split(',')
+        for s in samplings:
+            s = s.strip()
+            if s == "perfect_specular":
+                mat.add(PerfectSpecularSampling())
+            elif s == "lambertian" or s == "default":
+                #mat.add(HemisphereCos())
+                mat.add(LambertianSampling())
+
     def _create_phong(self, kw):
         name = kw.get("name", None)
         diffuse = kw.get("diffuse", None)
         specular = kw.get("specular", None)
+        sampling = kw.get("samplings", None)
         n = kw.get("n", None)
         if name is None or diffuse is None or specular is None or n is None: return
         mat = Material(self.renderer.converter.zero_spectrum())
+
+        if type(diffuse) == str:
+            diffuse = self.renderer.spd.load("real_object", diffuse)
+            if diffuse is None: return None
         diff = self.renderer.converter.create_spectrum(diffuse)
+
+        if type(specular) == str:
+            specular = self.renderer.spd.load("real_object", specular)
+            if specular is None: return None
         spec = self.renderer.converter.create_spectrum(specular)
+
         n = float(n)
         lamb = self.factory.create_lambertian(diff)
         phong_specular = self.factory.create_phong(spec, n)
         mat.add(lamb)
         mat.add(phong_specular)
-        sampling = HemisphereCos()
-        mat.add(sampling)
+        self._add_brdf_samplings(mat, sampling)
         self.renderer.add(name, mat)
 
     def _create_lambertian(self, kw):
         name = kw.get("name", None)
         s = kw.get("source", None)
+        sampling = kw.get("samplings", None)
         if name is None or s is None: return
         mat = Material(self.renderer.converter.zero_spectrum())
+        if type(s) == str:
+            s = self.renderer.spd.load("real_object", s)
+            if s is None: return None
         spec = self.renderer.converter.create_spectrum(s)
         lamb = self.factory.create_lambertian(spec)
         mat.add(lamb)
-        sampling = HemisphereCos()
-        mat.add(sampling)
+        self._add_brdf_samplings(mat, sampling)
         self.renderer.add(name, mat)
+
+    def _add_lambertian_component(self, mat, comp):
+        diffuse = comp.get("diffuse", None)
+        if type(diffuse) == str:
+            diffuse = self.renderer.spd.load("real_object", diffuse)
+        spectrum = self.renderer.converter.create_spectrum(diffuse)
+        lamb = self.factory.create_lambertian(spectrum)
+        mat.add(lamb)
+
+    def _add_phong_component(self, mat, comp):
+        specular = comp.get("specular", None)
+        if type(specular) == str:
+            specular = self.renderer.spd.load("real_object", specular)
+        spectrum = self.renderer.converter.create_spectrum(specular)
+        n = comp.get("n", 1.0)
+        sampling = comp.get("sampling", None)
+        if sampling is not None:
+            if sampling == "phong":
+                ph = PhongSampling(n)
+                mat.add(ph)
+                phong_specular = self.factory.create_phong(spectrum, n, k=1.0, sampling=ph)
+            else:
+                phong_specular = self.factory.create_phong(spectrum, n, k=1.0)
+        else:
+            phong_specular = self.factory.create_phong(spectrum, n, k=1.0)
+        mat.add(phong_specular)
+
+
+    def _add_oren_component(self, mat, comp):
+        diffuse = comp.get("diffuse", None)
+        if type(diffuse) == str:
+            diffuse = self.renderer.spd.load("real_object", diffuse)
+        spectrum = self.renderer.converter.create_spectrum(diffuse)
+        roughness = comp.get("roughness", 0.40)
+        oren = self.factory.create_oren_nayar(spectrum, 0.45) 
+        mat.add(oren)
+
+    def _create_material(self, kw):
+        name = kw.get("name", None)
+        samplings = kw.get("samplings", None)
+        if name is None: return
+        mat = Material(self.renderer.converter.zero_spectrum())
+        if samplings is None:
+            mat.add(HemisphereCos())
+        else:
+            self._add_brdf_samplings(mat, samplings)
+        components = kw.get("components")
+        for comp in components:
+            typ = comp.get("type")
+            if typ == "lambertian":
+                self._add_lambertian_component(mat, comp)
+            elif typ == "phong":
+                self._add_phong_component(mat, comp)
+            elif typ == "oren":
+                self._add_oren_component(mat, comp)
+        self.renderer.add(name, mat)
+
 
     def _create_rectangle(self, kw):
         P = kw.get("P", None)
@@ -270,6 +360,8 @@ class IRender:
             return "Lambertian"
         elif type(component) == Phong:
             return "PhongSpecular"
+        elif type(component) == OrenNayar:
+            return "OrenNayar"
         return ""
 
     def _get_photoreceptor_props(self, name):
@@ -396,6 +488,15 @@ class IRender:
                 return str(component.n)
             elif param_name == "scaler":
                 return str(component.k)
+        elif type(component) == OrenNayar:
+            if param_name == "reflectance":
+                return self._spectrum_to_string(component.spectrum)
+            elif param_name == "rgb_reflectance":
+                return self._rgb_reflectance(component.spectrum)
+            elif param_name == "roughness":
+                return str(component.roughness)
+            elif param_name == "scaler":
+                return str(component.k)
         return ""
 
     def _set_param_value(self, component, param_name, value):
@@ -420,6 +521,18 @@ class IRender:
                 component.n = float(value)
             elif param_name == "scaler":
                 component.k = float(value)
+        elif type(component) == OrenNayar:
+            if param_name == "reflectance":
+                lam, val = value.split(',')
+                s = self._set_spectrum_value(component.spectrum, lam, val)
+            elif param_name == "rgb_reflectance":
+                s = self._create_spectrum(value)
+                component.spectrum = s
+            elif param_name == "roughness":
+                component.roughness = float(value)
+            elif param_name == "scaler":
+                component.k = float(value)
+
 
     def _get_material_param(self, name):
         val = name.split(',')

@@ -58,6 +58,10 @@ namespace RenmasWPF2
 
                 this.build_phong(all);
             }
+            else if (this.materials.ComponentType == "OrenNayar")
+            {
+                this.build_oren_nayar(all);
+            }
             else
             {
             }
@@ -99,6 +103,25 @@ namespace RenmasWPF2
 
             StackPanel refl = this.build_reflectance(" Reflectance: ", "Reflectance", "RGBReflectanceBrush");
             StackPanel shinines = this.label_txtbox(" Shinines: ", "Shinines");
+            StackPanel scaler = this.label_txtbox(" Scaler: ", "Scaler");
+            sp.Children.Add(refl);
+            sp.Children.Add(shinines);
+            sp.Children.Add(scaler);
+        }
+
+        private void build_oren_nayar(StackPanel sp)
+        {
+            TextBlock comp_type = new TextBlock();
+            comp_type.Text = " ComponentType: " + this.materials.ComponentType;
+            comp_type.Width = 200;
+            comp_type.Height = 20;
+
+            StackPanel sp_wave = this.build_wavelength();
+            sp.Children.Add(comp_type);
+            sp.Children.Add(sp_wave);
+
+            StackPanel refl = this.build_reflectance(" Reflectance: ", "Reflectance", "RGBReflectanceBrush");
+            StackPanel shinines = this.label_txtbox(" Roughness: ", "Roughness");
             StackPanel scaler = this.label_txtbox(" Scaler: ", "Scaler");
             sp.Children.Add(refl);
             sp.Children.Add(shinines);

@@ -782,6 +782,7 @@ class SpectrumConverter:
             s.append((lambda0, lambda1))
         return s
 
+    #TODO -- what if vals have 3 samples and it is sampled spectrum???? solve this
     def create_spectrum(self, vals, illum=False):
         if self.renderer.spectral_rendering:
             if len(vals) == 3:

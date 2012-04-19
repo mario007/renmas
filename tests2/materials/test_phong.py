@@ -45,13 +45,13 @@ class LambertianTest(unittest.TestCase):
         phong = factory.create_phong(spec, 2.0) 
         mat.add(phong)
         t = 2.3
-        hit_point = factory.vector(2.2, 3.3, 4.4)
-        normal = factory.vector(2.6, 1.2, 4.5)
+        hit_point = factory.vector(2.2, 3.1, 4.4)
+        normal = factory.vector(2.9, 1.2, 4.5)
         normal.normalize()
         ray = factory.create_ray(origin=(4,4,4), direction=(6,7,8))
 
         hp = renmas2.shapes.HitPoint(t, hit_point, normal, 0, ray)
-        wi = factory.vector(-6,1,-3)
+        wi = factory.vector(-6,8,-3.8)
         wi.normalize()
         hp.wo = ray.dir * -1.0
         hp.wi = wi

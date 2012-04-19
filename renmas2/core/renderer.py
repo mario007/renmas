@@ -18,6 +18,7 @@ from .material import Material
 from .structures import Structures
 from .spectrum_converter import SpectrumConverter
 from .logger import log
+from .spd_loader import SPDLoader
 
 from .factory import Factory
 
@@ -44,6 +45,7 @@ class Renderer:
         self._assembler = self._create_assembler()
         #self._tone_mapper = PhotoreceptorOperator()
         self._tone_mapper = ReinhardOperator()
+        self._spd_loader = SPDLoader()
 
         #creation of default material
         mat = Material(self.converter.zero_spectrum())
@@ -79,7 +81,7 @@ class Renderer:
         self._threads = 1 
         self._max_samples = 100000 #max samples in tile
         self._pixel_size = 1.0
-        self._spectrum_rendering = False
+        self._spectrum_rendering = True 
         self._nspectrum_samples = 32 
         self._start_lambda = 380
         self._end_lambda = 720
@@ -163,6 +165,10 @@ class Renderer:
     @property
     def shader(self):
         return self._shader
+
+    @property
+    def spd(self):
+        return self._spd_loader
 
     def spectrum_parameters(self, nsamples, start_lambda, end_lambda):
         n = self._int(self._nspectrum_samples, nsamples)

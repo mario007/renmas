@@ -1,8 +1,9 @@
 
-irender.options(asm=True, spectral=True, pixel_size=0.5, width=600, height=600, spp=1, threads=1)
+irender.options(asm=True, spectral=True, pixel_size=0.5, width=600, height=600, spp=16, threads=4)
 irender.set_camera(type="perspective", eye=(27.6, 27.4, -80.0), lookat=(27.6,27.4,0.0), distance=400)
 
 #origina data for light
+#irender.add_light(type="pointlight", name="light3", source="F1", position=(26,50.8,22))
 irender.add_light(type="pointlight", name="light3", source=[(400,0.0), (500,8.0), (600,15.6), (700,18.4)], position=(26,50.8,22))
 
 #irender.add_light(type="pointlight", name="light3", source=(1.0,1.0,1.0), position=(0.3,0.5,0.3))
@@ -23,6 +24,8 @@ white_source=[ (400, 0.343), (404, 0.445), (408, 0.551), (412, 0.624), (416, 0.6
         (652, 0.730), (656, 0.727), (660, 0.707), (664, 0.703), (668, 0.729), (672, 0.750), (676, 0.760), (680, 0.751),
         (684, 0.739), (688, 0.724), (692, 0.730), (696, 0.740), (700, 0.737) ]
 irender.add_material(name="white", type="lambertian", source=white_source,samplings="default")
+irender.add_material(name="reflective_white", type="lambertian", source=white_source,samplings="perfect_specular, lambertian")
+
 
 green_source=[ (400, 0.092), (404, 0.096), (408, 0.098), (412, 0.097), (416, 0.098), (420, 0.095), (424, 0.095),
         (428, 0.097), (432, 0.095), (436, 0.094), (440, 0.097), (444, 0.098), (448, 0.096), (452, 0.101), (456, 0.103),
@@ -79,11 +82,17 @@ irender.add_shape(type="rectangle", name="short_side4", material="white", P=(29,
 # tall box
 irender.add_shape(type="rectangle", name="tall_top", material="white", P=(42.3,33,24.7), Edge_a=(-15.8,0,4.9), Edge_b=(4.9,0,15.9), Normal=(0,1,0))
 
-irender.add_shape(type="rectangle", name="tall_side1", material="white", P=(42.3,0,24.7), Edge_a=(-15.8,0,4.9), Edge_b=(0,33,0), Normal=(-0.296209,0,-0.955123))
+irender.add_shape(type="rectangle", name="tall_side1", material="reflective_white", P=(42.3,0,24.7), Edge_a=(-15.8,0,4.9), Edge_b=(0,33,0), Normal=(-0.296209,0,-0.955123))
 
 irender.add_shape(type="rectangle", name="tall_side2", material="white", P=(26.5,0,29.6), Edge_a=(4.9,0,15.9), Edge_b=(0,33,0), Normal=(-0.9556489,0,0.294508))
 
 irender.add_shape(type="rectangle", name="tall_side3", material="white", P=(31.4,0,45.5), Edge_a=(15.8,0,-4.9), Edge_b=(0,33,0), Normal=(0.296209,0,0.95512312))
 
 irender.add_shape(type="rectangle", name="tall_side4", material="white", P=(47.2,0,40.6), Edge_a=(-4.9,0,-15.9), Edge_b=(0,33,0), Normal=(0.95564,0,-0.2945))
+
+# Sphere
+comp1 = {"type":"oren", "roughness":0.48, "diffuse":(0.2, 0.4, 0.7)}
+comp2 = {"type":"phong", "n":2.48, "specular":(0.3, 0.3, 0.3), "sampling":"phong"}
+irender.add_material(name="rough1", components=[comp1,comp2], samplings="lambertian")
+irender.add_shape(type="sphere", name="Sphere00", radius=7.0, position=(20.0, 30.0, 30.0), material="rough1")
 

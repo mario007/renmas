@@ -37,8 +37,9 @@ print (irender.get_props('misc', 'spectral'))
 print (irender.get_props('misc', 'pixel_size'))
 
 #irender.set_props('misc', 'threads', '1')
-#filename = 'I:\\GitRENMAS\\scenes\\sphere1.py'
-filename = 'I:\\GitRENMAS\\scenes\\cornel2.py'
+filename = 'I:\\GitRENMAS\\scenes\\sphere3.py'
+filename = 'I:\\GitRENMAS\\scenes\\troll.py'
+#filename = 'I:\\GitRENMAS\\scenes\\cornel2.py'
 #filename = 'I:\\GitRENMAS\\scenes\\cube_mesh.py'
 #filename = 'I:\\GitRENMAS\\scenes\\lux_ball.py'
 #filename = 'I:\\GitRENMAS\\scenes\\cube.py'

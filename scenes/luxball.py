@@ -12,5 +12,10 @@ irender.add_material(name="phong2", type="phong", diffuse=(0.3,0.1,0.2), specula
 irender.add_material(name="phong3", type="phong", diffuse=(0.3,0.3,0.3), specular=(0.4,0.4,0.4), n=2.2, samplings="default")
 irender.add_material(name="phong4", type="phong", diffuse=(0.0,0.3,0.0), specular=(0.2,0.2,0.2), n=2.2, samplings="default")
 
-irender.add_shape(type="mesh", name="cube1", filename="G:/Obj_files/luxball5.obj", mtl="G:/Obj_files/luxball5.mtl")
+comp1 = {"type":"oren", "roughness":0.48, "diffuse":(0.2, 0.4, 0.7)}
+comp2 = {"type":"phong", "n":2.48, "specular":(0.3, 0.3, 0.3)}
+irender.add_material(name="rough1", components=[comp1,comp2], samplings="lambertian")
+irender.add_material(name="rough2", components=[comp1], samplings="lambertian")
+
+irender.add_shape(type="mesh", name="cube1", filename="I:/Obj_files/luxball5.obj", mtl="I:/Obj_files/luxball5.mtl")
 

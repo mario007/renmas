@@ -3,13 +3,20 @@ import math
 from .brdf import BRDF
 
 class Phong(BRDF):
-    def __init__(self, spectrum, n, k=1.0):
+    def __init__(self, spectrum, n, k=1.0, sampling=None):
         self._spectrum = spectrum
         self._n = float(n)
         self._k = float(k)
+        self._sampling = sampling
+        if sampling is not None:
+            if hasattr(sampling, 'n'):
+                sampling.n = self._n
 
     def _set_n(self, value):
         self._n = float(value)
+        if self._sampling is not None:
+            if hasattr(self._sampling, 'n'):
+                self._sampling.n = self._n
     def _get_n(self):
         return self._n
     n = property(_get_n, _set_n)

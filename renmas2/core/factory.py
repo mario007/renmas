@@ -4,7 +4,7 @@ from ..materials import Lambertian
 from ..lights import PointLight
 from .spectrum import Spectrum
 from .material import Material
-from ..materials import Lambertian, Phong
+from ..materials import Lambertian, Phong, OrenNayar
 from .vector3 import Vector3
 from .ray import Ray
 from .buffers import VertexBuffer, VertexNBuffer, VertexUVBuffer, VertexNUVBuffer
@@ -31,8 +31,11 @@ class Factory:
     def create_lambertian(self, spectrum, k=1.0):
         return Lambertian(spectrum, k)
 
-    def create_phong(self, spectrum, n, k=1.0):
-        return Phong(spectrum, float(n), k)
+    def create_phong(self, spectrum, n, k=1.0, sampling=None):
+        return Phong(spectrum, float(n), k, sampling)
+
+    def create_oren_nayar(self, spectrum, roughness, k=1.0):
+        return OrenNayar(spectrum, roughness, k)
 
     def vector(self, x, y, z):
         return Vector3(float(x), float(y), float(z))

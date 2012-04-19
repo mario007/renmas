@@ -149,6 +149,23 @@ namespace RenmasWPF2
                 }
             }
         }
+        public float Roughness
+        {
+            get
+            {
+                string s = this.renmas.GetProp("material_params", this._selected_material + "," + this._selected_component + "," + "roughness");
+                if (s == "") return 0.0f;
+                return Convert.ToSingle(s);
+            }
+            set
+            {
+                if (value > 0.0f)
+                {
+                    this.renmas.SetProp("material_params", this._selected_material + "," + this._selected_component + ",roughness", value.ToString());
+                    this.OnPropertyChanged("Roughness");
+                }
+            }
+        }
         public SolidColorBrush RGBReflectanceBrush
         {
             get
@@ -242,6 +259,7 @@ namespace RenmasWPF2
             this.OnPropertyChanged("Lambdas");
             this.SelectedLambda = this.Lambdas[0];
             this.OnPropertyChanged("Scaler");
+            this.OnPropertyChanged("RGBReflectanceBrush");
     
         }
     }

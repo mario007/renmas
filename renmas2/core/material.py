@@ -1,6 +1,9 @@
 
+from random import random
+
 from ..materials import BRDF, Sampling
 from .spectrum import Spectrum
+import renmas2.switch as proc
 
 class Material:
     def __init__(self, spectrum):
@@ -31,18 +34,40 @@ class Material:
 
     def next_direction(self, hitpoint):
         if len(self._samplers) == 0: raise ValueError("Missing sampler!!!")
-        #TODO -- multiple samplers
-        self._samplers[0].next_direction(hitpoint)
+        
+        if len(self._samplers) == 1:
+            self._samplers[0].next_direction(hitpoint)
+        else:
+            idx = int(len(self._samplers) * random())
+            self._samplers[idx].next_direction(hitpoint)
         pdf = 0.0
         for s in self._samplers:
             pdf += s.pdf(hitpoint)
         hitpoint.pdf = pdf / len(self._samplers)
 
+    def bsdf_next_direction(self, hitpoint):
+        # 1. if it not dielectric call next direction
+        # 2. if we are inside object do 3 else do 4
+
+        # 3.
+
+        # 4.
+
+
+        pass
+
+    def bsdf_next_direction_asm(self, runtimes, structures, assembler):
+        pass
+
     #eax pointer to hitpoint
     def next_direction_asm(self, runtimes, structures, assembler):
         if len(self._samplers) == 0: raise ValueError("Missing sampler!!!")
-        #TODO -- multiple samplers
-        self._samplers[0].next_direction_asm(runtimes, structures, assembler)
+        
+        #TODO Random int function ---- insted random float needed for selecting sampler
+        self._sampling_names = []
+        for s in self._samplers:
+            s.next_direction_asm(runtimes, structures, assembler)
+            self._sampling_names.append(s.nd_asm_name)
 
         ASM = """ 
         #DATA
@@ -51,17 +76,41 @@ class Material:
         float zero = 0.0
         float pdf
         float inv_c
-        uint32 sampling_ptr
+        """
+        ASM += "uint32 sampling_ptrs[" + str(len(self._samplers)) + "]\n"
+        ASM += "float nsamplers = " + str(float(len(self._samplers))) + "\n"
+        ASM += "float nsamplers2 = " + str(float(len(self._samplers)) - 0.01) + "\n"
+        ASM += """
         uint32 hp_ptr
         #CODE
         mov dword [hp_ptr], eax ;save pointer to hitpoint
         ; generate direction 
-        call dword [sampling_ptr]
+        """
+        if len(self._samplers) == 1:
+            ASM += """
+            call dword [sampling_ptrs]
+            """
+        else:
+            ASM += """
+            macro call random
+            macro eq32 xmm0 = xmm0 * nsamplers
+            macro call zero xmm1
+            macro call maxss xmm0, xmm1
+            macro eq32 xmm3 = nsamplers2
+            macro call minss xmm0, xmm3
+            """
+            if proc.AVX:
+                ASM += "vcvttss2si ecx, xmm0 \n"
+            else:
+                ASM += "cvttss2si ecx, xmm0 \n"
+            ASM += """
+                mov eax, dword [hp_ptr]
+                call dword [sampling_ptrs + 4*ecx]
+            """
 
-        ; init pdf with zero - calculate pdf multiple sampler supported
+        ASM += """
         mov eax, dword [zero]
         mov dword [pdf], eax
-
         mov eax, dword [hp_ptr]
         """
         for s in self._samplers:
@@ -80,13 +129,10 @@ class Material:
         #print(code)
         #mc.print_machine_code()
         self.nd_asm_name = name = "material_ndir" + str(hash(self))
-
-        #TODO -- multiple samplers
-        ndir_name = self._samplers[0].nd_asm_name
         for r in runtimes:
             ds = r.load(name, mc)
             ds["inv_c"] = 1.0 / len(self._samplers)
-            ds["sampling_ptr"] = r.address_module(ndir_name)
+            ds["sampling_ptrs"] = tuple([r.address_module(name) for name in self._sampling_names])
             for s in self._samplers:
                 s.pdf_ds(ds)
 

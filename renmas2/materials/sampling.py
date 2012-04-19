@@ -8,6 +8,8 @@ class Sampling:
         pass
 
     # eax - pointer to hitpoint
+    # hitpoint.wi -- must be returned next direction
+    # hitpoint.ndotwi -- also must be computed -- for little extra performance
     def next_direction_asm(self, runtimes, structures, assembler):
         pass
 

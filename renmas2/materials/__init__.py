@@ -9,4 +9,5 @@ from .phong import Phong
 from .oren_nayar import OrenNayar
 from .fresnel import Fresnel
 from .phong_sampling import PhongSampling
+from .ward_anisotropic import WardAnisotropic
 

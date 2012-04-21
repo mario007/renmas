@@ -4,7 +4,7 @@ from ..materials import Lambertian
 from ..lights import PointLight
 from .spectrum import Spectrum
 from .material import Material
-from ..materials import Lambertian, Phong, OrenNayar
+from ..materials import Lambertian, Phong, OrenNayar, WardAnisotropic
 from .vector3 import Vector3
 from .ray import Ray
 from .buffers import VertexBuffer, VertexNBuffer, VertexUVBuffer, VertexNUVBuffer
@@ -36,6 +36,9 @@ class Factory:
 
     def create_oren_nayar(self, spectrum, roughness, k=1.0):
         return OrenNayar(spectrum, roughness, k)
+
+    def create_ward(self, spectrum, alpha, beta, k=1.0, sampling=None):
+        return WardAnisotropic(spectrum, alpha, beta, k, sampling)
 
     def vector(self, x, y, z):
         return Vector3(float(x), float(y), float(z))

@@ -8,7 +8,7 @@ from .material import Material
 from renmas2.materials import HemisphereCos, PerfectSpecularSampling, LambertianSampling, PhongSampling
 from ..cameras import Pinhole
 from ..tone_mapping import PhotoreceptorOperator, ReinhardOperator
-from ..materials import Lambertian, Phong, OrenNayar
+from ..materials import Lambertian, Phong, OrenNayar, WardAnisotropic
 
 
 class IRender:
@@ -139,6 +139,18 @@ class IRender:
             phong_specular = self.factory.create_phong(spectrum, n, k=1.0)
         mat.add(phong_specular)
 
+    def _add_ward_component(self, mat, comp):
+        specular = comp.get("specular", None)
+        if type(specular) == str:
+            specular = self.renderer.spd.load("real_object", specular)
+        spectrum = self.renderer.converter.create_spectrum(specular)
+        alpha = comp.get("alpha", None)
+        beta = comp.get("beta", None)
+        if alpha is None or beta is None:
+            #TODO log
+            return
+        ward_specular = self.factory.create_ward(spectrum, alpha, beta, k=1.0, sampling=None)
+        mat.add(ward_specular)
 
     def _add_oren_component(self, mat, comp):
         diffuse = comp.get("diffuse", None)
@@ -167,6 +179,8 @@ class IRender:
                 self._add_phong_component(mat, comp)
             elif typ == "oren":
                 self._add_oren_component(mat, comp)
+            elif typ == "ward":
+                self._add_ward_component(mat, comp)
         self.renderer.add(name, mat)
 
 
@@ -362,6 +376,8 @@ class IRender:
             return "PhongSpecular"
         elif type(component) == OrenNayar:
             return "OrenNayar"
+        elif type(component) == WardAnisotropic:
+            return "WardAnisotropic"
         return ""
 
     def _get_photoreceptor_props(self, name):
@@ -497,6 +513,17 @@ class IRender:
                 return str(component.roughness)
             elif param_name == "scaler":
                 return str(component.k)
+        elif type(component) == WardAnisotropic:
+            if param_name == "reflectance":
+                return self._spectrum_to_string(component.spectrum)
+            elif param_name == "rgb_reflectance":
+                return self._rgb_reflectance(component.spectrum)
+            elif param_name == "alpha":
+                return str(component.alpha)
+            elif param_name == "beta":
+                return str(component.beta)
+            elif param_name == "scaler":
+                return str(component.k)
         return ""
 
     def _set_param_value(self, component, param_name, value):
@@ -530,6 +557,19 @@ class IRender:
                 component.spectrum = s
             elif param_name == "roughness":
                 component.roughness = float(value)
+            elif param_name == "scaler":
+                component.k = float(value)
+        elif type(component) == WardAnisotropic:
+            if param_name == "reflectance":
+                lam, val = value.split(',')
+                s = self._set_spectrum_value(component.spectrum, lam, val)
+            elif param_name == "rgb_reflectance":
+                s = self._create_spectrum(value)
+                component.spectrum = s
+            elif param_name == "alpha":
+                component.alpha = float(value)
+            elif param_name == "beta":
+                component.beta = float(value)
             elif param_name == "scaler":
                 component.k = float(value)
 

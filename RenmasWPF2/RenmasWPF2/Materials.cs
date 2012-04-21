@@ -149,6 +149,43 @@ namespace RenmasWPF2
                 }
             }
         }
+
+        public float Alpha
+        {
+            get
+            {
+                string s = this.renmas.GetProp("material_params", this._selected_material + "," + this._selected_component + "," + "alpha");
+                if (s == "") return 0.0f;
+                return Convert.ToSingle(s);
+            }
+            set
+            {
+                if (value > 0.0f)
+                {
+                    this.renmas.SetProp("material_params", this._selected_material + "," + this._selected_component + ",alpha", value.ToString());
+                    this.OnPropertyChanged("Alpha");
+                }
+            }
+        }
+
+        public float Beta
+        {
+            get
+            {
+                string s = this.renmas.GetProp("material_params", this._selected_material + "," + this._selected_component + "," + "beta");
+                if (s == "") return 0.0f;
+                return Convert.ToSingle(s);
+            }
+            set
+            {
+                if (value > 0.0f)
+                {
+                    this.renmas.SetProp("material_params", this._selected_material + "," + this._selected_component + ",beta", value.ToString());
+                    this.OnPropertyChanged("Beta");
+                }
+            }
+        }
+
         public float Roughness
         {
             get

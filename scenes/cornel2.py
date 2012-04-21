@@ -24,7 +24,7 @@ white_source=[ (400, 0.343), (404, 0.445), (408, 0.551), (412, 0.624), (416, 0.6
         (652, 0.730), (656, 0.727), (660, 0.707), (664, 0.703), (668, 0.729), (672, 0.750), (676, 0.760), (680, 0.751),
         (684, 0.739), (688, 0.724), (692, 0.730), (696, 0.740), (700, 0.737) ]
 irender.add_material(name="white", type="lambertian", source=white_source,samplings="default")
-irender.add_material(name="reflective_white", type="lambertian", source=white_source,samplings="perfect_specular, lambertian")
+irender.add_material(name="reflective_white", type="lambertian", source=(0.9,0.9,0.9),samplings="perfect_specular")
 
 
 green_source=[ (400, 0.092), (404, 0.096), (408, 0.098), (412, 0.097), (416, 0.098), (420, 0.095), (424, 0.095),
@@ -69,7 +69,7 @@ irender.add_shape(type="rectangle", name="Ceiling", material="white", P=(0,54.88
 
 # short box
 #top
-irender.add_shape(type="rectangle", name="short_top", material="white", P=(13,16.5,6.5), Edge_a=(-4.8,0,16), Edge_b=(16,0,4.9), Normal=(0,1,0))
+irender.add_shape(type="rectangle", name="short_top", material="red", P=(13,16.5,6.5), Edge_a=(-4.8,0,16), Edge_b=(16,0,4.9), Normal=(0,1,0))
 
 irender.add_shape(type="rectangle", name="short_side1", material="white", P=(13,0,6.5), Edge_a=(-4.8,0,16), Edge_b=(0,16.5,0), Normal=(-0.95782628,0,-0.2873478))
 
@@ -94,5 +94,10 @@ irender.add_shape(type="rectangle", name="tall_side4", material="white", P=(47.2
 comp1 = {"type":"oren", "roughness":0.48, "diffuse":(0.2, 0.4, 0.7)}
 comp2 = {"type":"phong", "n":2.48, "specular":(0.3, 0.3, 0.3), "sampling":"phong"}
 irender.add_material(name="rough1", components=[comp1,comp2], samplings="lambertian")
-irender.add_shape(type="sphere", name="Sphere00", radius=7.0, position=(20.0, 30.0, 30.0), material="rough1")
+
+comp1 = {"type":"oren", "roughness":1.0, "diffuse":(0.2, 0.4, 0.7)}
+comp2 = {"type":"ward", "alpha":0.10, "beta":0.6, "specular":(0.8, 0.8, 0.8)}
+irender.add_material(name="ward1", components=[comp1,comp2], samplings="lambertian")
+
+irender.add_shape(type="sphere", name="Sphere00", radius=9.0, position=(18.0, 35.0, 23.0), material="ward1")
 

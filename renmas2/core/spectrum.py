@@ -58,6 +58,14 @@ class Spectrum:
         else:
             return Spectrum(False, (self.r * col.r, self.g * col.g, self.b * col.b))
 
+    def div_spectrum(self, col):
+        if self.sampled:
+            samples = [self.samples[i] / col.samples[i] for i in range(len(self.samples))]
+            return Spectrum(True, samples)
+        else:
+            return Spectrum(False, (self.r / col.r, self.g / col.g, self.b / col.b))
+
+
     def scale(self, t):
         if self.sampled:
             self.samples = [self.samples[i] * t for i in range(len(self.samples))]
@@ -102,4 +110,5 @@ class Spectrum:
             self.r = value
             self.g = value
             self.b = value
+        return self
 

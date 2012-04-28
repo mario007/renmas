@@ -3,13 +3,13 @@ import os
 import renmas2
 import renmas2.shapes
 from renmas2.core import Vector3
-from renmas2.lights import PointLight
+from renmas2.lights import PointLight, ConstEnvironmentLight
 from .material import Material
 from renmas2.materials import HemisphereCos, PerfectSpecularSampling, LambertianSampling, PhongSampling
 from ..cameras import Pinhole
 from ..tone_mapping import PhotoreceptorOperator, ReinhardOperator
-from ..materials import Lambertian, Phong, OrenNayar, WardAnisotropic
-
+from ..materials import Lambertian, Phong, OrenNayar, WardAnisotropic, PerfectSpecular, FresnelDielectric
+from ..materials import PerfectTransmission, PerfectTransmissionSampling
 
 class IRender:
     def __init__(self, renderer):
@@ -37,6 +37,13 @@ class IRender:
                 spec.scale(float(scaler))
             pos = Vector3(float(p[0]), float(p[1]), float(p[2]))
             l = PointLight(pos, spec)
+            self.renderer.add(name, l)
+            return l
+        elif typ == "environment":
+            s = kw.get("source")
+            name = kw.get("name", None)
+            spec = self.renderer.converter.create_spectrum(s, True)
+            l = ConstEnvironmentLight(spec)
             self.renderer.add(name, l)
             return l
 
@@ -161,13 +168,45 @@ class IRender:
         oren = self.factory.create_oren_nayar(spectrum, 0.45) 
         mat.add(oren)
 
+    def _add_perfect_specular_component(self, mat, comp):
+        specular = comp.get("specular", None)
+        if type(specular) == str:
+            specular = self.renderer.spd.load("real_object", specular)
+        spectrum = self.renderer.converter.create_spectrum(specular)
+        ior = comp.get("ior", None)
+        if ior is None: raise ValueError("Missing ior")
+        eta_in = spectrum.zero_spectrum().set(float(ior))
+        eta_out = spectrum.zero_spectrum().set(1.0)
+        fresnel = FresnelDielectric(eta_in, eta_out) 
+
+        perf_spec = PerfectSpecular(spectrum, fresnel, 1.0)
+        mat.add(perf_spec)
+        mat.add(PerfectSpecularSampling())
+
+    def _add_perfect_transmission_component(self, mat, comp):
+        specular = comp.get("specular", None)
+        if type(specular) == str:
+            specular = self.renderer.spd.load("real_object", specular)
+        spectrum = self.renderer.converter.create_spectrum(specular)
+        ior = comp.get("ior", None)
+        if ior is None: raise ValueError("Missing ior")
+        eta_in = spectrum.zero_spectrum().set(float(ior))
+        eta_out = spectrum.zero_spectrum().set(1.0)
+        fresnel = FresnelDielectric(eta_in, eta_out) 
+
+        perf_trans = PerfectTransmission(spectrum, fresnel, 1.0)
+        mat.add(perf_trans)
+        sampl = PerfectTransmissionSampling(fresnel._avg_eta_in, fresnel._avg_eta_out)
+        mat.add(sampl)
+
     def _create_material(self, kw):
         name = kw.get("name", None)
         samplings = kw.get("samplings", None)
         if name is None: return
         mat = Material(self.renderer.converter.zero_spectrum())
         if samplings is None:
-            mat.add(HemisphereCos())
+            pass
+            #mat.add(HemisphereCos())
         else:
             self._add_brdf_samplings(mat, samplings)
         components = kw.get("components")
@@ -181,6 +220,10 @@ class IRender:
                 self._add_oren_component(mat, comp)
             elif typ == "ward":
                 self._add_ward_component(mat, comp)
+            elif typ == "perfect_specular":
+                self._add_perfect_specular_component(mat, comp)
+            elif typ == "perfect_transmission":
+                self._add_perfect_transmission_component(mat, comp)
         self.renderer.add(name, mat)
 
 
@@ -359,7 +402,7 @@ class IRender:
         if comp_name.startswith('brdf'):
             components = material._brdfs
         elif comp_name.startswith('btdf'):
-            components = material._btdfs
+            return "Perfect Transmission"
         else:
             return ""
         try:
@@ -430,9 +473,9 @@ class IRender:
         material = self.renderer.shader.material(name)
         if material is None:
             return ""
-        names = ["brdf"+ str(c) for c in range(len(material._brdfs))]
-        names2 = ["btdf"+ str(c) for c in range(len(material._btdfs))]
-        all_names = names + names2
+        all_names = ["brdf"+ str(c) for c in range(len(material._brdfs))]
+        if material._btdf is not None:
+            all_names.append("btdf") 
         return ",".join(all_names)
 
     def _get_material_name(self, shape_name):
@@ -449,7 +492,7 @@ class IRender:
         if comp_name.startswith('brdf'):
             components = material._brdfs
         elif comp_name.startswith('btdf'):
-            components = material._btdfs
+            return material._btdf
         else:
             return None 
         try:

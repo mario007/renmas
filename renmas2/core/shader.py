@@ -1,5 +1,5 @@
 
-from ..lights import Light
+from ..lights import Light, EnvironmentLight
 from .material import Material
 from .spectrum import Spectrum
 
@@ -15,6 +15,11 @@ class Shader:
         # containers for lights  
         self._lights = {}
         self._lights_lst = []
+        self._environment_light = None
+
+    @property
+    def environment_light(self):
+        return self._environment_light
 
     def mat_idx(self, name):
         if name in self._materials:
@@ -62,6 +67,12 @@ class Shader:
                 return #Light allready exist -- create log
             self._lights[name] = obj
             self._lights_lst.append(obj)
+        elif isinstance(obj, EnvironmentLight):
+            if name in self._lights:
+                return #Light allready exist -- create log
+            self._lights[name] = obj
+            self._lights_lst.append(obj)
+            self._environment_light = obj
 
     def shade(self, hp):
 
@@ -77,7 +88,8 @@ class Shader:
         for light in lights:
             if light.L(hp, self._renderer): #light is visible
                 material.f(hp)
-                tmp_spec += hp.f_spectrum.mix_spectrum(hp.l_spectrum) * hp.ndotwi 
+                tmp_spec += hp.f_spectrum.mix_spectrum(hp.l_spectrum)
+                #tmp_spec += hp.f_spectrum.mix_spectrum(hp.l_spectrum) * hp.ndotwi 
 
         # indirect illumination
         #to calculate next direction
@@ -140,9 +152,8 @@ class Shader:
             lea ecx, dword [eax + hitpoint.l_spectrum]
             macro spectrum ecx = ecx * ebx 
             mov eax, dword [hp_ptr]
-            macro eq32 xmm0 = eax.hitpoint.ndotwi
             lea ecx, dword [eax + hitpoint.l_spectrum]
-            macro spectrum ecx = xmm0 * ecx 
+
             mov edx, temp_spectrum 
             macro spectrum edx = edx + ecx
             jmp next_light

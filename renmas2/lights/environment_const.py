@@ -1,17 +1,14 @@
-from .light import Light
 
-class PointLight(Light):
-    def __init__(self, position, spectrum):
-        self._position = position
+import math
+from random import random
+from .light import EnvironmentLight
+from ..core import Vector3
+
+
+class ConstEnvironmentLight(EnvironmentLight):
+    def __init__(self, spectrum):
         self._spectrum = spectrum
         self._ds = []
-
-    def _set_position(self, value):
-        self._position = value
-        self._populate_ds()
-    def _get_position(self):
-        return self._position
-    position = property(_get_position, _set_position)
 
     def _set_spectrum(self, value):
         self._spectrum = value
@@ -20,28 +17,10 @@ class PointLight(Light):
         return self._spectrum
     spectrum = property(_get_spectrum, _set_spectrum)
 
-    def L(self, hitpoint, renderer):
-        # 1. check visibility
-        # 2. populate light vector in hitpoint and spectrum of light
-
-        wi = self._position - hitpoint.hit_point
-        wi.normalize()
-        ndotwi = hitpoint.normal.dot(wi)
-        hitpoint.wi = wi 
-        hitpoint.ndotwi = ndotwi
-        ndotwo = hitpoint.normal.dot(hitpoint.wo) #TODO remove this
-        if ndotwi < 0.0:
-            hitpoint.visible = False
-            return False
-
-        ret = renderer._intersector.visibility(self._position, hitpoint.hit_point)
-        if ret:
-            hitpoint.l_spectrum = self._spectrum #TODO reduce intesity, attenuation options  1/r^2
-            hitpoint.visible = True
-            return True
-        else:
-            hitpoint.visible = False
-            return False
+    def _populate_ds(self):
+        for ds in self._ds:
+            s = self._spectrum
+            ds["l_spectrum.values"] = s.to_ds()
 
     #eax - pointer to hitpoint structure
     def L_asm(self, runtimes, visible_label, assembler, structures):
@@ -91,12 +70,52 @@ class PointLight(Light):
             self._ds.append(r.load(name, mc)) 
         self._populate_ds()
 
-    def _populate_ds(self):
-        for ds in self._ds:
-            p = self._position
-            ds["position"] = (p.x, p.y, p.z, 0.0)
-            s = self._spectrum
-            ds["l_spectrum.values"] = s.to_ds()
+    def L(self, hitpoint, renderer):
+        # 1. check visibility
+        # 2. populate light vector in hitpoint and spectrum of light
+
+        # 1. generate wi direction
+        # sampling hemisphere
+        r1 = random()
+        r2 = random()
+
+        phi = 2.0 * math.pi * r2
+        pu = math.sqrt(1.0 - r1) * math.cos(phi)
+        pv = math.sqrt(1.0 - r1) * math.sin(phi)
+        pw = math.sqrt(r1)
+
+        w = hitpoint.normal
+        tv = Vector3(0.0034, 1.0, 0.0071)
+        v = tv.cross(w)
+        v.normalize()
+        u = v.cross(w)
+
+        wi = u * pu + v * pv + w * pw 
+        wi.normalize()
+
+        ndotwi = hitpoint.normal.dot(wi)
+        pdf = ndotwi / math.pi 
+
+        hitpoint.wi = wi 
+        hitpoint.ndotwi = ndotwi
+
+        if ndotwi < 0.0:
+            hitpoint.visible = False
+            return False
+
+        t = 5000000.0 # huge t
+        dist_point = hitpoint.hit_point + wi * t
+        ret = renderer._intersector.visibility(dist_point, hitpoint.hit_point)
+        if ret:
+            hitpoint.l_spectrum = self._spectrum * (1.0 / pdf)
+            hitpoint.visible = True
+            return True
+        else:
+            hitpoint.visible = False
+            return False
+
+    def Le(self, direction): # return constant spectrum
+        return self._spectrum
 
     def convert_spectrums(self, converter):
         self._spectrum = converter.convert_spectrum(self._spectrum, True)

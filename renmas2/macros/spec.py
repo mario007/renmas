@@ -1,7 +1,7 @@
 
 import renmas2.switch as proc
 
-#Implement for loops version for arithmetic!!!, its not har to do!
+#Implement for loops version for arithmetic!!!, its not hard to do!
 
 class MacroSpectrum:
     def __init__(self, renderer):
@@ -245,6 +245,7 @@ class MacroSpectrum:
                     com = "vaddps "
                     if operator == "-": com = "vsubps "
                     if operator == "*": com = "vmulps "
+                    if operator == "/": com = "vdivps "
                     code += com + " xmm0, xmm0, oword[" + r3 + " + spectrum.values] \n"
                 code += "vmovaps oword[" + r1 + " + spectrum.values], xmm0 \n"
         else:
@@ -265,6 +266,7 @@ class MacroSpectrum:
                     com = "addps "
                     if operator == "-": com = "subps "
                     if operator == "*": com = "mulps "
+                    if operator == "/": com = "divps "
                     code += com + " xmm0, oword[" + r3 + " + spectrum.values] \n"
                 code += "movaps oword[" + r1 + " + spectrum.values], xmm0 \n"
 
@@ -322,16 +324,18 @@ class MacroSpectrum:
 
                 if proc.AVX: off += 32 
                 else: off += 16 
-        if command == "+" or command == "-" or command == "*":
+        if command == "+" or command == "-" or command == "*" or command == "/":
             if proc.AVX:
                 com = "vaddps "
                 if command == "-": com = "vsubps "
                 if command == "*": com = "vmulps "
+                if command == "/": com = "vdivps "
                 regs = self.ymm_regs
             else:
                 com = "addps "
                 if command == "-": com = "subps "
                 if command == "*": com = "mulps "
+                if command == "/": com = "divps "
                 regs = self.xmm_regs
 
             for i in range(n):

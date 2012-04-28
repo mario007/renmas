@@ -57,6 +57,7 @@ HITPOINT = """
     float pdf
     float light_pdf
     uint32 specular
+    uint32 fliped
     spectrum le_spectrum
     spectrum f_spectrum 
     spectrum l_spectrum 

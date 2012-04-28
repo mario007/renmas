@@ -5,7 +5,7 @@ from ..samplers import RandomSampler, RegularSampler
 from ..cameras import Pinhole
 from ..integrators import Raycast, IsectIntegrator, Pathtracer
 from ..shapes import Shape
-from ..lights import Light
+from ..lights import Light, EnvironmentLight
 from ..macros import MacroSpectrum, MacroCall, arithmetic128, arithmetic32, broadcast,\
                                         macro_if, dot_product, normalization, cross_product
 from ..materials import HemisphereCos
@@ -269,7 +269,7 @@ class Renderer:
             self._intersector.add(name, obj)
             #TODO material exist dont assign default think!!!
             self.assign_material(name, self._default_material)
-        elif isinstance(obj, Material) or isinstance(obj, Light):
+        elif isinstance(obj, Material) or isinstance(obj, Light) or isinstance(obj, EnvironmentLight):
             self._shader.add(name, obj)
         else:
             raise ValueError("Unknown type of object!") #TODO log not exception !!! exception is just for testing

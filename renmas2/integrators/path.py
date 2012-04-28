@@ -25,8 +25,8 @@ class Pathtracer(Integrator):
 
         path = background.zero_spectrum()
         path.set(1.0)
-        max_depth = 3
-        treshold = 0.7 
+        max_depth = 9 
+        treshold = 0.01 
         counter = 0
 
         while True:
@@ -41,28 +41,46 @@ class Pathtracer(Integrator):
                 cur_depth = 1
                 while True:
                     hp.wo = ray.dir * -1.0
+                    hp.fliped = False
                     if hp.normal.dot(ray.dir) > 0.0:
                         hp.normal = hp.normal * -1.0
+                        hp.fliped = True
                     hp.specular = 0
                     spectrum = shader.shade(hp)
+
                     L = L + spectrum.mix_spectrum(path)
                     Y = conv.Y(path)
                     #print(cur_depth, Y)
-                    if cur_depth >= max_depth or Y < treshold: break
+                    if cur_depth >= max_depth or Y < treshold: 
+                        film.add_sample(sam, L)
+                        break
                     material = shader._materials_idx[hp.material]
                     hp.specular = 0
-                    material.next_direction(hp)
-                    material.f(hp)
-                    path = path.mix_spectrum(hp.f_spectrum * (abs(hp.ndotwi)/hp.pdf))
-                    cur_depth += 1
 
+                    #material.next_direction(hp)
+                    material.bsdf_next_direction(hp)
+                    #material.f(hp)
+
+                    path = path.mix_spectrum(hp.f_spectrum*(1.0/hp.pdf))
+                    cur_depth += 1
+                    
                     ray = Ray(hp.hit_point, hp.wi)
                     hp = intersector.isect(ray) 
-                    if not hp: break
+                    if not hp: 
+                        if shader.environment_light is not None:
+                            le = shader.environment_light.Le(ray.dir)
+                            L = L + le.mix_spectrum(path)
+                            film.add_sample(sam, L)
+                        else:
+                            film.add_sample(sam, L)
+                        break
                     
-                film.add_sample(sam, L)
+                #film.add_sample(sam, L)
             else:
-                film.add_sample(sam, background)
+                if shader.environment_light is not None:
+                    film.add_sample(sam, shader.environment_light.Le(ray.dir))
+                else:
+                    film.add_sample(sam, background)
 
     def _algorithm_asm(self, runtimes):
         
@@ -70,11 +88,6 @@ class Pathtracer(Integrator):
             #DATA
         """
         mat_list = self._renderer.shader._materials_lst
-
-        if proc.AVX:
-            absolute = "vandps xmm0, xmm0, oword [absolute] \n"
-        else:
-            absolute = "andps xmm0, oword [absolute] \n"
 
         code += self._renderer.structures.structs(('sample', 'ray', 'hitpoint')) + """
             sample sample1
@@ -90,9 +103,7 @@ class Pathtracer(Integrator):
             spectrum background
             spectrum temp_spectrum
             float treshold = 0.01
-            uint32 absolute[4] = 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF
             """
-        code += "uint32 materials_ptrs[" + str(len(mat_list)) + "]\n"
         code += "uint32 samplings[" + str(len(mat_list)) + "]\n"
         code += """
 
@@ -128,11 +139,13 @@ class Pathtracer(Integrator):
             ; call shading routine
             mov eax, hp1
             mov ebx, ray1 
+            mov dword [eax + hitpoint.fliped], 0
             macro eq128 eax.hitpoint.wo = ebx.ray.dir * minus_one {xmm0} 
             macro dot xmm1 = eax.hitpoint.normal * ebx.ray.dir {xmm5, xmm6}
             macro if xmm1 < zero goto __shade
             macro eq128 xmm0 = eax.hitpoint.normal * minus_one
             macro eq128 eax.hitpoint.normal = xmm0 {xmm1}
+            mov dword [eax + hitpoint.fliped], 1
             __shade:
             mov dword [eax + hitpoint.specular], 0
             call shade
@@ -149,21 +162,13 @@ class Pathtracer(Integrator):
             mov eax, dword [max_depth]
             cmp eax, dword [cur_depth]
             je _write_sample
-            ; call next direction and  brdf of material
+            ; call bsdf next direction 
             mov eax, hp1 
             mov dword [eax + hitpoint.specular], 0
             mov ebx, dword [eax + hitpoint.mat_index]
             call dword [samplings + 4*ebx] 
             mov eax, hp1
-            mov ebx, dword [eax + hitpoint.mat_index]
-            call dword [materials_ptrs + 4*ebx] 
-            mov eax, hp1
-            macro eq32 xmm0 = eax.hitpoint.ndotwi
-            """
-        code += absolute + """
-            ;macro eq128 xmm0 = xmm0 & absolute
-            macro eq32 xmm0 = xmm0 / eax.hitpoint.pdf
-            ;macro eq32 xmm0 = eax.hitpoint.ndotwi / eax.hitpoint.pdf
+            macro eq32 xmm0 = one / eax.hitpoint.pdf
             lea ebx, dword [eax + hitpoint.f_spectrum]
             mov ecx, temp_spectrum
             macro spectrum ecx = xmm0 * ebx
@@ -202,7 +207,7 @@ class Pathtracer(Integrator):
 
         ren = self._renderer
         for m in mat_list:
-            m.next_direction_asm(runtimes, ren.structures, ren.assembler)
+            m.bsdf_next_direction_asm(runtimes, ren.structures, ren.assembler)
 
         mc = self._renderer.assembler.assemble(code)
         #mc.print_machine_code()
@@ -211,8 +216,6 @@ class Pathtracer(Integrator):
         for r in runtimes:
             ds = r.load(name, mc)
             self._ds.append(ds)
-            m_ptrs = [r.address_module(m.f_asm_name) for m in mat_list]
-            ds["materials_ptrs"] = tuple(m_ptrs)
             samplings_ptr = [r.address_module(m.nd_asm_name) for m in mat_list]
             ds["samplings"] = tuple(samplings_ptr)
 
@@ -238,7 +241,8 @@ class Pathtracer(Integrator):
         ren = self._renderer
         self._background = ren.converter.create_spectrum((0.00, 0.0, 0.0))
 
-        self._runtimes = [Runtime(code=2, data=2) for n in range(ren.threads)] 
+        #TODO -- allocate memory depending of the scene -- assembler support is missing for this!!!
+        self._runtimes = [Runtime(code=8, data=8) for n in range(ren.threads)] 
         ren.macro_call.set_runtimes(self._runtimes)
         ren.sampler.get_sample_asm(self._runtimes, 'get_sample', ren.assembler, ren.structures)
         ren.camera.ray_asm(self._runtimes, 'get_ray', ren.assembler, ren.structures)

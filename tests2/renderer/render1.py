@@ -41,6 +41,11 @@ print (irender.get_props('misc', 'pixel_size'))
 #filename = 'I:\\GitRENMAS\\scenes\\ward_example.py'
 #filename = 'I:\\GitRENMAS\\scenes\\troll.py'
 filename = 'I:\\GitRENMAS\\scenes\\cornel2.py'
+#filename = 'I:\\GitRENMAS\\scenes\\environment_light.py'
+#filename = 'I:\\GitRENMAS\\scenes\\primaca.py'
+#filename = 'I:\\GitRENMAS\\scenes\\dielectric1.py'
+#filename = 'I:\\GitRENMAS\\scenes\\dielectric2.py'
+#filename = 'I:\\GitRENMAS\\scenes\\dielectric3.py'
 #filename = 'I:\\GitRENMAS\\scenes\\cube_mesh.py'
 #filename = 'I:\\GitRENMAS\\scenes\\lux_ball.py'
 #filename = 'I:\\GitRENMAS\\scenes\\cube.py'
@@ -56,6 +61,8 @@ irender.set_props('misc', 'selected_operator',  "Reinhard")
 print("Operator", irender.get_props("misc", "selected_operator"))
 print("Tonemapping", irender.get_props("misc", "tone_mapping"))
 
+print("Komponenta", irender.get_props("material_components", "default"))
+
 #print(irender.get_props("misc", "shapes"))
 #print(irender.get_props("misc", "materials"))
 #print ("Materials for shapes")
@@ -70,7 +77,7 @@ for l  in renderer.shader.light_names():
     print(l)
 #renderer.spectral_rendering = True
 renderer.prepare()
-#print(renderer.get_log())
+print(renderer.get_log())
 #print(irender.get_props("misc", "log"))
 
 #start = time.clock()

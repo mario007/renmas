@@ -91,6 +91,7 @@ class PerfectTransmission(BTDF):
     def convert_spectrums(self, converter):
         spectrum = converter.convert_spectrum(self._spectrum)
         self._spectrum = spectrum
+        self._one_spectrum = converter.convert_spectrum(self._one_spectrum)
 
         self._fresnel.convert_spectrums(converter)
 

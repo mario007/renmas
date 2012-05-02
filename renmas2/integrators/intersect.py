@@ -20,7 +20,7 @@ class IsectIntegrator(Integrator):
         film = ren.film
         background = ren.converter.create_spectrum((0.70, 0.0, 0.0))
         foreground = ren.converter.create_spectrum((0.0, 0.70, 0.0))
-
+        
         while True:
             sam = sampler.get_sample()
             if sam is None: break 

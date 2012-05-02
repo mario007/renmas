@@ -31,11 +31,11 @@ class Renderer:
     def _default_objects(self):
         self._converter = SpectrumConverter(self)
         self._intersector = Intersector(self)
-        #self._integrator = IsectIntegrator(self)
+        self._integrator = IsectIntegrator(self)
         #self._integrator = Raycast(self)
-        self._integrator = Pathtracer(self)
-        #self._sampler = RegularSampler(self._width, self._height)
-        self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
+        #self._integrator = Pathtracer(self)
+        self._sampler = RegularSampler(self._width, self._height)
+        #self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
         self._spp = self._sampler._spp
         self._film = Film(self._width, self._height, self._spp, self)
         self._camera = Pinhole(eye=(0,0,10), lookat=(0,0,0), distance=400)
@@ -87,7 +87,7 @@ class Renderer:
         self._end_lambda = 720
         self._default_material = "default" #name of default material
         self._asm = False 
-        self._tone_mapping = True 
+        self._tone_mapping = False 
         self._current_pass = 0
 
     def _set_spec(self, value):

@@ -50,6 +50,7 @@ class Shader:
         return None
 
     def convert_spectrums(self):
+        #environment light is also in the list so everything is ok for conversion
         for l in self._lights_lst:
             l.convert_spectrums(self._renderer.converter)
         for m in self._materials_lst:

@@ -78,7 +78,12 @@ class Material:
 
         self.f(hitpoint)
 
-    def bsdf_next_direction(self, hitpoint):
+    def next_direction_btdf(self, hitpoint):
+        self._btdf_sampler.next_direction(hitpoint)
+        hitpoint.pdf = self._btdf_sampler.pdf(hitpoint)
+        self.btdf(hitpoint)
+
+    def next_direction_bsdf(self, hitpoint):
         # if it is not dielectric call brdf next direction
         if self._btdf is None or self._btdf_sampler is None:
             self.next_direction(hitpoint)
@@ -91,22 +96,19 @@ class Material:
             self.next_direction(hitpoint)
             return
         else:
-            cosi = hitpoint.ndotwi
+            #cosi = hitpoint.ndotwi
             k = 0.04
-            P = k / 2.0 + (1 - k) * self._btdf._fresnel.schlick(hitpoint.ndotwi) 
+            #P = k / 2.0 + (1 - k) * self._btdf._fresnel.schlick(hitpoint.ndotwi) 
+            P = 0.05
             if random() < P:
                 self.next_direction(hitpoint)
                 hitpoint.f_spectrum = hitpoint.f_spectrum * (1/P)  
             else:
-                self._btdf_sampler.next_direction(hitpoint)
-                hitpoint.pdf = self._btdf_sampler.pdf(hitpoint)
-                self.btdf(hitpoint)
+                self.next_direction_btdf(hitpoint)
                 hitpoint.f_spectrum = hitpoint.f_spectrum * (1/(1.0-P)) 
 
-    def bsdf_next_direction_asm(self, runtimes, structures, assembler):
+    def next_direction_bsdf_asm(self, runtimes, structures, assembler):
         # if it is not dielectric call brdf next direction
-        self.next_direction_asm(runtimes, structures, assembler)
-        return
         if self._btdf is None or self._btdf_sampler is None:
             self.next_direction_asm(runtimes, structures, assembler)
             return
@@ -115,10 +117,74 @@ class Material:
         next_btdf = "bsdf_next_btdf" + str(abs(hash(self)))
         self.next_direction_asm(runtimes, structures, assembler, next_brdf)
         self.next_direction_btdf_asm(runtimes, structures, assembler, next_btdf)
+        ASM = """ 
+            #DATA
+        """
+        ASM += structures.structs(("hitpoint",))
+        ASM += """
+            float eta_out
+            float eta_in
+            float one = 1.0
+            float P = 0.05
+            uint32 hp_ptr
+            float cosi
+            #CODE
+            mov dword [hp_ptr], eax ;save pointer to hitpoint
+            macro dot xmm0 = eax.hitpoint.normal * eax.hitpoint.wo {xmm6, xmm7}
+            macro eq32 cosi = xmm0 {xmm7}
+            mov ebx, dword [eax + hitpoint.fliped]
+            cmp ebx, 1
+            jne _outside
+            macro eq32 xmm1 = eta_out / eta_in
+            jmp _next
+            _outside:
+            macro eq32 xmm1 = eta_in / eta_out
+            _next:
+            ; check for TIR
+            macro eq32 xmm0 = xmm0 * xmm0 
+            macro eq32 xmm1 = xmm1 * xmm1
+            macro eq32 xmm2 = one - xmm0
+            macro eq32 xmm2 = xmm2 / xmm1
+            macro eq32 xmm3 = one - xmm2
+            macro call zero xmm4
+            macro if xmm3 > xmm4 goto _next2
+            mov eax, dword [hp_ptr]
+        """
+        ASM += "call " + next_brdf + """ 
+            ret
+            _next2:
+            macro call random
+            macro if xmm0 < P goto _calc_brdf_next
+            mov eax, dword [hp_ptr]
+        """
+        ASM += "call " + next_btdf + """ 
+            macro eq32 xmm1 = one - P
+            macro eq32 xmm0 = one / xmm1
+            mov eax, dword [hp_ptr]
+            lea ecx, dword [eax + hitpoint.f_spectrum]
+            macro spectrum ecx = xmm0 * ecx
+            ret
 
-        raise ValueError("Not yet implemented.")
-        # Material is dielectric
-        #TODO
+            _calc_brdf_next:
+            mov eax, dword [hp_ptr]
+        """
+        ASM += "call " + next_brdf + """ 
+            macro eq32 xmm0 = one / P
+            mov eax, dword [hp_ptr]
+            lea ecx, dword [eax + hitpoint.f_spectrum]
+            macro spectrum ecx = xmm0 * ecx
+            ret
+
+        """
+
+        mc = assembler.assemble(ASM, True)
+        #print(code)
+        #mc.print_machine_code()
+        self.nd_asm_name = name = "material_ndir_bsdf" + str(hash(self))
+        for r in runtimes:
+            ds = r.load(name, mc)
+            ds["eta_out"] = self._btdf_sampler._eta_out
+            ds["eta_in"] = self._btdf_sampler._eta_in
 
     def next_direction_btdf_asm(self, runtimes, structures, assembler, label=None):
         if self._btdf is None: raise ValueError("Missing btdf!!!")
@@ -126,6 +192,9 @@ class Material:
 
         label_btdf = "mat_next_btdf" + str(abs(hash(self)))
         self._next_btdf_asm(runtimes, assembler, structures, label_btdf)
+
+        self._btdf_sampler.next_direction_asm(runtimes, structures, assembler)
+        sampling_name = self._btdf_sampler.nd_asm_name
 
         ASM = """ 
             #DATA
@@ -160,7 +229,7 @@ class Material:
         self.nd_asm_name = name = "material_ndir_btdf" + str(hash(self))
         for r in runtimes:
             ds = r.load(name, mc)
-            ds["sampling_ptrs"] = r.address_module(name)
+            ds["sampling_ptrs"] = r.address_module(sampling_name)
             self._btdf_sampler.pdf_ds(ds)
 
     #eax pointer to hitpoint
@@ -310,6 +379,7 @@ class Material:
         #print(code)
         #mc.print_machine_code()
 
+        name = "mat_next_btdf_dir" + str(abs(hash(self)))
         self._next_btdf_ds = []
         for r in runtimes:
             self._next_btdf_ds.append(r.load(name, mc))
@@ -322,7 +392,7 @@ class Material:
         
         code = self._brdf_asm_code(runtimes, assembler, structures, label)
         mc = assembler.assemble(code, True)
-        name = "mat_next_dir" + str(abs(hash(self)))
+        name = "mat_next_brdf_dir" + str(abs(hash(self)))
         self._next_ds = []
         for r in runtimes:
             self._next_ds.append(r.load(name, mc))
@@ -420,4 +490,6 @@ class Material:
         self._spectrum = converter.convert_spectrum(self._spectrum)
         for c in self._brdfs:
             c.convert_spectrums(converter)
+        if self._btdf is not None:
+            self._btdf.convert_spectrums(converter)
 

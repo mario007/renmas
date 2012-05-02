@@ -58,7 +58,7 @@ class Pathtracer(Integrator):
                     hp.specular = 0
 
                     #material.next_direction(hp)
-                    material.bsdf_next_direction(hp)
+                    material.next_direction_bsdf(hp)
                     #material.f(hp)
 
                     path = path.mix_spectrum(hp.f_spectrum*(1.0/hp.pdf))
@@ -88,6 +88,11 @@ class Pathtracer(Integrator):
             #DATA
         """
         mat_list = self._renderer.shader._materials_lst
+        label_environment = "environemtn_L" + str(abs(hash(self)))
+        if self._renderer.shader.environment_light is not None:
+            ren = self._renderer
+            env_light = ren.shader.environment_light
+            env_light.Le_asm(runtimes, ren.assembler, ren.structures, label_environment)
 
         code += self._renderer.structures.structs(('sample', 'ray', 'hitpoint')) + """
             sample sample1
@@ -96,7 +101,7 @@ class Pathtracer(Integrator):
             float one[4] = 1.0, 1.0, 1.0, 1.0
             float zero[4] = 0.0, 0.0, 0.0, 0.0
             hitpoint hp1
-            uint32 max_depth = 5
+            uint32 max_depth = 8
             uint32 cur_depth = 0
             spectrum path
             spectrum L
@@ -187,7 +192,20 @@ class Pathtracer(Integrator):
             cmp eax, 0
             jne _inner_loop
             
-            
+        """
+        if self._renderer.shader.environment_light is not None:
+            code += """
+            mov eax, ray1
+            macro eq128 xmm0 = eax.ray.dir
+            """
+            code += "call " + label_environment + """ 
+            mov ebx, path
+            macro spectrum ebx = ebx * eax 
+            mov ecx, L
+            macro spectrum ecx = ecx + ebx
+            """
+
+        code += """
             _write_sample:
             mov eax, L 
             mov ebx, sample1
@@ -195,10 +213,19 @@ class Pathtracer(Integrator):
             jmp _main_loop
 
             _write_background:
-            mov eax, background 
+        """
+        if self._renderer.shader.environment_light is not None:
+            code += """
+            mov eax, ray1
+            macro eq128 xmm0 = eax.ray.dir
+            """
+            code += "call " + label_environment + "\n"
+        else:
+            code += " mov eax, background \n"
+
+        code += """
             mov ebx, sample1 
             call add_sample
-
             jmp _main_loop
 
             _end_rendering:
@@ -207,7 +234,7 @@ class Pathtracer(Integrator):
 
         ren = self._renderer
         for m in mat_list:
-            m.bsdf_next_direction_asm(runtimes, ren.structures, ren.assembler)
+            m.next_direction_bsdf_asm(runtimes, ren.structures, ren.assembler)
 
         mc = self._renderer.assembler.assemble(code)
         #mc.print_machine_code()

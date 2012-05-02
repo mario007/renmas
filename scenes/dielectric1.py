@@ -1,5 +1,6 @@
 
-irender.options(asm=False, spectral=False, pixel_size=0.8, width=300, height=300, spp=1, threads=1)
+irender.options(asm=True, spectral=False, pixel_size=0.8, width=300, height=300,
+        spp=16, threads=1)
 irender.set_camera(type="perspective", eye=(27.6, 27.4, -80.0), lookat=(27.6,27.4,0.0), distance=400)
 
 #origina data for light
@@ -47,7 +48,7 @@ irender.add_material(name="red", type="lambertian", source=red_source,samplings=
 
 #create triangles for cornell
 ## BACK WALL
-irender.add_shape(type="rectangle", name="Back_wall", material="red", P=(0,0,55.92), Edge_a=(55.28,0,0), Edge_b=(0,54.88,0), Normal=(0,0,-1))
+irender.add_shape(type="rectangle", name="Back_wall", material="white", P=(0,0,55.92), Edge_a=(55.28,0,0), Edge_b=(0,54.88,0), Normal=(0,0,-1))
 
 ## LEFT WALL
 irender.add_shape(type="rectangle", name="Left_wall", material="red", P=(55.28,0,0), Edge_a=(0,0,55.92), Edge_b=(0,54.88,0), Normal=(-1,0,0))
@@ -62,7 +63,6 @@ irender.add_shape(type="rectangle", name="Floor", material="white", P=(0,0,0), E
 irender.add_shape(type="rectangle", name="Ceiling", material="white", P=(0,54.88,0), Edge_a=(0,0,55.92), Edge_b=(55.28,0,0), Normal=(0,-1,0))
 
 
-
 # Sphere
 comp1 = {"type":"oren", "roughness":0.48, "diffuse":(0.2, 0.4, 0.7)}
 comp2 = {"type":"phong", "n":2.48, "specular":(0.3, 0.3, 0.3), "sampling":"phong"}
@@ -70,11 +70,10 @@ irender.add_material(name="rough1", components=[comp1,comp2], samplings="lambert
 
 irender.add_shape(type="sphere", name="Sphere01", radius=9.0, position=(42.0, 15.0, 23.0), material="rough1")
 
-
-comp1 = {"type":"perfect_specular", "specular":(0.1, 0.1, 0.1), "ior":1.6}
-comp2 = {"type":"perfect_transmission", "specular":(0.9, 0.9, 0.9), "ior":1.6}
+comp1 = {"type":"perfect_specular", "specular":(1.0, 1.0, 1.0), "ior":1.5}
+comp2 = {"type":"perfect_transmission", "specular":(1.0, 1.0, 1.0), "ior":1.5}
 comp3 = {"type":"lambertian", "roughness":1.0, "diffuse":(0.1, 0.1, 0.1)}
-comp4 = {"type":"ward", "alpha":0.01, "beta":0.01, "specular":(0.1, 0.1, 0.1)}
+comp4 = {"type":"phong", "n":10, "specular":(0.5, 0.5, 0.5)}
 #irender.add_material(name="dielectric1", components=[comp1, comp2])
 irender.add_material(name="dielectric1", components=[comp1, comp2])
 

@@ -98,7 +98,6 @@ class Grid:
         self.max_length_in_cell = max_len
         self.num_objects = num_objects
         self.num_arrays = num_arrays
-        print(max_len, num_objects, num_arrays)
 
     #linear array looks like nobjects:{ptr_obj, ptr_func}
     def _create_grid(self, runtimes, intersector, visibility=False):
@@ -361,6 +360,7 @@ class Grid:
         float one_overn[4]
         uint32 grid_size[4]
         
+        uint32 temp_avx
         #CODE
         """
         code += " global " + label + ":\n" + """
@@ -426,13 +426,15 @@ class Grid:
             macro call andps xmm0, xmm2
         """
         if proc.AVX:
-            code += "vcomiss xmm0, dword [ones] \n"
+            code += "macro eq32 temp_avx = xmm0 {xmm0} \n"
+            code += "mov ecx, dword [temp_avx] \n"
         else:
-            code += "comiss xmm0, dword [ones] \n"
-
+            code += "movd ecx, xmm0 \n"
         code += """
-            jz point_inside ; point is inside bbox
+            cmp ecx, dword [ones]
+            je point_inside ; point is inside bbox
 
+            macro broadcast xmm6 = xmm6[0]
             macro eq128 xmm0 = eax.ray.dir * xmm6 + eax.ray.origin
             jmp next_section2
 
@@ -761,6 +763,7 @@ class Grid:
         float one_overn[4]
         uint32 grid_size[4]
         
+        uint32 temp_avx
         #CODE
         """
         code += " global " + label + ":\n" + """
@@ -827,13 +830,15 @@ class Grid:
             macro call andps xmm0, xmm2
         """
         if proc.AVX:
-            code += "vcomiss xmm0, dword [ones] \n"
+            code += "macro eq32 temp_avx = xmm0 {xmm0} \n"
+            code += "mov ecx, dword [temp_avx] \n"
         else:
-            code += "comiss xmm0, dword [ones] \n"
-
+            code += "movd ecx, xmm0 \n"
         code += """
-            jz point_inside ; point is inside bbox
+            cmp ecx, dword [ones]
+            je point_inside ; point is inside bbox
 
+            macro broadcast xmm6 = xmm6[0]
             macro eq128 xmm0 = eax.ray.dir * xmm6 + eax.ray.origin
             jmp next_section2
 
@@ -982,7 +987,6 @@ class Grid:
             _next_dx3:
 
             _traverse:
-
             ;cell = self.cells[ix + self.nx * iy + self.nx * self.ny * iz]
             mov eax, dword [n] ;self.nx
             mov ebx, dword [n+4] ;self.ny

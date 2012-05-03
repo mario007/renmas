@@ -28,6 +28,7 @@ class GridPerformanceTest(unittest.TestCase):
             float tx_next
             float ty_next
             float tz_next
+            uint32 temp
 
             #CODE
             mov eax, ray1
@@ -40,6 +41,7 @@ class GridPerformanceTest(unittest.TestCase):
             macro eq32 tx_next = xmm5 {xmm0}
             macro eq32 ty_next = xmm6 {xmm0}
             macro eq32 tz_next = xmm7 {xmm0}
+            macro eq32 temp = xmm0 {xmm0}
             #END
         """
         return code
@@ -49,7 +51,7 @@ class GridPerformanceTest(unittest.TestCase):
         ren = renmas2.Renderer()
         runtime = Runtime()
         irender = renmas2.IRender(ren)
-        filename = 'G:\\GitRENMAS\\renmas\\scenes\\mini_moris.py'
+        filename = 'I:\\GitRENMAS\\scenes\\mini_moris.py'
         exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(globals()))
 
         ren.prepare()
@@ -77,6 +79,7 @@ class GridPerformanceTest(unittest.TestCase):
                     print ("tx_next", ds["tx_next"])
                     print ("ty_next", ds["ty_next"])
                     print ("tz_next", ds["tz_next"])
+                    print ("temp", ds["temp"])
                     break
 
         hp = ren.intersector.isect(ray) 

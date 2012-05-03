@@ -232,6 +232,7 @@ class GridMesh:
         uint32 mat_idx
         float flt_max[4] = 999999999.0, 999999999.0, 999999999.0, 0.0
         float flt_min[4] = -999999999.0, -999999999.0, -999999999.0, 0.0
+        uint32 temp_avx
         #CODE
         """
         code += " global " + label + ":\n" + """
@@ -323,13 +324,15 @@ class GridMesh:
             macro call andps xmm0, xmm2
         """
         if proc.AVX:
-            code += "vcomiss xmm0, dword [ones] \n"
+            code += "macro eq32 temp_avx = xmm0 {xmm0} \n"
+            code += "mov ecx, dword [temp_avx] \n"
         else:
-            code += "comiss xmm0, dword [ones] \n"
-
+            code += "movd ecx, xmm0 \n"
         code += """
-            jz point_inside ; point is inside bbox
+            cmp ecx, dword [ones]
+            je point_inside ; point is inside bbox
 
+            macro broadcast xmm6 = xmm6[0]
             macro eq128 xmm0 = eax.ray.dir * xmm6 + eax.ray.origin
             jmp next_section2
 

@@ -186,6 +186,24 @@ namespace RenmasWPF2
             }
         }
 
+        public float SimpleIOR
+        {
+            get
+            {
+                string s = this.renmas.GetProp("material_params", this._selected_material + "," + this._selected_component + "," + "simple_ior");
+                if (s == "") return 0.0f;
+                return Convert.ToSingle(s);
+            }
+            set
+            {
+                if (value > 0.0f)
+                {
+                    this.renmas.SetProp("material_params", this._selected_material + "," + this._selected_component + ",simple_ior", value.ToString());
+                    this.OnPropertyChanged("SimpleIOR");
+                }
+            }
+        }
+
         public float Roughness
         {
             get

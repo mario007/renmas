@@ -3,7 +3,7 @@ import os
 import renmas2
 import renmas2.shapes
 from renmas2.core import Vector3
-from renmas2.lights import PointLight, ConstEnvironmentLight
+from renmas2.lights import PointLight, ConstEnvironmentLight, SunSky
 from .material import Material
 from renmas2.materials import HemisphereCos, PerfectSpecularSampling, LambertianSampling, PhongSampling
 from ..cameras import Pinhole
@@ -46,6 +46,16 @@ class IRender:
             l = ConstEnvironmentLight(spec)
             self.renderer.add(name, l)
             return l
+        elif typ == "sunsky":
+            name = kw.get("name", None)
+            lat = kw.get("latitude")
+            lon = kw.get("longitude")
+            sm = kw.get("sm")
+            jd = kw.get("jd")
+            tm = kw.get("time_of_day")
+            turbidity = kw.get("turbidity")
+            sk = SunSky(self.renderer, lat, lon, sm, jd, tm, turbidity)
+            self.renderer.add(name, sk)
 
     def add_shape(self, **kw):
         t = kw.get("type", None)
@@ -194,9 +204,9 @@ class IRender:
         eta_out = spectrum.zero_spectrum().set(1.0)
         fresnel = FresnelDielectric(eta_in, eta_out) 
 
-        perf_trans = PerfectTransmission(spectrum, fresnel, 1.0)
-        mat.add(perf_trans)
         sampl = PerfectTransmissionSampling(fresnel._avg_eta_in, fresnel._avg_eta_out)
+        perf_trans = PerfectTransmission(spectrum, fresnel, 1.0, sampl)
+        mat.add(perf_trans)
         mat.add(sampl)
 
     def _create_material(self, kw):
@@ -402,7 +412,7 @@ class IRender:
         if comp_name.startswith('brdf'):
             components = material._brdfs
         elif comp_name.startswith('btdf'):
-            return "Perfect Transmission"
+            return "PerfectTransmission"
         else:
             return ""
         try:
@@ -421,6 +431,8 @@ class IRender:
             return "OrenNayar"
         elif type(component) == WardAnisotropic:
             return "WardAnisotropic"
+        elif type(component) == PerfectSpecular:
+            return "PerfectSpecular"
         return ""
 
     def _get_photoreceptor_props(self, name):
@@ -567,6 +579,15 @@ class IRender:
                 return str(component.beta)
             elif param_name == "scaler":
                 return str(component.k)
+        elif type(component) == PerfectSpecular or type(component) == PerfectTransmission:
+            if param_name == "reflectance":
+                return self._spectrum_to_string(component.spectrum)
+            elif param_name == "rgb_reflectance":
+                return self._rgb_reflectance(component.spectrum)
+            elif param_name == "simple_ior":
+                return str(component.simple_ior)
+            elif param_name == "scaler":
+                return str(component.k)
         return ""
 
     def _set_param_value(self, component, param_name, value):
@@ -613,6 +634,17 @@ class IRender:
                 component.alpha = float(value)
             elif param_name == "beta":
                 component.beta = float(value)
+            elif param_name == "scaler":
+                component.k = float(value)
+        elif type(component) == PerfectSpecular or type(component) == PerfectTransmission:
+            if param_name == "reflectance":
+                lam, val = value.split(',')
+                s = self._set_spectrum_value(component.spectrum, lam, val)
+            elif param_name == "rgb_reflectance":
+                s = self._create_spectrum(value)
+                component.spectrum = s
+            elif param_name == "simple_ior":
+                component.ior = float(value)
             elif param_name == "scaler":
                 component.k = float(value)
 

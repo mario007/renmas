@@ -1,12 +1,38 @@
 
 from .btdf import BTDF 
 
+# Note here fresnel must be FresnelDielectric
 class PerfectTransmission(BTDF):
     def __init__(self, spectrum, fresnel, k=1.0, sampling=None):
         self._spectrum = spectrum
         self._k = k
         self._fresnel = fresnel
         self._one_spectrum = self._spectrum.zero_spectrum().set(1.0)
+        self._sampling = sampling
+
+    def _set_spectrum(self, value):
+        self._spectrum = value
+    def _get_spectrum(self):
+        return self._spectrum
+    spectrum = property(_get_spectrum, _set_spectrum)
+
+    def _set_k(self, value):
+        self._k = value
+    def _get_k(self):
+        return self._k
+    k = property(_get_k, _set_k)
+
+    def _set_ior(self, value):
+        self._fresnel.ior = value
+        if self._sampling is not None:
+            self._sampling.eta_in = self._fresnel._avg_eta_in
+    def _get_ior(self):
+        return self._fresnel.ior
+    ior = property(_get_ior, _set_ior)
+
+    def _get_simple_ior(self):
+        return self._fresnel.approx_ior
+    simple_ior = property(_get_simple_ior)
 
     def btdf(self, hp):
         if hp.specular == 65: # delta distribution

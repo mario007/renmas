@@ -53,8 +53,10 @@ print (irender.get_props('misc', 'pixel_size'))
 #filename = 'I:\\GitRENMAS\\scenes\\lux_ball.py'
 #filename = 'I:\\GitRENMAS\\scenes\\cube.py'
 #filename = 'I:\\GitRENMAS\\scenes\\random_spheres.py'
-filename = 'I:\\GitRENMAS\\scenes\\mini_moris.py'
+#filename = 'I:\\GitRENMAS\\scenes\\mini_moris.py'
+#filename = 'I:\\GitRENMAS\\scenes\\sunsky1.py'
 #filename = 'G:\\GitRENMAS\\renmas\\scenes\\mini_moris.py'
+filename = 'C:\\Users\\Mario\\Desktop\\glass\\glass.py'
 exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(globals()))
 #irender.set_props('misc', 'pixel_size', '1.4')
 #print (irender.get_props('misc', 'pixel_size'))

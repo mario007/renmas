@@ -1,6 +1,8 @@
 
 from math import sqrt
 
+from ..core import Spectrum
+
 class FresnelConductor:
     def __init__(self, n, k):
         
@@ -47,6 +49,23 @@ class FresnelDielectric:
         self._eta_out = eta_out
         self._avg_eta_in = self._approx_n(eta_in)
         self._avg_eta_out = self._approx_n(eta_out)
+
+    def _set_ior(self, value):
+        if isinstance(value, Spectrum):
+            self._eta_in = value
+            self._avg_eta_in = self._approx_n(self._eta_in)
+        else:
+            ior = float(value)
+            self._eta_in = self._eta_in.zero_spectrum().set(ior)
+            self._avg_eta_in = self._approx_n(self._eta_in)
+
+    def _get_ior(self):
+        return self._eta_in
+    ior = property(_get_ior, _set_ior)
+    
+    def _get_approx_ior(self):
+        return self._avg_eta_in
+    approx_ior = property(_get_approx_ior)
 
     @classmethod
     def conv_f0(cls, F0):

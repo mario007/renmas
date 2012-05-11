@@ -1288,6 +1288,90 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="SliderStyle1" TargetType="{x:Type Slider}">
+            <Setter Property="Background" Value="{DynamicResource LightBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource NormalBorderBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Slider}">
+                        <Grid x:Name="GridRoot">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto" MinHeight="{TemplateBinding MinHeight}"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- TickBar shows the ticks for Slider -->
+                            <TickBar Visibility="Collapsed" x:Name="TopTick" Height="4" SnapsToDevicePixels="True" Placement="Top" Fill="{DynamicResource GlyphBrush}"/>
+                            <Border Grid.Row="1" Margin="0" x:Name="Border" Height="4" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="2" Background="#FF595959"/>
+
+                            <!-- The Track lays out the repeat buttons and thumb -->
+                            <Track Grid.Row="1" x:Name="PART_Track">
+                                <Track.Thumb>
+                                    <Thumb Style="{DynamicResource ThumbStyle3}" Width="10" Height="17"/>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Style="{DynamicResource SimpleScrollRepeatButtonStyle}" Command="Slider.IncreaseLarge"/>
+                                </Track.IncreaseRepeatButton>
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Style="{DynamicResource SimpleScrollRepeatButtonStyle}" Command="Slider.DecreaseLarge"/>
+                                </Track.DecreaseRepeatButton>
+                            </Track>
+
+                            <TickBar Visibility="Collapsed" Grid.Row="2" x:Name="BottomTick" Height="4" SnapsToDevicePixels="True" Placement="Bottom" Fill="{TemplateBinding Foreground}"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="TickPlacement" Value="TopLeft">
+                                <Setter Property="Visibility" Value="Visible" TargetName="TopTick"/>
+                            </Trigger>
+                            <Trigger Property="TickPlacement" Value="BottomRight">
+                                <Setter Property="Visibility" Value="Visible" TargetName="BottomTick"/>
+                            </Trigger>
+                            <Trigger Property="TickPlacement" Value="Both">
+                                <Setter Property="Visibility" Value="Visible" TargetName="TopTick"/>
+                                <Setter Property="Visibility" Value="Visible" TargetName="BottomTick"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="false">
+                                <Setter Property="Background" Value="{DynamicResource DisabledBackgroundBrush}" TargetName="Border"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource DisabledBorderBrush}" TargetName="Border"/>
+                            </Trigger>
+
+                            <!-- Use a rotation to create a Vertical Slider form the default Horizontal -->
+                            <Trigger Property="Orientation" Value="Vertical">
+                                <Setter Property="LayoutTransform" TargetName="GridRoot">
+                                    <Setter.Value>
+                                        <RotateTransform Angle="-90"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <!-- Track rotates itself based on orientation so need to force it back -->
+                                <Setter TargetName="PART_Track" Property="Orientation" Value="Horizontal"/>
+                            </Trigger>
+
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ThumbStyle3" d:IsControlPart="True" TargetType="{x:Type Thumb}">
+            <Setter Property="SnapsToDevicePixels" Value="true"/>
+            <Setter Property="Height" Value="14"/>
+            <Setter Property="Width" Value="14"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Thumb}">
+                        <Grid>
+                            <Rectangle x:Name="rectangle" Margin="0" StrokeThickness="1" RadiusX="2" RadiusY="2" Fill="Gray" Stroke="#FF333333"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Fill" TargetName="rectangle" Value="#FFA30000"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="false"/>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style TargetType="TextBox" BasedOn="{StaticResource TextBoxStyle1}"></Style>
         <Style TargetType="ComboBox" BasedOn="{StaticResource ComboBoxStyle1}"></Style>
         <Style TargetType="MenuItem" BasedOn="{StaticResource MenuItemStyle1}"></Style>
@@ -1298,6 +1382,7 @@
         <Style TargetType="ComboBoxItem" BasedOn="{StaticResource ComboBoxItemStyle1}"></Style>
         <Style TargetType="ScrollViewer" BasedOn="{StaticResource ScrollViewerStyle2}"></Style>
         <Style TargetType="ScrollBar" BasedOn="{StaticResource ScrollBarStyle1}"></Style>
+        <Style TargetType="Slider" BasedOn="{StaticResource SliderStyle1}"></Style>
      </Window.Resources>
     <Grid Name="main_grid">
         <Grid.RowDefinitions>

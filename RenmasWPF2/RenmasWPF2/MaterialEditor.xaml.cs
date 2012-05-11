@@ -66,6 +66,14 @@ namespace RenmasWPF2
             {
                 this.build_ward_anisotropic(all);
             }
+            else if (this.materials.ComponentType == "PerfectSpecular")
+            {
+                this.build_perfect_specular(all);
+            }
+            else if (this.materials.ComponentType == "PerfectTransmission")
+            {
+                this.build_perfect_transmission(all);
+            }
             else
             {
             }
@@ -117,6 +125,46 @@ namespace RenmasWPF2
 
         }
 
+        private void build_perfect_specular(StackPanel sp)
+        {
+            TextBlock comp_type = new TextBlock();
+            comp_type.Text = " ComponentType: " + this.materials.ComponentType;
+            comp_type.Width = 200;
+            comp_type.Height = 20;
+
+            StackPanel sp_wave = this.build_wavelength();
+            sp.Children.Add(comp_type);
+            sp.Children.Add(sp_wave);
+
+            StackPanel refl = this.build_reflectance(" Reflectance: ", "Reflectance", "RGBReflectanceBrush");
+            StackPanel alpha = this.label_txtbox(" Simple ior: ", "SimpleIOR");
+            StackPanel scaler = this.label_txtbox(" Scaler: ", "Scaler");
+
+            sp.Children.Add(refl);
+            sp.Children.Add(alpha);
+            sp.Children.Add(scaler);
+        }
+
+        private void build_perfect_transmission(StackPanel sp)
+        {
+            TextBlock comp_type = new TextBlock();
+            comp_type.Text = " ComponentType: " + this.materials.ComponentType;
+            comp_type.Width = 200;
+            comp_type.Height = 20;
+
+            StackPanel sp_wave = this.build_wavelength();
+            sp.Children.Add(comp_type);
+            sp.Children.Add(sp_wave);
+
+            StackPanel refl = this.build_reflectance(" Reflectance: ", "Reflectance", "RGBReflectanceBrush");
+            StackPanel alpha = this.label_txtbox(" Simple ior: ", "SimpleIOR");
+            StackPanel scaler = this.label_txtbox(" Scaler: ", "Scaler");
+
+            sp.Children.Add(refl);
+            sp.Children.Add(alpha);
+            sp.Children.Add(scaler);
+            
+        }
         private void build_phong(StackPanel sp)
         {
             TextBlock comp_type = new TextBlock();

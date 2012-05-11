@@ -1,5 +1,5 @@
 
-irender.options(asm=True, spectral=False, pixel_size=1.25, width=600, height=600, spp=1, threads=4)
+irender.options(asm=True, spectral=False, pixel_size=1.25, width=600, height=600, spp=8, threads=8)
 #irender.set_camera(type="perspective", eye=(-250, 400, -100), lookat=(0,0,0), distance=400)
 irender.set_camera(type="perspective", eye=(9000, 1600, -3000), lookat=(0,0,0), distance=400)
 

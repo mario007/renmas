@@ -207,3 +207,7 @@ class Rectangle(Shape):
 
         return BBox(p0, p1, None)
 
+    # eax = pointer to hitpoint
+    def light_sample(self, runtimes, label, assembler, structures):
+        pass
+

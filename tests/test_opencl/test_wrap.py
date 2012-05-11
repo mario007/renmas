@@ -24,6 +24,8 @@ clCreateKernel = opencl.clCreateKernel
 clCreateBuffer = opencl.clCreateBuffer
 clEnqueueWriteBuffer = opencl.clEnqueueWriteBuffer
 clEnqueueReadBuffer = opencl.clEnqueueReadBuffer
+clSetKernelArg = opencl.clSetKernelArg
+clEnqueueNDRangeKernel = opencl.clEnqueueNDRangeKernel
 
 def GetPlatform(idx):
     num_platforms = c_uint32()
@@ -556,10 +558,32 @@ class Context:
         if ret != CL_SUCCESS: return False
         return True
 
+    def set_argument(self, index, value, size=None):
+        #TODO -- check kernel da li je ispravan
+        #drugi tipovi argumenata
+        if type(value) == str: #assume it is buffer
+            buff = self.buffers[value]
+            data = c_uint32(buff)
+            ret = clSetKernelArg(self.kernel, index, 4, byref(data))
+            if ret != CL_SUCCESS: return False
+            return True
+        
+        return False
+
+    def run_kernel(self, global_work_size, local_work_size):
+        global_work = (c_int32 * 1)()
+        global_work[0] = global_work_size 
+        local_work = (c_int32 * 1)()
+        local_work[0] = local_work_size 
+
+        ret = clEnqueueNDRangeKernel(self.command_queue, self.kernel, 1, None, global_work, local_work, 0, None, None)
+        if ret != CL_SUCCESS: return False
+        return True
+
 
 KERNEL1 = """
-    __kernel void add_vector(__global const float *a,
-                            __global const float *b,
+    __kernel void add_vector(__global  const float *a,
+                            __global  const float *b,
                             __global float *result)
     {
         int gid = get_global_id(0);
@@ -580,6 +604,8 @@ print(ret)
 ret = con.create_command_queue()
 print(ret)
 ret = con.create_buffer("buf1", 1024)
+ret = con.create_buffer("buf2", 1024)
+ret = con.create_buffer("buf3", 1024)
 print(ret)
 
 arr = array.array('f')
@@ -595,6 +621,7 @@ arr2 = array.array('f', [0]*4)
 print(arr2)
 
 ret = con.host_to_device("buf1", adr, 16)
+ret = con.host_to_device("buf2", adr, 16)
 print(ret)
 
 adr2 = arr2.buffer_info()[0]
@@ -602,5 +629,19 @@ adr2 = arr2.buffer_info()[0]
 ret = con.device_to_host("buf1", adr2, 16)
 print(ret)
 
+print(arr2)
+
+ret = con.set_argument(index=0, value="buf1")
+print (ret)
+ret = con.set_argument(index=1, value="buf2")
+print (ret)
+ret = con.set_argument(index=2, value="buf3")
+print(ret)
+
+ret = con.run_kernel(4, 1)
+print(ret)
+
+ret = con.device_to_host("buf3", adr2, 16)
+print(ret)
 print(arr2)
 

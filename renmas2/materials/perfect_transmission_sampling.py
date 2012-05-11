@@ -8,6 +8,18 @@ class PerfectTransmissionSampling(BTDFSampling):
         self._eta_in = float(eta_in)
         self._eta_out = float(eta_out)
 
+    def _set_eta_in(self, value):
+        self._eta_in = float(value)
+    def _get_eta_in(self):
+        return self._eta_in
+    eta_in = property(_get_eta_in, _set_eta_in)
+
+    def _set_eta_out(self, value):
+        self._eta_out = float(value)
+    def _get_eta_out(self):
+        return self._eta_out
+    eta_out = property(_get_eta_out, _set_eta_out)
+
     def next_direction(self, hitpoint):
 
         hp = hitpoint

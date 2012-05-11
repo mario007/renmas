@@ -504,6 +504,31 @@ class SpectrumConverter:
         b = 0.055648 * x - 0.204043 * y + 1.057311 * z
         return (r, g, b)
 
+    def xyz_to_rgb_asm(self, label, runtimes, assembler):
+        ASM = """
+            #DATA
+            float coff1[4] = 3.240479, -0.969256, 0.055648, 0.0
+            float coff2[4] = -1.537150, 1.875991, -0.204043, 0.0
+            float coff3[4] = -0.498535, 0.041556, 1.057311, 0.0
+            #CODE
+        """
+        ASM += " global " + label + ":\n" + """
+            macro broadcast xmm1 = xmm0[0]
+            macro eq128 xmm1 = xmm1 * coff1
+            macro broadcast xmm2 = xmm0[1]
+            macro eq128 xmm2 = xmm2 * coff2
+            macro eq128 xmm5 = xmm1 + xmm2
+            macro broadcast xmm3 = xmm0[2]
+            macro eq128 xmm3 = xmm3 * coff3
+            macro eq128 xmm0 = xmm5 + xmm3
+            ret
+        """
+        mc = self.renderer.assembler.assemble(ASM, True)
+        name = "xyz_to_rgb" + str(abs(hash(self)))
+        for r in runtimes:
+            if not r.global_exists(label):
+                ds = r.load(name, mc)
+
     def rgb_to_xyz(self, r, g, b):
         x = 0.412453 * r + 0.357580 * g + 0.180423 * b
         y = 0.212671 * r + 0.715160 * g + 0.072169 * b

@@ -1,6 +1,7 @@
 
 from .brdf import BRDF
 
+# Note here fresnel must be FresnelDielectric
 class PerfectSpecular(BRDF):
     def __init__(self, spectrum, fresnel, k=1.0):
 
@@ -19,6 +20,16 @@ class PerfectSpecular(BRDF):
     def _get_k(self):
         return self._k
     k = property(_get_k, _set_k)
+
+    def _set_ior(self, value):
+        self._fresnel.ior = value
+    def _get_ior(self):
+        return self._fresnel.ior
+    ior = property(_get_ior, _set_ior)
+
+    def _get_simple_ior(self):
+        return self._fresnel.approx_ior
+    simple_ior = property(_get_simple_ior)
 
     def brdf(self, hp):
 

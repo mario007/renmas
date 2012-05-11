@@ -10,7 +10,7 @@ from ..shapes import Grid
 class Intersector:
     def __init__(self, renderer):
         self.renderer = renderer
-        self.strategy = True # False means linear intersection, True using Grids 
+        self.strategy = False # False means linear intersection, True using Grids 
         self._grid = Grid()
 
         self._shape_names = {} #name:shape

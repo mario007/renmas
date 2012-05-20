@@ -473,6 +473,49 @@ IllumSpectBlue = [
 (676.128601, 1.4878477178237029e-01), (687.096313, 1.6624255403475907e-01), (698.064026, 1.6997613960634927e-01),
 (709.031738, 1.5769743995852967e-01), (720.000000, 1.9069090525482305e-01)]
 
+S0 = [
+    (300, 0.04), (310, 6.0), (320, 29.6), (330, 55.3), (340, 57.3),
+    (350, 61.8), (360, 61.5), (370, 68.8), (380, 63.4), (390, 65.8),
+    (400, 94.8), (410, 104.8), (420, 105.9), (430, 96.8), (440, 113.9),
+    (450, 125.6), (460, 125.5), (470, 121.3), (480, 121.3), (490, 113.5),
+    (500, 113.1), (510, 110.8), (520, 106.5), (530, 108.8), (540, 105.3),
+    (550, 104.4), (560, 100.0), (570, 96.0), (580, 95.1), (590, 89.1),
+    (600, 90.5), (610, 90.3), (620, 88.4), (630, 84.0), (640, 85.1),
+    (650, 81.9), (660, 82.6), (670, 84.9), (680, 81.3), (690, 71.9),
+    (700, 74.3), (710, 76.4), (720, 63.3), (730, 71.7), (740, 77.0),
+    (750, 65.2), (760, 47.7), (770, 68.6), (780, 65.0), (790, 66.0),
+    (800, 61.0), (810, 53.3), (820, 58.9), (830, 61.9)
+]
+
+
+S1 = [
+    (300, 0.02), (310, 4.5), (320, 22.4), (330, 42.0), (340, 40.6),
+    (350, 41.6), (360, 38.0), (370, 42.4), (380, 38.5), (390, 35.0),
+    (400, 43.4), (410, 46.3), (420, 43.9), (430, 37.1), (440, 36.7),
+    (450, 35.9), (460, 32.6), (470, 27.9), (480, 24.3), (490, 20.1),
+    (500, 16.2), (510, 13.2), (520, 8.6), (530, 6.1), (540, 4.2),
+    (550, 1.9), (560, 0.0), (570, -1.6), (580, -3.5), (590, -3.5),
+    (600, -5.8), (610, -7.2), (620, -8.6), (630, -9.5), (640, -10.9),
+    (650, -10.7), (660, -12.0), (670, -14.0), (680, -13.6), (690, -12.0),
+    (700, -13.3), (710, -12.9), (720, -10.6), (730, -11.6), (740, -12.2),
+    (750, -10.2), (760, -7.8), (770, -11.2), (780, -10.4), (790, -10.6),
+    (800, -9.7), (810, -8.3), (820, -9.3), (830, -9.8)
+]
+
+S2 = [
+    (300, 0.0), (310, 2.0), (320, 4.0), (330, 8.5), (340, 7.8),
+    (350, 6.7), (360, 5.3), (370, 6.1), (380, 3.0), (390, 1.2),
+    (400, -1.1), (410, -0.5), (420, -0.7), (430, -1.2), (440, -2.6),
+    (450, -2.9), (460, -2.8), (470, -2.6), (480, -2.6), (490, -1.8),
+    (500, -1.5), (510, -1.3), (520, -1.2), (530, -1.0), (540, -0.5),
+    (550, -0.3), (560, 0.0), (570, 0.2), (580, 0.5), (590, 2.1),
+    (600, 3.2), (610, 4.1), (620, 4.7), (630, 5.1), (640, 6.7),
+    (650, 7.3), (660, 8.6), (670, 9.8), (680, 10.2), (690, 8.3),
+    (700, 9.6), (710, 8.5), (720, 7.0), (730, 7.6), (740, 8.0),
+    (750, 6.7), (760, 5.2), (770, 7.4), (780, 6.8), (790, 7.0),
+    (800, 6.4), (810, 5.5), (820, 6.1), (830, 6.5)
+]
+
 class SpectrumConverter:
     def __init__(self, renderer):
         self.renderer = renderer
@@ -497,6 +540,10 @@ class SpectrumConverter:
         self._illum_spect_red = self._create_sampled_spectrum(IllumSpectRed)
         self._illum_spect_green = self._create_sampled_spectrum(IllumSpectGreen)
         self._illum_spect_blue = self._create_sampled_spectrum(IllumSpectBlue)
+
+        self._s0 = self._create_sampled_spectrum(S0)
+        self._s1 = self._create_sampled_spectrum(S1)
+        self._s2 = self._create_sampled_spectrum(S2)
 
     def xyz_to_rgb(self, x, y, z):
         r = 3.240479 * x - 1.537150 * y - 0.498535 * z
@@ -907,4 +954,79 @@ class SpectrumConverter:
     def lerp(self, t, v1, v2):
         return (1.0 - t) * v1 + t * v2
 
+
+    def chromacity_to_spectrum(self, x, y):
+
+        M1 = (-1.3515 - 1.7703 * x +  5.9114 * y) / (0.0241 + 0.2562 * x - 0.7341 * y)
+        M2 = ( 0.03   -31.4424 * x + 30.0717 * y) / (0.0241 + 0.2562 * x - 0.7341 * y)
+
+        spec = self._s0 + self._s1 * M1 + self._s2 * M2
+        return spec 
+
+    # xmm0 = x
+    # xmm1 = y
+    # eax = pointer to spectrum
+    def chromacity_to_spectrum_asm(self, label, runtimes):
+        ASM = """
+            #DATA
+        """
+        ASM += self.renderer.structures.structs(('spectrum',)) +  """
+            spectrum s0, s1, s2 
+            float m1, m2
+            float con1 = 0.0241
+            float con2 = 0.2562
+            float con3 = 0.7341
+            float con4 = 1.3515
+            float con5 = 1.7703
+            float con6 = 5.9114
+            float con7 = 0.03
+            float con8 = 31.4424
+            float con9 = 30.0717
+            
+            spectrum temp1, temp2
+            #CODE
+        """
+        ASM += " global " + label + ":\n" + """
+        macro eq32 xmm2 = xmm0 * con2 + con1
+        macro eq32 xmm3 = xmm1 * con3
+        macro eq32 xmm2 = xmm2 - xmm3
+        macro eq32 xmm4 = xmm1 * con6 - con4
+        macro eq32 xmm5 = xmm0 * con5
+        macro eq32 xmm4 = xmm4 - xmm5
+        macro eq32 xmm4 = xmm4 / xmm2
+        macro eq32 xmm5 = xmm1 * con9 + con7
+        macro eq32 xmm6 = xmm0 * con8
+        macro eq32 xmm5 = xmm5 - xmm6
+        macro eq32 xmm5 = xmm5 / xmm2
+
+        macro eq32 m1 = xmm4 {xmm7}
+        macro eq32 m2 = xmm5 {xmm7}
+        
+        mov ecx, temp1 
+        mov ebx, s1
+        macro spectrum ecx = xmm4 * ebx 
+
+        mov ecx, temp2
+        mov ebx, s2
+        macro eq32 xmm4 = m2
+        macro spectrum ecx = xmm4 * ebx 
+
+        mov edx, temp1
+        macro spectrum eax = ecx + edx
+
+        mov edx, s0
+        macro spectrum eax = eax + edx
+
+        ret
+        """
+
+        mc = self.renderer.assembler.assemble(ASM, True)
+        #mc.print_machine_code()
+        name = "chromacity_to_spectrum" + str(abs(hash(self)))
+        for r in runtimes:
+            if not r.global_exists(label):
+                ds = r.load(name, mc)
+                ds['s0.values'] = self._s0.to_ds()
+                ds['s1.values'] = self._s1.to_ds()
+                ds['s2.values'] = self._s2.to_ds()
 

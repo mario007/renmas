@@ -49,13 +49,10 @@ namespace RenmasWPF2
 
             if (this.materials.ComponentType == "Lambertian")
             {
-
                 this.build_lambertian(all);
-
             }
             else if (this.materials.ComponentType == "PhongSpecular")
             {
-
                 this.build_phong(all);
             }
             else if (this.materials.ComponentType == "OrenNayar")

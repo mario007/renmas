@@ -20,7 +20,6 @@ def acos_ss():
 
     """
     asm_code = data + """
-
     #CODE
     global fast_acos_ss:
     movss xmm1, dword [_ps_am_1]

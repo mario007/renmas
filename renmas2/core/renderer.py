@@ -1,5 +1,6 @@
 
 import time
+import pickle
 from tdasm import Tdasm, Runtime
 from ..samplers import RandomSampler, RegularSampler
 from ..cameras import Pinhole
@@ -21,6 +22,11 @@ from .logger import log
 from .spd_loader import SPDLoader
 
 from .factory import Factory
+
+# class that hold whole all part of project for serialization
+class _Scene:
+    def __init__(self):
+        self.options = {}
 
 class Renderer:
     def __init__(self):
@@ -314,10 +320,42 @@ class Renderer:
             return True
 
     def save_project(self, path):
-        pass
+        sc = _Scene()
+        options = {"width": self._width, "height": self._height, "spp": self._spp, "threads": self._threads, 
+                "pixel_size": self._pixel_size,
+                "spectral_rendering": self._spectrum_rendering, "nsamples": self._nspectrum_samples,
+                "start_lambda": self._start_lambda, "end_lambda": self._end_lambda,
+                "asm": self._asm, "tone": self._tone_mapping}
+        sc.options = options
+
+        try:
+            f = open(path, "wb")
+            pickle.dump(sc, f)
+            log.info("Project sucssesfuly saved.")
+        except:
+            log.info("Saving project failed, make sure that path is valid!")
 
     def load_project(self, path):
-        pass
+        try:
+            f = open(path, "rb")
+            sc = pickle.load(f)
+            log.info("Project sucessfuly load.")
+        except:
+            log.info("Project loading failed, make sure that path is valid!")
+            return
+        
+        options = sc.options
+        self.spectral_rendering = options['spectral_rendering'] 
+        self.spectrum_parameters(options['nsamples'], options['start_lambda'], options['end_lambda'])
+        self.resolution(options['width'], options['height'])
+        self.spp = options['spp']
+        self.threads = options['threads'] 
+        self.pixel_size = options['pixel_size'] 
+        self.asm = options['asm']
+        self.tone_mapping = options['tone']
+
+        self._ready = False
+        self._current_pass = 0
 
     def export_project(self, path):
         pass

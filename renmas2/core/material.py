@@ -125,7 +125,7 @@ class Material:
             float eta_out
             float eta_in
             float one = 1.0
-            float P = 0.05
+            float P = 0.1
             uint32 hp_ptr
             float cosi
             #CODE

@@ -21,4 +21,5 @@ from .tanps import tan_ps
 from .logss import log_ss
 from .logps import log_ps
 from .random_float import random_float
-
+from .atanr2ps import atanr2_ps
+from .atanr2ss import atanr2_ss

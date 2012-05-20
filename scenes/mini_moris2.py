@@ -5,7 +5,9 @@ irender.set_camera(type="perspective", eye=(280, 110, 244), lookat=(80,100,0), d
 
 irender.add_light(type="pointlight", name="light1", source=(4.0, 4.0, 4.0), position=(30,110,-80))
 irender.add_light(type="pointlight", name="light2", source=(1.0, 1.0, 1.0), position=(100,280,200))
-irender.add_light(type="environment", name="light5", source=(0.2,0.2,0.2))
+
+#irender.add_light(type="sunsky", name="sun1", latitude=20.0, longitude=0.0, sm=0, jd=40,
+#        time_of_day=12.00, turbidity=2.0)
 
 irender.add_material(name="phong1", type="phong", diffuse=(0.1,0.1,0.1), specular=(0.2,0.2,0.2), n=2.2, samplings="default")
 irender.add_material(name="phong2", type="phong", diffuse=(0.3,0.1,0.2), specular=(0.2,0.2,0.2), n=2.2, samplings="default")
@@ -19,6 +21,6 @@ comp2 = {"type":"perfect_transmission", "specular":(0.9, 0.9, 1.0), "ior":1.05}
 irender.add_material(name="dielectric1", components=[comp1, comp2])
 
 #irender.add_shape(type="mesh", name="cube1", filename="I:/Obj_files/mini_obj.obj")
-irender.add_shape(type="mesh", name="cube1", filename="G:/Obj_files/mini_with_walls.obj")
+irender.add_shape(type="mesh", name="cube1", filename="I:/Obj_files/mini_with_walls.obj")
 
 

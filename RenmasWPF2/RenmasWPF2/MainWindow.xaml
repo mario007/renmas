@@ -1405,7 +1405,8 @@
             </Menu.Background>
             <MenuItem Header="File">
                 <MenuItem Header="New Project" IsEnabled="False" />
-                <MenuItem Header="Save Project" IsEnabled="False" />
+                <MenuItem Header="Save Project" Click="MenuItem_SaveProject" />
+                <MenuItem Header="Load Project" Click="MenuItem_LoadProject" />
                 <MenuItem Header="Export Image" Click="MenuItem_ExportImage" />
                 <MenuItem Header="Exit" Click="MenuItem_Exit"/>
             </MenuItem>

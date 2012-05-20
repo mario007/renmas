@@ -45,6 +45,7 @@ class Pinhole(Camera):
         #mc.print_machine_code()
         self._ds = []
         name = "ray" + str(hash(self))
+        #TODO check if global label allready exitsts!!!
         for r in runtimes:
             ds = r.load(name, mc) 
             self._ds.append(ds)

@@ -61,14 +61,14 @@ namespace RenmasWPF2
                         break;
                     }
                 }
-                string s = this.renmas.GetProp("light_intesity", this.SelectedLight);
+                string s = this.renmas.GetProp("light_params", this.SelectedLight + ",intesity");
                 if (s == "") return 0.0f;
                 string[] words = s.Split(',');
                 return Convert.ToSingle(words[idx]);
             }
             set
             {
-                this.renmas.SetProp("light_intesity", this.SelectedLight, this._selected_lambda + "," + value.ToString());
+                this.renmas.SetProp("light_params", this.SelectedLight + ",intesity", this._selected_lambda + "," + value.ToString());
                 this.OnPropertyChanged("Intesity");
             }
         }
@@ -152,7 +152,7 @@ namespace RenmasWPF2
         }
         private float get_position(string prop)
         {
-            string value = this.renmas.GetProp("light_position", this.SelectedLight);
+            string value = this.renmas.GetProp("light_params", this.SelectedLight + ",position");
             if (value == "") return 0.0f;
             string[] words = value.Split(',');
             if (prop == "X")
@@ -172,7 +172,7 @@ namespace RenmasWPF2
 
         private void set_position(string prop, float value)
         {
-            string position = this.renmas.GetProp("light_position", this.SelectedLight);
+            string position = this.renmas.GetProp("light_params", this.SelectedLight + ",position");
             if (position == "") return;
             string[] words = position.Split(',');
             if (prop == "X")
@@ -187,7 +187,7 @@ namespace RenmasWPF2
             {
                 position = words[0] + "," + words[1] + "," + value.ToString();
             }
-            this.renmas.SetProp("light_position", this.SelectedLight, position);
+            this.renmas.SetProp("light_params", this.SelectedLight + ",position", position);
         }
         public void Refresh()
         {

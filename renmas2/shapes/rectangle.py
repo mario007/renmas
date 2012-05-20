@@ -1,4 +1,4 @@
-
+from random import random
 from .hitpoint import HitPoint
 from .bbox import BBox
 from ..core import Vector3
@@ -207,7 +207,57 @@ class Rectangle(Shape):
 
         return BBox(p0, p1, None)
 
+    def light_sample(self, hitpoint):
+        hitpoint.light_pdf = self.inv_area
+        hitpoint.light_normal = self.normal
+
+        r1 = random()
+        r2 = random()
+        hitpoint.light_sample = self.point + self.edge_a * r1 + self.edge_b * r2
+
     # eax = pointer to hitpoint
-    def light_sample(self, runtimes, label, assembler, structures):
-        pass
+    def light_sample_asm(self, label, assembler, structures):
+
+        code = """ 
+        #DATA
+        """
+        code += structures.structs(('hitpoint',)) + """
+            float normal[4]
+            float edge_a[4]
+            float edge_b[4]
+            float point[4]
+            float pdf
+            uint32 hp_ptr
+            #CODE
+        """
+        code += "global " + label + ":\n" + """
+        mov dword [hp_ptr], eax
+        macro call random
+
+        macro eq128 xmm1 = xmm0
+        macro broadcast xmm0 = xmm0[0] 
+        macro broadcast xmm1 = xmm1[1]
+        macro eq128 xmm0 = xmm0 * edge_a
+        macro eq128 xmm1 = xmm1 * edge_b
+        macro eq128 xmm0 = xmm0 + point + xmm1
+        mov eax, dword [hp_ptr]
+        macro eq128 eax.hitpoint.light_sample = xmm0 {xmm7}
+        macro eq128 eax.hitpoint.light_normal = normal {xmm7}
+        macro eq32 eax.hitpoint.light_pdf = pdf {xmm7}
+        ret
+
+        """
+        mc = assembler.assemble(code, True)
+        return mc
+
+    def populate_ds(self, ds):
+        p = self.point
+        ds["point"] = (p.x, p.y, p.z, 0.0)
+        e = self.edge_a
+        ds["edge_a"] = (e.x, e.y, e.z, 0.0)
+        e = self.edge_b
+        ds["edge_b"] = (e.x, e.y, e.z, 0.0)
+        n = self.normal
+        ds["normal"] = (n.x, n.y, n.z, 0.0)
+        ds["pdf"] = self.inv_area
 

@@ -98,6 +98,20 @@ namespace RenmasWPF2
         {
             ToneMapping();
         }
+
+        public string SaveProject(string path)
+        {
+            SetProp("misc", "project_save", path);
+            return this.GetProp("misc", "log");
+        }
+
+        public string LoadProject(string path)
+        {
+            SetProp("misc", "project_load", path);
+            this.Refresh();
+            return this.GetProp("misc", "log");
+        }
+
         public string Log()
         {
             return this.GetProp("misc", "log");

@@ -87,7 +87,7 @@ class Triangle(Shape):
         """
         code += structures.structs(('ray', 'triangle', 'hitpoint')) + """
         float epsilon= 0.00001
-        float one = 1.0
+        float one = 1.0001
         #CODE
         """
         if proc.AVX:
@@ -317,7 +317,8 @@ class Triangle(Shape):
         if t < 0.00001: return False # self-intersection
 
         hit_point = ray.origin + ray.dir * t
-
+        
+        print(beta, gamma, beta+gamma)
         return HitPoint(t, hit_point, self.normal, self.material, ray)
 
     # eax = pointer to ray structure
@@ -332,7 +333,7 @@ class Triangle(Shape):
         """
         code += structures.structs(('ray', 'triangle', 'hitpoint')) + """
         float epsilon= 0.00001
-        float one = 1.0
+        float one = 1.0001
         #CODE
         """
         if proc.AVX:

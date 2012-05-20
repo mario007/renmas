@@ -21,7 +21,6 @@ namespace RenmasWPF2
     public partial class LightsEditor : UserControl
     {
         Lights lights;
-        TextBox txt_scaler;
         public LightsEditor(Lights lights)
         {
             InitializeComponent();
@@ -33,6 +32,8 @@ namespace RenmasWPF2
         void lights_LightTypeChanged(object sender, EventArgs e)
         {
             this.build_gui();
+            Expander exp = (Expander)this.Content;
+            exp.IsExpanded = true;
         }
 
         public void build_gui()
@@ -55,123 +56,79 @@ namespace RenmasWPF2
             sp.Children.Add(tb_lights);
             sp.Children.Add(cb);
 
+            StackPanel all = new StackPanel();
+            all.Children.Add(sp);
             if (this.lights.SelectedLight != "")
             {
-                StackPanel sp_x = this.build_lbltxt("  X: ", "PositionX");
-                StackPanel sp_y = this.build_lbltxt("  Y: ", "PositionY");
-                StackPanel sp_z = this.build_lbltxt("  Z: ", "PositionZ");
-                StackPanel position1 = build_row(sp_x, sp_y, sp_z);
-                TextBlock tb_pos = new TextBlock();
-                tb_pos.Text = " Position:";
-                tb_pos.VerticalAlignment = System.Windows.VerticalAlignment.Center;
-                StackPanel position = new StackPanel();
-                position.Orientation = Orientation.Horizontal;
-                position.Height = 25;
-                position.Children.Add(tb_pos);
-                position.Children.Add(position1);
-
-
-                TextBlock light_t = new TextBlock();
-                light_t.Text = " Light Type:  ";
-                light_t.VerticalAlignment = System.Windows.VerticalAlignment.Center;
-                TextBlock light_type = new TextBlock();
-                light_type.Text = this.lights.LightType;
-                light_type.VerticalAlignment = System.Windows.VerticalAlignment.Center;
-                StackPanel sp_type = new StackPanel();
-                sp_type.Orientation = Orientation.Horizontal;
-                sp_type.Children.Add(light_t);
-                sp_type.Children.Add(light_type);
-                sp_type.Height = 25;
-
-                TextBlock scale = new TextBlock();
-                scale.Text = "Scaler: ";
-                scale.Width = 70;
-                scale.TextAlignment = TextAlignment.Right;
-                scale.VerticalAlignment = System.Windows.VerticalAlignment.Center;
-                TextBox scaler_txt = new TextBox();
-                scaler_txt.Width = 80;
-                scaler_txt.Height = 20;
-                scaler_txt.Foreground = Brushes.White;
-                scaler_txt.CaretBrush = Brushes.White;
-                this.txt_scaler = scaler_txt;
-                
-                Button btn = new Button();
-                btn.Content = "Scale";
-                btn.Foreground = Brushes.White;
-                btn.Width = 70;
-                btn.Height = 20;
-                btn.HorizontalAlignment = System.Windows.HorizontalAlignment.Right;
-                btn.Click += new RoutedEventHandler(btn_Click);
-                StackPanel sp_btn = new StackPanel();
-                sp_btn.Children.Add(btn);
-                sp_btn.Width = 80;
-                sp_btn.VerticalAlignment = System.Windows.VerticalAlignment.Center;
-
-                StackPanel scaler_sp = new StackPanel();
-                scaler_sp.Orientation = Orientation.Horizontal;
-                scaler_sp.Height = 25;
-                scaler_sp.Children.Add(scale);
-                scaler_sp.Children.Add(scaler_txt);
-                scaler_sp.Children.Add(sp_btn);
-
-                TextBlock tb_wavelength = new TextBlock();
-                tb_wavelength.Text = " Wavelength: ";
-                tb_wavelength.Width = 70;
-                tb_wavelength.TextAlignment = TextAlignment.Right;
-                tb_wavelength.VerticalAlignment = System.Windows.VerticalAlignment.Center;
-                ComboBox cb_lambdas = new ComboBox();
-                Binding bind_lambdas = new Binding("Lambdas");
-                cb_lambdas.SetBinding(ComboBox.ItemsSourceProperty, bind_lambdas);
-                Binding bind_sel_lam = new Binding("SelectedLambda");
-                cb_lambdas.SetBinding(ComboBox.SelectedItemProperty, bind_sel_lam);
-                cb_lambdas.Foreground = Brushes.White;
-                cb_lambdas.Width = 80;
-                StackPanel sp_wave = new StackPanel();
-                sp_wave.Orientation = Orientation.Horizontal;
-                sp_wave.Height = 25;
-                sp_wave.Children.Add(tb_wavelength);
-                sp_wave.Children.Add(cb_lambdas);
-
-               
-                StackPanel sp_intesity2 = this.build_lbltxt_intesity(" Intesity: ", "Intesity");
-
-
-                StackPanel sp_new = new StackPanel();
-                sp_new.Children.Add(sp);
-                sp_new.Children.Add(sp_type);
-                sp_new.Children.Add(position);
-                sp_new.Children.Add(sp_wave);
-                sp_new.Children.Add(sp_intesity2);
-                sp_new.Children.Add(scaler_sp);
-
-                Expander expander = new Expander();
-                expander.Header = "Lights";
-                expander.Foreground = Brushes.White;
-                expander.Content = sp_new;
-                this.Content = expander;
-
+                if (this.lights.LightType == "PointLight")
+                {
+                    this.build_point_light(all);
+                }
             }
-            else
-            {
-                Expander expander = new Expander();
-                expander.Header = " Lights";
-                expander.Foreground = Brushes.White;
-                expander.Content = sp;
-                this.Content = expander;
-            }
+
+            Expander expander = new Expander();
+            expander.Header = "Lights";
+            expander.Foreground = Brushes.White;
+            expander.Content = all;
+            this.Content = expander;
+            
         }
 
-        void btn_Click(object sender, RoutedEventArgs e)
+        private void build_point_light(StackPanel sp)
         {
-            try
-            {
-                float t = System.Convert.ToSingle(this.txt_scaler.Text);
-                this.lights.scale_spectrum(t);
-            }
-            catch (Exception)
-            {
-            }
-           
+            TextBlock light_t = new TextBlock();
+            light_t.Text = " Light Type:  " + this.lights.LightType;
+            light_t.Width = 200;
+            light_t.Height = 20;
+
+            StackPanel pos = this.build_position();
+            StackPanel wave = this.build_wavelength();
+            StackPanel intesity = this.build_lbltxt_intesity(" Intesity: ", "Intesity");
+
+            sp.Children.Add(light_t);
+            sp.Children.Add(pos);
+            sp.Children.Add(wave);
+            sp.Children.Add(intesity);
+        }
+
+        private StackPanel build_wavelength()
+        {
+            TextBlock tb_wavelength = new TextBlock();
+            tb_wavelength.Text = " Wavelength: ";
+            tb_wavelength.Width = 80;
+            tb_wavelength.TextAlignment = TextAlignment.Right;
+            tb_wavelength.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+            ComboBox cb_lambdas = new ComboBox();
+            Binding bind_lambdas = new Binding("Lambdas");
+            cb_lambdas.SetBinding(ComboBox.ItemsSourceProperty, bind_lambdas);
+            Binding bind_sel_lam = new Binding("SelectedLambda");
+            cb_lambdas.SetBinding(ComboBox.SelectedItemProperty, bind_sel_lam);
+            cb_lambdas.Foreground = Brushes.White;
+            cb_lambdas.Width = 80;
+            cb_lambdas.Height = 20;
+            StackPanel sp_wave = new StackPanel();
+            sp_wave.Orientation = Orientation.Horizontal;
+            sp_wave.Height = 25;
+            sp_wave.Children.Add(tb_wavelength);
+            sp_wave.Children.Add(cb_lambdas);
+            return sp_wave;
+        }
+
+        private StackPanel build_position()
+        {
+            StackPanel sp_x = this.build_lbltxt("  X: ", "PositionX");
+            StackPanel sp_y = this.build_lbltxt("  Y: ", "PositionY");
+            StackPanel sp_z = this.build_lbltxt("  Z: ", "PositionZ");
+            StackPanel position1 = build_row(sp_x, sp_y, sp_z);
+            TextBlock tb_pos = new TextBlock();
+            tb_pos.Text = " Position:";
+            tb_pos.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+            StackPanel position = new StackPanel();
+            position.Orientation = Orientation.Horizontal;
+            position.Height = 25;
+            position.Children.Add(tb_pos);
+            position.Children.Add(position1);
+            return position;
         }
 
         private StackPanel build_row(StackPanel sp1, StackPanel sp2, StackPanel sp3)

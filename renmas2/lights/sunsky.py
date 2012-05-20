@@ -44,6 +44,7 @@ class SunSky(EnvironmentLight):
         (680, 211.0), (690, 207.3), (700, 202.4), (710, 198.7), (720, 194.3),
         (730, 190.7), (740, 186.3), (750, 182.6)]
 
+
         self._latitude = latitude
         self._longitude = longitude
         self._sm = sm * 15.0 # sm is actually time zone number (east to west, zero based)
@@ -244,12 +245,12 @@ class SunSky(EnvironmentLight):
         if d.y < 0.001:
             d = Vector3(d.x, 0.001, d.z)
             d.normalize()
-
+        
         theta = acos(d.y)
         phi = atan2(d.x, d.z)
         if phi < 0.0:
             phi = phi + 2 * pi
-
+        
         gamma = self._angle_beetween(theta, phi, self._theta_sun, self._phi_sun)
 
         x = self._perez_function(self._perez_x, theta, gamma, self._zenith_x)
@@ -257,13 +258,209 @@ class SunSky(EnvironmentLight):
         Y = self._perez_function(self._perez_Y, theta, gamma, self._zenith_Y)
 
         if self._renderer.spectral_rendering:
-            raise ValueError("Not yet implemented")
+            spec = self._renderer.converter.chromacity_to_spectrum(x, y)
+            return spec * (Y / self._renderer.converter.Y(spec))
         else:
             x1 = x * Y / y 
             y1 = Y 
             z1 = (1.0 - x - y) * Y / y
             rgb = self._renderer.converter.xyz_to_rgb(x1, y1, z1)
             return Spectrum(False, rgb)
+
+    # xmm0 = direction
+    # eax - pointer to spectrum
+    def get_sky_spectrum_asm(self, label, runtimes):
+
+        perez = "perez" + str(abs(hash(self)))
+        self._perez_function_asm(perez, runtimes, self._renderer.assembler)
+
+        ASM = """
+            #DATA
+        """
+        ASM += self._renderer.structures.structs(('spectrum',)) +  """
+            spectrum zero_spectrum
+            float con1 = 0.001
+            uint32 mask[4] = 0xFFFFFFFF, 0x00000000, 0xFFFFFFFF, 0x00000000
+            float con2[4] = 0.0, 0.001, 0.0, 0.0
+            float HALF_PI = 1.570796323
+            float HALF_PI_NEG = -1.570796323
+            float one[4] = 1.0, 1.0, 1.0, 1.0
+            float minus_one[4] = -1.0, -1.0, -1.0, -1.0
+            float TWO_PI = 6.2831853
+            float PI = 3.1415926535
+
+            float theta, gamma, phi
+            float theta_sun, phi_sun
+            float direction[4]
+
+            float perez_x[6]
+            float perez_y[6]
+            float perez_Y[6]
+            float zenith_x, zenith_y, zenith_Y
+            float x, y, Y
+            float XYZ[4]
+            float temp1, temp2, temp3, temp4
+            uint32 ptr_spectrum
+            #CODE
+        """
+        ASM += " global " + label + ":\n" + """
+        mov dword [ptr_spectrum], eax
+        macro broadcast xmm1 = xmm0[1]
+        macro call zero xmm2
+        macro if xmm1 > xmm2 goto _next
+        mov ebx, zero_spectrum
+        macro spectrum eax = ebx
+        ret
+
+        _next:
+        macro if xmm1 > con1 goto _next2
+        macro eq128 xmm3 = mask
+        macro call andps xmm0, xmm3
+        macro eq128 xmm0 = xmm0 + con2
+        macro normalization xmm0 {xmm6, xmm7}
+
+        _next2:
+        macro eq128 direction = xmm0 {xmm7}
+        macro broadcast xmm0 = xmm0[1]
+        macro call fast_acos_ss
+        macro eq32 theta = xmm0 {xmm7}
+
+        macro eq128 xmm0 = direction
+        macro broadcast xmm2 = xmm0[2]
+        macro eq32 xmm1 = one / xmm2
+        macro call fast_atanr2_ss
+        
+        macro call zero xmm1
+        macro if xmm0 > xmm1 goto _next3
+        macro eq32 xmm0 = xmm0 + TWO_PI
+
+        _next3:
+        macro eq32 phi = xmm0 {xmm7}
+        ; cacluate angle between direction and sun
+        call _angle_calc
+
+        mov eax, perez_x 
+        macro eq32 xmm0 = theta
+        macro eq32 xmm1 = gamma 
+        macro eq32 xmm2 = zenith_x 
+        macro eq32 xmm3 = theta_sun 
+        """
+        ASM += "call " + perez + """
+
+        macro eq32 x = xmm0 {xmm7}
+        mov eax, perez_y 
+        macro eq32 xmm0 = theta
+        macro eq32 xmm1 = gamma 
+        macro eq32 xmm2 = zenith_y 
+        macro eq32 xmm3 = theta_sun 
+        """
+        ASM += "call " + perez + """
+
+        macro eq32 y = xmm0 {xmm7}
+        mov eax, perez_Y 
+        macro eq32 xmm0 = theta
+        macro eq32 xmm1 = gamma 
+        macro eq32 xmm2 = zenith_Y 
+        macro eq32 xmm3 = theta_sun 
+        """
+        ASM += "call " + perez + """
+        macro eq32 Y = xmm0 {xmm7}
+        """
+        if self._renderer.spectral_rendering:
+            ASM += """
+            macro eq32 xmm0 = x
+            macro eq32 xmm1 = y
+            mov eax, dword [ptr_spectrum]
+            """
+            chrom_conv = "chromacity_to_spectrum" + str(abs(hash(self)))
+            self._renderer.converter.chromacity_to_spectrum_asm(chrom_conv, runtimes)
+            ASM += "call " + chrom_conv + """
+            mov eax, dword [ptr_spectrum]
+            """
+            lumm = "lumminance" + str(abs(hash(self)))
+            self._renderer.converter.Y_asm(lumm, runtimes)
+            ASM += "call " + lumm + """
+            macro eq32 xmm1 = Y / xmm0
+            mov eax, dword [ptr_spectrum]
+            macro spectrum eax = xmm1 * eax
+            """
+        else:
+            ASM += """
+            macro eq32 xmm0 = x * Y / y 
+            macro eq32 xmm1 = Y
+            macro eq32 xmm2 = one - x - y
+            macro eq32 xmm2 = xmm2 * Y / y
+            mov ecx, XYZ
+            macro eq32 XYZ = xmm0 {xmm7}
+            add ecx, 4
+            macro eq32 ecx = xmm1 {xmm7}
+            add ecx, 4
+            macro eq32 ecx = xmm2 {xmm7}
+            macro eq128 xmm0 = XYZ
+            """
+            xyz_to_rgb = "xyz_to_rgb" + str(abs(hash(self)))
+            self._renderer.converter.xyz_to_rgb_asm(xyz_to_rgb, runtimes, self._renderer.assembler)
+            ASM += "call " + xyz_to_rgb + """
+            mov eax, dword [ptr_spectrum]
+            macro eq128 eax.spectrum.values = xmm0 {xmm7}
+            """
+
+        ASM += """
+        ret
+
+        _angle_calc:
+        macro eq32 xmm0 = phi_sun - phi
+        macro call fast_cos_ss
+        macro eq32 temp1 = xmm0 {xmm7}
+        macro eq32 xmm0 = theta_sun
+        macro call fast_sin_ss
+        macro eq32 temp2 = xmm0 {xmm7}
+        macro eq32 xmm0 = theta
+        macro call fast_sin_ss
+        macro eq32 xmm0 = xmm0 * temp1 * temp2
+        macro eq32 temp3 = xmm0 {xmm7}
+
+        macro eq32 xmm0 = theta_sun
+        macro call fast_cos_ss
+        macro eq32 temp1 = xmm0 {xmm7}
+        macro eq32 xmm0 = theta
+        macro call fast_cos_ss
+        macro eq32 xmm0 = xmm0 * temp1 + temp3
+        
+        macro eq32 xmm1 = one
+        macro if xmm0 > xmm1 goto _gamma_zero
+        macro eq32 xmm1 = minus_one
+        macro if xmm0 < xmm1 goto _gamma_pi
+        macro call fast_acos_ps
+        macro eq32 gamma = xmm0 {xmm7}
+
+        ret
+
+        _gamma_zero:
+        macro call zero xmm1
+        macro eq32 gamma = xmm1 {xmm7}
+        ret
+
+        _gamma_pi:
+        macro eq32 gamma = PI {xmm7}
+        ret
+
+        """
+        mc = self._renderer.assembler.assemble(ASM, True)
+        #mc.print_machine_code()
+        name = "sky_spectrum" + str(abs(hash(self)))
+        for r in runtimes:
+            if not r.global_exists(label):
+                ds = r.load(name, mc)
+                ds['theta_sun'] = self._theta_sun
+                ds['phi_sun'] = self._phi_sun
+                ds['perez_x'] = tuple(self._perez_x) 
+                ds['perez_y'] = tuple(self._perez_y) 
+                ds['perez_Y'] = tuple(self._perez_Y) 
+                ds['zenith_x'] = self._zenith_x
+                ds['zenith_y'] = self._zenith_y
+                ds['zenith_Y'] = self._zenith_Y
+
 
     # angle bettwen this and sun
     def _angle_beetween(self, thetav, phiv, theta, phi):
@@ -278,8 +475,89 @@ class SunSky(EnvironmentLight):
         den = ((1 + lam[1]*exp(lam[2])) * (1 + lam[3]*exp(lam[4]*thetas) + lam[5]*cos(thetas)*cos(thetas)))
 
         num = ((1 + lam[1]*exp(lam[2]/cos(theta))) * (1 + lam[3]*exp(lam[4]*gamma)  + lam[5]*cos(gamma)*cos(gamma))) 
-
         return lvz * num / den
+
+    # eax, ptr to array of coefficients
+    # xmm0 - theta
+    # xmm1 - gamma
+    # xmm2 = zenith
+    # xmm3 = theta_sun
+    def _perez_function_asm(self, label, runtimes, assembler):
+        ASM = """
+            #DATA
+            float one = 1.0
+            float theta, gamma, zenith, theta_sun
+            uint32 coeff
+            float temp1, temp2
+            #CODE
+        """
+        ASM += " global " + label + ":\n" + """
+            mov dword [coeff], eax
+            macro eq32 theta = xmm0 {xmm7}
+            macro eq32 gamma = xmm1 {xmm7}
+            macro eq32 zenith = xmm2 {xmm7}
+            macro eq32 theta_sun = xmm3 {xmm7}
+
+            macro eq32 xmm0 = theta_sun
+            macro call fast_cos_ss
+            mov eax, dword [coeff]
+            add eax, 20 
+            macro eq32 xmm0 = xmm0 * xmm0 * eax + one
+            macro eq32 temp1 = xmm0 {xmm7}
+            sub eax, 4
+            macro eq32 xmm0 = theta_sun * eax
+            macro call fast_exp_ss
+            mov eax, dword [coeff]
+            add eax, 12
+            macro eq32 xmm0 = xmm0 * eax + temp1
+            macro eq32 temp1 = xmm0 {xmm7}
+
+            sub eax, 4
+            macro eq32 xmm0 = eax
+            macro call fast_exp_ss
+            mov eax, dword [coeff]
+            add eax, 4
+            macro eq32 xmm0 = xmm0 * eax + one
+
+            macro eq32 xmm0 = xmm0 * temp1
+            macro eq32 temp1 = xmm0 {xmm7}
+            ; den = temp1
+
+            macro eq32 xmm0 = gamma
+            macro call fast_cos_ss
+            mov eax, dword [coeff]
+            add eax, 20 
+            macro eq32 xmm0 = xmm0 * xmm0 * eax + one
+            macro eq32 temp2 = xmm0 {xmm7}
+
+            sub eax, 4
+            macro eq32 xmm0 = gamma * eax
+            macro call fast_exp_ss
+            mov eax, dword [coeff]
+            add eax, 12
+            macro eq32 xmm0 = xmm0 * eax + temp2
+            macro eq32 temp2 = xmm0 {xmm7}
+
+            macro eq32 xmm0 = theta
+            macro call fast_cos_ss
+            mov eax, dword [coeff]
+            add eax, 8 
+            macro eq32 xmm1 = eax / xmm0
+            macro eq128 xmm0 = xmm1
+            macro call fast_exp_ss
+            mov eax, dword [coeff]
+            add eax, 4
+            macro eq32 xmm0 = xmm0 * eax + one
+            macro eq32 xmm0 = xmm0 * temp2
+
+            macro eq32 xmm0 = xmm0 * zenith / temp1
+            ret
+        """
+        mc = assembler.assemble(ASM, True)
+        name = "perez_function" + str(abs(hash(self)))
+        for r in runtimes:
+            if not r.global_exists(label):
+                ds = r.load(name, mc)
 
     def L(self, hitpoint, renderer):
         # 1. check visibility
@@ -332,6 +610,8 @@ class SunSky(EnvironmentLight):
 
     # in xmm0 is direction of ray
     def Le_asm(self, runtimes, assembler, structures, label):
+        sky_spectrum = "sky_spectrum" + str(abs(hash(self)))
+        self.get_sky_spectrum_asm(sky_spectrum, runtimes)
         code = """
             #DATA
         """
@@ -341,6 +621,9 @@ class SunSky(EnvironmentLight):
         """
         code += "global " + label + ":\n"
         code += """
+            mov eax, ret_spectrum
+        """
+        code += "call " + sky_spectrum + """
             mov eax, ret_spectrum 
             ret
         """
@@ -354,6 +637,8 @@ class SunSky(EnvironmentLight):
 
     #eax - pointer to hitpoint structure
     def L_asm(self, runtimes, visible_label, assembler, structures):
+        sky_spectrum = "sky_spectrum" + str(abs(hash(self)))
+        self.get_sky_spectrum_asm(sky_spectrum, runtimes)
 
         if proc.AVX:
             line1 = "vmovss xmm1, dword [ecx + 4*ebx] \n"
@@ -432,6 +717,13 @@ class SunSky(EnvironmentLight):
         code += "call " + visible_label + "\n" + """
         cmp eax, 1
         jne reject
+
+        mov ecx, dword [ptr_hp]
+        macro eq128 xmm0 = ecx.hitpoint.wi
+        mov eax, l_spectrum
+        """
+        code += "call " + sky_spectrum + """
+
         mov eax, dword [ptr_hp]
         mov dword [eax + hitpoint.visible], 1
         lea ecx, dword [eax + hitpoint.l_spectrum]
@@ -477,8 +769,10 @@ class SunSky(EnvironmentLight):
 
         mc = assembler.assemble(code, True)
         #mc.print_machine_code()
-        self.l_asm_name = name = "environment_const_L" + str(hash(self))
-        self._ds = []
+        self.l_asm_name = name = "environment_sun_L" + str(hash(self))
         for r in runtimes:
-            self._ds.append(r.load(name, mc)) 
+            ds = r.load(name, mc)
+
+    def convert_spectrums(self, converter):
+        pass
 

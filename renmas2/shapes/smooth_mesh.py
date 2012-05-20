@@ -122,8 +122,9 @@ class SmoothMesh(Shape):
             #DATA
         """
         code += structures.structs(('ray', 'smooth_mesh')) + """
-        float epsilon= 0.00001
-        float one = 1.0
+        float epsilon= 0.0005
+        float one = 1.0001
+
         uint32 num_triangles
         uint32 ptr_triangles
 
@@ -216,8 +217,9 @@ class SmoothMesh(Shape):
             #DATA
         """
         code += structures.structs(('ray', 'smooth_mesh')) + """
-        float epsilon= 0.00001
-        float one = 1.0
+        float epsilon= 0.0005
+        float one = 1.0001
+
         uint32 num_triangles
         uint32 ptr_triangles
 

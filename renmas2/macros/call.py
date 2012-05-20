@@ -1,6 +1,7 @@
 
 from ..asm_library import sin_ss, sin_ps, cos_ss, cos_ps, sincos_ss, sincos_ps, exp_ss, exp_ps, pow_ss, pow_ps
 from ..asm_library import atan_ss, atan_ps, asin_ss, asin_ps, acos_ss, acos_ps, tan_ss, tan_ps, log_ss, log_ps
+from ..asm_library import atanr2_ps, atanr2_ss
 from ..asm_library import random_float
 import random
 import renmas2.switch as proc
@@ -35,6 +36,8 @@ class MacroCall:
         self.functions['fast_tan_ps'] = tan_ps
         self.functions['fast_log_ss'] = log_ss
         self.functions['fast_log_ps'] = log_ps
+        self.functions['fast_atanr2_ps'] = atanr2_ps
+        self.functions['fast_atanr2_ss'] = atanr2_ss
         self.functions['random'] = random_float
         
 

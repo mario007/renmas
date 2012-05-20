@@ -1,9 +1,10 @@
 from .light import Light
 
 class PointLight(Light):
-    def __init__(self, position, spectrum):
+    def __init__(self, position, spectrum, power=1.0):
         self._position = position
         self._spectrum = spectrum
+        self._power = float(power)
         self._ds = []
 
     def _set_position(self, value):
@@ -19,6 +20,13 @@ class PointLight(Light):
     def _get_spectrum(self):
         return self._spectrum
     spectrum = property(_get_spectrum, _set_spectrum)
+
+    def _set_power(self, value):
+        self._power = float(value)
+        self._populate_ds()
+    def _get_power(self):
+        return self._power
+    power = property(_get_power, _set_power)
 
     def L(self, hitpoint, renderer):
         # 1. check visibility
@@ -36,7 +44,7 @@ class PointLight(Light):
 
         ret = renderer._intersector.visibility(self._position, hitpoint.hit_point)
         if ret:
-            hitpoint.l_spectrum = self._spectrum #TODO reduce intesity, attenuation options  1/r^2
+            hitpoint.l_spectrum = self._spectrum * self._power #TODO reduce intesity, attenuation options  1/r^2
             hitpoint.visible = True
             return True
         else:
@@ -95,7 +103,7 @@ class PointLight(Light):
         for ds in self._ds:
             p = self._position
             ds["position"] = (p.x, p.y, p.z, 0.0)
-            s = self._spectrum
+            s = self._spectrum * self._power
             ds["l_spectrum.values"] = s.to_ds()
 
     def convert_spectrums(self, converter):

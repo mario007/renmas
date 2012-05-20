@@ -212,6 +212,33 @@ movaps oword [v1], xmm0
 #END
 """
 
+ATANR2_CODE_PS = """
+#DATA
+float v1[4]
+float v2[4]
+#CODE
+movaps xmm0, oword [v1]
+movaps xmm1, oword [v2]
+macro call fast_atanr2_ps
+movaps oword [v1], xmm0 
+#END
+"""
+
+ATANR2_CODE_SS = """
+#DATA
+float v1
+float v2
+#CODE
+movss xmm0, dword [v1]
+movss xmm1, dword [v2]
+macro call fast_atanr2_ss
+movss dword [v1], xmm0 
+#END
+"""
+
+def randoms(n):
+    return tuple([random.random() for i in range(n)])
+
 class TestTrigs(unittest.TestCase):
 
     def setUp(self):
@@ -485,7 +512,7 @@ class TestTrigs(unittest.TestCase):
         ds = self.runtime.load('acos', mc)
 
         for x in range(1000):
-            num = random.random() 
+            num = random.random()
             ds["x"] = num 
             self.runtime.run("acos")
             rez_asm = ds["x"]
@@ -497,7 +524,7 @@ class TestTrigs(unittest.TestCase):
         ds = self.runtime.load('acos_ps', mc)
 
         for x in range(1000):
-            num1 = random.random() 
+            num1 = random.random()
             num2 = random.random() 
             num3 = random.random() 
             num4 = random.random()
@@ -581,6 +608,42 @@ class TestTrigs(unittest.TestCase):
             self.assertAlmostEqual(rez_asm[1], rez_py2, 3)
             self.assertAlmostEqual(rez_asm[2], rez_py3, 3)
             self.assertAlmostEqual(rez_asm[3], rez_py4, 3)
+
+    def test_atanr2_ps(self):
+        mc = self.assembler.assemble(ATANR2_CODE_PS)
+        ds = self.runtime.load('atanr2_ps', mc)
+        for x in range(1000):
+            num1, num2, num3, num4 = randoms(4)
+            num5, num6, num7, num8 = randoms(4)
+            ds["v1"] = (num1, num2, num3, num4) 
+            ds["v2"] = (num5, num6, num7, num8) 
+            self.runtime.run("atanr2_ps")
+
+            rez_asm = ds['v1']
+            rez_py1 = math.atan2(num1, 1.0/num5)
+            rez_py2 = math.atan2(num2, 1.0/num6)
+            rez_py3 = math.atan2(num3, 1.0/num7)
+            rez_py4 = math.atan2(num4, 1.0/num8)
+
+            self.assertAlmostEqual(rez_asm[0], rez_py1, 3)
+            self.assertAlmostEqual(rez_asm[1], rez_py2, 3)
+            self.assertAlmostEqual(rez_asm[2], rez_py3, 3)
+            self.assertAlmostEqual(rez_asm[3], rez_py4, 3)
+
+    def test_atanr2_ss(self):
+        mc = self.assembler.assemble(ATANR2_CODE_SS)
+        ds = self.runtime.load('atanr2_ss', mc)
+
+        for x in range(1000):
+            num1, num2 = randoms(2) 
+            ds["v1"] = num1 
+            ds["v2"] = num2 
+            self.runtime.run("atanr2_ss")
+
+            rez_asm = ds['v1']
+            rez_py = math.atan2(num1, 1.0/num2)
+
+            self.assertAlmostEqual(rez_asm, rez_py, 3)
 
 if __name__ == "__main__":
     unittest.main()

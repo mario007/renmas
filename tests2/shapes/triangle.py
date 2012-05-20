@@ -75,6 +75,7 @@ class TriangleIsectTest(unittest.TestCase):
         runtime.run("test")
         hp = triangle.isect(ray)
 
+        print(ds["beta"], ds["gamma"], ds['beta'] + ds['gamma'])
         if hp is False: self.assertFalse(ds["ret"]!=0)
         if ds["ret"] == 0: self.assertFalse(hp)
         if hp is not False:
@@ -89,6 +90,8 @@ class TriangleIsectTest(unittest.TestCase):
             triangle tri1
             hitpoint hp1
             float min_dist = 99999.000
+
+            float beta, gamma
             uint32 ret
 
             #CODE
@@ -98,7 +101,10 @@ class TriangleIsectTest(unittest.TestCase):
             mov edx, hp1
             call ray_triangle_intersection 
             mov dword [ret], eax
-
+            
+            movss dword [beta], xmm4
+            movss dword [gamma], xmm5
+            
             #END
         """
         return code
@@ -109,8 +115,10 @@ class TriangleIsectTest(unittest.TestCase):
         runtime = Runtime()
 
         triangle = factory.create_triangle(v0=(2,2,2), v1=(5,2,2), v2=(3.5,5,2))
-        ray = factory.create_ray(origin=(3,2.5,0), direction=(0,0.1,0.88))
-        hp = triangle.isect(ray)
+        triangle = factory.create_triangle(v0=(3.64479,19.4901,31.67), v1=(1.5157999,0.6639999,31.8798),
+                v2=(1.4469,0.663999,31.415))
+        ray = factory.create_ray(origin=(280.0, 110.0, 244.0), direction=(-0.759278, -0.2980911, -0.57847869))
+        #hp = triangle.isect(ray)
 
         triangle.isect_asm([runtime], "ray_triangle_intersection", ren.assembler, ren.structures)
         mc = ren.assembler.assemble(self.asm_code(ren))
@@ -159,7 +167,7 @@ class TriangleIsectTest(unittest.TestCase):
             t2 = ds["t"]
             self.assertAlmostEqual(hp, t2, 4)
 
-    def test_isect2(self):
+    def abc_test_isect2(self):
         factory = renmas2.Factory()
         ren = renmas2.Renderer()
         runtime = Runtime()

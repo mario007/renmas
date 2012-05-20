@@ -108,8 +108,10 @@ class IRender:
         spec = self.renderer.converter.create_spectrum(specular)
 
         n = float(n)
+        ph = PhongSampling(n)
+        mat.add(ph)
         lamb = self.factory.create_lambertian(diff)
-        phong_specular = self.factory.create_phong(spec, n)
+        phong_specular = self.factory.create_phong(spec, n, sampling=ph)
         mat.add(lamb)
         mat.add(phong_specular)
         self._add_brdf_samplings(mat, sampling)
@@ -209,6 +211,10 @@ class IRender:
         mat.add(perf_trans)
         mat.add(sampl)
 
+    # TODO -- urgent make consistent material creation -- samplings!!!!
+    # predifined functions and commponent
+    # TIP -- type: general -- add material components
+    # type: predifined types -- they have function that add that type of material
     def _create_material(self, kw):
         name = kw.get("name", None)
         samplings = kw.get("samplings", None)
@@ -355,12 +361,8 @@ class IRender:
             self._set_camera_props(name, value)
         elif category == "misc":
             self._set_misc(name, value)
-        elif category == "light_position":
-            self._set_light_position(name, value)
         elif category == "light_spectrum_scale":
             self._scale_light_spectrum(name, value)
-        elif category == "light_intesity":
-            self._set_light_intesity(name, value)
         elif category == "material_assign":
             self.renderer.assign_material(name, value)
         elif category == "ReinhardOperator":
@@ -369,6 +371,8 @@ class IRender:
             self._set_photoreceptor_props(name, value)
         elif category == "material_params":
             self._set_material_param(name, value)
+        elif category == "light_params":
+            self._set_light_param(name, value)
         return 1
 
     def get_props(self, category, name):
@@ -385,10 +389,6 @@ class IRender:
             return self._get_light_props(name)
         elif category == "light_type":
             return self._get_light_type(name)
-        elif category == "light_position":
-            return self._get_light_position(name)
-        elif category == "light_intesity":
-            return self._get_light_intesity(name)
         elif category == "material_name":
             return self._get_material_name(name)
         elif category == "ReinhardOperator":
@@ -401,7 +401,51 @@ class IRender:
             return self._get_component_type(name)
         elif category == "material_params":
             return self._get_material_param(name)
+        elif category == "light_params":
+            return self._get_light_param(name)
         return ""
+
+    def _get_light_param(self, value):
+        val = value.split(',')
+        if len(val) != 2: return ""
+        light_name, param_name = val
+        light = self.renderer.shader.light(light_name)
+        if light is None: return ""
+        if param_name == "position":
+            if hasattr(light, 'position'):
+                p = light.position
+                return str(p.x) + "," + str(p.y) + "," + str(p.z)
+            return ""
+        elif param_name == "intesity":
+            return self._spectrum_to_string(light.spectrum)
+        elif param_name == "power":
+            if hasattr(light, 'power'):
+                return str(light.power)
+            return ""
+        else:
+            return ""
+
+    def _set_light_param(self, value, param_value):
+        val = value.split(',')
+        if len(val) != 2: return
+        light_name, param_name = val
+        light = self.renderer.shader.light(light_name)
+        if light is None: return 
+        if param_name == "position":
+            if hasattr(light, 'position'):
+                words = param_value.split(',')
+                if len(words) == 3:
+                    x, y, z = words
+                    light.position = Vector3(float(x), float(y), float(z))
+        elif param_name == "intesity":
+            words = param_value.split(',')
+            if len(words) == 2:
+                w, v = words 
+                s = self._set_spectrum_value(light.spectrum, w, v)
+                light.spectrum = s
+        elif param_name == "power":
+            if hasattr(light, 'power'):
+                light.power = float(param_value)
 
     def _get_component_type(self, name):
         val = name.split(',')
@@ -681,48 +725,17 @@ class IRender:
             elif lam == "BLUE": spectrum.b = float(value)
         return spectrum
 
-    def _set_light_intesity(self, name, value):
-        val = value.split(',')
-        if len(val) != 2: return
-        w, v = val
-        light = self.renderer.shader.light(name)
-        if light is None: return ""
-        s = self._set_spectrum_value(light.spectrum, w, v)
-        light.spectrum = s
-
-    def _get_light_intesity(self, name):
-        light = self.renderer.shader.light(name)
-        if light is None: return ""
-        s = light.spectrum
-        return self._spectrum_to_string(s)
-
     def _get_light_type(self, name):
         light = self.renderer.shader.light(name)
         if light is None: return ""
         elif type(light) == PointLight: return "PointLight"
-        return ""
-
-    def _set_light_position(self, name, value):
-        light = self.renderer.shader.light(name)
-        if light is None: return ""
-        elif type(light) == PointLight:
-            words = value.split(',')
-            if len(words) == 3:
-                x, y, z = words
-                pos = Vector3(float(x), float(y), float(z))
-                light.position = pos
-
-    def _get_light_position(self, name):
-        light = self.renderer.shader.light(name)
-        if light is None: return ""
-        elif type(light) == PointLight: 
-            p = light.position
-            return str(p.x) + "," + str(p.y) + "," + str(p.z)
+        elif type(light) == ConstEnvironmentLight: return "ConstEnvironmentLight"
         return ""
 
     def _get_light_props(self, name):
         if name == "light_names":
             return ",".join(self.renderer.shader.light_names())
+        return ""
 
     def _set_camera_props(self, name, value):
         if name == "eye":
@@ -775,6 +788,10 @@ class IRender:
                 self.renderer.tone_mapping_operator = self._reinhard 
             elif value == "Photoreceptor":
                 self.renderer.tone_mapping_operator = self._photoreceptor 
+        elif name == "project_save":
+            self.renderer.save_project(value)
+        elif name == "project_load":
+            self.renderer.load_project(value)
 
     def _get_misc(self, name):
         if name == 'resolution':

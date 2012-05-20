@@ -119,8 +119,9 @@ class FlatMesh(Shape):
             #DATA
         """
         code += structures.structs(('ray', 'flat_mesh')) + """
-        float epsilon= 0.00001
-        float one = 1.0
+        float epsilon= 0.0005
+        float one = 1.0001
+
         uint32 num_triangles
         uint32 ptr_triangles
 
@@ -213,8 +214,9 @@ class FlatMesh(Shape):
             #DATA
         """
         code += structures.structs(('ray', 'flat_mesh')) + """
-        float epsilon= 0.00001
-        float one = 1.0
+        float epsilon= 0.0005
+        float one = 1.0001
+
         uint32 num_triangles
         uint32 ptr_triangles
 
@@ -356,7 +358,7 @@ class FlatMesh(Shape):
         e3 = a * p - b * r + d * s
         t = e3 * inv_denom
 
-        if t < 0.00001: return False # self-intersection
+        if t < 0.0001: return False # self-intersection
 
         hit_point = ray.origin + ray.dir * t
 

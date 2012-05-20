@@ -72,6 +72,38 @@ namespace RenmasWPF2
             this.Close();
         }
 
+        private void MenuItem_SaveProject(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.SaveFileDialog dlg = new Microsoft.Win32.SaveFileDialog();
+            dlg.FileName = "project1"; // Default file name
+            dlg.DefaultExt = ".renmas"; // Default file extension
+            dlg.Filter = "RENMAS (.renmas)|*.renmas"; // Filter files by extension
+
+            Nullable<bool> result = dlg.ShowDialog();
+            if (result == true)
+            {
+                string filename = dlg.FileName;
+                this.renmas.SaveProject(filename);
+                this.txt_output_window.Text = this.renmas.Log();
+            }
+        }
+
+        private void MenuItem_LoadProject(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
+            dlg.FileName = "project1"; // Default file name
+            dlg.DefaultExt = ".renmas"; // Default file extension
+            dlg.Filter = "RENMAS (.renmas)|*.renmas"; // Filter files by extension
+
+            Nullable<bool> result = dlg.ShowDialog();
+            if (result == true)
+            {
+                string filename = dlg.FileName;
+                this.renmas.LoadProject(filename);
+                this.txt_output_window.Text = this.renmas.Log();
+            }
+        }
+
         private void MenuItem_ExportImage(object sender, RoutedEventArgs e)
         {
             Microsoft.Win32.SaveFileDialog dlg = new Microsoft.Win32.SaveFileDialog();

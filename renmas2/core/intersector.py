@@ -10,7 +10,7 @@ from ..shapes import Grid
 class Intersector:
     def __init__(self, renderer):
         self.renderer = renderer
-        self.strategy = False # False means linear intersection, True using Grids 
+        self.strategy = True # False means linear intersection, True using Grids 
         self._grid = Grid()
 
         self._shape_names = {} #name:shape
@@ -84,8 +84,11 @@ class Intersector:
 
     def isect_asm(self, runtimes, label):
         if self.strategy:
-            ren = self.renderer
-            self._grid.isect_asm(runtimes, label, ren.assembler, ren.structures, self._shape_arrays, self)
+            if len(self._lst_shapes) > 0:
+                ren = self.renderer
+                self._grid.isect_asm(runtimes, label, ren.assembler, ren.structures, self._shape_arrays, self)
+            else:
+                self._isect_ray_scene(runtimes, label, self._shape_arrays)
         else:
             self._isect_ray_scene(runtimes, label, self._shape_arrays)
 
@@ -129,8 +132,11 @@ class Intersector:
         # xmm0 -- return value minimum distance
 
         if self.strategy:
-            ren = self.renderer
-            self._grid.isect_asm_b(runtimes, "__ray_scene_intersection_visibility__", ren.assembler, ren.structures, self._shape_arrays, self)
+            if len(self._lst_shapes) > 0:
+                ren = self.renderer
+                self._grid.isect_asm_b(runtimes, "__ray_scene_intersection_visibility__", ren.assembler, ren.structures, self._shape_arrays, self)
+            else:
+                self._isect_ray_scene(runtimes, "__ray_scene_intersection_visibility__", self._shape_arrays, True)
         else:
             self._isect_ray_scene(runtimes, "__ray_scene_intersection_visibility__", self._shape_arrays, True)
 

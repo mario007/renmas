@@ -85,16 +85,21 @@ class SmoothMeshIsectTest(unittest.TestCase):
         mc = ren.assembler.assemble(self.asm_code1(ren))
         ds = runtime.load("test", mc)
 
-        for i in range(10):
+        for i in range(1000):
             ray = self.random_ray()
             self.ray_ds(ds, ray, "ray1")
             self.smooth_mesh_ds(ds, mesh, "mesh1")
             runtime.run("test")
             hp = mesh.isect(ray)
             if hp:
-                print(hp.t, ds["hp1.t"])
+                #print(hp.t, ds["hp1.t"])
+                n1 = hp.normal
+                n2 = ds["hp1.normal"]
 
-            print(ds["ret"])
+                self.assertAlmostEqual(n1.x, n2[0], 3)
+                self.assertAlmostEqual(n1.y, n2[1], 3)
+                self.assertAlmostEqual(n1.z, n2[2], 3)
+
 
 if __name__ == "__main__":
     unittest.main()

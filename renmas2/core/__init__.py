@@ -19,4 +19,5 @@ from .mtl import Mtl
 from .image import ImageRGBA
 from .rgbe import load_rgbe
 from .spd_loader import SPDLoader
+from .save_image import save_image
 

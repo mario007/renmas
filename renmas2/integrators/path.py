@@ -101,7 +101,7 @@ class Pathtracer(Integrator):
             float one[4] = 1.0, 1.0, 1.0, 1.0
             float zero[4] = 0.0, 0.0, 0.0, 0.0
             hitpoint hp1
-            uint32 max_depth = 8
+            uint32 max_depth = 18 
             uint32 cur_depth = 0
             spectrum path
             spectrum L

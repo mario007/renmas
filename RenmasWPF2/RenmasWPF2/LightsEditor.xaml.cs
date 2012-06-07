@@ -84,11 +84,13 @@ namespace RenmasWPF2
             StackPanel pos = this.build_position();
             StackPanel wave = this.build_wavelength();
             StackPanel intesity = this.build_lbltxt_intesity(" Intesity: ", "Intesity");
+            StackPanel intesity_scale = this.build_lbltxt_intesity(" Intesity Scale: ", "IntesityScale");
 
             sp.Children.Add(light_t);
             sp.Children.Add(pos);
             sp.Children.Add(wave);
             sp.Children.Add(intesity);
+            sp.Children.Add(intesity_scale);
         }
 
         private StackPanel build_wavelength()
@@ -168,7 +170,7 @@ namespace RenmasWPF2
         {
             TextBlock label = new TextBlock();
             label.Text = text;
-            label.Width = 70;
+            label.Width = 80;
             label.TextAlignment = TextAlignment.Right;
             label.VerticalAlignment = System.Windows.VerticalAlignment.Center;
             TextBox tb = new TextBox();

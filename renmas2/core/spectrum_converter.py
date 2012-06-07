@@ -1030,3 +1030,233 @@ class SpectrumConverter:
                 ds['s1.values'] = self._s1.to_ds()
                 ds['s2.values'] = self._s2.to_ds()
 
+    # xmm0 = rgb 
+    # eax = pointer to spectrum
+    #TODO -- remove broadcasts put local r, g, b values
+    # it will improve space and preformanse
+    def rgb_to_spectrum_asm(self, label, runtimes):
+        ASM = """
+            #DATA
+        """
+        ASM += self.renderer.structures.structs(('spectrum',)) +  """
+        spectrum cyan, blue, green, magenta, red, yellow, white  
+        float con1 = 0.94
+        float low = 0.0
+        float high = 0.99
+        float rgb[4]
+        spectrum temp1, temp2
+        #CODE
+
+        """
+        ASM += " global " + label + ":\n" + """
+        macro eq128 rgb = xmm0 {xmm7}
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro if xmm0 > xmm1 goto _next
+        macro if xmm0 > xmm2 goto _next
+
+        mov ecx, temp1
+        mov ebx, white
+        macro spectrum ecx = xmm0 * ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro if xmm1 > xmm2 goto _red2
+        
+        macro eq32 xmm1 = xmm1 - xmm0
+        mov ecx, temp2
+        mov ebx, cyan 
+        macro spectrum ecx = xmm1 * ebx 
+
+        mov ecx, temp1
+        mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro eq32 xmm2 = xmm2 - xmm1
+
+        mov ecx, temp2
+        mov ebx, blue 
+        macro spectrum ecx = xmm2 * ebx 
+
+        mov ecx, temp1
+        mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+        jmp _end
+
+        _red2:
+
+        macro eq32 xmm2 = xmm2 - xmm0
+        mov ecx, temp2
+        mov ebx, cyan 
+        macro spectrum ecx = xmm2 * ebx 
+
+        mov ecx, temp1
+        mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro eq32 xmm1 = xmm1 - xmm2
+
+        mov ecx, temp2
+        mov ebx, green 
+        macro spectrum ecx = xmm1 * ebx 
+
+        mov ecx, temp1
+        mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+        jmp _end
+
+
+        _next:
+        macro if xmm1 > xmm0 goto _next2
+        macro if xmm1 > xmm2 goto _next2
+
+        mov ecx, temp1
+        mov ebx, white
+        macro spectrum ecx = xmm1 * ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro if xmm0 > xmm2 goto _green2
+
+        macro eq32 xmm0 = xmm0 - xmm1
+        mov ecx, temp2
+        mov ebx, magenta 
+        macro spectrum ecx = xmm0 * ebx 
+
+        mov ecx, temp1
+        mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro eq32 xmm2 = xmm2 - xmm0
+
+        mov ecx, temp2
+        mov ebx, blue 
+        macro spectrum ecx = xmm2 * ebx 
+
+        mov ecx, temp1
+        mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+    
+        jmp _end
+
+        _green2:
+
+        macro eq32 xmm2 = xmm2 - xmm1
+        mov ecx, temp2
+        mov ebx, magenta 
+        macro spectrum ecx = xmm2 * ebx 
+
+        mov ecx, temp1
+        mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro eq32 xmm0 = xmm0 - xmm2
+
+        mov ecx, temp2
+        mov ebx, red 
+        macro spectrum ecx = xmm0 * ebx 
+
+        mov ecx, temp1
+        mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        jmp _end
+
+        _next2:
+
+        mov ecx, temp1
+        mov ebx, white
+        macro spectrum ecx = xmm2 * ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro if xmm0 > xmm1 goto _blue2
+
+        macro eq32 xmm0 = xmm0 - xmm2
+        mov ecx, temp2
+        mov ebx, yellow 
+        macro spectrum ecx = xmm0 * ebx 
+
+        mov ecx, temp1
+        mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro eq32 xmm1 = xmm1 - xmm0
+
+        mov ecx, temp2
+        mov ebx, green 
+        macro spectrum ecx = xmm1 * ebx 
+
+        mov ecx, temp1
+        mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        jmp _end
+
+        _blue2:
+
+        macro eq32 xmm1 = xmm1 - xmm2
+        mov ecx, temp2
+        mov ebx, yellow 
+        macro spectrum ecx = xmm1 * ebx 
+
+        mov ecx, temp1
+        mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro eq32 xmm0 = xmm0 - xmm1
+
+        mov ecx, temp2
+        mov ebx, red 
+        macro spectrum ecx = xmm0 * ebx 
+
+        mov ecx, temp1
+        mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        _end:
+        mov ecx, temp1
+        macro eq32 xmm0 = con1
+        macro spectrum eax = xmm0 * ecx 
+
+        macro eq32 xmm0 = low
+        macro eq32 xmm1 = high
+        macro spectrum clamp eax 
+        ret
+        """
+
+        mc = self.renderer.assembler.assemble(ASM, True)
+        #mc.print_machine_code()
+        name = "rgb_to_spectrum" + str(abs(hash(self)))
+        for r in runtimes:
+            if not r.global_exists(label):
+                ds = r.load(name, mc)
+                ds['cyan.values'] = self._spect_cyan.to_ds()
+                ds['blue.values'] = self._spect_blue.to_ds()
+                ds['green.values'] = self._spect_green.to_ds()
+                ds['magenta.values'] = self._spect_magenta.to_ds()
+                ds['red.values'] = self._spect_red.to_ds()
+                ds['yellow.values'] = self._spect_yellow.to_ds()
+                ds['white.values'] = self._spect_white.to_ds()
+

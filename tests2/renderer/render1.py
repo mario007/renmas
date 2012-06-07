@@ -54,21 +54,16 @@ print (irender.get_props('misc', 'pixel_size'))
 #filename = 'I:\\GitRENMAS\\scenes\\cube.py'
 #filename = 'I:\\GitRENMAS\\scenes\\random_spheres.py'
 #filename = 'I:\\GitRENMAS\\scenes\\mini_moris.py'
-filename = 'I:\\GitRENMAS\\scenes\\sunsky1.py'
+#filename = 'I:\\GitRENMAS\\scenes\\sunsky1.py'
 #filename = 'G:\\GitRENMAS\\renmas\\scenes\\mini_moris.py'
-#filename = 'C:\\Users\\Mario\\Desktop\\glass\\glass.py'
+filename = 'C:\\Users\\Mario\\Desktop\\glass\\glass.py'
 exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(globals()))
 #irender.set_props('misc', 'pixel_size', '1.4')
 #print (irender.get_props('misc', 'pixel_size'))
 #print (irender.get_props('light_spectrum', 'light1'))
 #irender.set_props('misc', 'spectral', 'True')
 
-irender.set_props('misc', 'selected_operator',  "Reinhard")
-print("Operator", irender.get_props("misc", "selected_operator"))
-print("Tonemapping", irender.get_props("misc", "tone_mapping"))
-
-print("Komponenta", irender.get_props("material_components", "default"))
-
+#renderer.assign_material('Line03', 'dielectric1')
 #print(irender.get_props("misc", "shapes"))
 #print(irender.get_props("misc", "materials"))
 #print ("Materials for shapes")

@@ -104,6 +104,7 @@ namespace RenmasWPF2
                 this.OnPropertyChanged("PositionZ");
                 this.OnPropertyChanged("Spectrum");
                 this.OnPropertyChanged("Intesity");
+                this.OnPropertyChanged("IntesityScale");
             }
         }
 
@@ -140,6 +141,21 @@ namespace RenmasWPF2
             }
         }
 
+        public float IntesityScale
+        {
+            get 
+            {
+                string val = this.renmas.GetProp("light_params", this.SelectedLight + ",intesity_scale");
+                if (val == "") return 1.0f;
+                return Convert.ToSingle(val); 
+            }
+            set
+            {
+                this.renmas.SetProp("light_params", this.SelectedLight + ",intesity_scale", value.ToString());
+                this.OnPropertyChanged("IntesityScale");
+            }
+
+        }
         public bool Spectral
         {
             get { return System.Convert.ToBoolean(this.renmas.GetProp("misc", "spectral")); }
@@ -150,6 +166,7 @@ namespace RenmasWPF2
             this.renmas.SetProp("light_spectrum_scale", this.SelectedLight, scaler.ToString());
             this.OnPropertyChanged("Intesity");
         }
+
         private float get_position(string prop)
         {
             string value = this.renmas.GetProp("light_params", this.SelectedLight + ",position");
@@ -202,6 +219,7 @@ namespace RenmasWPF2
             this.OnPropertyChanged("PositionY");
             this.OnPropertyChanged("PositionZ");
             this.OnPropertyChanged("Intesity");
+            this.OnPropertyChanged("IntesityScale");
             
         }
         public event PropertyChangedEventHandler PropertyChanged;

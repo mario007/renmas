@@ -38,16 +38,20 @@ class PerfectSpecularTest(unittest.TestCase):
             ds["hp.fliped"] = 0
         ds["hp.specular"] = 89
 
+    def shlick(self, n, cosi):
+        r0 = (n-1.0)/(n+1.0)
+        r0 = r0 * r0
+        return r0 + (1-r0)*pow(1-cosi, 5.0)
 
     def test_perfect_specular(self):
         factory = renmas2.Factory()
         ren = renmas2.Renderer()
         runtime = Runtime()
         mat = renmas2.core.material.Material(ren.converter.zero_spectrum())
-        spec = ren.converter.create_spectrum((0.5, 0.5, 0.5))
+        spec = ren.converter.create_spectrum((1.0, 1.0, 1.0))
         ren.macro_call.set_runtimes([runtime])
 
-        eta_in = ren.converter.zero_spectrum().set(1.3)
+        eta_in = ren.converter.zero_spectrum().set(1.5)
         eta_out = ren.converter.zero_spectrum().set(1.0)
         fresnel = renmas2.materials.FresnelDielectric(eta_in, eta_out) 
 
@@ -59,13 +63,14 @@ class PerfectSpecularTest(unittest.TestCase):
         normal = factory.vector(2.9, 1.2, 4.5)
         normal.normalize()
         hp = renmas2.shapes.HitPoint(t, hit_point, normal, 0)
-        wi = factory.vector(6,-8,3.8)
+        wi = factory.vector(6,-27,3.8)
         wi.normalize()
         wo = factory.vector(2, 2, 4)
         wo.normalize()
         hp.wo = wo
         hp.wi = wi
         hp.ndotwi = normal.dot(wi)
+        print (hp.ndotwi)
         hp.fliped = True 
         hp.specular = 89
 
@@ -77,6 +82,7 @@ class PerfectSpecularTest(unittest.TestCase):
         runtime.run("test")
 
         spectrum = mat.f(hp)
+        print("shlick", self.shlick(1.5, hp.ndotwi))
         print("Python")
         print(spectrum)
         print("---------------------------------------")

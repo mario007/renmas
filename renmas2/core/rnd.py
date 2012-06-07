@@ -418,9 +418,9 @@ class IRender:
             return ""
         elif param_name == "intesity":
             return self._spectrum_to_string(light.spectrum)
-        elif param_name == "power":
-            if hasattr(light, 'power'):
-                return str(light.power)
+        elif param_name == "intesity_scale":
+            if hasattr(light, 'intesity_scale'):
+                return str(light.intesity_scale)
             return ""
         else:
             return ""
@@ -443,9 +443,9 @@ class IRender:
                 w, v = words 
                 s = self._set_spectrum_value(light.spectrum, w, v)
                 light.spectrum = s
-        elif param_name == "power":
-            if hasattr(light, 'power'):
-                light.power = float(param_value)
+        elif param_name == "intesity_scale":
+            if hasattr(light, 'intesity_scale'):
+                light.intesity_scale = float(param_value)
 
     def _get_component_type(self, name):
         val = name.split(',')

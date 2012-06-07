@@ -3,6 +3,7 @@ import re
 import timeit
 import string
 
+# TODO - nested comments
 class OSLLexer: 
     def __init__(self):
         osl_keywords = ['break', 'closure', 'color', 'continue', 'do', 'else', 'emit', 'float', 'for', 'if',
@@ -21,9 +22,9 @@ class OSLLexer:
         ('string', r'"[\s\w]*"'),
         ('operators', r'\+|-|~|\^|=|<|>|!|&|%'),
         ('comment', r'//.*$'),
-        ('special', r'\[|]|{|}|\(|\)'),
+        ('special', r'\[|]|{|}|\(|\)|;'),
         ('comma', r','),
-        ('osl_keyword', r'\b(%s)\b' % '|'.join(osl_keywords)),
+        ('keyword', r'\b(%s)\b' % '|'.join(osl_keywords)),
         ('reserved_word', r'\b(%s)\b' % '|'.join(reserved_words)),
         ('decimal', r'[0-9]+\.[0-9]*'),
         ('hex_num', r'0x[0-9A-Fa-f]+'),

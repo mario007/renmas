@@ -37,6 +37,7 @@ class PerfectTransmission(BTDF):
     def btdf(self, hp):
         if hp.specular == 65: # delta distribution
             ret = self._one_spectrum - self._fresnel.evaluate(hp)
+            #TODO -- check this maybe is reversed!!!
             if hp.fliped: # ray is inside object
                 eta = self._fresnel._eta_out.div_spectrum(self._fresnel._eta_in)
             else:

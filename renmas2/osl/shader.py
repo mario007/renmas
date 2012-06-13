@@ -1,4 +1,5 @@
 
+import platform
 from renmas2.core import Vector3
 
 class Param:
@@ -16,8 +17,30 @@ class Param:
             return "float " + self.name
         elif self.typ == "vector":
             return "float " + self.name + "[4]"
-        else:
-            raise ValueError("Not yet supported")
+        else: #we assume it is complex param - structure
+            # we need pointer to structure
+            bits = platform.architecture()[0]
+            if bits == "64bit":
+                return "uint64 %s" % self.name
+            else:
+                return "uint32 %s" % self.name
+
+    def copy_from_reg(self, reg):
+        if self.typ == "int": # mov dword [name], eax
+            reg = 'e' + reg[1:]
+            return "mov dword[%s], %s " % (self.name, reg)
+        elif self.typ == "float":
+            reg = 'e' + reg[1:]
+            return "mov dword[%s], %s " % (self.name, reg)
+        elif self.typ == "vector": # macro eq128 name = eax {xmm7}
+            return "macro eq128 %s = %s {xmm7}" % (self.name, reg)
+        else: #we assume it is complex param - structure
+            # we need pointer to structure
+            bits = platform.architecture()[0]
+            if bits == "64bit":
+                return "mov qword[%s], %s " % (self.name, reg)
+            else:
+                return "mov dword[%s], %s " % (self.name, reg)
 
 class Constant:
     def __init__(self, name, typ, val):
@@ -43,8 +66,25 @@ class LocalVar:
             return "float " + self.name
         elif self.typ == "vector":
             return "float " + self.name + "[4]"
+        else: #we assume it is complex param - structure
+            return "%s %s" % (self.typ, self.name) 
+
+class Constant:
+    def __init__(self, name, typ, val):
+        self.name = name
+        self.typ = typ
+        self.val = val
+
+    def to_asm(self):
+        if self.typ == "int":
+            return "int32 " + self.name + " = " + str(int(self.val))
+        elif self.typ == "float":
+            return "float " + self.name + " = " + str(float(self.val))
+        elif self.typ == "vector":
+            return ValueError("Not suported vector constant type") 
+            return "float " + self.name + "[4]" + " = " + str(self.val)
         else:
-            raise ValueError("Not yet supported")
+            return ValueError("Not suported constant type") 
 
 def _set_float(lst_ds, name, value):
     for ds in lst_ds:
@@ -87,19 +127,20 @@ class Props:
             raise AttributeError("Attribute " + name + " doesn't exist!")
 
 class Shader:
-    def __init__(self, name, typ, params, statements, localvars):
+    def __init__(self, name, typ, params, statements, localvars, constants):
         self.name = name
         self.typ = typ
         self.params = params
         self.statements = statements
         self.localvars = localvars
+        self.constants = constants
         self._ds = []
 
     def __repr__(self):
 
         txt =  "Shader type = " +  self.typ + " Shader name =" + self.name + "\n"
         txt += "Shader parameters \n"
-        for p in self.params.values():
+        for p in self.params:
             txt += 'Param name = ' + p.name + ',  ptype = ' + p.typ + ',  val =' + str(p.val) + ",  output = " + str(p.output) + "\n"
 
         txt += "\nLocals \n"
@@ -108,21 +149,12 @@ class Shader:
         txt += "\nStatements \n"
         for s in self.statements:
             txt += s.code + "\n"
+
+        txt += self.generate_code("test_label") + "\n"
         return txt
 
     def prepare(self, label, runtimes, assembler):
-        data = "#DATA \n"
-        for p in self.params.values():
-            data +=  p.to_asm() + "\n"
-        for l in self.localvars.values():
-            data += l.to_asm() + "\n"
-        #TODO think -- label
-        code = "#CODE \n"
-        for s in self.statements:
-            code += s.code + "\n"
-        code += "#END \n"
-
-        asm_code = data + code 
+        asm_code = self.generate_code(label)
         
         self._ds = []
         self._runtimes = runtimes
@@ -133,10 +165,36 @@ class Shader:
             ds = r.load(label, mc)
             self._ds.append(ds)
         
-        self.props = Props(self.params, self._ds)
+        self.props = Props(self.localvars, self._ds)
         # 5. use DataSection for populating parameters and local parameters
         # 6. use label for name in Runtime and for global labels
 
     def execute(self):
         self._runtimes[0].run(self._label)
 
+    def generate_code(self, label):
+        data = "#DATA \n"
+        for p in self.params:
+            data +=  p.to_asm() + "\n"
+        for l in self.localvars.values():
+            data += l.to_asm() + "\n"
+        for c in self.constants.values():
+            data += c.to_asm() + "\n"
+        #TODO think -- label
+        # eax - p1 , ebx - p2, ecx - p3, edx - p4, esi - p5 , edi - p6
+        # complex params are passed through pointers(references)
+        bits = platform.architecture()[0]
+        if bits == "64bit":
+            regs = ['rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi']
+        else:
+            regs = ['eax', 'ebx', 'ecx', 'edx', 'esi', 'edi']
+        code = "#CODE \n"
+        code += "global %s: \n" % label  
+        for p, reg in zip(self.params, regs):
+            code += p.copy_from_reg(reg) + "\n"
+        for s in self.statements:
+            code += s.code + "\n"
+        code += "#END \n"
+
+        asm_code = data + code 
+        return asm_code

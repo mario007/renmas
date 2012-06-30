@@ -6,7 +6,7 @@ from ..samplers import RandomSampler, RegularSampler
 from ..cameras import Pinhole
 from ..integrators import Raycast, IsectIntegrator, Pathtracer
 from ..shapes import Shape
-from ..lights import Light, EnvironmentLight
+from ..lights import Light, EnvironmentLight, AreaLight
 from ..macros import MacroSpectrum, MacroCall, arithmetic128, arithmetic32, broadcast,\
                                         macro_if, dot_product, normalization, cross_product
 from ..materials import HemisphereCos
@@ -282,6 +282,8 @@ class Renderer:
         self._ready = False
 
     def assign_material(self, shape_name, mat_name):
+        # TODO -- remove area light for that shape !!!!
+
         mat_idx = self._shader.mat_idx(mat_name) 
         if mat_idx is None:
             log.info("Material " + mat_name + " doesn't exist!!!")
@@ -293,6 +295,12 @@ class Renderer:
         shape.material = mat_idx 
         self._intersector.update(shape)
         self._ready = False #TODO -- think -- ready = False is not needed here
+
+        #AREA LIGHT -- 
+        if self._shader.material(mat_name).emission is not None:
+            pass
+            #al = AreaLight(shape, self._shader.material(mat_name))
+            #self._shader.add("area_light", al)
         return True
         
     def render_old(self):

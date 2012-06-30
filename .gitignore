@@ -15,6 +15,12 @@
 *.cpp~
 *.swp
 *.dll
+*.tga
+*.tar.gz
+*.zip
+/RenmasAPI/Release
+/RenmasAPI/RenmasAPI/Release
+/RenmasAPI/RenmasAPI/Debug
 /RenmasWPF2/RenmasWPF2/bin
 /RenmasWPF2/RenmasWPF2/obj
 /ImageLoader/ImageLoader/Release

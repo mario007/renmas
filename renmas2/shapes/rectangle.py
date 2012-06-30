@@ -19,6 +19,9 @@ class Rectangle(Shape):
         self.edge_b_squared = edge_b.length_squared()
 
     def isect_b(self, ray, min_dist=999999.0): #ray direction must be normalized
+        temp1 = ray.dir.dot(self.normal)
+        if temp1 == 0.0: return False 
+
         t = (self.point - ray.origin).dot(self.normal) / ray.dir.dot(self.normal)
         if t < 0.00001: return False 
         if t > min_dist: return False
@@ -93,6 +96,9 @@ class Rectangle(Shape):
 
 
     def isect(self, ray, min_dist = 999999.0):
+        temp1 = ray.dir.dot(self.normal)
+        if temp1 == 0.0: return False 
+
         t = (self.point - ray.origin).dot(self.normal) / ray.dir.dot(self.normal)
         if t < 0.00001: return False 
         if t > min_dist: return False
@@ -214,6 +220,7 @@ class Rectangle(Shape):
         r1 = random()
         r2 = random()
         hitpoint.light_sample = self.point + self.edge_a * r1 + self.edge_b * r2
+        return True
 
     # eax = pointer to hitpoint
     def light_sample_asm(self, label, assembler, structures):

@@ -1,49 +1,39 @@
+
 from .light import Light
 
-class PointLight(Light):
-    def __init__(self, position, spectrum, intesity_scale=1.0):
-        self._position = position
-        self._spectrum = spectrum
-        self._intesity_scale = float(intesity_scale)
-        self._ds = []
-
-    def _set_position(self, value):
-        self._position = value
-        self._populate_ds()
-    def _get_position(self):
-        return self._position
-    position = property(_get_position, _set_position)
-
-    def _set_spectrum(self, value):
-        self._spectrum = value
-        self._populate_ds()
-    def _get_spectrum(self):
-        return self._spectrum
-    spectrum = property(_get_spectrum, _set_spectrum)
-
-    def _set_intesity_scale(self, value):
-        self._intesity_scale = float(value)
-        self._populate_ds()
-    def _get_intesity_scale(self):
-        return self._intesity_scale
-    intesity_scale = property(_get_intesity_scale, _set_intesity_scale)
+class AreaLight(Light):
+    def __init__(self, shape, material):
+        self.shape = shape
+        self.material = material
 
     def L(self, hitpoint, renderer):
-        # 1. check visibility
-        # 2. populate light vector in hitpoint and spectrum of light
 
-        wi = self._position - hitpoint.hit_point
-        wi.normalize()
-        ndotwi = hitpoint.normal.dot(wi)
-        hitpoint.wi = wi 
-        hitpoint.ndotwi = ndotwi
-        if ndotwi < 0.0:
+        if not self.shape.light_sample(hitpoint): #shape doesn't support area light
             hitpoint.visible = False
             return False
 
-        ret = renderer._intersector.visibility(self._position, hitpoint.hit_point)
+        wi = hitpoint.light_sample - hitpoint.hit_point
+        len2 = wi.length_squared()
+        wi.normalize()
+
+        cos_light = wi.dot(hitpoint.light_normal * -1.0)
+        
+        if self.material.emission is None:
+            hitpoint.visible = False
+            return False
+
+        spectrum = self.material.emission * (cos_light / (hitpoint.light_pdf * len2))
+
+        ndotwi = hitpoint.normal.dot(wi)
+        hitpoint.wi = wi 
+        hitpoint.ndotwi = ndotwi
+        if ndotwi < 0.0: # ray strike back of object so that mean point is not visible to light. dielectric?? FIXME
+            hitpoint.visible = False
+            return False
+
+        ret = renderer._intersector.visibility(hitpoint.light_sample, hitpoint.hit_point)
         if ret:
-            hitpoint.l_spectrum = self._spectrum * self._intesity_scale #TODO reduce intesity, attenuation options  1/r^2
+            hitpoint.l_spectrum = spectrum
             hitpoint.visible = True
             return True
         else:
@@ -51,12 +41,10 @@ class PointLight(Light):
             return False
 
     #eax - pointer to hitpoint structure
+    #TODO - this is not implement 
     def L_asm(self, runtimes, visible_label, assembler, structures):
 
-        code = """
-            #DATA
-        """
-        code += structures.structs(('hitpoint',)) + """
+        code = "\n #DATA \n" + structures.structs(('hitpoint',)) + """
         float position[4]
         spectrum l_spectrum
         float zero = 0.0
@@ -78,7 +66,7 @@ class PointLight(Light):
         cmp eax, 1
         jne reject
         mov eax, dword [ptr_hp]
-        mov dword [eax + hitpoint.visible], 1
+        mov dword [eax + hitpoint.visible], 0
         lea ecx, dword [eax + hitpoint.l_spectrum]
         mov ebx, l_spectrum
         macro spectrum ecx = ebx
@@ -99,12 +87,10 @@ class PointLight(Light):
         self._populate_ds()
 
     def _populate_ds(self):
+        return
         for ds in self._ds:
             p = self._position
             ds["position"] = (p.x, p.y, p.z, 0.0)
             s = self._spectrum * self._intesity_scale
             ds["l_spectrum.values"] = s.to_ds()
-
-    def convert_spectrums(self, converter):
-        self._spectrum = converter.convert_spectrum(self._spectrum, True)
 

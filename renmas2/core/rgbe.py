@@ -79,7 +79,7 @@ def _read_one_scanline(f, scanline_width):
             if count == 0: return None
             scanline_buffer.append(int(buff[1]))
             count -= 1
-            if count > 0:
+            if count > 0: #TODO check this map(int, buff2)
                 buff2 = f.read(count)
                 scanline_buffer.extend(tuple(map(int, buff2)))
 

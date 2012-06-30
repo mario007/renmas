@@ -51,8 +51,12 @@ class Vector3:
         if length == 0.0: return self  
         return self.scale(1.0 / length)
 
+    def to_ds(self):
+        return (float(self.x), float(self.y), float(self.z), 0.0)
+
     def cross(self, vec):
         return Vector3(self.y * vec.z - self.z * vec.y,
                       self.z * vec.x - self.x * vec.z,
                       self.x * vec.y - self.y * vec.x)
+    
 

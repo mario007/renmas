@@ -1,5 +1,5 @@
 
-irender.options(asm=True, spectral=True, pixel_size=0.5, width=600, height=600, spp=4, threads=4)
+irender.options(asm=True, spectral=False, pixel_size=0.5, width=600, height=600, spp=1, threads=1)
 irender.set_camera(type="perspective", eye=(27.6, 27.4, -80.0), lookat=(27.6,27.4,0.0), distance=400)
 
 #origina data for light
@@ -104,5 +104,11 @@ comp1 = {"type":"oren", "roughness":1.0, "diffuse":(0.2, 0.4, 0.7)}
 comp2 = {"type":"ward", "alpha":0.10, "beta":0.6, "specular":(0.8, 0.8, 0.8)}
 irender.add_material(name="ward1", components=[comp1,comp2], samplings="lambertian")
 
-irender.add_shape(type="sphere", name="Sphere00", radius=9.0, position=(18.0, 35.0, 23.0), material="ward1")
+#irender.add_shape(type="sphere", name="Sphere00", radius=9.0, position=(18.0, 35.0, 23.0), material="ward1")
+
+#comp1 = {"type":"emission", "source":(2.2, 2.2, 2.2)}
+#comp2 = {"type":"lambertian", "diffuse":(0.78, 0.78, 0.78)}
+#irender.add_material(name="emission1", components=[comp1,comp2], samplings="lambertian")
+
+#irender.add_shape(type="rectangle", name="top_light", material="emission1", P=(0,54.80, 0), Edge_a=(0, 0, 55.92), Edge_b=(55.28, 0,0), Normal=(0,-1,0))
 

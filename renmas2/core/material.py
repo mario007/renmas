@@ -13,7 +13,7 @@ class Material:
         self._btdf_sampler = None
         self._btdf = None
 
-        self._emiter = None
+        self._emission = None 
         self._spectrum = spectrum
         self._counter = 0
 
@@ -38,8 +38,12 @@ class Material:
 
         #TODO -- btdf sampler Log!!!
 
-    def set_emiter(self, emiter):
-        self._emiter = emiter
+    def set_emission(self, emission):
+        self._emission = emission 
+
+    @property
+    def emission(self):
+        return self._emission
 
     def Le(self, hitpoint): #FIXME --- Tip:yes no in hitpoint
         raise ValueError("Not yet implemented")

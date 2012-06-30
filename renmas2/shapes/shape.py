@@ -35,3 +35,14 @@ class Shape:
     def name(cls):
         pass
 
+    def light_sample(self, hitpoint):
+        return False
+
+    # eax = pointer to hitpoint
+    def light_sample_asm(self, label, assembler, structures):
+        return None
+
+    #This is method for populate required data in light sample calculation
+    def populate_ds(self, ds):
+        pass
+

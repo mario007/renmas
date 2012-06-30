@@ -1,4 +1,5 @@
 
+from functools import partial
 from ..asm_library import sin_ss, sin_ps, cos_ss, cos_ps, sincos_ss, sincos_ps, exp_ss, exp_ps, pow_ss, pow_ps
 from ..asm_library import atan_ss, atan_ps, asin_ss, asin_ps, acos_ss, acos_ps, tan_ss, tan_ps, log_ss, log_ps
 from ..asm_library import atanr2_ps, atanr2_ss
@@ -6,6 +7,7 @@ from ..asm_library import random_float
 import random
 import renmas2.switch as proc
 import renmas2.core
+from renmas2.utils import reflect_asm, tir_asm, refract_asm
 
 # caching asm library  
 class MacroCall:
@@ -13,9 +15,11 @@ class MacroCall:
         
         self.compiled_code = {} # 
         self.runtime_arr = None
+        self.factory = renmas2.core.Factory()
+        self.assembler = self.factory.create_assembler()
+        self.assembler.register_macro('call', self.macro_call)
 
         self.functions = {}
-        self.functions['fast_exp_ss'] = exp_ss
         self.functions['fast_sin_ss'] = sin_ss 
         self.functions['fast_sin_ps'] = sin_ps
         self.functions['fast_cos_ss'] = cos_ss
@@ -39,6 +43,9 @@ class MacroCall:
         self.functions['fast_atanr2_ps'] = atanr2_ps
         self.functions['fast_atanr2_ss'] = atanr2_ss
         self.functions['random'] = random_float
+        self.functions['reflect'] = partial(reflect_asm, self.assembler)
+        self.functions['refract'] = partial(refract_asm, self.assembler)
+        self.functions['tir'] = partial(tir_asm, self.assembler)
         
 
         self.inline_macros = {} #normalization, cross product etc...
@@ -82,6 +89,17 @@ class MacroCall:
 
     def set_runtimes(self, runtime_arr):
         self.runtime_arr = runtime_arr
+        funcs = ['fast_sin_ss', 'fast_sin_ps', 'fast_cos_ss', 'fast_cos_ps', 'fast_sincos_ss', 'fast_sincos_ps',
+                'fast_exp_ss', 'fast_exp_ps', 'fast_pow_ss', 'fast_pow_ps', 'fast_atan_ss', 'fast_atan_ps',
+                'fast_asin_ss', 'fast_asin_ps', 'fast_acos_ss', 'fast_acos_ps', 'fast_tan_ss', 'fast_tan_ps', 
+                'fast_log_ss', 'fast_log_ps', 'fast_atanr2_ps', 'fast_atanr2_ss', 'reflect', 'tir', 'refract']
+        for f in funcs:
+            if f in self.compiled_code:
+                self._load_func(f)
+            else:
+                self.compiled_code[f] = self.functions[f]()
+                self._load_func(f)
+        self._load_random()
 
     def _load_func(self, func_name):
         if self.runtime_arr is None: 

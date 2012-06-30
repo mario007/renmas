@@ -211,6 +211,15 @@ class IRender:
         mat.add(perf_trans)
         mat.add(sampl)
 
+    def _add_emission_component(self, mat, comp):
+        source = comp.get("source", None)
+        if source is None: return
+        if type(source) == str:
+            source = self.renderer.spd.load("light", s)
+            if source is None: return
+        source = self.renderer.converter.create_spectrum(source, True)
+        mat.set_emission(source)
+
     # TODO -- urgent make consistent material creation -- samplings!!!!
     # predifined functions and commponent
     # TIP -- type: general -- add material components
@@ -240,6 +249,8 @@ class IRender:
                 self._add_perfect_specular_component(mat, comp)
             elif typ == "perfect_transmission":
                 self._add_perfect_transmission_component(mat, comp)
+            elif typ == "emission":
+                self._add_emission_component(mat, comp)
         self.renderer.add(name, mat)
 
 

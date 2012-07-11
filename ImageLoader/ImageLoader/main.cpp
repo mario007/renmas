@@ -75,9 +75,9 @@ bool SaveImageToPng(char *name, void *address, int width, int height)
 		{
 			pixel = *dest;
 			a =  (BYTE)((pixel >> 24) & 0xFF);
-			b = (BYTE)(pixel & 0xFF);
+			r = (BYTE)(pixel & 0xFF);
 			g = (BYTE)((pixel >> 8)  & 0xFF);
-			r = (BYTE)((pixel >> 16) & 0xFF);
+			b = (BYTE)((pixel >> 16) & 0xFF);
 
 			argb = Color::MakeARGB(a, r, g, b);
 			pixCol.SetValue(argb);
@@ -150,13 +150,13 @@ bool GetImageInternal(char *name, void *address, int width, int height)
 		  for(int x=0; x<width; x++)
 		  {
 
-			//picture.GetPixel(x, height - y, &pixCol); //for flipping
-			picture.GetPixel(x, y, &pixCol);
+			picture.GetPixel(x, height - y, &pixCol); //for flipping
+			//picture.GetPixel(x, y, &pixCol);
 			r = pixCol.GetRed();
 			g = pixCol.GetGreen();
 			b = pixCol.GetBlue();
 			a = pixCol.GetAlpha();
-			pixel = KRGBA(r, g, b, a);
+			pixel = SRGBA(r, g, b, a);
 			*dest = pixel;
 			dest++;
 		  }

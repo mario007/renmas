@@ -2,6 +2,7 @@
 import platform
 import os.path
 
+from renmas3.core import ImageBGRA
 from .tga import save_tga
 
 _image_writers = {
@@ -12,6 +13,9 @@ def register_image_writer(typ, func):
     _image_writers[typ] = func
 
 def save_image(fname, image, typ=None):
+    if isinstance(image, ImageBGRA):
+        image = image.to_rgba()
+
     if typ is not None:
         if typ in _image_writers:
             return _image_writers[typ](fname, image)

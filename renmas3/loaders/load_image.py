@@ -1,11 +1,19 @@
 import platform
 import os.path
 
+from ..core import ImageRGBA
 from .tga import load_tga
+from .rgbe import load_hdr
 
-def windows_png_loader(fname):
+# extension in C++ that uses GDI+ to load image
+def _windows_image_loader(fname):
     try:
-        import imload # extension in C++ that uses GDI+ to load image
+        import imload
+        width, height = imload.QueryImage(fname)
+        im = ImageRGBA(width, height)
+        addr, pitch = im.address_info()
+        imload.GetImage(fname, addr, width, height)
+        return im
     except ImportError:
         return None
 
@@ -13,14 +21,21 @@ def windows_png_loader(fname):
 
 def load_png(fname):
     if platform.system() == "Windows":
-        return windows_png_loader(fname)
+        return _windows_image_loader(fname)
     else:
         return None # #TODO implement linux png loader
     
+def load_jpg(fname):
+    if platform.system() == "Windows":
+        return _windows_image_loader(fname)
+    else:
+        return None # #TODO implement linux jpg loader
 
 _image_loaders = {
         'png': load_png,
-        'tga': load_tga
+        'tga': load_tga,
+        'jpg': load_jpg,
+        'hdr': load_hdr
         }
 
 def register_image_loader(typ, func):

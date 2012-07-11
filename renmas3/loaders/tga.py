@@ -109,7 +109,7 @@ def save_tga(fname, image):
     width, height = image.size()
     b =  pack('hh', width, height)
     f.write(b)
-    f.write(bytearray([32, 0]))
+    f.write(bytearray([32, 8]))
 
     #WRITE BYTES 
     for j in range(height):

@@ -11,6 +11,7 @@
 *.dep
 *.py~
 *.png
+*.jpg
 *.ply
 *.cpp~
 *.swp

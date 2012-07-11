@@ -23,8 +23,8 @@ def blt_image(x, y, img1, img2):
 
 
 start = time.clock()
-#hdr_image = renmas2.core.load_rgbe("I:/hdr_images/Desk_oBA2.hdr")
-hdr_image = renmas2.core.load_rgbe("I:/hdr_images/AtriumNight_oA9D.hdr")
+#hdr_image = renmas2.core.load_rgbe("E:/hdr_images/Desk_oBA2.hdr")
+hdr_image = renmas2.core.load_rgbe("E:/hdr_images/AtriumNight_oA9D.hdr")
 end = time.clock() - start
 print("Time to load picture:", end)
 print(hdr_image)

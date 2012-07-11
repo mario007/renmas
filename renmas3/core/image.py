@@ -3,8 +3,7 @@ import platform
 import x86
 from tdasm import Tdasm, Runtime
 
-#TODO - 64bit implementation
-def _conv_rgba_bgra_asm():
+def _conv_rgba_bgra_asm32():
     ASM = """
     #DATA
     uint32 ptr_src, ptr_dst
@@ -15,15 +14,10 @@ def _conv_rgba_bgra_asm():
     mov ebp, dword [npixels]
 
     _loop:
-    mov al, byte [esi]
-    mov bl, byte [esi+1]
-    mov cl, byte [esi+2]
-    mov dl, byte [esi+3]
-
-    mov byte [edi], cl
-    mov byte [edi+1], bl
-    mov byte [edi+2], al
-    mov byte [edi+3], dl
+    mov eax, dword [esi]
+    bswap eax
+    ror eax, 8
+    mov dword [edi], eax
 
     add esi, 4 
     add edi, 4 
@@ -31,7 +25,40 @@ def _conv_rgba_bgra_asm():
     jnz _loop
     #END
     """
-    mc = Tdasm().assemble(ASM)
+    return ASM
+
+def _conv_rgba_bgra_asm64():
+    ASM = """
+    #DATA
+    uint64 ptr_src, ptr_dst
+    uint32 npixels
+    #CODE
+    mov rsi, qword [ptr_src]
+    mov rdi, qword [ptr_dst]
+    mov ebp, dword [npixels]
+
+    _loop:
+    mov eax, dword [rsi]
+    bswap eax
+    ror eax, 8
+    mov dword [rdi], eax
+
+    add rsi, 4 
+    add rdi, 4 
+    sub ebp, 1
+    jnz _loop
+    #END
+    """
+    return ASM
+
+def _conv_rgba_bgra_asm():
+    bits = platform.architecture()[0]
+    if bits == '64bit':
+        code = _conv_rgba_bgra_asm64()
+    else:
+        code =  _conv_rgba_bgra_asm32()
+
+    mc = Tdasm().assemble(code)
     runtime = Runtime()
     ds = runtime.load("convert", mc)
     return runtime, ds
@@ -44,22 +71,31 @@ def _convert_pixels(npixels, src, dst):
     _ds['ptr_dst'] = dst 
     _runtime.run('convert')
 
+## Base image class. 
+# Image
 class Image:
+    ## Constructor.
+    # Create Image of specified width, height.  
+    # You also must specifies number of bytes in one row. It is usually called pitch.
+    # @param self The object pointer
+    # @param width Width of the image
+    # @param height Height of the image
+    # @param pitch Pitch of the image
     def __init__(self, width, height, pitch):
         self.pitch = pitch
         self.width = width
         self.height = height
         self.pixels = x86.MemData(height * pitch)
 
-    def set_pixel(self, x, y, r, g, b, a):
-        raise NotImplementedError()
-
-    def get_pixel(self, x, y):
-        raise NotImplementedError()
-
+    ## Return size of image  
+    # @param self The object pointer
+    # @return Return width x height of image 
     def size(self):
         return (self.width, self.height)
 
+    ## Return address of pixels and pitch  
+    # @param self The object pointer
+    # @return Return adrress, pitch of image 
     def address_info(self):
         return (self.pixels.ptr(), self.pitch)
 
@@ -68,6 +104,8 @@ class Image:
         return '<Image object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \
                 (hex(id(self)), self.width, self.height, self.pitch, hex(adr))
 
+## Main image class for holding images, textures. 
+# Pixels is represented in rgba format.  
 class ImageRGBA(Image):
     def __init__(self, width, height):
         super(ImageRGBA, self).__init__(width, height, width*4)
@@ -102,6 +140,9 @@ class ImageRGBA(Image):
         return '<ImageRGBA object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \
                 (hex(id(self)), self.width, self.height, self.pitch, hex(adr))
 
+## Main image class for display.
+# WindowsGDI wants that pixels are in bgra format!!!. 
+# Because of that this class is used as frame buffer.
 class ImageBGRA(Image):
     def __init__(self, width, height):
         super(ImageBGRA, self).__init__(width, height, width*4)
@@ -156,4 +197,9 @@ class ImageFloatRGBA(Image):
         # return r, g, b, a 
         pix = x86.GetFloat(self.pixels.ptr()+adr, 0, 4)
         return pix
+
+    def __repr__(self):
+        adr = self.pixels.ptr()
+        return '<ImageFloatRGBA object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \
+                (hex(id(self)), self.width, self.height, self.pitch, hex(adr))
 

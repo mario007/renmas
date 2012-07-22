@@ -114,11 +114,11 @@ class MacroCall:
         if 'random' not in self._compiled_code:
             self._compiled_code['random'] = self.functions['random']()
 
-        if self.runtimes is None: 
+        if self._runtimes is None: 
             raise ValueError('Runtime does not exist!!!')
-        for runtime in self.runtimes:
+        for runtime in self._runtimes:
             if not runtime.global_exists('random'):
-                ds = runtime.load('random_float', self.compiled_code['random'])
+                ds = runtime.load('random_float', self._compiled_code['random'])
                 v1 = random.randint(0, 4000000000) 
                 v2 = random.randint(0, 4000000000) 
                 v3 = random.randint(0, 4000000000) 

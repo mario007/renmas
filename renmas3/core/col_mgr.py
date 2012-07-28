@@ -30,6 +30,12 @@ class ColorManager:
         self._assembler.register_macro('spectrum', self._macro_spectrum.macro_spectrum)
         self._macro_call = MacroCall()
         self._assembler.register_macro('call', self._macro_call.macro_call)
+        self._macro_call.set_color_mgr(self)
+
+        #TODO --- better solution is required
+        self.__assembler = Factory().create_assembler()
+        self.__assembler.register_macro('spectrum', self._macro_spectrum.macro_spectrum)
+        self.__assembler.register_macro('call', self._macro_call.macro_call)
 
         self._create_spectrums()
 
@@ -39,7 +45,7 @@ class ColorManager:
 
     @property
     def assembler(self):
-        return self._assembler
+        return self.__assembler
 
     @property
     def spectral(self):

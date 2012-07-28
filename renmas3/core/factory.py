@@ -42,12 +42,26 @@ class Factory:
         radius = float(radius)
         return Sphere(o, radius, material)
 
+    def create_shape(self, **kw):
+        t = kw.get("type", None)
+        if t is None:
+            return None
+
+        if t == "sphere": 
+            radius = kw.get("radius", None)
+            position = kw.get("position", None)
+            if radius is None or position is None:
+                return None
+            return self.sphere(position, radius)
+        return None
+
     def create_light(self, mgr=None, renderer=None, typ=None, position=None, \
             source=None, direction=None, scale=1.0, **kwargs):
 
         if mgr is None and renderer is None: 
             return None
-        if mgr is None: mgr = renderer.color_manager
+        if mgr is None:
+            mgr = renderer.color_mgr
         
         if source is None: 
             return None

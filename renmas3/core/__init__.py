@@ -12,3 +12,4 @@ from .factory import Factory
 from .col_mgr import ColorManager
 from .renderer import Renderer
 from .shape_mgr import ShapeManager
+from .irenderer import IRender

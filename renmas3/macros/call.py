@@ -1,6 +1,7 @@
 
 import random
 from functools import partial
+from tdasm import Tdasm
 
 from ..asm_lib import sin_ss, sin_ps, cos_ss, cos_ps, sincos_ss, sincos_ps, exp_ss, exp_ps, pow_ss, pow_ps
 from ..asm_lib import atan_ss, atan_ps, asin_ss, asin_ps, acos_ss, acos_ps, tan_ss, tan_ps, log_ss, log_ps
@@ -8,7 +9,22 @@ from ..asm_lib import atanr2_ps, atanr2_ss
 from ..asm_lib import random_float
 
 import renmas3.switch as proc
-import renmas3.core
+
+from renmas3.macros import lea, mov, arithmetic32, arithmetic128,\
+                            broadcast, macro_if, dot_product, normalization, cross_product
+
+def create_assembler():
+    assembler = Tdasm()
+    assembler.register_macro('mov', mov)
+    assembler.register_macro('lea', lea)
+    assembler.register_macro('eq128', arithmetic128)
+    assembler.register_macro('eq32', arithmetic32)
+    assembler.register_macro('broadcast', broadcast)
+    assembler.register_macro('if', macro_if)
+    assembler.register_macro('dot', dot_product)
+    assembler.register_macro('normalization', normalization)
+    assembler.register_macro('cross', cross_product)
+    return assembler
 
 #from renmas2.utils import reflect_asm, tir_asm, refract_asm
 
@@ -18,10 +34,10 @@ class MacroCall:
         
         self._compiled_code = {} # compiled functions 
         self._funcs_to_load = [] # lazy loading of functions
+        self._color_mgr = None 
 
         self._runtimes = None
-        self.factory = renmas3.core.Factory()
-        self.assembler = self.factory.create_assembler()
+        self.assembler = create_assembler()
         self.assembler.register_macro('call', self.macro_call)
 
         self.functions = {}
@@ -85,8 +101,14 @@ class MacroCall:
         elif func_name in self.functions:
             self._load_func(func_name)
             return 'call ' + func_name
+        elif func_name in ('XYZ_to_RGB', 'lumminance', 'spectrum_to_rgb'):
+            self._load_spectrum_func(func_name)
+            return 'call ' + func_name
         else:
             raise ValueError('Unknown function!!!')
+
+    def set_color_mgr(self, mgr):
+        self._color_mgr = mgr
 
     def set_runtimes(self, runtimes):
         self._runtimes = runtimes
@@ -109,6 +131,17 @@ class MacroCall:
 
         if func_name not in self._funcs_to_load:
             self._funcs_to_load.append(func_name)
+    
+    def _load_spectrum_func(self, func_name):
+        if self._color_mgr is None:
+            raise ValueError('Color manager is not set!!!')
+        
+        if func_name == 'XYZ_to_RGB':
+            self._color_mgr.XYZ_to_RGB_asm(self._runtimes)
+        elif func_name == 'lumminance':
+            self._color_mgr.Y_asm(self._runtimes)
+        elif func_name == 'spectrum_to_rgb':
+            self._color_mgr.to_RGB_asm(self._runtimes)
 
     def _load_random(self):
         if 'random' not in self._compiled_code:
@@ -219,3 +252,4 @@ class MacroCall:
             line = "movaps oword [eax], xmm0"
         return asm_code + line
 
+import renmas3.core

@@ -4,7 +4,7 @@ import platform
 from .logger import log
 from .dynamic_array import DynamicArray
 from .ray import Ray
-from .structures import SHADEPOINT, RAY 
+from .shade_point import ShadePoint
 
 class ShapeManager:
     def __init__(self, renderer):
@@ -194,7 +194,7 @@ class ShapeManager:
         float one = 1.0
         float epsilon = 0.00001
         """
-        structs = self._renderer.color_mgr.spectrum_struct() + SHADEPOINT
+        structs = self._renderer.color_mgr.spectrum_struct() + ShadePoint.struct() 
         data2 = "\n"
         for key, value in self._shape_arrays.items():
             structs += key.struct()
@@ -340,7 +340,7 @@ class ShapeManager:
 
     def _isect_ray_shape_array_asm_code32(self, typ_shape, isect_ray_shapes, isect_ray_shape, visibility):
 
-        ASM = "#DATA \n" + self._renderer.color_mgr.spectrum_struct() + SHADEPOINT + typ_shape.struct() +"  #CODE \n "
+        ASM = "#DATA \n" + self._renderer.color_mgr.spectrum_struct() + ShadePoint.struct() + typ_shape.struct() +"  #CODE \n "
 
         ASM += " global " + isect_ray_shapes + ":\n" + """
           ; eax - ray, ebx - hp , ecx - min_dist, esi - ptr_array, edi - nshapes
@@ -392,7 +392,7 @@ class ShapeManager:
         return ASM
 
     def _isect_ray_shape_array_asm_code64(self, typ_shape, isect_ray_shapes, isect_ray_shape, visibility=False):
-        ASM = "#DATA \n" + self._renderer.color_mgr.spectrum_struct() + SHADEPOINT + typ_shape.struct() +"  #CODE \n "
+        ASM = "#DATA \n" + self._renderer.color_mgr.spectrum_struct() + ShadePoint.struct() + typ_shape.struct() +"  #CODE \n "
 
         ASM += " global " + isect_ray_shapes + ":\n" + """
           ; rax - ray, rbx - hp , rcx - min_dist, rsi - ptr_array, edi - nshapes
@@ -456,7 +456,7 @@ class ShapeManager:
         else:
             self._isect_ray_scene_asm(runtimes, "__ray_scene_intersection_visibility__", True)
 
-        asm_structs = RAY 
+        asm_structs = Ray.struct() 
 
         ASM = """
         #DATA

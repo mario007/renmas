@@ -2,8 +2,7 @@
 import platform
 import renmas3.switch as proc
 from .spectrum import Spectrum
-from .factory import Factory
-from ..macros import MacroSpectrum, MacroCall
+from ..macros import MacroSpectrum, MacroCall, create_assembler
 
 from .cie_consts import Cie_x, Cie_y, Cie_z, SpectWhite, SpectCyan, SpectMagenta
 from .cie_consts import SpectYellow, SpectRed, SpectGreen, SpectBlue, IllumSpectWhite
@@ -25,7 +24,7 @@ class ColorManager:
         self._spectrum_region = (400, 700)
         self._nsamples = 32
         
-        self._assembler = Factory().create_assembler()
+        self._assembler = create_assembler()
         self._macro_spectrum = MacroSpectrum(self)
         self._assembler.register_macro('spectrum', self._macro_spectrum.macro_spectrum)
         self._macro_call = MacroCall()
@@ -33,7 +32,7 @@ class ColorManager:
         self._macro_call.set_color_mgr(self)
 
         #TODO --- better solution is required
-        self.__assembler = Factory().create_assembler()
+        self.__assembler = create_assembler()
         self.__assembler.register_macro('spectrum', self._macro_spectrum.macro_spectrum)
         self.__assembler.register_macro('call', self._macro_call.macro_call)
 
@@ -435,7 +434,7 @@ class ColorManager:
         Z = 0.019334 * r + 0.119193 * g + 0.950227 * b 
         return (X, Y, Z)
 
-    # Return code for assembly struct 
+    # Return code for assembly struct of spectrum
     #
     def spectrum_struct(self):
         code = "struct spectrum \n"

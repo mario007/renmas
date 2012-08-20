@@ -2,7 +2,6 @@ import platform
 
 from .sample import Sample
 from .sampler import Sampler
-from ..core.structures import SAMPLE
 
 # xw = s(x - width/2 + 0.5)
 # yw = s(y - height/2 + 0.5)
@@ -49,7 +48,7 @@ class RegularSampler(Sampler):
         code = """
             #DATA
         """
-        code += SAMPLE + """
+        code += Sample.struct() + """
             uint32 endx, endy
             uint32 tilex, tiley
             uint32 cur_xyxy[4] ; we just use first two numbers

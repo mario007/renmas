@@ -1,7 +1,6 @@
 
 import random
 from functools import partial
-from tdasm import Tdasm
 
 from ..asm_lib import sin_ss, sin_ps, cos_ss, cos_ps, sincos_ss, sincos_ps, exp_ss, exp_ps, pow_ss, pow_ps
 from ..asm_lib import atan_ss, atan_ps, asin_ss, asin_ps, acos_ss, acos_ps, tan_ss, tan_ps, log_ss, log_ps
@@ -10,21 +9,7 @@ from ..asm_lib import random_float
 
 import renmas3.switch as proc
 
-from renmas3.macros import lea, mov, arithmetic32, arithmetic128,\
-                            broadcast, macro_if, dot_product, normalization, cross_product
-
-def create_assembler():
-    assembler = Tdasm()
-    assembler.register_macro('mov', mov)
-    assembler.register_macro('lea', lea)
-    assembler.register_macro('eq128', arithmetic128)
-    assembler.register_macro('eq32', arithmetic32)
-    assembler.register_macro('broadcast', broadcast)
-    assembler.register_macro('if', macro_if)
-    assembler.register_macro('dot', dot_product)
-    assembler.register_macro('normalization', normalization)
-    assembler.register_macro('cross', cross_product)
-    return assembler
+from .asm import create_assembler
 
 #from renmas2.utils import reflect_asm, tir_asm, refract_asm
 
@@ -252,4 +237,3 @@ class MacroCall:
             line = "movaps oword [eax], xmm0"
         return asm_code + line
 
-import renmas3.core

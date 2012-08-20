@@ -1,5 +1,6 @@
 
 from array import array
+import renmas3.core
 from renmas3.utils import memcpy
 
 #64-bit urgent TODO 

@@ -1,19 +1,5 @@
 
 
-RAY = """
-    struct ray
-    float dir[4]
-    float origin[4]
-    end struct
-"""
-
-SPHERE = """
-    struct sphere
-    float origin[4]
-    float radius
-    uint32 material
-    end struct
-"""
 RECTANGLE = """
     struct rectangle
     float point[4] 
@@ -42,34 +28,6 @@ TRIANGLE = """
     end struct
 """
 
-SHADEPOINT = """
-    struct shadepoint 
-    float hit[4]
-    float normal[4]
-    float t
-    uint32 material 
-    float light_position[4]
-    float wi[4]
-    float wo[4]
-    float shape_normal[4]
-    float shape_sample[4]
-    float pdf
-    float shape_pdf
-    uint32 specular
-    uint32 fliped
-    spectrum le_spectrum
-    spectrum f_spectrum 
-    spectrum light_spectrum 
-    end struct
-"""
-
-SAMPLE = """
-    struct sample
-    float xyxy[4] 
-    uint32 ix, iy
-    float weight 
-    end struct
-"""
 GRID = """
     struct grid
     float bbox_min[4] 

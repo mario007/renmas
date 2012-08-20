@@ -1,5 +1,5 @@
 
-from ..core.structures import SHADEPOINT 
+from ..core import ShadePoint 
 from .light import Light
 
 class PointLight(Light):
@@ -41,9 +41,10 @@ class PointLight(Light):
         shadepoint.light_spectrum = spectrum
 
     #eax - pointer to shadepoint structure
-    def L_asm(self, runtimes, assembler, spectrum_struct):
-        structs = spectrum_struct + SHADEPOINT 
-        #TODO - lea macro
+    def L_asm(self, runtimes, assembler):
+        structs = self._spectrum.struct() + ShadePoint.struct() 
+
+        self.L_asm_label = label = name = "pointlight" + str(id(self))
 
         code = " #DATA \n" + structs + """
         uint32 mask[4] = 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00
@@ -52,6 +53,8 @@ class PointLight(Light):
         float zero = 0.0
         float one = 1.0
         #CODE
+        """
+        code += 'global ' + label + ':\n' + """
         macro eq128 xmm0 = position - eax.shadepoint.hit 
         macro eq128 xmm5 = mask
         macro call andps xmm0, xmm5
@@ -71,7 +74,6 @@ class PointLight(Light):
         """
         mc = assembler.assemble(code, True)
         #mc.print_machine_code()
-        self.light_asm_name = name = "pointlight" + str(id(self))
         self._ds = []
         for r in runtimes:
             self._ds.append(r.load(name, mc)) 

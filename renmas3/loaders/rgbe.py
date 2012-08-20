@@ -96,6 +96,7 @@ def _convert_scanline_to_pixels(red, green, blue, exponent, y, img):
 
 
 def _read_scanlines(f, header, width, height):
+    import pdb; pdb.set_trace()
     if width < 8 or width > 32767:
         pass # read uncompressed image
     max_gg = 0.0

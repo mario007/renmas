@@ -1,8 +1,6 @@
 
-import platform
 from tdasm import Runtime
-from renmas3.core import Factory, ColorManager
-from renmas3.core.structures import SHADEPOINT
+from renmas3.core import Factory, ColorManager, ShadePoint
 from renmas3.loaders import load_spd
 
 mgr = ColorManager(False)
@@ -20,33 +18,20 @@ print(hp.light_position)
 print(hp.light_spectrum)
 
 runtime = Runtime()
-light.L_asm([runtime], mgr.assembler, mgr.spectrum_struct())
+light.L_asm([runtime], mgr.assembler)
 
-structs = mgr.spectrum_struct() + SHADEPOINT
-bits = platform.architecture()[0]
-if bits == '64bit':
-    ASM = "#DATA \n" + structs + """
-        shadepoint sp1
-        uint64 ptr_light
-        #CODE
-        macro mov eax, sp1
-        call qword [ptr_light] 
-        #END
-    """
-else:
-    ASM = "#DATA \n" + structs + """
-        shadepoint sp1
-        uint32 ptr_light
-        #CODE
-        macro mov eax, sp1
-        call dword [ptr_light] 
-        #END
-    """
-
+structs = mgr.spectrum_struct() + ShadePoint.struct() 
+ASM = "#DATA \n" + structs + """
+    shadepoint sp1
+    #CODE
+    macro mov eax, sp1
+"""
+ASM += 'call ' + light.L_asm_label + """
+    #END
+"""
 mc = mgr.assembler.assemble(ASM)
 #mc.print_machine_code()
 ds = runtime.load('test', mc)
-ds['ptr_light'] = runtime.address_module(light.light_asm_name)
 ds['sp1.hit'] = hp.hit.to_ds()
 
 runtime.run('test')

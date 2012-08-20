@@ -2,8 +2,7 @@
 from random import random
 
 from tdasm import Runtime
-from renmas3.core import Renderer, ShapeManager, Factory
-from renmas3.core.structures import SHADEPOINT, RAY
+from renmas3.core import Renderer, ShapeManager, Factory, Ray, ShadePoint
 
 factory = Factory()
 def random_sphere():
@@ -32,7 +31,7 @@ mgr.isect_asm([runtime], 'ray_scene_intersection')
 def asm_code(ren):
     # eax - ray
     # ebx - hitpoint
-    code = "#DATA \n" + ren.color_mgr.spectrum_struct() + RAY + SHADEPOINT + """
+    code = "#DATA \n" + ren.color_mgr.spectrum_struct() + Ray.struct() + ShadePoint.struct() + """
         ray ray1
         shadepoint hp1
         uint32 ret

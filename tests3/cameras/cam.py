@@ -1,16 +1,15 @@
 
 import time
 from tdasm import Runtime
-from renmas3.core.structures import SAMPLE, RAY
 from renmas3.core import Tile
-from renmas3.samplers import RegularSampler
+from renmas3.samplers import RegularSampler, Sample
 from renmas3.cameras import Pinhole
-from renmas3.core import ColorManager
+from renmas3.core import ColorManager, Ray
 
 ASM_CODE = """
     #DATA
 """
-ASM_CODE += SAMPLE + RAY + """
+ASM_CODE += Sample.struct() + Ray.struct() + """
     sample sample1
     ray ray1
     uint32 kraj 

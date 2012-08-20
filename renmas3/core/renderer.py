@@ -12,6 +12,11 @@ from ..shapes import Shape
 from .image import ImageBGRA, ImageFloatRGBA
 from ..tone import ReinhardOperator, PhotoreceptorOperator 
 from ..utils import blt_floatbgra
+from .mat_mgr import MaterialManager
+from .light_mgr import LightManager
+from .material import Material
+from ..materials import Lambertian
+from ..lights import Light
 
 class Renderer:
     def __init__(self):
@@ -24,7 +29,7 @@ class Renderer:
         self._width =  300 
         self._height = 300 
         self._spp = 1 
-        self._threads = 1 
+        self._threads = 2 
         self._max_samples = 100000 #max samples in tile
         self._pixel_size = 1.0
         self._default_material = "default" #name of default material
@@ -33,7 +38,7 @@ class Renderer:
         self._current_pass = 0
 
     def _default_objects(self):
-        self._color_manager = ColorManager()
+        self._color_manager = ColorManager(False)
         self._camera = Pinhole(eye=(0,0,10), lookat=(0,0,0), distance=400)
         self._sampler = RegularSampler(self._width, self._height)
         #self._sampler = RandomSampler(self._width, self._height, spp=self._spp)
@@ -42,14 +47,30 @@ class Renderer:
         self._integrator = IsectIntegrator(self)
         self._image = ImageBGRA(self._width, self._height)
         self._tone_op = ReinhardOperator()
+        self._mat_mgr = MaterialManager()
+        self._lights_mgr = LightManager()
 
+        mat = Material(self._color_manager.zero_spectrum())
+        lamb = Lambertian(self._color_manager.create_spectrum((0.3,0.4,0.6)))
+        mat.add(lamb)
+        self._mat_mgr.add('default', mat)
+        
     @property
     def macro_call(self):
         return self._color_manager.macro_call
 
+    #TODO -- make assembler in renderer not color manager
     @property
     def assembler(self):
         return self._color_manager.assembler
+
+    @property
+    def lights_mgr(self):
+        return self._lights_mgr
+
+    @property
+    def material_mgr(self):
+        return self._mat_mgr
 
     @property
     def color_mgr(self):
@@ -131,6 +152,8 @@ class Renderer:
             self._shp_mgr.add(name, obj)
             #TODO material exist dont assign default think!!!
             #self.assign_material(name, self._default_material)
+        elif isinstance(obj, Light):
+            self._lights_mgr.add(name, obj)
         #elif isinstance(obj, Material) or isinstance(obj, Light) or isinstance(obj, EnvironmentLight):
         #    self._shader.add(name, obj)
         else:

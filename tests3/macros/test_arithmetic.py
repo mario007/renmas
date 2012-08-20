@@ -1,7 +1,6 @@
 
 from tdasm import Runtime
-from renmas3.core import Factory
-from renmas3.macros import MacroCall
+from renmas3.macros import MacroCall, create_assembler
 
 
 ASM = '''
@@ -57,8 +56,7 @@ macro eq128 temp5 = eax.triangle.p0 + one {xmm7}
 runtime = Runtime()
 mac_call = MacroCall()
 mac_call.set_runtimes([runtime])
-factory =  Factory()
-assembler = factory.create_assembler()
+assembler = create_assembler()
 mc = assembler.assemble(ASM)
 mc.print_machine_code()
 ds = runtime.load('test_arithmetic', mc)

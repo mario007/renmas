@@ -1,5 +1,6 @@
 
 import time
+import renmas3.core
 from renmas3.loaders import load_image, save_image, register_image_writer
 
 #image = load_image("leaf.tga")

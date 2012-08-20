@@ -2,16 +2,15 @@ import unittest
 
 from tdasm import Runtime
 
-from renmas3.samplers import RandomSampler
+from renmas3.samplers import RandomSampler, Sample
 from renmas3.core import ColorManager, Tile
-from renmas3.core.structures import SAMPLE
 
 class RegularSamplerTest(unittest.TestCase):
     def setUp(self):
         pass
 
     def asm_code(self):
-        ASM_CODE = " #DATA \n" + SAMPLE + """
+        ASM_CODE = " #DATA \n" + Sample.struct() + """
             sample sample1
             uint32 kraj 
             #CODE

@@ -2,8 +2,7 @@ import math
 
 from tdasm import Tdasm
 
-from ..core.structures import RAY, SPHERE, SHADEPOINT
-from ..core import Vector3, ShadePoint
+from ..core import Vector3, Ray, ShadePoint
 from .bbox import BBox
 from .shape import Shape
 
@@ -42,7 +41,7 @@ class Sphere(Shape):
         code = """
             #DATA
         """
-        code += RAY + SPHERE + """
+        code += Ray.struct() + cls.struct() + """
         float two[4] = 2.0, 2.0, 2.0, 0.0
         float epsilon = 0.0005
         float minus_four = -4.0
@@ -145,7 +144,7 @@ class Sphere(Shape):
         code = """
             #DATA
         """
-        code += spectrum_struct + SHADEPOINT + RAY + SPHERE + """
+        code += spectrum_struct + ShadePoint.struct() + Ray.struct() + cls.struct() + """
         float two[4] = 2.0, 2.0, 2.0, 0.0
         float epsilon = 0.0005
         float minus_four = -4.0
@@ -234,7 +233,7 @@ class Sphere(Shape):
 
     @classmethod
     def compiled_struct(cls):
-        code = " #DATA " + SPHERE + """
+        code = " #DATA " + cls.struct() + """
         #CODE
         #END
         """
@@ -243,7 +242,14 @@ class Sphere(Shape):
 
     @classmethod
     def struct(cls):
-        return SPHERE
+        sphere = """
+            struct sphere
+            float origin[4]
+            float radius
+            uint32 material
+            end struct
+        """
+        return sphere 
 
     def bbox(self):
 

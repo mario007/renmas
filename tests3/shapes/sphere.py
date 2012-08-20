@@ -2,8 +2,8 @@
 import unittest
 from random import random
 from tdasm import Runtime
-from renmas3.core.structures import RAY, SPHERE, SHADEPOINT
-from renmas3.core import Factory, ColorManager
+from renmas3.core import Factory, ColorManager, Ray, ShadePoint
+from renmas3.shapes import Sphere
 
 class SphereIsectTest(unittest.TestCase):
     def setUp(self):
@@ -23,7 +23,7 @@ class SphereIsectTest(unittest.TestCase):
         code = """
             #DATA
         """
-        code += spec_struct + RAY + SPHERE + SHADEPOINT + """
+        code += spec_struct + Ray.struct() + Sphere.struct() + ShadePoint.struct() + """
             ray ray1
             sphere sph1
             shadepoint hp1
@@ -103,7 +103,7 @@ class SphereIsectTest(unittest.TestCase):
         code = """
             #DATA
         """
-        code += RAY + SPHERE + """
+        code += Ray.struct() + Sphere.struct() + """
             ray ray1
             sphere sph1
             float min_dist = 99999.000

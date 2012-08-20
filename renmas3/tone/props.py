@@ -3,8 +3,7 @@ from math import log, exp
 
 from tdasm import Runtime
 
-from renmas3.core import Factory
-from renmas3.macros import MacroCall
+from ..macros import MacroCall, create_assembler
 
 class ImageProps:
     def __init__(self, image, red_avg=None, green_avg=None, blue_avg=None,\
@@ -153,7 +152,7 @@ def _calc_img_props_asm():
 
     ret
     """
-    assembler = Factory().create_assembler()
+    assembler = create_assembler()
     runtime = Runtime()
     macro_call = MacroCall()
     macro_call.set_runtimes([runtime])

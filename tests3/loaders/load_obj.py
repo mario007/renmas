@@ -1,13 +1,15 @@
 import time
+import renmas3.core
 from renmas3.loaders import load_meshes
 from renmas3.win32 import show_image_in_window
 from renmas3.loaders import load_image
 
 start = time.clock()
 #mesh_descs = load_meshes("Box.obj")
-mesh_descs = load_meshes("CornellNeg.obj")
+#mesh_descs = load_meshes("CornellNeg.obj")
 #mesh_descs = load_meshes("I:\\ray_tracing_scenes\\san-miguel\\san-miguel.obj")
 #mesh_descs = load_meshes("I:\\ray_tracing_scenes\\dragon\\dragon.obj")
+mesh_descs = load_meshes("G:\\ray_tracing_scenes\\dragon\\dragon.obj")
 #mesh_descs = load_meshes("I:\\ray_tracing_scenes\\rungholt\\rungholt.obj")
 #mesh_descs = load_meshes("I:\\ray_tracing_scenes\\powerplant\\powerplant.obj")
 #mesh_descs = load_meshes("I:\\ray_tracing_scenes\\hairball\\hairball.obj")

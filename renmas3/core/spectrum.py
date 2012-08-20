@@ -116,3 +116,12 @@ class Spectrum:
             self.b = value
         return self
 
+    def struct(self):
+        code = "struct spectrum \n"
+        if self.sampled:
+            code += "float values[ %i ] \n" % len(self.samples)
+        else:
+            code += "float values[4] \n"
+        code += "end struct \n"
+        return code
+

@@ -1,7 +1,7 @@
 
+from ..samplers import Sample
 from ..core import Ray 
 from .camera import Camera
-from ..core.structures import RAY, SAMPLE
 
 class Pinhole(Camera):
     def __init__(self, eye, lookat, distance=100):
@@ -16,7 +16,7 @@ class Pinhole(Camera):
     #eax - pointer to sample structure
     #ebx - pointer to ray structure
     def ray_asm(self, runtimes, label, assembler):
-        asm_structs = RAY + SAMPLE
+        asm_structs = Ray.struct() + Sample.struct() 
         code = """
             #DATA
         """

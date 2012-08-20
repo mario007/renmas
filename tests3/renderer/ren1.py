@@ -11,6 +11,7 @@ end = time.clock()
 print(end-start)
 
 filename = 'I:\\GitRENMAS\\tests3\\renderer\\sphere1.py'
+filename = 'E:\\GitRENMAS\\renmas\\tests3\\renderer\\sphere1.py'
 
 exec(compile(open(filename).read(), filename, 'exec'), dict(locals()), dict(globals()))
 

@@ -3,7 +3,6 @@ import random
 
 from .sample import Sample
 from .sampler import Sampler
-from ..core.structures import SAMPLE
 
 # xw = s(x - width/2 + px)
 # yw = s(y - height/2 + py)
@@ -44,7 +43,7 @@ class RandomSampler(Sampler):
     def get_sample_asm(self, runtimes, label, assembler):
         bits = platform.architecture()[0]
 
-        code = " #DATA \n" + SAMPLE + """
+        code = " #DATA \n" + Sample.struct() + """
             uint32 endx, endy
             uint32 tilex, tiley
             uint32 cur_xyxy[4] ; we just use first two numbers
@@ -109,5 +108,4 @@ class RandomSampler(Sampler):
         self._w2 = -float(self._width) * 0.5
         self._h2 = -float(self._height) * 0.5 
         self._update_ds(tile)
-
 

@@ -1,3 +1,4 @@
+from tdasm import Tdasm
 
 from .mov import mov
 from .lea import lea
@@ -9,4 +10,5 @@ from .normalization import normalization
 from .cross_product import cross_product
 from .call import MacroCall
 from .spec import MacroSpectrum
+from .asm import create_assembler
 

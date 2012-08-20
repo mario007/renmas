@@ -7,7 +7,7 @@ class Light:
     def L(self, shadepoint):
         raise NotImplementedError()
 
-    def L_asm(self, runtimes, assembler, structures):
+    def L_asm(self, runtimes, assembler):
         raise NotImplementedError()
 
     def convert_spectrums(self, mgr):
@@ -20,7 +20,7 @@ class EnvironmentLight:
     def L(self, shadepoint):
         raise NotImplementedError()
 
-    def L_asm(self, runtimes, assembler, structures):
+    def L_asm(self, runtimes, assembler):
         raise NotImplementedError()
 
     def Le(self, direction):
@@ -28,7 +28,7 @@ class EnvironmentLight:
 
     # in xmm0 is direction of ray
     # return spectrum in desired direction
-    def Le_asm(self, runtimes, assembler, structures, label):
+    def Le_asm(self, runtimes, assembler, label):
         raise NotImplementedError()
 
     def convert_spectrums(self, mgr):

@@ -10,3 +10,12 @@ class Ray():
         text += "Direction = " + str(self.dir)
         return text 
 
+    @classmethod
+    def struct(cls):
+        ray = """
+            struct ray
+            float dir[4]
+            float origin[4]
+            end struct
+        """
+        return ray

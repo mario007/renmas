@@ -1,7 +1,7 @@
 import platform
 
 from .image import ImageFloatRGBA
-from .structures import SAMPLE
+from ..samplers import Sample
 
 class Film:
     def __init__(self, width, height, renderer):
@@ -42,17 +42,22 @@ class Film:
         self._image.set_pixel(sample.ix, iy, r, g, b)
 
     def add_sample_asm(self, runtimes, label):
-        #TODO 64-bit
         #eax - pointer to spectrum
         #ebx - pointer to sample 
-        asm_structs = SAMPLE
+        bits = platform.architecture()[0]
+        asm_structs = Sample.struct() 
         ASM = """
         #DATA
         """
         ASM += asm_structs + """
             float alpha_channel[4] = 0.0, 0.0, 0.0, 0.99
             uint32 height 
-            uint32 ptr_buffer
+        """
+        if bits == '64bit':
+            ASM += "uint64 ptr_buffer\n"
+        else:
+            ASM += "uint32 ptr_buffer\n"
+        ASM += """
             uint32 pitch_buffer
             uint32 mask[4] = 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00
             float scaler[4]
@@ -60,9 +65,11 @@ class Film:
 
             #CODE
         """
-        ASM += "global " + label + ":\n " + """
-            push ebx
-            """
+        ASM += "global " + label + ":\n "
+        if bits == '64bit':
+            ASM += 'push rbx\n'
+        else:
+            ASM += 'push ebx\n'
         ASM += """macro call spectrum_to_rgb 
 
             macro eq128 xmm4 = mask
@@ -70,8 +77,25 @@ class Film:
             macro eq128 xmm0 = xmm0 + alpha_channel
             macro call zero xmm5
             macro call maxps xmm0, xmm5
-
             ;flip the image and call set pixel
+        """
+        if bits == '64bit':
+            ASM += """
+            pop rbx
+            mov eax, dword [rbx + sample.ix]
+            mov ecx, dword [rbx + sample.iy]
+            mov ebx, dword [height] ;because of flipping image 
+            sub ebx, ecx
+            mov edx, dword [pitch_buffer]
+            mov rsi, qword [ptr_buffer]
+
+            imul ebx, edx
+            imul eax, eax, 16
+            add eax, ebx
+            add rax, rsi
+            """
+        else:
+            ASM += """
             pop ebx
             mov eax, dword [ebx + sample.ix]
             mov ecx, dword [ebx + sample.iy]
@@ -84,6 +108,9 @@ class Film:
             imul eax, eax, 16
             add eax, ebx
             add eax, esi
+            """
+
+        ASM += """
             macro eq128 xmm1 = eax
             macro eq128 xmm1 = xmm1 * scaler + xmm0
             macro eq128 xmm1 = xmm1 * inv_scaler

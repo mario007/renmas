@@ -3,8 +3,8 @@ import time
 import x86
 from tdasm import Runtime
 from .integrator import Integrator 
-from ..core import Spectrum, ShadePoint
-from ..core.structures import SAMPLE, SHADEPOINT, RAY
+from ..core import Spectrum, ShadePoint, Ray
+from ..samplers import Sample
 
 class IsectIntegrator(Integrator):
     def __init__(self, renderer):
@@ -61,7 +61,7 @@ class IsectIntegrator(Integrator):
         code = """
             #DATA
         """
-        code += ren.color_mgr.spectrum_struct() + RAY + SAMPLE + SHADEPOINT + """  
+        code += ren.color_mgr.spectrum_struct() + Ray.struct() + Sample.struct() + ShadePoint.struct() + """  
             sample sample1
             ray ray1
             shadepoint hp1

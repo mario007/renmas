@@ -13,3 +13,5 @@ from .col_mgr import ColorManager
 from .renderer import Renderer
 from .shape_mgr import ShapeManager
 from .irenderer import IRender
+from .material import Material
+from .direct import DirectLighting

@@ -1,22 +1,21 @@
 import ast
 
-from .statement import StmAssignName
+from .statement import StmAssignConst, StmAssignName, StmAssignBinary 
+from .cgen import CodeGenerator
 
-class CodeBuilder:
-    def __init__(self, args):
-        self._args = args
-        self._statements = []
-        self._const_args = {}
-
-    def add_stm(self, stm):
-        pass
-
-    def generate_code(self):
-        pass
-
-    def fetch_const(self, value):
-        if value in self._const_args:
-            return self._const_args[value]
+def operator(obj):
+    if isinstance(obj, ast.Add):
+        return '+'
+    elif isinstance(obj, ast.Mult):
+        return '*'
+    elif isinstance(obj, ast.Sub):
+        return '-'
+    elif isinstance(obj, ast.Div):
+        return '/'
+    elif isinstance(obj, ast.Mod):
+        return '%'
+    else:
+        raise ValueError("Unknown operator", obj)
 
 class Parser:
     def __init__(self):
@@ -25,17 +24,34 @@ class Parser:
     def _simple_assigments(self, targets, obj):
         if isinstance(obj, ast.Num):
             n = obj.n
-            if isinstance(n, int):
-                print('Simple integer assigments')
-            elif isinstance(n, float):
-                print('Simple float assigments')
+            if isinstance(n, int) or isinstance(n, float):
+                for t in targets:
+                    self.cgen.add_stm(StmAssignConst(self.cgen, t.id, n))
             else:
                 raise ValueError('Unknow number type', type(n))
         elif isinstance(obj, ast.Name):
-            print('Simple name assigments', obj.id)
+            for t in targets:
+                self.cgen.add_stm(StmAssignName(self.cgen, t.id, obj.id))
         else:
-            print ('Unknown', obj)
-        print ('Targets', targets)
+            raise ValueError("Unknown assigment!", obj)
+    
+    def _binary_operation(self, targets, obj):
+        left = obj.left
+        right = obj.right
+        if isinstance(left, ast.Num) and isinstance(right, ast.Num):
+            op = operator(obj.op)
+            for t in targets:
+                self.cgen.add_stm(StmAssignBinary(self.cgen, t.id, left.n, right.n, op))
+        elif isinstance(left, ast.Num) and isinstance(right, ast.Name):
+            pass
+        elif isinstance(left, ast.Name) and isinstance(right, ast.Num):
+            pass
+        elif isinstance(left, ast.Name) and isinstance(right, ast.Name):
+            op = operator(obj.op)
+            for t in targets:
+                self.cgen.add_stm(StmAssignBinary(self.cgen, t.id, left.id, right.id, op))
+        else:
+            raise ValueError("Unsuported binary operation", left, right)
 
     def _parse_assign(self, assign):
         if isinstance(assign.value, ast.Num):
@@ -43,7 +59,7 @@ class Parser:
         elif isinstance(assign.value, ast.Name):
             self._simple_assigments(assign.targets, assign.value)
         elif isinstance(assign.value, ast.BinOp):
-            raise ValueError('BinarOp assign', assign.value)
+            self._binary_operation(assign.targets, assign.value)
         elif isinstance(assign.value, ast.UnaryOp):
             raise ValueError('UnaryOp assign', assign.value)
         elif isinstance(assign.value, ast.Call):
@@ -75,10 +91,13 @@ class Parser:
 
     def parse(self, source, args):
         code = ast.parse(source)
+        self.cgen = CodeGenerator(args)
 
         if isinstance(code, ast.Module):
             for statement in code.body:
                 self._parse_statement(statement)
         else:
             raise ValueError('Source is not instance of ast.Module', code)
+
+        return self.cgen
 

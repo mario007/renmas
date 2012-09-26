@@ -1,7 +1,7 @@
 import ast
 
-from .statement import StmAssignConst, StmAssignName, StmAssignBinary 
-from .cgen import CodeGenerator
+from .statement import StmAssignConst, StmAssignName, StmAssignBinary
+from .statement import StmCall
 
 def operator(obj):
     if isinstance(obj, ast.Add):
@@ -17,6 +17,35 @@ def operator(obj):
     else:
         raise ValueError("Unknown operator", obj)
 
+def extract_numbers(obj):
+    if isinstance(obj, ast.Tuple) or isinstance(obj, ast.List):
+        nums = obj.elts
+        numbers = []
+        for n in nums:
+            if isinstance(n, ast.Num):
+                numbers.append(float(n.n))
+            else:
+                raise ValueError("Its not a constant", n)
+        if isinstance(obj, ast.Tuple):
+            return tuple(numbers)
+        else:
+            return numbers
+    else:
+        raise ValueError("Unknown type", obj)
+
+def extract_path(obj):
+    comps = []
+    while isinstance(obj, ast.Attribute):
+        comps.insert(0, obj.attr)
+        obj = obj.value
+    path = ".".join(comps)
+    if isinstance(obj, ast.Name):
+        name = obj.id
+    else:
+        raise ValueError("Unknown target name, maybe subscript!", obj)
+    
+    return (name, path)
+
 class Parser:
     def __init__(self):
         pass
@@ -26,12 +55,42 @@ class Parser:
             n = obj.n
             if isinstance(n, int) or isinstance(n, float):
                 for t in targets:
-                    self.cgen.add_stm(StmAssignConst(self.cgen, t.id, n))
+                    if isinstance(t, ast.Attribute):
+                        name, path = extract_path(t)
+                        self.cgen.add(StmAssignConst(self.cgen, name, n, path))
+                    elif isinstance(t, ast.Name):
+                        self.cgen.add(StmAssignConst(self.cgen, t.id, n))
+                    else:
+                        raise ValueError("Unknown target", t)
             else:
                 raise ValueError('Unknow number type', type(n))
         elif isinstance(obj, ast.Name):
             for t in targets:
-                self.cgen.add_stm(StmAssignName(self.cgen, t.id, obj.id))
+                if isinstance(t, ast.Attribute):
+                    name, path = extract_path(t)
+                    self.cgen.add(StmAssignName(self.cgen, name, obj.id, dst_path=path))
+                else:
+                    self.cgen.add(StmAssignName(self.cgen, t.id, obj.id))
+        elif isinstance(obj, ast.Tuple) or isinstance(obj, ast.List):
+            nums = extract_numbers(obj)
+            for t in targets:
+                if isinstance(t, ast.Attribute):
+                    name, path = extract_path(t)
+                    self.cgen.add(StmAssignConst(self.cgen, name, nums, path))
+                elif isinstance(t, ast.Name):
+                    self.cgen.add(StmAssignConst(self.cgen, t.id, nums))
+                else:
+                    raise ValueError("Unknown target", t)
+        elif isinstance(obj, ast.Attribute):
+            src, src_path = extract_path(obj)
+            for t in targets:
+                if isinstance(t, ast.Attribute):
+                    name, path = extract_path(t)
+                    self.cgen.add(StmAssignName(self.cgen, name, src, dst_path=path, src_path=src_path))
+                elif isinstance(t, ast.Name):
+                    self.cgen.add(StmAssignName(self.cgen, t.id, src, src_path=src_path))
+                else:
+                    raise ValueError("Unknown target", t)
         else:
             raise ValueError("Unknown assigment!", obj)
     
@@ -41,7 +100,7 @@ class Parser:
         if isinstance(left, ast.Num) and isinstance(right, ast.Num):
             op = operator(obj.op)
             for t in targets:
-                self.cgen.add_stm(StmAssignBinary(self.cgen, t.id, left.n, right.n, op))
+                self.cgen.add(StmAssignBinary(self.cgen, t.id, left.n, right.n, op))
         elif isinstance(left, ast.Num) and isinstance(right, ast.Name):
             pass
         elif isinstance(left, ast.Name) and isinstance(right, ast.Num):
@@ -49,7 +108,7 @@ class Parser:
         elif isinstance(left, ast.Name) and isinstance(right, ast.Name):
             op = operator(obj.op)
             for t in targets:
-                self.cgen.add_stm(StmAssignBinary(self.cgen, t.id, left.id, right.id, op))
+                self.cgen.add(StmAssignBinary(self.cgen, t.id, left.id, right.id, op))
         else:
             raise ValueError("Unsuported binary operation", left, right)
 
@@ -67,11 +126,31 @@ class Parser:
         elif isinstance(assign.value, ast.Subscript):
             raise ValueError('Subscript assign', assign.value)
         elif isinstance(assign.value, ast.Tuple):
-            raise ValueError('Tuple assign', assign.value)
+            self._simple_assigments(assign.targets, assign.value)
         elif isinstance(assign.value, ast.List):
-            raise ValueError('List assign', assign.value)
+            self._simple_assigments(assign.targets, assign.value)
+        elif isinstance(assign.value, ast.Attribute):
+            self._simple_assigments(assign.targets, assign.value)
         else:
-            print('Unknown assign', assign.value)
+            raise ValueError("Unknown assign", assign.value)
+
+    def _parse_call(self, call):
+        func = call.func.id
+        args = []
+        for arg in call.args:
+            if isinstance(arg, ast.Name):
+                args.append(arg.id)
+            elif isinstance(arg, ast.Num):
+                args.append(arg.n)
+            elif isinstance(arg, ast.List):
+                raise ValueError("Not yet implemented", arg)
+            elif isinstance(arg, ast.Tuple):
+                raise ValueError("Not yet implemented", arg)
+            else:
+                raise ValueError("Unsuported argument type", arg)
+
+        self.cgen.add(StmCall(self.cgen, func, args))
+
 
     def _parse_statement(self, statement):
         if isinstance(statement, ast.Assign):
@@ -83,15 +162,18 @@ class Parser:
         elif isinstance(statement, ast.Pass):
             raise ValueError('Pass statement', statement)
         elif isinstance(statement, ast.Expr):
-            raise ValueError('Expr statement', statement)
+            if isinstance(statement.value, ast.Call): # function call
+                self._parse_call(statement.value)
+            else:
+                raise ValueError('Expr statement', statement, statement.value)
         elif isinstance(statement, ast.If):
             raise ValueError('If statement', statement)
         else:
             raise ValueError('Uknown satement', statement)
 
-    def parse(self, source, args):
+    def parse(self, source, cgen):
         code = ast.parse(source)
-        self.cgen = CodeGenerator(args)
+        self.cgen = cgen
 
         if isinstance(code, ast.Module):
             for statement in code.body:

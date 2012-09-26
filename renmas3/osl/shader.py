@@ -1,14 +1,30 @@
 import x86
 from tdasm import Tdasm
-from .parser import Parser
+from .arg import StructArg
 
 class Shader:
-    def __init__(self, code, args):
+    def __init__(self, name, code, args, input_args=[], shaders=[]):
+        self._name = name
         self._code = code
         self._args = args
+        self._input_args = input_args
+        self._shaders = shaders
         self._ds = []
+        self._struct_args = {}
+        for key, arg in iter(args):
+            if isinstance(arg, StructArg):
+                self._struct_args.update(arg.paths)
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def input_args(self):
+        return self._input_args
 
     def prepare(self, runtimes):
+        #TODO -- call prepare on all child shaders
         self._ds = []
         asm = Tdasm()
         mc = asm.assemble(self._code)
@@ -24,18 +40,14 @@ class Shader:
         x86.ExecuteModules(tuple(addrs))
 
     def get_value(self, name, idx_thread=None):
-        return self._args[name].get_value(self._ds, idx_thread)
+        if name in self._args:
+            return self._args[name].get_value(self._ds, idx_thread)
+        elif name in self._struct_args:
+            return self._struct_args[name].get_value(self._ds, path=name, idx_thread=idx_thread)
+        else:
+            raise ValueError("Wrong name of argument", name)
 
     def set_value(self, name, value, idx_thread=None):
         return self._args[name].set_value(self._ds, value, idx_thread)
 
-def create_shader(source, args, input_args=None, functions=None, shaders=None):
-
-    parser = Parser()
-    cgen = parser.parse(source, args)
-    code = cgen.generate_code()
-    print(code)
-    shader = Shader(code, args)
-
-    return shader
 

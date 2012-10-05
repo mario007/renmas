@@ -3,17 +3,23 @@ from tdasm import Tdasm
 from .arg import StructArg
 
 class Shader:
-    def __init__(self, name, code, args, input_args=[], shaders=[]):
+    def __init__(self, name, code, args, input_args=[], shaders=[],
+            ret_type=None):
         self._name = name
         self._code = code
         self._args = args
         self._input_args = input_args
         self._shaders = shaders
+        self._ret_type = ret_type
         self._ds = []
         self._struct_args = {}
         for key, arg in iter(args):
             if isinstance(arg, StructArg):
                 self._struct_args.update(arg.paths)
+
+    @property
+    def ret_type(self):
+        return self._ret_type
 
     @property
     def name(self):
@@ -24,7 +30,8 @@ class Shader:
         return self._input_args
 
     def prepare(self, runtimes):
-        #TODO -- call prepare on all child shaders
+        for s in self._shaders:
+            s.prepare(runtimes)
         self._ds = []
         asm = Tdasm()
         mc = asm.assemble(self._code)
@@ -35,9 +42,13 @@ class Shader:
             self._ds.append(r.load(name, mc)) 
 
     def execute(self):
-        name = 'shader' + str(id(self))
-        addrs = [r.address_module(name) for r in self._runtimes]
-        x86.ExecuteModules(tuple(addrs))
+        if len(self._runtimes) == 1:
+            name = 'shader' + str(id(self))
+            self._runtimes[0].run(name)
+        else:
+            name = 'shader' + str(id(self))
+            addrs = [r.address_module(name) for r in self._runtimes]
+            x86.ExecuteModules(tuple(addrs))
 
     def get_value(self, name, idx_thread=None):
         if name in self._args:

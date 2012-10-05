@@ -7,9 +7,11 @@ from renmas3.osl import register_user_type
 from renmas3.core import Vector3
 
 point = create_user_type(typ="point", fields=[('x', 10), ('y', 20)])
+size = create_user_type(typ="size", fields=[('w', 0.0), ('h', 0.0), ('k', (3,4,5))])
 register_user_type(point)
+register_user_type(size)
 arg_map = create_argument_map([('p1', 3), ('p2', 4), ('ps', point), ('pm', point),('p3', 0.3),
-    ('p4', (4,5,6))])
+    ('p4', (4,5,6)), ('rect', size)])
 
 code = """
 p1 = 484
@@ -24,10 +26,24 @@ pm.x = ps.y
 p11 = (6,7,8)
 p4 = p11
 p3 = p1
+rect.w = 4.4
+rect.h = p3 
+rect.k = [6,7,8]
+ps.x = int(p7)
+p3 = ret_arg(p5)
 """
 
+code2 = """
+#p1 is input argument
+p2 = p1 
+return p2
+"""
+arg_lst = create_argument_list([('p1', 3)])
+arg_map2 = create_argument_map([])
+shader2 = create_shader("ret_arg", code2, arg_map2, arg_lst, func=True)
+
 runtimes = [Runtime()]
-shader = create_shader("test", code, arg_map)
+shader = create_shader("test", code, arg_map, shaders=[shader2])
 shader.prepare(runtimes)
 shader.execute()
 
@@ -36,4 +52,7 @@ print(shader.get_value('ps.x'))
 print(shader.get_value('pm.x'))
 print(shader.get_value('p3'))
 print(shader.get_value('p4'))
+print(shader.get_value('rect.w'))
+print(shader.get_value('rect.h'))
+print(shader.get_value('rect.k'))
 

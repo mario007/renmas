@@ -1,9 +1,14 @@
 import copy
-
-from .arg import create_argument, StructArg, IntArg, FloatArg, Vector3Arg
+import platform
+from .arg import create_argument, StructArg, IntArg, FloatArg, Vector3Arg, UserType, Attribute
 from .shader import Shader
+from ..core import Vector3
 
 _user_types = {}
+_built_in_functions = {}
+
+def register_function(name, func, return_type):
+    _built_in_functions[name] = (func, return_type)
 
 def register_user_type(typ):
     if typ.typ in _user_types:
@@ -15,6 +20,7 @@ def _copy_from_regs(args):
     xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
     general = ['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
     code = ''
+    bits = platform.architecture()[0]
     for a in args:
         if isinstance(a, IntArg):
             code += "mov dword [%s], %s \n" % (a.name, general.pop())
@@ -22,6 +28,13 @@ def _copy_from_regs(args):
             code += "movss dword [%s], %s \n" % (a.name, xmm.pop())
         elif isinstance(a, Vector3Arg):
             code += "movaps oword [%s], %s \n" % (a.name, xmm.pop())
+        elif isinstance(a, StructArg):
+            if bits == '64bit':
+                reg = general.pop()
+                reg = 'r' + reg[1:]
+                code += "mov qword [%s], %s \n" % (a.name, reg)
+            else:
+                code += "mov dword [%s], %s \n" % (a.name, general.pop())
         else:
             raise ValueError('Unknown argument', a)
     return code
@@ -35,12 +48,19 @@ class CodeGenerator:
         self._shaders = shaders
         self._func = func
         self._statements = []
+        self._ret_type = None
 
     def is_input_arg(self, arg):
         return arg in self._input_args
 
     def add(self, stm):
         self._statements.append(stm)
+
+    def register_ret_type(self, typ):
+        if self._ret_type is None:
+            self._ret_type = typ
+        if self._ret_type != typ:
+            raise ValueError("Return Type mismatch ", self._ret_type, typ)
 
     def _generate_data_section(self):
         data = ''
@@ -60,6 +80,7 @@ class CodeGenerator:
 
     def generate_code(self):
         self._locals = {}
+        self._ret_type = None
         code = ''
         for s in self._statements:
             self.clear_regs()
@@ -77,15 +98,23 @@ class CodeGenerator:
     def create_shader(self):
         code = self.generate_code()
         print (code)
-        shader = Shader(self._name, code, self._args, self._input_args, self._shaders)
+        shader = Shader(self._name, code, self._args, self._input_args,
+                self._shaders, self._ret_type)
         return shader
 
     #create const it it's doesnt exist
     def create_const(self, value):
         pass
 
-    def get_argument(self, name, path=None):
+    def get_arg(self, src):
         arg = None
+        path = None
+        if isinstance(src, Attribute):
+            name = src.name
+            path = src.path
+        else:
+            name = src
+
         if name in self._args:
             arg = self._args[name]
         if name in self._locals:
@@ -100,9 +129,34 @@ class CodeGenerator:
                 arg = arg.get_argument(full_path)
         return arg
 
-    def create_local(self, name, value, path=None):
+    def create_arg(self, dest, value=None, typ=None):
+        if isinstance(dest, Attribute):
+            name = dest.name
+            path = dest.path
+        else:
+            name = dest
+            path = None
+
+        if typ is not None:
+            arg = self.get_arg(dest)
+            if arg is not None:
+                return arg
+            if typ == IntArg:
+                arg = IntArg(name)
+            elif typ == FloatArg:
+                arg = FloatArg(name)
+            elif typ == Vector3Arg:
+                arg = Vector3Arg(name, Vector3(0.0, 0.0, 0.0))
+            elif typ == UserType:
+                if typ.typ not in _user_types:
+                    raise ValueError("Unregister type %s is not registerd." % typ.typ)
+                arg = StructArg(name, typ)
+            else:
+                raise ValueError("Unknown argument!!!", typ)
+            self._locals[name] = arg
+            return arg
         if path is not None: #struct member
-            arg = self.get_argument(name)
+            arg = self.get_arg(name)
             if arg is None:
                 raise ValueError("Structure %s doesnt exist" % name)
             if not isinstance(arg, StructArg):
@@ -113,13 +167,13 @@ class CodeGenerator:
                 raise ValueError("Struct member %s doesnt exist" % full_path)
             return a
         
-        arg = self.get_argument(name)
+        arg = self.get_arg(name)
         if arg is not None:
             return arg
 
         #create new local argument
         if isinstance(value, str): # a = b --- create argument a that have same type as b
-            arg =  self.get_argument(value)
+            arg =  self.get_arg(value)
             if arg is None:
                 raise ValueError("Argument %s doesnt exist" % value)
             if isinstance(arg, StructArg):
@@ -132,62 +186,48 @@ class CodeGenerator:
         arg = create_argument(name, value)
         self._locals[name] = arg
         return arg
-
-    def func_exist(self, name):
+        
+    def get_shader(self, name):
         for shader in self._shaders:
             if name == shader.name:
-                return True
-        return False 
-
-    def input_args(self, name):
-        for shader in self._shaders:
-            if name == shader.name:
-                return shader.input_args
+                return shader
         return None
 
-    def fetch_register(self, reg_type):
-        if reg_type == 'xmm':
-            return self._xmm.pop()
-        elif reg_type == 'general':
-            return self._general.pop()
-        else:
-            raise ValueError('Unknown type of register', reg_type)
+    def get_function(self, name):
+        if name in _built_in_functions:
+            return _built_in_functions[name]
+        return None
 
-    def fetch_register_exact(self, reg):
-        if reg in self._xmm:
+    def register(self, typ=None, bit=32, reg=None):
+        assert typ is not None or reg is not None
+        if reg is not None and reg in self._xmm:
             self._xmm.remove(reg)
             return reg
-        if reg in self._general:
-            self._general.remove(reg)
-            return reg
-        return None
+        if reg is not None :
+            if reg in self._general:
+                self._general.remove(reg)
+                self._general64.remove('r' + reg[1:])
+                return reg
+            if reg in self._general64:
+                self._general64.remove(reg)
+                self._general.remove('e' + reg[1:])
+                return reg
+
+        if typ == 'xmm':
+            return self._xmm.pop()
+        elif typ == 'general':
+            if bit == 32:
+                self._general64.pop()
+                return self._general.pop()
+            else:
+                self._general.pop()
+                return self._general64.pop()
+        else:
+            raise ValueError('Unknown type of register', typ)
 
     # clear ocupied registers
     def clear_regs(self):
         self._xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
         self._general = ['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
-
-    def type_of(self, name, path=None):
-        if path is not None: #struct members
-            arg = None
-            if name in self._args:
-                arg = self._args[name]
-            if name in self._locals:
-                arg = self._locals[name]
-            if arg is None or not isinstance(arg, StructArg):
-                return None
-            a = arg.get_argument(name + "." + path)
-            if a is not None:
-                return type(a)
-            else:
-                return None
-
-        if name in self._args:
-            return type(self._args[name])
-        if name in self._locals:
-            return type(self._locals[name])
-        for a in self._input_args:
-            if a.name == name:
-                return type(a)
-        return None
+        self._general64 = ['rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax']
 

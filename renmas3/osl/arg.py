@@ -227,6 +227,9 @@ class ArgumentList:
         for a in self._args:
             yield a
 
+    def __len__(self):
+        return len(self._args)
+
 class ArgumentMap:
     def __init__(self, args=[]):
         self._args = {}
@@ -277,4 +280,14 @@ def create_user_type(typ, fields):
         arg = create_argument(n, v)
         struct.add(arg)
     return struct
+
+class Attribute:
+    def __init__(self, name, path):
+        self.name = name #name of struct
+        self.path = path #path to member in struct
+
+class Callable:
+    def __init__(self, name, args):
+        self.name = name
+        self.args = args
 

@@ -1,5 +1,13 @@
 import struct
-from .arg import  IntArg, FloatArg, Vector3Arg, StructArg
+import platform
+from .arg import  IntArg, FloatArg, Vector3Arg, StructArg, Attribute
+from .cgen import register_function
+
+from .instr import load_struct_ptr
+from .instr import load_int_into_reg, load_float_into_reg, load_vec3_into_reg
+from .instr import store_int_from_reg, store_float_from_reg, store_vec3_from_reg
+from .instr import copy_int_to_int, copy_float_to_float, copy_vec3_to_vec3, copy_int_to_float
+from .instr import store_const_into_mem, convert_float_to_int, convert_int_to_float
 
 def float2hex(f):
     r = struct.pack('f', f)
@@ -23,20 +31,63 @@ def preform_arithmetic(n1, n2, op):
     else:
         raise ValueError("Unknown operator", op)
 
-def _copy_to_regs(args):
-    xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
-    general = ['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
+def _copy_to_regs(cgen, args, input_args):
+    if len(args) != len(input_args):
+        raise ValueError("Argument length mismatch", args, input_args)
+
+    xmm = ['xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
+    general = ['esi', 'edx', 'ecx', 'ebx', 'eax']
+    ptr_reg = 'ebp'
+    ptr_reg2 = 'edi'
+    tmp_xmm = 'xmm7'
+    bits = platform.architecture()[0]
+
     code = ''
-    for a in args:
-        if isinstance(a, IntArg):
-            code += "mov %s, dword [%s]\n" % (general.pop(), a.name)
-        elif isinstance(a, FloatArg):
-            code += "movss %s, dword [%s] \n" % (xmm.pop(), a.name)
-        elif isinstance(a, Vector3Arg):
-            code += "movaps %s, oword [%s] \n" % (xmm.pop(), a.name)
+    for arg1, arg2 in zip(args, input_args):
+        if isinstance(arg1, int):
+            if type(arg2) == IntArg:
+                reg = general.pop()
+                code += "mov %s, %i\n" % (reg, arg1)
+            elif type(arg2) == FloatArg:
+                raise ValueError("Konverzija float konstante-temp variabla?")
+            else:
+                raise ValueError("Type mismatch", arg1, arg2)
+        elif isinstance(arg1, float):
+            raise ValueError("Float argument-temp const variable?", arg1)
+        elif isinstance(arg1, str) or isinstance(arg1, Attribute):
+            a = cgen.get_arg(arg1)
+            if a is None:
+                raise ValueError("Argument %s doesn't exist!" % name)
+            if type(a) == IntArg:
+                if type(arg2) == IntArg:
+                    reg = general.pop()
+                    code += load_int_into_reg(cgen, reg, arg1, ptr_reg)
+                elif type(arg2) == FloatArg:
+                    to_reg = xmm.pop()
+                    code += load_int_into_reg(cgen, ptr_reg2, arg1, ptr_reg)
+                    code += convert_int_to_float(ptr_reg2, to_reg)
+                else:
+                    raise ValueError("Type mismatch", a, arg2)
+            elif type(a) == FloatArg and type(arg2) == FloatArg:
+                reg = xmm.pop()
+                code += load_float_into_reg(cgen, reg, arg1, ptr_reg)
+            elif type(a) == Vector3Arg and type(arg2) == Vector3Arg:
+                reg = xmm.pop()
+                code += load_vec3_into_reg(cgen, reg, arg1, ptr_reg)
+            elif type(a) == StructArg and type(arg2) == StructArg:
+                reg = general.pop()
+                if bits == '64bit':
+                    reg = 'r' + reg[1:]
+                    c, dummy, dummy = load_struct_ptr(cgen, arg1, reg)
+                else:
+                    c, dummy, dummy = load_struct_ptr(cgen, arg1, reg)
+                code += c
+            else:
+                raise ValueError("Unsuported argument type, mismatch", a, arg2)
         else:
-            raise ValueError('Unknown argument', a)
+            raise ValueError("Unsupprted argument for shader!", arg1, arg2)
     return code
+
 
 class Statement:
     def __init__(self):
@@ -45,191 +96,60 @@ class Statement:
     def asm_code(self):
         raise NotImplementedError()
 
-def _load_int_to_reg(cgen, reg, src, src_path=None):
-    if src_path is not None:
-        reg2 = cgen.fetch_register('general')
-        code = "mov %s, %s \n" % (reg2, src) #64-bit TODO
-        arg = cgen.get_argument(src) # arg is StructArg TODO struct is input arg
-        path = arg.typ.typ + "." + src_path
-        code += "mov %s, dword [%s + %s]\n" % (reg, reg2, path)
-    else:
-        code = "mov %s, dword [%s] \n" % (reg, src)
-    return code
-
-def _store_int_from_reg(cgen, reg, dest, dst_path=None):
-    if dst_path is not None:
-        reg2 = cgen.fetch_register('general')
-        arg = cgen.get_argument(dest) # arg is StructArg TODO struct is input arg
-        path = arg.typ.typ + "." + dst_path
-        code = "mov %s, %s \n" % (reg2, dest) #64-bit TODO
-        code += "mov dword [%s + %s], %s\n" % (reg2, path, reg)
-    else:
-        code = "mov dword [%s], %s \n" % (dest, reg)
-    return code
-
-def _load_float_to_reg(cgen, reg, src, src_path=None): #reg must be xmm
-    if src_path is not None:
-        reg2 = cgen.fetch_register('general')
-        code = "mov %s, %s \n" % (reg2, src) #64-bit TODO
-        arg = cgen.get_argument(src) # arg is StructArg TODO struct is input arg
-        path = arg.typ.typ + "." + src_path
-        code += "movss %s, dword [%s + %s]\n" % (reg, reg2, path)
-    else:
-        code = "movss %s, dword [%s] \n" % (reg, src)
-    return code
-
-def _store_float_from_reg(cgen, reg, dest, dst_path=None):
-    if dst_path is not None:
-        reg2 = cgen.fetch_register('general')
-        arg = cgen.get_argument(dest) # arg is StructArg TODO struct is input arg
-        path = arg.typ.typ + "." + dst_path
-        code = "mov %s, %s \n" % (reg2, dest) #64-bit TODO
-        code += "movss dword [%s + %s], %s\n" % (reg2, path, reg)
-    else:
-        code = "movss dword [%s], %s \n" % (dest, reg)
-    return code
-
-def _load_vec3_to_reg(cgen, reg, src, src_path=None): #reg must be xmm
-    if src_path is not None:
-        reg2 = cgen.fetch_register('general')
-        code = "mov %s, %s \n" % (reg2, src) #64-bit TODO
-        arg = cgen.get_argument(src) # arg is StructArg TODO struct is input arg
-        path = arg.typ.typ + "." + src_path
-        code += "movaps %s, oword [%s + %s]\n" % (reg, reg2, path)
-    else:
-        code = "movaps %s, oword [%s] \n" % (reg, src)
-    return code
-
-def _store_vec3_from_reg(cgen, reg, dest, dst_path=None):
-    if dst_path is not None:
-        reg2 = cgen.fetch_register('general')
-        arg = cgen.get_argument(dest) # arg is StructArg TODO struct is input arg
-        path = arg.typ.typ + "." + dst_path
-        code = "mov %s, %s \n" % (reg2, dest) #64-bit TODO
-        code += "movaps oword [%s + %s], %s\n" % (reg2, path, reg)
-    else:
-        code = "movaps oword [%s], %s \n" % (dest, reg)
-    return code
-
-
-def _copy_int_to_int(cgen, dest, src, dst_path=None, src_path=None):
-    reg = cgen.fetch_register('general')
-    code = _load_int_to_reg(cgen, reg, src, src_path)
-    code += _store_int_from_reg(cgen, reg, dest, dst_path)
-    return code
-
-def _copy_float_to_float(cgen, dest, src, dst_path=None, src_path=None):
-    reg = cgen.fetch_register('xmm')
-    code = _load_float_to_reg(cgen, reg, src, src_path)
-    code += _store_float_from_reg(cgen, reg, dest, dst_path)
-    return code
-
-def _copy_vec3_to_vec3(cgen, dest, src, dst_path=None, src_path=None):
-    reg = cgen.fetch_register('xmm')
-    code = _load_vec3_to_reg(cgen, reg, src, src_path)
-    code += _store_vec3_from_reg(cgen, reg, dest, dst_path)
-    return code
-
-def _convert_int_to_float(reg, to_reg):
-    return "cvtsi2ss %s, %s \n" % (to_reg, reg)
-
-def _copy_int_to_float(cgen, dest, src, dst_path=None, src_path=None):
-    reg = cgen.fetch_register('general')
-    to_reg = cgen.fetch_register('xmm')
-    code = _load_int_to_reg(cgen, reg, src, src_path)
-    code += _convert_int_to_float(reg, to_reg)
-    code += _store_float_from_reg(cgen, to_reg, dest, dst_path)
-    return code
-
-#TODO --little optimization can be done if it is same structure
-# --- it must use same general register for loading and storing 
 class StmAssignName(Statement):
-    def __init__(self, cgen, dest, src, dst_path=None, src_path=None):
+    #def __init__(self, cgen, dest, src, dst_path=None, src_path=None):
+    def __init__(self, cgen, dest, src):
         self.cgen = cgen
         self.dest = dest
         self.src = src
-        self.dst_path = dst_path
-        self.src_path = src_path
 
     def asm_code(self):
         #source argument must exist
-        src_arg = self.cgen.get_argument(self.src, self.src_path)
+        src_arg = self.cgen.get_arg(self.src)
         if src_arg is None:
             raise ValueError('Source argument %s doesnt exist' % self.src)
-        if self.dst_path is not None: #soruce is struct argument
-            dst_arg = self.cgen.get_argument(self.dest, self.dst_path)
-            if dst_arg is None:
-                raise ValueError('Destination struct %s doesnt exist' % self.dest)
-        else:
-            dst_arg = self.cgen.create_local(self.dest, self.src)
+        dst_arg = self.cgen.create_arg(self.dest, self.src)
 
         if isinstance(src_arg, IntArg) and isinstance(dst_arg, IntArg):
-            code = _copy_int_to_int(self.cgen, self.dest, self.src, self.dst_path, self.src_path)
+            code = copy_int_to_int(self.cgen, self.dest, self.src)
         elif isinstance(src_arg, FloatArg) and isinstance(dst_arg, FloatArg):
-            code = _copy_float_to_float(self.cgen, self.dest, self.src, self.dst_path, self.src_path)
+            code = copy_float_to_float(self.cgen, self.dest, self.src)
         elif isinstance(src_arg, Vector3Arg) and isinstance(dst_arg, Vector3Arg):
-            code = _copy_vec3_to_vec3(self.cgen, self.dest, self.src, self.dst_path, self.src_path)
+            code = copy_vec3_to_vec3(self.cgen, self.dest, self.src)
         elif isinstance(src_arg, IntArg) and isinstance(dst_arg, FloatArg):
-            code = _copy_int_to_float(self.cgen, self.dest, self.src, self.dst_path, self.src_path)
+            code = copy_int_to_float(self.cgen, self.dest, self.src)
         else:
             raise ValueError('Type mismatch', src_arg, dst_arg)
         return code
 
-def _copy_const_int_to(cgen, dest, const, path=None):
-    if path is not None:
-        arg = cgen.get_argument(dest) # arg is StructArg TODO struct is input arg
-        reg = cgen.fetch_register('general')
-        line1 = "mov %s, %s \n" % (reg, dest) #64-bit TODO
-        path = arg.typ.typ + "." + path
-        line2 = "mov dword [%s + %s], %i\n" % (reg, path, const)
-        return line1 + line2
-    else:
-        return 'mov dword [%s], %i \n' % (dest, const)
-
-def _copy_const_float_to(cgen, dest, const, path=None, offset=None):
-    if path is not None:
-        arg = cgen.get_argument(dest) # arg is StructArg TODO struct is input arg
-        reg = cgen.fetch_register('general')
-        line1 = "mov %s, %s \n" % (reg, dest) #64-bit TODO
-        path = arg.typ.typ + "." + path
-        line2 = "mov dword [%s + %s], %i\n" % (reg, path, const)
-        return line1 + line2
-    else:
-        fl = float2hex(float(const))
-        if offset is None:
-            return 'mov dword [%s], %s ;float value = %f \n' % (dest, fl, float(const))
-        else:
-            return 'mov dword [%s + %i], %s ;float value = %f \n' % (dest, offset, fl, float(const))
-
 class StmAssignConst(Statement):
-    def __init__(self, cgen, dest, const, path=None):
+    def __init__(self, cgen, dest, const):
         self.cgen = cgen
         self.dest = dest
         self.const = const 
-        self.path = path
 
     def asm_code(self):
-        arg = self.cgen.create_local(self.dest, self.const, self.path)
+        arg = self.cgen.create_arg(self.dest, self.const)
         typ = type(arg)
         if typ == IntArg:
             if not isinstance(self.const, int):
                 raise ValueError('Type mismatch', typ, self.const)
-            code = _copy_const_int_to(self.cgen, self.dest, self.const, self.path)
+            code = store_const_into_mem(self.cgen, self.dest, self.const)
         elif typ == FloatArg:
             tmp = float(self.const) if isinstance(self.const, int) else self.const 
             if not isinstance(tmp, float):
                 raise ValueError('Type mismatch', typ, self.const)
-            code = _copy_const_float_to(self.cgen, self.dest, self.const, self.path)
+            code = store_const_into_mem(self.cgen, self.dest, self.const)
         elif typ == Vector3Arg:
             if (isinstance(self.const, tuple) or isinstance(self.const, list)) and len(self.const) == 3:
-                code = _copy_const_float_to(self.cgen, self.dest, float(self.const[0]), self.path)
-                code += _copy_const_float_to(self.cgen, self.dest, float(self.const[1]), self.path, offset=4)
-                code += _copy_const_float_to(self.cgen, self.dest, float(self.const[2]), self.path, offset=8)
-                code += _copy_const_float_to(self.cgen, self.dest, 0.0, self.path, offset=12)
+                code = store_const_into_mem(self.cgen, self.dest, float(self.const[0]))
+                code += store_const_into_mem(self.cgen, self.dest, float(self.const[1]), offset=4)
+                code += store_const_into_mem(self.cgen, self.dest, float(self.const[2]), offset=8)
+                code += store_const_into_mem(self.cgen, self.dest, 0.0, offset=12)
             else:
                 raise ValueError('Type mismatch',  arg, self.const)
         else:
-            raise ValueError('Unknown type of destination')
+            raise ValueError('Unknown type of destination', arg, self.const)
         return code
 
 class StmAssignBinary(Statement):
@@ -352,7 +272,7 @@ class StmCall(Statement):
         for a in self.args:
             arg = self.cgen.fetch_argument(a)
             if arg is None:
-                raise ValueError("Argument %s doenst exist!", a)
+                raise ValueError("Argument %s doesnt exist!", a)
             arguments.append(arg)
 
         if len(input_args) != len(arguments):
@@ -362,8 +282,131 @@ class StmCall(Statement):
             if type(arg1) != type(arg2):
                 raise ValueError("Argument type mismatch", arg1, arg2)
 
-        code = _copy_to_regs(arguments)
+        code = _copy_to_regs_old(arguments)
         code += "call %s\n" % self.func
         return code
 
+class StmAssignCall(Statement):
+    def __init__(self, cgen, dest, func, args):
+        self.cgen = cgen
+        self.dest = dest
+        self.func = func
+        self.args = args
+
+    def asm_code(self):
+
+        f = self.cgen.get_function(self.func)
+        if f is not None:
+            func, ret_type = f
+            code = func(self.cgen, self.args)
+            arg = self.cgen.create_arg(self.dest, typ=ret_type)
+            if type(arg) != ret_type:
+                raise ValueError("Type mismatch!", arg, ret_type)
+
+        s = self.cgen.get_shader(self.func)
+        if s is not None:
+            code = _copy_to_regs(self.cgen, self.args, s.input_args)
+            code += "call %s\n" % self.func
+            ret_type = s.ret_type
+
+        if f is None and s is None:
+            raise ValueError("Both function and shader doesnt exist")
+
+        dst = self.cgen.get_arg(self.dest)
+        if dst is None:
+            dst = self.cgen.create_arg(self.dest, typ=ret_type)
+
+        self.cgen.clear_regs()
+        if ret_type == IntArg and type(dst) == IntArg:
+            reg = self.cgen.register(reg="eax")
+            store = store_int_from_reg(self.cgen, reg, self.dest)
+        elif ret_type == FloatArg and type(dst) == FloatArg:
+            reg = self.cgen.register(reg="xmm0")
+            store = store_float_from_reg(self.cgen, reg, self.dest)
+        elif type(dst) == FloatArg and ret_type == IntArg:
+            reg = self.cgen.register(reg="eax")
+            to_reg = self.cgen.register(reg="xmm0")
+            store = convert_int_to_float(reg, to_reg)
+            store += store_float_from_reg(self.cgen, to_reg, self.dest)
+        elif ret_type == Vector3Arg and type(dst) == Vector3Arg:
+            reg = self.cgen.register(reg="xmm0")
+            store = store_vec3_from_reg(self.cgen, reg, self.dest)
+        elif ret_type == StructArg:
+            raise ValueError("Unsupported argument returned type!", ret_type, dst)
+        else:
+            raise ValueError("Type mismatch", ret_type, dst)
+        return code + store
+
+class StmReturn(Statement):
+    def __init__(self, cgen, const=None, src=None):
+        self.cgen = cgen
+        self.const = const
+        self.src = src
+
+    def asm_code(self):
+        if self.const is None and self.src is None:
+            return "ret \n"
+        if self.const is not None:
+            if isinstance(self.const, int):
+                self.cgen.register_ret_type(IntArg)
+                code = "mov eax, %i \n" % self.const
+                code += "ret \n"
+                return code
+            elif isinstance(self.const, float):
+                self.cgen.register_ret_type(FloatArg)
+                raise ValueError("Argument const float ", self.const)
+            elif isinstance(self.const, tuple) or isinstance(self.const, list):
+                raise ValueError("Return is const list or tuple ", self.const)
+            else:
+                raise ValueError("Unsuported constant", self.const)
+        arg = self.cgen.get_arg(self.src)
+        if arg is None:
+            raise ValueError("Argument doesnt exist.", self.src)
+        self.cgen.register_ret_type(type(arg))
+        self.cgen.clear_regs()
+        if isinstance(arg, IntArg):
+            reg = self.cgen.register(reg="eax")
+            code = load_int_into_reg(self.cgen, reg, self.src)
+        elif isinstance(arg, FloatArg):
+            reg = self.cgen.register(reg="xmm0")
+            code = load_float_into_reg(self.cgen, reg, self.src)
+        elif isinstance(arg, Vector3Arg):
+            reg = self.cgen.register(reg="xmm0")
+            code = load_vec3_into_reg(self.cgen, reg, self.src)
+        else:
+            raise ValueError("Unsuported return argument!", arg)
+        code += "ret \n"
+        return code
+
+def _int_function(cgen, args):
+    if len(args) == 0:
+        return "mov eax, 0\n"
+    if len(args) != 1:
+        raise ValueError("Wrong number of arguments", args)
+    arg = args[0]
+    if isinstance(arg, int):
+        return "mov eax, %i\n" % arg
+    elif isinstance(arg, float):
+        return "mov eax, %i\n" % int(arg)
+    elif isinstance(arg, str) or isinstance(arg, Attribute):
+        cgen.clear_regs()
+        a = cgen.get_arg(arg)
+        if a is None:
+            raise ValueError("Argument %s doesn't exist!" % name)
+        if isinstance(a, IntArg):
+            reg = cgen.register(reg="eax")
+            code = load_int_into_reg(cgen, reg, arg)
+            return code
+        elif isinstance(a, FloatArg):
+            reg = cgen.register(reg="xmm0")
+            to_reg = cgen.register(reg="eax")
+            code = load_float_into_reg(cgen, reg, arg)
+            code += convert_float_to_int(reg, to_reg)
+            return code
+        else:
+            raise ValueError("Unsupprted argument for int function!", a)
+    else:
+        raise ValueError('Unsupported argument')
+
+register_function('int', _int_function, IntArg) 
 

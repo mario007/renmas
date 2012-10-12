@@ -98,22 +98,41 @@ def store_vec3_from_reg(cgen, reg, dest, op_reg=None):
         raise ValueError("Unknown destination")
     return code
 
-def copy_int_to_int(cgen, dest, src):
+def copy_int_to_int(cgen, dest, src, unary=None):
     reg = cgen.register(typ='general')
     code = load_int_into_reg(cgen, reg, src)
-    code += store_int_from_reg(cgen, reg, dest)
+    if unary is not None and unary == '-':
+        reg2 = cgen.register(typ='general')
+        line1 = "xor %s, %s\n" % (reg2, reg2)
+        line2 = "sub %s, %s\n" % (reg2, reg)
+        line3 = store_int_from_reg(cgen, reg2, dest)
+        code += line1 + line2 + line3
+    else:
+        code += store_int_from_reg(cgen, reg, dest)
     return code
 
-def copy_float_to_float(cgen, dest, src):
+def copy_float_to_float(cgen, dest, src, unary=None):
     reg = cgen.register(typ='xmm')
     code = load_float_into_reg(cgen, reg, src)
-    code += store_float_from_reg(cgen, reg, dest)
+    if unary is not None and unary == '-':
+        arg = cgen.create_const((-1.0, -1.0, -1.0))
+        line1 = "mulss %s, dword[%s]\n" % (reg, arg.name) 
+        line2 = store_float_from_reg(cgen, reg, dest)
+        code += line1 + line2
+    else:
+        code += store_float_from_reg(cgen, reg, dest)
     return code
 
-def copy_vec3_to_vec3(cgen, dest, src):
+def copy_vec3_to_vec3(cgen, dest, src, unary=None):
     reg = cgen.register(typ='xmm')
     code = load_vec3_into_reg(cgen, reg, src)
-    code += store_vec3_from_reg(cgen, reg, dest)
+    if unary is not None and unary == '-':
+        arg = cgen.create_const((-1.0, -1.0, -1.0))
+        line1 = "mulps %s, oword[%s]\n" % (reg, arg.name) 
+        line2 = store_vec3_from_reg(cgen, reg, dest)
+        code += line1 + line2
+    else:
+        code += store_vec3_from_reg(cgen, reg, dest)
     return code
 
 def convert_int_to_float(reg, to_reg):
@@ -122,12 +141,20 @@ def convert_int_to_float(reg, to_reg):
 def convert_float_to_int(reg, to_reg):
     return "cvttss2si %s, %s \n" % (to_reg, reg)
 
-def copy_int_to_float(cgen, dest, src):
+def copy_int_to_float(cgen, dest, src, unary=None):
     reg = cgen.register(typ='general')
     to_reg = cgen.register(typ='xmm')
     code = load_int_into_reg(cgen, reg, src)
-    code += convert_int_to_float(reg, to_reg)
-    code += store_float_from_reg(cgen, to_reg, dest)
+    if unary is not None and unary == '-':
+        reg2 = cgen.register(typ='general')
+        line1 = "xor %s, %s\n" % (reg2, reg2)
+        line2 = "sub %s, %s\n" % (reg2, reg)
+        line3 = convert_int_to_float(reg2, to_reg)
+        line4 = store_float_from_reg(cgen, to_reg, dest)
+        code += line1 + line2 + line3 + line4
+    else:
+        code += convert_int_to_float(reg, to_reg)
+        code += store_float_from_reg(cgen, to_reg, dest)
     return code
 
 def float2hex(f):

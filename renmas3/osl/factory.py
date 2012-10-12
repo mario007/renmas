@@ -14,12 +14,12 @@ def _create_arg(a):
     else:
         raise ValueError("Unknown data for creation of argument", a)
 
-def create_argument_map(args):
+def arg_map(args):
     new_args = [_create_arg(a) for a in args]
     arg_map = ArgumentMap(new_args)
     return arg_map
 
-def create_argument_list(args):
+def arg_list(args):
     new_args = [_create_arg(a) for a in args]
     arg_lst = ArgumentList(new_args)
     return arg_lst

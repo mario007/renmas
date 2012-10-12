@@ -1,6 +1,6 @@
 import struct
 import platform
-from .arg import  IntArg, FloatArg, Vector3Arg, StructArg, Attribute
+from .arg import  IntArg, FloatArg, Vector3Arg, StructArg, Attribute, Function
 from .cgen import register_function
 
 from .instr import load_struct_ptr
@@ -97,11 +97,11 @@ class Statement:
         raise NotImplementedError()
 
 class StmAssignName(Statement):
-    #def __init__(self, cgen, dest, src, dst_path=None, src_path=None):
-    def __init__(self, cgen, dest, src):
+    def __init__(self, cgen, dest, src, unary=None):
         self.cgen = cgen
         self.dest = dest
         self.src = src
+        self.unary = unary
 
     def asm_code(self):
         #source argument must exist
@@ -111,13 +111,13 @@ class StmAssignName(Statement):
         dst_arg = self.cgen.create_arg(self.dest, self.src)
 
         if isinstance(src_arg, IntArg) and isinstance(dst_arg, IntArg):
-            code = copy_int_to_int(self.cgen, self.dest, self.src)
+            code = copy_int_to_int(self.cgen, self.dest, self.src, self.unary)
         elif isinstance(src_arg, FloatArg) and isinstance(dst_arg, FloatArg):
-            code = copy_float_to_float(self.cgen, self.dest, self.src)
+            code = copy_float_to_float(self.cgen, self.dest, self.src, self.unary)
         elif isinstance(src_arg, Vector3Arg) and isinstance(dst_arg, Vector3Arg):
-            code = copy_vec3_to_vec3(self.cgen, self.dest, self.src)
+            code = copy_vec3_to_vec3(self.cgen, self.dest, self.src, self.unary)
         elif isinstance(src_arg, IntArg) and isinstance(dst_arg, FloatArg):
-            code = copy_int_to_float(self.cgen, self.dest, self.src)
+            code = copy_int_to_float(self.cgen, self.dest, self.src, self.unary)
         else:
             raise ValueError('Type mismatch', src_arg, dst_arg)
         return code
@@ -139,7 +139,7 @@ class StmAssignConst(Statement):
             tmp = float(self.const) if isinstance(self.const, int) else self.const 
             if not isinstance(tmp, float):
                 raise ValueError('Type mismatch', typ, self.const)
-            code = store_const_into_mem(self.cgen, self.dest, self.const)
+            code = store_const_into_mem(self.cgen, self.dest, tmp)
         elif typ == Vector3Arg:
             if (isinstance(self.const, tuple) or isinstance(self.const, list)) and len(self.const) == 3:
                 code = store_const_into_mem(self.cgen, self.dest, float(self.const[0]))
@@ -152,109 +152,273 @@ class StmAssignConst(Statement):
             raise ValueError('Unknown type of destination', arg, self.const)
         return code
 
-class StmAssignBinary(Statement):
-    def __init__(self, cgen, dest, op1, op2, operator):
+
+def load_argument(cgen, arg, op):
+    if isinstance(arg, IntArg):
+        reg = cgen.register(typ='general')
+        code = load_int_into_reg(cgen, reg, op)
+        typ = IntArg
+    elif isinstance(arg, FloatArg):
+        reg = cgen.register(typ='xmm')
+        code = load_float_into_reg(cgen, reg, op)
+        typ = FloatArg
+    elif isinstance(arg, Vector3Arg):
+        reg = cgen.register(typ='xmm')
+        code = load_vec3_into_reg(cgen, reg, op)
+        typ = Vector3Arg
+    else:
+        raise ValueError("Unknown argument", arg)
+    return (code, reg, typ)
+
+def load_operand(cgen, op):
+    if isinstance(op, int):
+        reg = cgen.register(typ='general')
+        code = "mov %s, %i\n" % (reg, op)
+        typ = IntArg 
+    elif isinstance(op, float):
+        con_arg = cgen.create_const(op)
+        reg = cgen.register(typ='xmm')
+        code = load_float_into_reg(cgen, reg, con_arg.name)
+        typ = FloatArg
+    elif isinstance(op, str) or isinstance(op, Attribute):
+        arg = cgen.get_arg(op)
+        if arg is None:
+            raise ValueError("Operand doesn't exist", op)
+        code, reg, typ = load_argument(cgen, arg, op)
+    else:
+        raise ValueError("Unknown operand")
+    return (code, reg, typ)
+
+def perform_operation_ints(cgen, reg1, reg2, operator):
+    if operator == '+':
+        code = 'add %s, %s\n' % (reg1, reg2)
+        return code, reg1
+    elif operator == '-':
+        code = 'sub %s, %s\n' % (reg1, reg2)
+        return code, reg1
+    elif operator == '%' or operator == '/': #TODO test 64-bit implementation is needed
+        epilog = """
+        push eax
+        push edx
+        push esi
+        """
+        line1 = "mov eax, %s\n" % reg1
+        line2 = "mov esi, %s\n" % reg2
+        line3 = "xor edx, edx\n"
+        line4 = "idiv esi\n"
+        line5 = "pop esi\n"
+        if operator == '/':
+            line6 = "pop edx\n"
+            line7 = "mov %s, eax\n" % reg1
+            if reg1 == 'eax':
+                line8 = "add esp, 4\n"
+            else:
+                line8 = "pop eax\n"
+        else:
+            line6 = "mov %s, edx\n" % reg1
+            if reg1 == 'edx':
+                line7 = "add esp, 4\n"
+            else:
+                line7 = "pop edx\n"
+            if reg1 == 'eax':
+                line8 = "add esp, 4\n"
+            else:
+                line8 = "pop eax\n"
+        code = epilog + line1 + line2 + line3 + line4 + line5 + line6 + line7 + line8
+        return code, reg1
+    elif operator == '*':
+        code = "imul %s, %s\n" % (reg1, reg2)
+        return code, reg1
+    else:
+        raise ValueError("Unsuported operator", operator)
+
+def perform_operation_floats(cgen, reg1, reg2, operator):
+    if operator == '+':
+        code = "addss %s, %s \n" % (reg1, reg2)
+    elif operator == '-':
+        code = "subss %s, %s \n" % (reg1, reg2)
+    elif operator == '/':
+        code = "divss %s, %s \n" % (reg1, reg2)
+    elif operator == '*':
+        code = "mulss %s, %s \n" % (reg1, reg2)
+    else:
+        raise ValueError("Unsuported operator", operator)
+    return code, reg1
+
+def perform_operation_int_float(cgen, reg1, reg2, operator):
+    reg3 = cgen.register(typ="xmm")
+    conversion = convert_int_to_float(reg1, reg3)
+    code, reg = perform_operation_floats(cgen, reg3, reg2, operator)
+    code = conversion + code
+    return code, reg
+
+def perform_operation_float_int(cgen, reg1, reg2, operator):
+    reg3 = cgen.register(typ="xmm")
+    conversion = convert_int_to_float(reg2, reg3)
+    code, reg = perform_operation_floats(cgen, reg1, reg3, operator)
+    code = conversion + code
+    return code, reg
+
+def perform_operation_vectors3(cgen, reg1, reg2, operator):
+    if operator == '+':
+        code = "addps %s, %s \n" % (reg1, reg2)
+    elif operator == '-':
+        code = "subps %s, %s \n" % (reg1, reg2)
+    elif operator == '/':
+        code = "divps %s, %s \n" % (reg1, reg2)
+    elif operator == '*':
+        code = "mulps %s, %s \n" % (reg1, reg2)
+    else:
+        raise ValueError("Unsuported operator", operator)
+    return code, reg1
+
+def perform_operation_float_vector(cgen, reg1, reg2, operator):
+    line1 = "shufps %s, %s, 0x00\n" % (reg1, reg1)
+    if operator == '*':
+        code = "mulps %s, %s \n" % (reg1, reg2)
+    else:
+        raise ValueError("Unsuported operator", operator, reg1, reg2)
+    code = line1 + code
+    return code, reg1
+
+def perform_operation_vector_float(cgen, reg1, reg2, operator):
+    line1 = "shufps %s, %s, 0x00\n" % (reg2, reg2)
+    if operator == '*':
+        code = "mulps %s, %s \n" % (reg1, reg2)
+    else:
+        raise ValueError("Unsuported operator", operator, reg1, reg2)
+    code = line1 + code
+    return code, reg1
+
+def perform_operation_int_vector(cgen, reg1, reg2, operator):
+    reg3 = cgen.register(typ="xmm")
+    conversion = convert_int_to_float(reg1, reg3)
+    broadcast = "shufps %s, %s, 0x00\n" % (reg3, reg3)
+    if operator == '*':
+        code = "mulps %s, %s \n" % (reg3, reg2)
+    else:
+        raise ValueError("Unsuported operator", operator, reg1, reg2)
+    code = conversion + broadcast + code
+    return code, reg3
+
+def perform_operation_vector_int(cgen, reg1, reg2, operator):
+    reg3 = cgen.register(typ="xmm")
+    conversion = convert_int_to_float(reg2, reg3)
+    broadcast = "shufps %s, %s, 0x00\n" % (reg3, reg3)
+    if operator == '*':
+        code = "mulps %s, %s \n" % (reg1, reg3)
+    else:
+        raise ValueError("Unsuported operator", operator, reg1, reg2)
+    code = conversion + broadcast + code
+    return code, reg1
+
+def perform_operation(cgen, reg1, typ1, operator, reg2, typ2):
+    if typ1 == IntArg and typ2 == IntArg:
+        code, reg = perform_operation_ints(cgen, reg1, reg2, operator)
+        return (code, reg, IntArg)
+    elif typ1 == FloatArg and typ2 == FloatArg:
+        code, reg = perform_operation_floats(cgen, reg1, reg2, operator)
+        return (code, reg, FloatArg)
+    elif typ1 == IntArg and typ2 == FloatArg:
+        code, reg = perform_operation_int_float(cgen, reg1, reg2, operator)
+        return (code, reg, FloatArg)
+    elif typ1 == FloatArg and typ2 == IntArg:
+        code, reg = perform_operation_float_int(cgen, reg1, reg2, operator)
+        return (code, reg, FloatArg)
+    elif typ1 == Vector3Arg and typ2 == Vector3Arg:
+        code, reg = perform_operation_vectors3(cgen, reg1, reg2, operator)
+        return (code, reg, Vector3Arg)
+    elif typ1 == FloatArg and typ2 == Vector3Arg:
+        code, reg = perform_operation_float_vector(cgen, reg1, reg2, operator)
+        return (code, reg, Vector3Arg)
+    elif typ1 == Vector3Arg and typ2 == FloatArg:
+        code, reg = perform_operation_vector_float(cgen, reg1, reg2, operator)
+        return (code, reg, Vector3Arg)
+    elif typ1 == IntArg and typ2 == Vector3Arg:
+        code, reg = perform_operation_int_vector(cgen, reg1, reg2, operator)
+        return (code, reg, Vector3Arg)
+    elif typ1 == Vector3Arg and typ2 == IntArg:
+        code, reg = perform_operation_vector_int(cgen, reg1, reg2, operator)
+        return (code, reg, Vector3Arg)
+    else:
+        raise ValueError('Unknown combination of operands', typ1, typ2)
+
+def gen_arithmetic_operation(cgen, op1, operator, op2):
+    code1, reg1, typ1 = load_operand(cgen, op1)
+    code2, reg2, typ2 = load_operand(cgen, op2)
+    code3, reg, typ3 = perform_operation(cgen, reg1, typ1, operator, reg2, typ2)
+    code = code1 + code2 + code3
+    return (code, reg, typ3)
+
+def gen_arithmetic_operation1(cgen, op1, operator, reg, typ):
+    code1, reg1, typ1 = load_operand(cgen, op1)
+    code2, reg2, typ2 = perform_operation(cgen, reg1, typ1, operator, reg, typ)
+    code = code1 + code2
+    return (code, reg2, typ2)
+
+def gen_arithmetic_operation2(cgen, reg, typ, operator, op1):
+    code1, reg1, typ1 = load_operand(cgen, op1)
+    code2, reg2, typ2 = perform_operation(cgen, reg, typ, operator, reg1, typ1)
+    code = code1 + code2
+    return (code, reg2, typ2)
+
+def is_operator(op):
+    ops = ('+', '-', '/', '%', '*')
+    return op in ops
+
+class StmAssignExpression(Statement):
+    def __init__(self, cgen, dest, operands):
         self.cgen = cgen
         self.dest = dest
-        self.op1 = op1
-        self.op2 = op2
-        self.operator = operator
+        self.operands = operands
 
     def asm_code(self):
-        if is_num(self.op1) or is_num(self.op2): # a = 4 + b or a = b + 4.5
-            if is_num(self.op1) and is_num(self.op2): # a = 4 + 9 or a = 2.3 + 9.8
-                return self._asm_code_consts(self.op1, self.op2)
-        else: # a = b + c
-            typ_op1 = self.cgen.type_of(self.op1)
-            typ_op2 = self.cgen.type_of(self.op2)
-            if typ_op1 is None or typ_op2 is None:
-                raise ValueError("Op1 or Op2 doesnt exist.", self.op1, self.op2)
-            if typ_op1 == IntArg and typ_op2 == IntArg:
-                return self._asm_code_ints()
-            elif typ_op1 == FloatArg and typ_op2 == FloatArg:
-                return self._asm_code_floats()
-            elif typ_op1 == FloatArg and typ_op2 == IntArg: #conversions
-                raise ValueError("TODO binary operation")
-            elif typ_op1 == IntArg and typ_op2 == FloatArg:
-                raise ValueError("TODO binary operation")
+        op1, operator, op2 = self.operands[0]
+        if isinstance(op1, Function) or isinstance(op2, Function):
+            raise ValueError("Handle function of argument, save temporary register, variables etc...")
+        code, reg, typ = gen_arithmetic_operation(self.cgen, op1, operator, op2)
+        for comp in self.operands[1:]:
+            if len(comp) == 1:
+                operator = comp 
+                raise ValueError("Not yet implemented")
+            elif len(comp) == 2:
+                if is_operator(comp[0]): # ('-', 'p.m')
+                    if isinstance(comp[1], Function):
+                        raise ValueError("Not yet implemented")
+                    code2, reg, typ = gen_arithmetic_operation2(self.cgen, reg, typ, comp[0], comp[1])
+                else: # ('p.m', '-')
+                    if isinstance(comp[0], Function):
+                        raise ValueError("Not yet implemented")
+                    code2, reg, typ = gen_arithmetic_operation1(self.cgen, comp[0], comp[1], reg, typ)
+                code += code2
+            elif len(comp) == 3:
+                op1, operator, op2 = comp 
+                raise ValueError("Not yet implemented")
             else:
-                raise ValueError("Type mismatch!", typ_op1, typ_op2)
-        return None
+                raise ValueError("Unsuported number arguments in expression")
 
-    def _asm_code_consts(self, const1, const2):
-        typ = self.cgen.type_of(self.dest)
-        if isinstance(const1, float) or isinstance(const2, float):
-            tmp = preform_arithmetic(float(const1), float(const2), self.operator)
-        elif isinstance(const1, int) and isinstance(const2, int):
-            tmp = preform_arithmetic(const1, const2, self.operator)
+        dst = self.cgen.get_arg(self.dest)
+        if dst is None:
+            dst = self.cgen.create_arg(self.dest, typ=typ)
+
+        self.cgen.clear_regs()
+        reg = self.cgen.register(reg=reg)
+        if typ == IntArg and type(dst) == IntArg:
+            store = store_int_from_reg(self.cgen, reg, self.dest)
+        elif typ == FloatArg and type(dst) == FloatArg:
+            store = store_float_from_reg(self.cgen, reg, self.dest)
+        elif type(dst) == FloatArg and typ == IntArg:
+            to_reg = self.cgen.register(typ='xmm')
+            store = convert_int_to_float(reg, to_reg)
+            store += store_float_from_reg(self.cgen, to_reg, self.dest)
+        elif typ == Vector3Arg and type(dst) == Vector3Arg:
+            store = store_vec3_from_reg(self.cgen, reg, self.dest)
+        elif typ == StructArg:
+            raise ValueError("Unsupported argument returned type!", typ, dst)
         else:
-            raise ValueError("Unknown consts", const1, const2)
+            raise ValueError("Type mismatch", typ, dst)
 
-        if typ is None:
-            self.cgen.create_local(self.dest, tmp)
-
-        if typ == IntArg and not isinstance(tmp, int):
-            raise ValueError("Type mismatch", typ, tmp)
-        if typ == FloatArg and isinstance(tmp, int):
-            tmp = float(tmp)
-        
-        if isinstance(tmp, int):
-            return 'mov dword [%s], %i \n' % (self.dest, tmp)
-        elif isinstance(tmp, float):
-            fl = float2hex(tmp)
-            return 'mov dword [%s], %s ;float value = %f \n' % (self.dest, fl, tmp)
-        else:
-            raise ValueError("Unsuported type of constant ", tmp)
-
-
-    def _asm_code_ints(self):
-        typ_dst = self.cgen.type_of(self.dest)
-        if typ_dst is None:
-            self.cgen.create_local(self.dest, 0)
-        
-        if self.operator == '/' or self.operator == '%':
-            reg = self.cgen.fetch_register_exact('eax')
-            reg2 = self.cgen.fetch_register_exact('edx')
-            line1 = "mov %s, dword [%s] \n" % (reg, self.op1)
-            line2 = "mov edx, 0 \n"
-            line3 = "idiv dword [%s] \n" % self.op2
-            if self.operator == '/':
-                line4 = "mov dword [%s], %s \n" % (self.dest, reg)
-            elif self.operator == '%':
-                line4 = "mov dword [%s], %s \n" % (self.dest, reg2)
-            return line1 + line2 + line3 + line4
-
-        reg = self.cgen.fetch_register('general')
-        line1 = "mov %s, dword [%s] \n" % (reg, self.op1)
-        if self.operator == '+':
-            line2 = "add %s, dword [%s] \n" % (reg, self.op2)
-        elif self.operator == '-':
-            line2 = "sub %s, dword [%s] \n" % (reg, self.op2)
-        elif self.operator == '*':
-            line2 = "imul %s, dword [%s] \n" % (reg, self.op2)
-        else:
-            raise ValueError("Unsuported operator.", self.operator)
-        line3 = "mov dword [%s], %s \n" % (self.dest, reg)
-        return line1 + line2 + line3
-
-    def _asm_code_floats(self):
-        typ_dst = self.cgen.type_of(self.dest)
-        if typ_dst is None:
-            self.cgen.create_local(self.dest, 0.0)
-        reg = self.cgen.fetch_register('xmm')
-        line1 = "movss %s, dword [%s] \n" % (reg, self.op1)
-        if self.operator == '+':
-            line2 = "addss %s, dword [%s] \n" % (reg, self.op2)
-        elif self.operator == '-':
-            line2 = "subss %s, dword [%s] \n" % (reg, self.op2)
-        elif self.operator == '*':
-            line2 = "mulss %s, dword [%s] \n" % (reg, self.op2)
-        elif self.operator == '/':
-            line2 = "divss %s, dword [%s] \n" % (reg, self.op2)
-        else:
-            raise ValueError("Unsuported operator.", self.operator)
-        line3 = "movss dword [%s], %s \n" % (self.dest, reg)
-        return line1 + line2 + line3
+        return code + store
 
 class StmCall(Statement):
     def __init__(self, cgen, func, args):
@@ -286,31 +450,52 @@ class StmCall(Statement):
         code += "call %s\n" % self.func
         return code
 
+def make_call(cgen, function):
+    name = function.name
+    args = function.args
+
+    cgen.clear_regs()
+
+    f = cgen.get_function(name)
+    if f is not None:
+        func, ret_type = f
+        code = func(cgen, args)
+
+    s = cgen.get_shader(name)
+    if s is not None:
+        code = _copy_to_regs(cgen, args, s.input_args)
+        code += "call %s\n" % name
+        ret_type = s.ret_type
+
+    if f is None and s is None:
+        raise ValueError("Both function and shader doesnt exist")
+    return (code, ret_type)
+
+
+
 class StmAssignCall(Statement):
-    def __init__(self, cgen, dest, func, args):
+    def __init__(self, cgen, dest, function):
         self.cgen = cgen
         self.dest = dest
-        self.func = func
-        self.args = args
+        self.function = function
 
     def asm_code(self):
 
-        f = self.cgen.get_function(self.func)
-        if f is not None:
-            func, ret_type = f
-            code = func(self.cgen, self.args)
-            arg = self.cgen.create_arg(self.dest, typ=ret_type)
-            if type(arg) != ret_type:
-                raise ValueError("Type mismatch!", arg, ret_type)
+        if not isinstance(self.function, Function):
+            raise ValueError("Wrong argument, Function object is expected.")
+        
+        if self.cgen.is_user_type(self.function.name): #create new structure argument
+            dst = self.cgen.get_arg(self.dest)
+            if isinstance(dst, StructArg):
+                if dst.typ.typ != self.function.name:
+                    raise ValueError("Mismatch type ", dst, self.function, name)
+            elif dst is None:
+                dst = self.cgen.create_arg(self.dest, typ=self.function.name)
+            else:
+                raise ValueError("Mismatch types", self.dest, dst)
+            return ''
 
-        s = self.cgen.get_shader(self.func)
-        if s is not None:
-            code = _copy_to_regs(self.cgen, self.args, s.input_args)
-            code += "call %s\n" % self.func
-            ret_type = s.ret_type
-
-        if f is None and s is None:
-            raise ValueError("Both function and shader doesnt exist")
+        code, ret_type = make_call(self.cgen, self.function)
 
         dst = self.cgen.get_arg(self.dest)
         if dst is None:

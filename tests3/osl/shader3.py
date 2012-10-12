@@ -2,7 +2,7 @@
 from tdasm import Runtime
 import renmas3.osl
 from renmas3.osl import create_shader, create_argument, create_user_type
-from renmas3.osl import create_argument_map, create_argument_list
+from renmas3.osl import arg_map, arg_list
 from renmas3.osl import register_user_type
 from renmas3.core import Vector3
 
@@ -10,7 +10,7 @@ point = create_user_type(typ="point", fields=[('x', 10), ('y', 20)])
 size = create_user_type(typ="size", fields=[('w', 0.0), ('h', 0.0), ('k', (3,4,5))])
 register_user_type(point)
 register_user_type(size)
-arg_map = create_argument_map([('p1', 3), ('p2', 4), ('ps', point), ('pm', point),('p3', 0.3),
+arg_map1 = arg_map([('p1', 3), ('p2', 4), ('ps', point), ('pm', point),('p3', 0.3),
     ('p4', (4,5,6)), ('rect', size)])
 
 code = """
@@ -31,6 +31,11 @@ rect.h = p3
 rect.k = [6,7,8]
 ps.x = int(p7)
 p3 = ret_arg(p5)
+p5 = 22
+p55 = 9.3
+p66 = (6,7,8)
+rect.w = -p55
+rect.k = - p66
 """
 
 code2 = """
@@ -38,12 +43,12 @@ code2 = """
 p2 = p1 
 return p2
 """
-arg_lst = create_argument_list([('p1', 3)])
-arg_map2 = create_argument_map([])
+arg_lst = arg_list([('p1', 3)])
+arg_map2 = arg_map([])
 shader2 = create_shader("ret_arg", code2, arg_map2, arg_lst, func=True)
 
 runtimes = [Runtime()]
-shader = create_shader("test", code, arg_map, shaders=[shader2])
+shader = create_shader("test", code, arg_map1, shaders=[shader2])
 shader.prepare(runtimes)
 shader.execute()
 

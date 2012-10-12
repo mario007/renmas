@@ -1,6 +1,7 @@
 import copy
 import platform
 from .arg import create_argument, StructArg, IntArg, FloatArg, Vector3Arg, UserType, Attribute
+from .arg import ConstIntArg, ConstFloatArg, ConstVector3Arg, ConstVector3IntsArg
 from .shader import Shader
 from ..core import Vector3
 
@@ -49,9 +50,14 @@ class CodeGenerator:
         self._func = func
         self._statements = []
         self._ret_type = None
+        self._constants = {}
+        self._counter = 0
 
     def is_input_arg(self, arg):
         return arg in self._input_args
+
+    def is_user_type(self, name):
+        return name in _user_types
 
     def add(self, stm):
         self._statements.append(stm)
@@ -76,10 +82,15 @@ class CodeGenerator:
 
         for arg in self._locals.values():
             data += arg.generate_data()
+
+        for arg in self._constants.values():
+            data += arg.generate_data()
+
         return data
 
     def generate_code(self):
         self._locals = {}
+        self._constants = {}
         self._ret_type = None
         code = ''
         for s in self._statements:
@@ -104,7 +115,31 @@ class CodeGenerator:
 
     #create const it it's doesnt exist
     def create_const(self, value):
-        pass
+        if value in self._constants:
+            return self._constants[value]
+        if isinstance(value, int):
+            arg = ConstIntArg(self._generate_name('const'), value)
+        elif isinstance(value, float):
+            arg = ConstFloatArg(self._generate_name('const'), value)
+        elif isinstance(value, list) or isinstance(value, tuple):
+            if len(value) == 3:
+                v = value
+                if isinstance(v[0], int) and isinstance(v[1], int) and isinstance(v[2], int):
+                    arg = ConstVector3IntsArg(self._generate_name('const'), value)
+                else:
+                    v = Vector3(float(value[0]), float(value[1]), float(value[2]))
+                    arg = ConstVector3Arg(self._generate_name('const'), v)
+            else:
+                raise ValueError("Not yet implemented that type of constant", value)
+        else:
+            raise ValueError("Unknown type of value", value)
+        self._constants[value] = arg
+        return arg
+
+    def _generate_name(self, prefix=''):
+        name = prefix + '_' + str(self._counter) + str(id(self))
+        self._counter += 1
+        return name
 
     def get_arg(self, src):
         arg = None
@@ -151,6 +186,10 @@ class CodeGenerator:
                 if typ.typ not in _user_types:
                     raise ValueError("Unregister type %s is not registerd." % typ.typ)
                 arg = StructArg(name, typ)
+            elif isinstance(typ, str):
+                if typ not in _user_types:
+                    raise ValueError("Unregister type %s is not registerd." % typ)
+                arg = StructArg(name, _user_types[typ])
             else:
                 raise ValueError("Unknown argument!!!", typ)
             self._locals[name] = arg

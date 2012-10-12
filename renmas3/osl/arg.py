@@ -16,23 +16,58 @@ class Argument:
 
 class ConstIntArg(Argument):
     def __init__(self, name, value=0):
-        super(IntArg, self).__init__(name)
+        super(ConstIntArg, self).__init__(name)
         #assert int
-        self._value = value
+        self._value = int(value)
 
     @property
     def value(self):
         return self._value
+
+    def generate_data(self):
+        return 'int32 %s = %i \n' % (self.name, self._value) 
 
 class ConstFloatArg(Argument):
     def __init__(self, name, value=0.0):
-        super(IntArg, self).__init__(name)
+        super(ConstFloatArg, self).__init__(name)
         #assert float
+        self._value = float(value)
+
+    @property
+    def value(self):
+        return self._value
+
+    def generate_data(self):
+        return 'float %s = %f \n' % (self.name, self._value)
+
+class ConstVector3Arg(Argument):
+    def __init__(self, name, value):
+        super(ConstVector3Arg, self).__init__(name)
+        #TODO assert Vector3
         self._value = value
 
     @property
     def value(self):
         return self._value
+
+    def generate_data(self):
+        v = self._value
+        return 'float %s[4] = %f,%f,%f,0.0 \n' % (self.name, v.x, v.y, v.z)
+
+class ConstVector3IntsArg(Argument):
+    def __init__(self, name, ints):
+        super(ConstVector3IntsArg, self).__init__(name)
+        #TODO assert 3 ints
+        self._value = ints 
+
+    @property
+    def value(self):
+        return self._value
+
+    def generate_data(self):
+        v = self._value
+        return 'int32 %s[4] = %i,%i,%i,0 \n' % (self.name, v[0], v[1], v[2])
+
 
 class IntArg(Argument):
 
@@ -286,7 +321,7 @@ class Attribute:
         self.name = name #name of struct
         self.path = path #path to member in struct
 
-class Callable:
+class Function:
     def __init__(self, name, args):
         self.name = name
         self.args = args

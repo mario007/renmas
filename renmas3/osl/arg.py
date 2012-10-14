@@ -1,3 +1,4 @@
+import platform
 from ..core import Vector3
 
 class Argument:
@@ -128,7 +129,7 @@ class FloatArg(Argument):
         else:
             name = self.name
 
-        if idx_tread is None:
+        if idx_thread is None:
             for d in ds:
                 d[name] = value 
         else:
@@ -245,8 +246,34 @@ class StructArg(Argument):
             return self._paths[path]
         return None
 
+    def generate_data(self, input_arg=False):
+        if input_arg:
+            bits = platform.architecture()[0]
+            if bits == '64bit':
+                return 'uint64 %s\n' % self.name
+            else:
+                return 'uint32 %s\n' % self.name
+        else:
+            return '%s %s\n' % (self._typ.typ, self.name)
+
+class ConstPtrArg(Argument):
+    def __init__(self, name, value=0):
+        super(ConstPtrArg, self).__init__(name)
+        self._value = value
+
+    def _set_value(self, value):
+        self._value = value
+
+    def _get_value(self):
+        return self._value
+    value = property(_get_value, _set_value)
+
     def generate_data(self):
-        return '%s %s\n' % (self._typ.typ, self.name)
+        bits = platform.architecture()[0]
+        if bits == '64bit':
+            return 'uint64 %s = %i \n' % (self.name, self._value) 
+        else:
+            return 'uint32 %s = %i \n' % (self.name, self._value) 
 
 #TODO implement locking of map and list
 class ArgumentList:

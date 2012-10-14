@@ -6,30 +6,8 @@ from .cgen import register_function
 from .instr import load_struct_ptr
 from .instr import load_int_into_reg, load_float_into_reg, load_vec3_into_reg
 from .instr import store_int_from_reg, store_float_from_reg, store_vec3_from_reg
-from .instr import copy_int_to_int, copy_float_to_float, copy_vec3_to_vec3, copy_int_to_float
 from .instr import store_const_into_mem, convert_float_to_int, convert_int_to_float
-
-def float2hex(f):
-    r = struct.pack('f', f)
-    r1 = struct.unpack('I', r)[0]
-    return hex(r1)
-
-def is_num(obj):
-    return isinstance(obj, int) or isinstance(obj, float)
-
-def preform_arithmetic(n1, n2, op):
-    if op == '+':
-        return n1 + n2 
-    elif op == '-':
-        return n1 - n2
-    elif op == '*':
-        return n1 * n2
-    elif op == '/':
-        return n1 / n2
-    elif op == '%':
-        return n1 % n2
-    else:
-        raise ValueError("Unknown operator", op)
+from .instr import load_operand, store_operand, negate_operand
 
 def _copy_to_regs(cgen, args, input_args):
     if len(args) != len(input_args):
@@ -104,23 +82,10 @@ class StmAssignName(Statement):
         self.unary = unary
 
     def asm_code(self):
-        #source argument must exist
-        src_arg = self.cgen.get_arg(self.src)
-        if src_arg is None:
-            raise ValueError('Source argument %s doesnt exist' % self.src)
-        dst_arg = self.cgen.create_arg(self.dest, self.src)
-
-        if isinstance(src_arg, IntArg) and isinstance(dst_arg, IntArg):
-            code = copy_int_to_int(self.cgen, self.dest, self.src, self.unary)
-        elif isinstance(src_arg, FloatArg) and isinstance(dst_arg, FloatArg):
-            code = copy_float_to_float(self.cgen, self.dest, self.src, self.unary)
-        elif isinstance(src_arg, Vector3Arg) and isinstance(dst_arg, Vector3Arg):
-            code = copy_vec3_to_vec3(self.cgen, self.dest, self.src, self.unary)
-        elif isinstance(src_arg, IntArg) and isinstance(dst_arg, FloatArg):
-            code = copy_int_to_float(self.cgen, self.dest, self.src, self.unary)
-        else:
-            raise ValueError('Type mismatch', src_arg, dst_arg)
-        return code
+        code1, reg, typ = load_operand(self.cgen, self.src)
+        code2, reg = negate_operand(self.cgen, self.unary, reg, typ)
+        code3 = store_operand(self.cgen, self.dest, reg, typ)
+        return code1 + code2 + code3
 
 class StmAssignConst(Statement):
     def __init__(self, cgen, dest, const):
@@ -130,17 +95,11 @@ class StmAssignConst(Statement):
 
     def asm_code(self):
         arg = self.cgen.create_arg(self.dest, self.const)
-        typ = type(arg)
-        if typ == IntArg:
-            if not isinstance(self.const, int):
-                raise ValueError('Type mismatch', typ, self.const)
+        if isinstance(arg, IntArg) and isinstance(self.const, int):
             code = store_const_into_mem(self.cgen, self.dest, self.const)
-        elif typ == FloatArg:
-            tmp = float(self.const) if isinstance(self.const, int) else self.const 
-            if not isinstance(tmp, float):
-                raise ValueError('Type mismatch', typ, self.const)
-            code = store_const_into_mem(self.cgen, self.dest, tmp)
-        elif typ == Vector3Arg:
+        elif isinstance(arg, FloatArg) and (isinstance(self.const, int) or isinstance(self.const, float)):
+            code = store_const_into_mem(self.cgen, self.dest, float(self.const))
+        elif isinstance(arg, Vector3Arg):
             if (isinstance(self.const, tuple) or isinstance(self.const, list)) and len(self.const) == 3:
                 code = store_const_into_mem(self.cgen, self.dest, float(self.const[0]))
                 code += store_const_into_mem(self.cgen, self.dest, float(self.const[1]), offset=4)
@@ -151,43 +110,6 @@ class StmAssignConst(Statement):
         else:
             raise ValueError('Unknown type of destination', arg, self.const)
         return code
-
-
-def load_argument(cgen, arg, op):
-    if isinstance(arg, IntArg):
-        reg = cgen.register(typ='general')
-        code = load_int_into_reg(cgen, reg, op)
-        typ = IntArg
-    elif isinstance(arg, FloatArg):
-        reg = cgen.register(typ='xmm')
-        code = load_float_into_reg(cgen, reg, op)
-        typ = FloatArg
-    elif isinstance(arg, Vector3Arg):
-        reg = cgen.register(typ='xmm')
-        code = load_vec3_into_reg(cgen, reg, op)
-        typ = Vector3Arg
-    else:
-        raise ValueError("Unknown argument", arg)
-    return (code, reg, typ)
-
-def load_operand(cgen, op):
-    if isinstance(op, int):
-        reg = cgen.register(typ='general')
-        code = "mov %s, %i\n" % (reg, op)
-        typ = IntArg 
-    elif isinstance(op, float):
-        con_arg = cgen.create_const(op)
-        reg = cgen.register(typ='xmm')
-        code = load_float_into_reg(cgen, reg, con_arg.name)
-        typ = FloatArg
-    elif isinstance(op, str) or isinstance(op, Attribute):
-        arg = cgen.get_arg(op)
-        if arg is None:
-            raise ValueError("Operand doesn't exist", op)
-        code, reg, typ = load_argument(cgen, arg, op)
-    else:
-        raise ValueError("Unknown operand")
-    return (code, reg, typ)
 
 def perform_operation_ints(cgen, reg1, reg2, operator):
     if operator == '+':
@@ -397,28 +319,10 @@ class StmAssignExpression(Statement):
             else:
                 raise ValueError("Unsuported number arguments in expression")
 
-        dst = self.cgen.get_arg(self.dest)
-        if dst is None:
-            dst = self.cgen.create_arg(self.dest, typ=typ)
-
-        self.cgen.clear_regs()
-        reg = self.cgen.register(reg=reg)
-        if typ == IntArg and type(dst) == IntArg:
-            store = store_int_from_reg(self.cgen, reg, self.dest)
-        elif typ == FloatArg and type(dst) == FloatArg:
-            store = store_float_from_reg(self.cgen, reg, self.dest)
-        elif type(dst) == FloatArg and typ == IntArg:
-            to_reg = self.cgen.register(typ='xmm')
-            store = convert_int_to_float(reg, to_reg)
-            store += store_float_from_reg(self.cgen, to_reg, self.dest)
-        elif typ == Vector3Arg and type(dst) == Vector3Arg:
-            store = store_vec3_from_reg(self.cgen, reg, self.dest)
-        elif typ == StructArg:
-            raise ValueError("Unsupported argument returned type!", typ, dst)
-        else:
-            raise ValueError("Type mismatch", typ, dst)
-
+        
+        store = store_operand(self.cgen, self.dest, reg, typ)
         return code + store
+
 
 class StmCall(Statement):
     def __init__(self, cgen, func, args):
@@ -458,7 +362,7 @@ def make_call(cgen, function):
 
     f = cgen.get_function(name)
     if f is not None:
-        func, ret_type = f
+        func, ret_type, inline = f
         code = func(cgen, args)
 
     s = cgen.get_shader(name)
@@ -470,8 +374,6 @@ def make_call(cgen, function):
     if f is None and s is None:
         raise ValueError("Both function and shader doesnt exist")
     return (code, ret_type)
-
-
 
 class StmAssignCall(Statement):
     def __init__(self, cgen, dest, function):
@@ -522,6 +424,7 @@ class StmAssignCall(Statement):
             raise ValueError("Type mismatch", ret_type, dst)
         return code + store
 
+#TODO --- why const and src?? maybe src is enough
 class StmReturn(Statement):
     def __init__(self, cgen, const=None, src=None):
         self.cgen = cgen
@@ -562,6 +465,144 @@ class StmReturn(Statement):
             raise ValueError("Unsuported return argument!", arg)
         code += "ret \n"
         return code
+
+def generate_compare_ints(label, reg1, con, reg2):
+    #if condition is met not jump to end of if
+    line1 = "cmp %s, %s\n" % (reg1, reg2)
+    if con == '==':
+        line2 = "jne %s\n" % label
+    elif con == '<':
+        line2 = "jge %s\n" % label
+    elif con == '>':
+        line2 = "jle %s\n" % label
+    elif con == '<=':
+        line2 = "jg %s\n" % label
+    elif con == '>=':
+        line2 = "jl %s\n" % label
+    elif con == '!=':
+        line2 = "je %s\n" % label
+    else:
+        raise ValueError("Unknown condition operator", con)
+    return line1 + line2 
+
+def generate_compare_floats(label, reg1, con, reg2):
+    line1 = "comiss %s, %s\n" % (reg1, reg2)
+    if con == '==':
+        line2 = "jnz %s\n" % label
+    elif con == '<':
+        line2 = "jnc %s\n" % label
+    elif con == '>':
+        line2 = "jc %s\n" % label
+    elif con == '!=':
+        line2 = "jz %s\n" % label
+    else:
+        raise ValueError("Unknown condition operator for floats", con)
+    return line1 + line2
+
+def generate_test(label, cgen, test):
+    if len(test) != 1:
+        raise ValueError("complex test for comaprison, not suported yet", test)
+    con1 = test[0]
+    if len(con1) == 1:
+        op = con1[0]
+        code, reg, typ = load_operand(cgen, op)
+        if typ == IntArg:
+            line1 = "cmp %s, 0\n" % reg
+            line2 = "je %s\n" % label
+            code += line1 + line2
+        else:
+            raise ValueError("Not yet suported that type of operand", op, typ)
+    elif len(con1) == 3:
+        left_op, con, right_op = con1
+        code1, reg1, typ1 = load_operand(cgen, left_op)
+        code2, reg2, typ2 = load_operand(cgen, right_op)
+        if typ1 == IntArg and typ2 == IntArg:
+            code3 = generate_compare_ints(label, reg1, con, reg2)
+            code = code1 + code2 + code3
+        elif typ1 == FloatArg and typ2 == FloatArg:
+            code3 = generate_compare_floats(label, reg1, con, reg2)
+            code = code1 + code2 + code3
+        elif typ1 == IntArg and typ2 == FloatArg:
+            to_reg = cgen.register(typ='xmm')
+            conv = convert_int_to_float(reg1, to_reg)
+            code3 = generate_compare_floats(label, to_reg, con, reg2)
+            code = code1 + code2 + conv + code3
+        elif typ1 == FloatArg and typ2 == IntArg:
+            to_reg = cgen.register(typ='xmm')
+            conv = convert_int_to_float(reg2, to_reg)
+            code3 = generate_compare_floats(label, reg1, con, to_reg)
+            code = code1 + code2 + conv + code3
+        else:
+            raise ValueError("Unsported type for comparison", typ1, typ2)
+    else:
+        raise ValueError("Not yet suported that test!")
+    return code
+
+class StmIf(Statement):
+    def __init__(self, cgen, body, test, orelse=None):
+        self.cgen = cgen
+        self.body = body
+        self.test = test
+        self.orelse = orelse
+
+    def asm_code(self):
+        if_label = 'if_' + str(id(self))
+        orelse_label = 'orelse_' + str(id(self))
+        endif_label = 'endif_' + str(id(self))
+
+        if self.orelse is not None:
+            code = generate_test(orelse_label, self.cgen, self.test)
+        else:
+            code = generate_test(if_label, self.cgen, self.test)
+
+        for i in self.body:
+            self.cgen.clear_regs()
+            code += i.asm_code()
+
+        if self.orelse is not None:
+            code += "jmp %s\n" % endif_label
+            code += "%s:\n" % orelse_label
+            for i in self.orelse:
+                self.cgen.clear_regs()
+                code += i.asm_code()
+            code += "%s:\n" % endif_label
+        else:
+            code += "%s:\n" % if_label
+        return code
+
+class StmBreak(Statement):
+    def __init__(self, label):
+        if label is None:
+            raise ValueError("Break statement out of loop!")
+        self.label = label
+
+    def asm_code(self):
+        return "jmp %s\n" % self.label
+
+
+class StmWhile(Statement):
+    def __init__(self, cgen, body, test):
+        self.cgen = cgen
+        self.body = body
+        self.test = test
+
+    def asm_code(self):
+        begin_label = 'while_' + str(id(self))
+        end_label = 'endwhile_' + str(id(self))
+
+        code = "%s:\n" % begin_label
+        code += generate_test(end_label, self.cgen, self.test)
+        for i in self.body:
+            self.cgen.clear_regs()
+            code += i.asm_code()
+        code += "jmp %s\n" % begin_label
+        code += "%s:\n" % end_label
+        return code
+
+    def label(self):
+        end_label = 'endwhile_' + str(id(self))
+        return end_label
+
 
 def _int_function(cgen, args):
     if len(args) == 0:

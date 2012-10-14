@@ -32,3 +32,13 @@ def create_shader(name, source, args, input_args=[], shaders=[], func=False, fun
     shader = cgen.create_shader()
     return shader
 
+def create_function(name, source, input_args=[], shaders=[]):
+
+    parser = Parser()
+    arg_map = ArgumentMap()
+    cgen = CodeGenerator(name, arg_map, input_args, shaders, func=True)
+    parser.parse(source, cgen)
+    shader = cgen.create_shader()
+    return shader
+
+

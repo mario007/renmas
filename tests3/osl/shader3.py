@@ -36,6 +36,11 @@ p55 = 9.3
 p66 = (6,7,8)
 rect.w = -p55
 rect.k = - p66
+p1 = 78 
+while p1 < 100:
+    p1 = p1 + 1
+    if p1 > 96.8:
+        break
 """
 
 code2 = """

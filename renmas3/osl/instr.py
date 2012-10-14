@@ -3,34 +3,44 @@ import platform
 from .arg import  IntArg, FloatArg, Vector3Arg, StructArg, Attribute
 
 def valid_reg32(reg):
-    return True
+    fs = frozenset(['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax'])
+    if reg not in fs:
+        raise ValueError("Register mismatch 32-bit register is expected", reg)
 
 def valid_reg64(reg):
-    return True
+    fs = frozenset(['rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax'])
+    if reg not in fs:
+        raise ValueError("Register mismatch 64-bit register is expected", reg)
 
 def load_struct_ptr(cgen, attr, reg=None):
     bits = platform.architecture()[0]
-    arg = cgen.get_arg(attr.name) # arg is StructArg
+    if isinstance(attr, str):
+        name = attr
+        path = None
+    else:
+        name = attr.name
+        path = attr.path
+
+    arg = cgen.get_arg(name) # arg is StructArg
     if not isinstance(arg, StructArg):
         raise ValueError("StructArg is expected and not ", arg)
     if bits == '64bit':
         reg = cgen.register(typ='general', bit=64) if reg is None else reg
         valid_reg64(reg)
         if cgen.is_input_arg(arg):
-            code = "mov %s, qword [%s] \n" % (reg, attr.name)
+            code = "mov %s, qword [%s] \n" % (reg, name)
         else:
-            code = "mov %s, %s \n" % (reg, attr.name)
+            code = "mov %s, %s \n" % (reg, name)
     else:
         reg = cgen.register(typ='general', bit=32) if reg is None else reg
         valid_reg32(reg)
         if cgen.is_input_arg(arg):
-            code = "mov %s, dword [%s] \n" % (reg, attr.name)
+            code = "mov %s, dword [%s] \n" % (reg, name)
         else:
-            code = "mov %s, %s \n" % (reg, attr.name)
+            code = "mov %s, %s \n" % (reg, name)
     
-    path = None
-    if attr.path is not None:
-        path = arg.typ.typ + "." + attr.path
+    if path is not None:
+        path = arg.typ.typ + "." + path
     return (code, reg, path)
 
 def load_int_into_reg(cgen, reg, src, op_reg=None):
@@ -98,64 +108,11 @@ def store_vec3_from_reg(cgen, reg, dest, op_reg=None):
         raise ValueError("Unknown destination")
     return code
 
-def copy_int_to_int(cgen, dest, src, unary=None):
-    reg = cgen.register(typ='general')
-    code = load_int_into_reg(cgen, reg, src)
-    if unary is not None and unary == '-':
-        reg2 = cgen.register(typ='general')
-        line1 = "xor %s, %s\n" % (reg2, reg2)
-        line2 = "sub %s, %s\n" % (reg2, reg)
-        line3 = store_int_from_reg(cgen, reg2, dest)
-        code += line1 + line2 + line3
-    else:
-        code += store_int_from_reg(cgen, reg, dest)
-    return code
-
-def copy_float_to_float(cgen, dest, src, unary=None):
-    reg = cgen.register(typ='xmm')
-    code = load_float_into_reg(cgen, reg, src)
-    if unary is not None and unary == '-':
-        arg = cgen.create_const((-1.0, -1.0, -1.0))
-        line1 = "mulss %s, dword[%s]\n" % (reg, arg.name) 
-        line2 = store_float_from_reg(cgen, reg, dest)
-        code += line1 + line2
-    else:
-        code += store_float_from_reg(cgen, reg, dest)
-    return code
-
-def copy_vec3_to_vec3(cgen, dest, src, unary=None):
-    reg = cgen.register(typ='xmm')
-    code = load_vec3_into_reg(cgen, reg, src)
-    if unary is not None and unary == '-':
-        arg = cgen.create_const((-1.0, -1.0, -1.0))
-        line1 = "mulps %s, oword[%s]\n" % (reg, arg.name) 
-        line2 = store_vec3_from_reg(cgen, reg, dest)
-        code += line1 + line2
-    else:
-        code += store_vec3_from_reg(cgen, reg, dest)
-    return code
-
 def convert_int_to_float(reg, to_reg):
     return "cvtsi2ss %s, %s \n" % (to_reg, reg)
 
 def convert_float_to_int(reg, to_reg):
     return "cvttss2si %s, %s \n" % (to_reg, reg)
-
-def copy_int_to_float(cgen, dest, src, unary=None):
-    reg = cgen.register(typ='general')
-    to_reg = cgen.register(typ='xmm')
-    code = load_int_into_reg(cgen, reg, src)
-    if unary is not None and unary == '-':
-        reg2 = cgen.register(typ='general')
-        line1 = "xor %s, %s\n" % (reg2, reg2)
-        line2 = "sub %s, %s\n" % (reg2, reg)
-        line3 = convert_int_to_float(reg2, to_reg)
-        line4 = store_float_from_reg(cgen, to_reg, dest)
-        code += line1 + line2 + line3 + line4
-    else:
-        code += convert_int_to_float(reg, to_reg)
-        code += store_float_from_reg(cgen, to_reg, dest)
-    return code
 
 def float2hex(f):
     r = struct.pack('f', f)
@@ -194,4 +151,78 @@ def store_const_into_mem(cgen, dest, const, offset=None):
     else:
         raise ValueError("Unknown destination")
     return code
+
+def load_argument(cgen, arg, op):
+    if isinstance(arg, IntArg):
+        reg = cgen.register(typ='general')
+        code = load_int_into_reg(cgen, reg, op)
+        typ = IntArg
+    elif isinstance(arg, FloatArg):
+        reg = cgen.register(typ='xmm')
+        code = load_float_into_reg(cgen, reg, op)
+        typ = FloatArg
+    elif isinstance(arg, Vector3Arg):
+        reg = cgen.register(typ='xmm')
+        code = load_vec3_into_reg(cgen, reg, op)
+        typ = Vector3Arg
+    else:
+        raise ValueError("Unknown argument", arg)
+    return (code, reg, typ)
+
+def load_operand(cgen, op):
+    if isinstance(op, int):
+        reg = cgen.register(typ='general')
+        code = "mov %s, %i\n" % (reg, op)
+        typ = IntArg 
+    elif isinstance(op, float):
+        con_arg = cgen.create_const(op)
+        reg = cgen.register(typ='xmm')
+        code = load_float_into_reg(cgen, reg, con_arg.name)
+        typ = FloatArg
+    elif isinstance(op, str) or isinstance(op, Attribute):
+        arg = cgen.get_arg(op)
+        if arg is None:
+            raise ValueError("Operand doesn't exist", op)
+        code, reg, typ = load_argument(cgen, arg, op)
+    else:
+        raise ValueError("Unknown operand")
+    return (code, reg, typ)
+
+def store_operand(cgen, dest, reg, typ):
+    dst_arg = cgen.create_arg(dest, typ=typ)
+
+    if isinstance(dst_arg, IntArg) and typ == IntArg:
+        code = store_int_from_reg(cgen, reg, dest)
+    elif isinstance(dst_arg, FloatArg) and typ == FloatArg:
+        code = store_float_from_reg(cgen, reg, dest)
+    elif isinstance(dst_arg, FloatArg) and typ == IntArg:
+        to_reg = cgen.register(typ='xmm')
+        code = convert_int_to_float(reg, to_reg)
+        code += store_float_from_reg(cgen, to_reg, dest)
+    elif isinstance(dst_arg, Vector3Arg) and typ == Vector3Arg:
+        code = store_vec3_from_reg(cgen, reg, dest)
+    else:
+        raise ValueError("Unsuported operand", reg, typ, dest)
+    return code
+
+def negate_operand(cgen, unary, reg, typ):
+    code = ''
+    if unary is not None and unary == '-':
+        if typ == IntArg:
+            reg2 = cgen.register(typ='general')
+            line1 = "xor %s, %s\n" % (reg2, reg2)
+            line2 = "sub %s, %s\n" % (reg2, reg)
+            code = line1 + line2
+            return (code, reg2)
+        elif typ == FloatArg:
+            arg = cgen.create_const((-1.0, -1.0, -1.0))
+            code = "mulss %s, dword[%s]\n" % (reg, arg.name) 
+            return (code, reg)
+        elif typ == Vector3Arg:
+            arg = cgen.create_const((-1.0, -1.0, -1.0))
+            code = "mulps %s, oword[%s]\n" % (reg, arg.name) 
+            return (code, reg)
+        else:
+            raise ValueError("Unsuported operand type", typ)
+    return (code, reg)
 

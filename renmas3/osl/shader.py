@@ -4,7 +4,7 @@ from .arg import StructArg
 
 class Shader:
     def __init__(self, name, code, args, input_args=[], shaders=[],
-            ret_type=None):
+            ret_type=None, func=False):
         self._name = name
         self._code = code
         self._args = args
@@ -13,6 +13,7 @@ class Shader:
         self._ret_type = ret_type
         self._ds = []
         self._struct_args = {}
+        self._func = func 
         for key, arg in iter(args):
             if isinstance(arg, StructArg):
                 self._struct_args.update(arg.paths)
@@ -34,11 +35,13 @@ class Shader:
             s.prepare(runtimes)
         self._ds = []
         asm = Tdasm()
-        mc = asm.assemble(self._code)
+        mc = asm.assemble(self._code, self._func)
         #mc.print_machine_code()
         name = 'shader' + str(id(self))
         self._runtimes = runtimes
         for r in runtimes:
+            #TODO check if shader allread exist in runtime
+            #TODO if shader is function load it as function
             self._ds.append(r.load(name, mc)) 
 
     def execute(self):

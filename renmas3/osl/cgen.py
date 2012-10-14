@@ -8,8 +8,8 @@ from ..core import Vector3
 _user_types = {}
 _built_in_functions = {}
 
-def register_function(name, func, return_type):
-    _built_in_functions[name] = (func, return_type)
+def register_function(name, func, return_type, inline=False):
+    _built_in_functions[name] = (func, return_type, inline)
 
 def register_user_type(typ):
     if typ.typ in _user_types:
@@ -59,6 +59,11 @@ class CodeGenerator:
     def is_user_type(self, name):
         return name in _user_types
 
+    def is_inline_func(self, name):
+        if name in _built_in_functions:
+            return _built_in_functions[name][2]
+        return False
+
     def add(self, stm):
         self._statements.append(stm)
 
@@ -75,7 +80,13 @@ class CodeGenerator:
             data += typ.generate_struct()
 
         for arg in self._input_args:
-            data += arg.generate_data()
+            if isinstance(arg, StructArg):
+                if self.is_input_arg(arg):
+                    data += arg.generate_data(True)
+                else:
+                    data += arg.generate_data()
+            else:
+                data += arg.generate_data()
 
         for name, arg in iter(self._args):
             data += arg.generate_data()
@@ -104,13 +115,16 @@ class CodeGenerator:
         code = glo + _copy_from_regs(self._input_args) + code
         if self._func:
             code += "ret\n"
-        return data + code + '#END \n'
+        if self._func:
+            return data + code
+        else:
+            return data + code + '#END \n'
 
     def create_shader(self):
         code = self.generate_code()
         print (code)
         shader = Shader(self._name, code, self._args, self._input_args,
-                self._shaders, self._ret_type)
+                self._shaders, self._ret_type, self._func)
         return shader
 
     #create const it it's doesnt exist
@@ -251,6 +265,9 @@ class CodeGenerator:
                 self._general64.remove(reg)
                 self._general.remove('e' + reg[1:])
                 return reg
+        
+        if reg is not None:
+            raise ValueError("Register %s is ocupied and could not be obtained!" % reg)
 
         if typ == 'xmm':
             return self._xmm.pop()
@@ -263,6 +280,23 @@ class CodeGenerator:
                 return self._general64.pop()
         else:
             raise ValueError('Unknown type of register', typ)
+
+    def release_reg(self, reg):
+        if reg in self._xmm or reg in self._general or reg in self._general64:
+            return
+        xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
+        if reg in xmm:
+            self._xmm.append(reg)
+            return
+        general = ['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
+        if reg in general:
+            self._general.append(reg)
+            self._general64.append('r' + reg[1:])
+            return
+        general64 = ['rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax']
+        if reg in general64:
+            self._general64.append(reg)
+            self._general.append('e' + reg[1:])
 
     # clear ocupied registers
     def clear_regs(self):

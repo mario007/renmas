@@ -1,6 +1,6 @@
 import ast
 
-from .statement import StmAssignConst, StmAssignName
+from .statement import StmAssignConst, StmAssignName, StmIf, StmWhile, StmBreak
 from .statement import StmCall, StmAssignCall, StmReturn, StmAssignExpression
 from .arg import Function, Attribute
 
@@ -70,6 +70,16 @@ def make_name(obj):
         raise ValueError("Unsuported source")
 
 def extract_operand(obj):
+    if isinstance(obj, ast.UnaryOp):
+        if isinstance(obj.operand, ast.Num):
+            if isinstance(obj.operand.n, int):
+                return int(extract_unary(obj.op) + str(obj.operand.n))
+            elif isinstance(obj.operand.n, float):
+                return float(extract_unary(obj.op) + str(obj.operand.n))
+            else:
+                raise ValueError('Unsuported constant', obj.operand.n)
+        else:
+            raise ValueError("Unsuported operand in unary operator", obj.operand)
     if isinstance(obj, ast.Num):
         return obj.n
     elif isinstance(obj, ast.Name):
@@ -81,15 +91,11 @@ def extract_operand(obj):
         func = obj.func.id
         args = []
         for arg in obj.args:
-            if isinstance(arg, ast.Name) or isinstance(arg, ast.Attribute):
-                args.append(make_name(arg))
-            elif isinstance(arg, ast.Num):
-                args.append(arg.n)
-            else:
-                raise ValueError("Unsuported argument type", arg)
+            op = extract_operand(arg)
+            args.append(op)
         return Function(func, args)
     else:
-        raise ValueError("Unsuported operand in binary arithmetic.")
+        raise ValueError("Unsuported operand in binary arithmetic.", obj)
 
 def extract_operands(obj):
     op1 = extract_operand(obj.left)
@@ -116,7 +122,6 @@ def parse_arithmetic(bin_op):
         ops.append((op3, o2, op4))
         ops.append((operator(op),))
         return ops
-        raise ValueError("Not yet implemented")
 
     # min three operands version
     if isinstance(left, ast.BinOp) or isinstance(right, ast.BinOp):
@@ -168,6 +173,43 @@ def unary_number(n, unary):
     else:
         raise ValueError("Unknown unary number", n, unary)
 
+def extract_con_op(obj):
+    if isinstance(obj, ast.Lt):
+        return '<'
+    elif isinstance(obj, ast.Gt):
+        return '>'
+    elif isinstance(obj, ast.Eq):
+        return '=='
+    elif isinstance(obj, ast.LtE):
+        return '<='
+    elif isinstance(obj, ast.GtE):
+        return '>='
+    elif isinstance(obj, ast.NotEq):
+        return '!='
+    else:
+        raise ValueError("Unknown conditions operator", obj)
+
+def extract_test(obj):
+    if isinstance(obj, ast.Num):
+        test = ((obj.n,),)
+    elif isinstance(obj, ast.Name):
+        test = ((obj.id,),)
+    elif isinstance(obj, ast.Attribute):
+        name, path = extract_path(obj)
+        test = ((Attribute(name, path),),)
+    elif isinstance(obj, ast.Compare):
+        if len(obj.comparators) != 1:
+            raise ValueError("Not suported yet comparators", obj.comparators)
+        left_op = extract_operand(obj.left)
+        right_op = extract_operand(obj.comparators[0])
+        if len(obj.ops) != 1:
+            raise ValueError("Not suported yet multiple conditions operators", obj.ops)
+        con = extract_con_op(obj.ops[0])
+        test = ((left_op, con, right_op),)
+    else: 
+        raise ValueError("Unknown test!", obj)
+    return test
+
 class Parser:
     def __init__(self):
         pass
@@ -180,7 +222,7 @@ class Parser:
                     if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
                         if unary is not None:
                             n = unary_number(n, unary)
-                        self.cgen.add(StmAssignConst(self.cgen, make_name(t), n))
+                        return StmAssignConst(self.cgen, make_name(t), n)
                     else:
                         raise ValueError("Unknown target", t)
             else:
@@ -188,7 +230,7 @@ class Parser:
         elif isinstance(obj, ast.Name):
             for t in targets:
                 if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
-                    self.cgen.add(StmAssignName(self.cgen, make_name(t), obj.id, unary))
+                    return StmAssignName(self.cgen, make_name(t), obj.id, unary)
                 else:
                     raise ValueError("Unknown target", t)
 
@@ -198,31 +240,24 @@ class Parser:
             nums = extract_numbers(obj)
             for t in targets:
                 if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
-                    self.cgen.add(StmAssignConst(self.cgen, make_name(t), nums))
+                    return StmAssignConst(self.cgen, make_name(t), nums)
                 else:
                     raise ValueError("Unknown target", t)
         elif isinstance(obj, ast.Attribute):
             src, src_path = extract_path(obj)
             for t in targets:
                 if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
-                    self.cgen.add(StmAssignName(self.cgen, make_name(t), Attribute(src, src_path), unary))
+                    return StmAssignName(self.cgen, make_name(t), Attribute(src, src_path), unary)
                 else:
                     raise ValueError("Unknown target", t)
         elif isinstance(obj, ast.Call):
             if unary is not None:
                 raise ValueError("Unary is not yet suported in function call assign!!!")
             func = obj.func.id
-            args = []
-            for arg in obj.args:
-                if isinstance(arg, ast.Name) or isinstance(arg, ast.Attribute):
-                    args.append(make_name(arg))
-                elif isinstance(arg, ast.Num):
-                    args.append(arg.n)
-                else:
-                    raise ValueError("Unsuported argument type", arg)
+            args = [extract_operand(arg) for arg in obj.args]
             for t in targets:
                 if isinstance(t, ast.Name) or isinstance(t, ast.Attribute):
-                    self.cgen.add(StmAssignCall(self.cgen, make_name(t), Function(func, args)))
+                    return StmAssignCall(self.cgen, make_name(t), Function(func, args))
                 else:
                     raise ValueError("Unknown target", t)
         else:
@@ -232,30 +267,30 @@ class Parser:
         expr = parse_arithmetic(obj)
         for t in targets:
             if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
-                self.cgen.add(StmAssignExpression(self.cgen, make_name(t), expr))
+                return StmAssignExpression(self.cgen, make_name(t), expr)
             else:
                 raise ValueError("Unknown target", t)
 
     def _parse_assign(self, assign):
         if isinstance(assign.value, ast.Num):
-            self._simple_assigments(assign.targets, assign.value)
+            return self._simple_assigments(assign.targets, assign.value)
         elif isinstance(assign.value, ast.Name):
-            self._simple_assigments(assign.targets, assign.value)
+            return self._simple_assigments(assign.targets, assign.value)
         elif isinstance(assign.value, ast.BinOp):
-            self._binary_operation(assign.targets, assign.value)
+            return self._binary_operation(assign.targets, assign.value)
         elif isinstance(assign.value, ast.UnaryOp):
             op = extract_unary(assign.value.op)
-            self._simple_assigments(assign.targets, assign.value.operand, op)
+            return self._simple_assigments(assign.targets, assign.value.operand, op)
         elif isinstance(assign.value, ast.Call):
-            self._simple_assigments(assign.targets, assign.value)
+            return self._simple_assigments(assign.targets, assign.value)
         elif isinstance(assign.value, ast.Subscript):
             raise ValueError('Subscript assign', assign.value)
         elif isinstance(assign.value, ast.Tuple):
-            self._simple_assigments(assign.targets, assign.value)
+            return self._simple_assigments(assign.targets, assign.value)
         elif isinstance(assign.value, ast.List):
-            self._simple_assigments(assign.targets, assign.value)
+            return self._simple_assigments(assign.targets, assign.value)
         elif isinstance(assign.value, ast.Attribute):
-            self._simple_assigments(assign.targets, assign.value)
+            return self._simple_assigments(assign.targets, assign.value)
         else:
             raise ValueError("Unknown assign", assign.value)
 
@@ -263,51 +298,75 @@ class Parser:
         func = call.func.id
         args = []
         for arg in call.args:
-            if isinstance(arg, ast.Name):
-                args.append(arg.id)
-            elif isinstance(arg, ast.Num):
-                args.append(arg.n)
-            elif isinstance(arg, ast.List):
-                raise ValueError("Not yet implemented", arg)
-            elif isinstance(arg, ast.Tuple):
-                raise ValueError("Not yet implemented", arg)
-            else:
-                raise ValueError("Unsuported argument type", arg)
-
-        raise ValueError("Call not yet properly implemented")
-        self.cgen.add(StmCall(self.cgen, func, args))
+            op = extract_operand(arg)
+            args.append(op)
+        return StmCall(self.cgen, Function(func, args))
 
     def _parse_return(self, obj):
         if isinstance(obj, ast.Num):
-            self.cgen.add(StmReturn(self.cgen, const=obj.n))
+            return StmReturn(self.cgen, const=obj.n)
         elif isinstance(obj, ast.Name):
-            self.cgen.add(StmReturn(self.cgen, src=obj.id))
+            return StmReturn(self.cgen, src=obj.id)
         elif isinstance(obj, ast.Attribute):
             name, path = extract_path(t)
-            self.cgen.add(StmReturn(self.cgen, src=Attribute(name, path)))
+            return StmReturn(self.cgen, src=Attribute(name, path))
         elif obj is None: #empty return statement
-            self.cgen.add(StmReturn(self.cgen))
+            return StmReturn(self.cgen)
         else:
             raise ValueError("Unknown return object", obj)
 
-    def _parse_statement(self, statement):
+    def _parse_if(self, obj, br_label):
+        test = extract_test(obj.test)
+        body = []
+        for statement in obj.body:
+            stm = self._parse_statement(statement, br_label)
+            body.append(stm)
+        if not obj.orelse:
+            stm_if = StmIf(self.cgen, body, test)
+            return stm_if
+        else:
+            if isinstance(obj.orelse[0], ast.If):
+                raise ValueError("if test: elif test ...., not implemented yet")
+            orelse_body = []
+            for statement in obj.orelse:
+                stm = self._parse_statement(statement, br_label)
+                orelse_body.append(stm)
+            stm_if = StmIf(self.cgen, body, test, orelse_body)
+            return stm_if
+
+        raise ValueError("Not yet implemented this version of If statement", obj)
+
+    def _parse_while(self, obj):
+        if obj.orelse:
+            raise ValueError("Orelse in while still not suported")
+        test = extract_test(obj.test)
+        body = []
+        stm_while = StmWhile(self.cgen, body, test)
+        for statement in obj.body:
+            stm = self._parse_statement(statement, stm_while.label())
+            body.append(stm)
+        return stm_while
+
+    def _parse_statement(self, statement, br_label=None):
         if isinstance(statement, ast.Assign):
-            self._parse_assign(statement)
+            return self._parse_assign(statement)
         elif isinstance(statement, ast.For):
             raise ValueError('For statement', statement)
         elif isinstance(statement, ast.While):
-            raise ValueError('While statement', statement)
+            return self._parse_while(statement)
         elif isinstance(statement, ast.Pass):
             raise ValueError('Pass statement', statement)
         elif isinstance(statement, ast.Expr):
             if isinstance(statement.value, ast.Call): # function call
-                self._parse_call(statement.value)
+                return self._parse_call(statement.value)
             else:
                 raise ValueError('Expr statement', statement, statement.value)
         elif isinstance(statement, ast.If):
-            raise ValueError('If statement', statement)
+            return self._parse_if(statement, br_label)
         elif isinstance(statement, ast.Return):
-            self._parse_return(statement.value)
+            return self._parse_return(statement.value)
+        elif isinstance(statement, ast.Break):
+            return StmBreak(br_label)
         else:
             raise ValueError('Uknown satement', statement)
 
@@ -317,7 +376,8 @@ class Parser:
 
         if isinstance(code, ast.Module):
             for statement in code.body:
-                self._parse_statement(statement)
+                stm = self._parse_statement(statement)
+                self.cgen.add(stm)
         else:
             raise ValueError('Source is not instance of ast.Module', code)
 

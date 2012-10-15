@@ -1,6 +1,7 @@
 import struct
 import platform
-from .arg import  IntArg, FloatArg, Vector3Arg, StructArg, Attribute, Function
+from .arg import IntArg, FloatArg, Vector3Arg, StructArg, Attribute, Function
+from .arg import Operands, Callable
 from .cgen import register_function
 
 from .instr import load_struct_ptr
@@ -9,64 +10,6 @@ from .instr import store_int_from_reg, store_float_from_reg, store_vec3_from_reg
 from .instr import store_const_into_mem, convert_float_to_int, convert_int_to_float
 from .instr import load_operand, store_operand, negate_operand
 
-def _copy_to_regs(cgen, args, input_args):
-    if len(args) != len(input_args):
-        raise ValueError("Argument length mismatch", args, input_args)
-
-    xmm = ['xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
-    general = ['esi', 'edx', 'ecx', 'ebx', 'eax']
-    ptr_reg = 'ebp'
-    ptr_reg2 = 'edi'
-    tmp_xmm = 'xmm7'
-    bits = platform.architecture()[0]
-
-    code = ''
-    for arg1, arg2 in zip(args, input_args):
-        if isinstance(arg1, int):
-            if type(arg2) == IntArg:
-                reg = general.pop()
-                code += "mov %s, %i\n" % (reg, arg1)
-            elif type(arg2) == FloatArg:
-                raise ValueError("Konverzija float konstante-temp variabla?")
-            else:
-                raise ValueError("Type mismatch", arg1, arg2)
-        elif isinstance(arg1, float):
-            raise ValueError("Float argument-temp const variable?", arg1)
-        elif isinstance(arg1, str) or isinstance(arg1, Attribute):
-            a = cgen.get_arg(arg1)
-            if a is None:
-                raise ValueError("Argument %s doesn't exist!" % name)
-            if type(a) == IntArg:
-                if type(arg2) == IntArg:
-                    reg = general.pop()
-                    code += load_int_into_reg(cgen, reg, arg1, ptr_reg)
-                elif type(arg2) == FloatArg:
-                    to_reg = xmm.pop()
-                    code += load_int_into_reg(cgen, ptr_reg2, arg1, ptr_reg)
-                    code += convert_int_to_float(ptr_reg2, to_reg)
-                else:
-                    raise ValueError("Type mismatch", a, arg2)
-            elif type(a) == FloatArg and type(arg2) == FloatArg:
-                reg = xmm.pop()
-                code += load_float_into_reg(cgen, reg, arg1, ptr_reg)
-            elif type(a) == Vector3Arg and type(arg2) == Vector3Arg:
-                reg = xmm.pop()
-                code += load_vec3_into_reg(cgen, reg, arg1, ptr_reg)
-            elif type(a) == StructArg and type(arg2) == StructArg:
-                reg = general.pop()
-                if bits == '64bit':
-                    reg = 'r' + reg[1:]
-                    c, dummy, dummy = load_struct_ptr(cgen, arg1, reg)
-                else:
-                    c, dummy, dummy = load_struct_ptr(cgen, arg1, reg)
-                code += c
-            else:
-                raise ValueError("Unsuported argument type, mismatch", a, arg2)
-        else:
-            raise ValueError("Unsupprted argument for shader!", arg1, arg2)
-    return code
-
-
 class Statement:
     def __init__(self):
         pass
@@ -74,42 +17,49 @@ class Statement:
     def asm_code(self):
         raise NotImplementedError()
 
-class StmAssignName(Statement):
-    def __init__(self, cgen, dest, src, unary=None):
-        self.cgen = cgen
-        self.dest = dest
-        self.src = src
-        self.unary = unary
+def is_num(obj):
+    if isinstance(obj, int) or isinstance(obj, float):
+        return True
+    return False
 
-    def asm_code(self):
-        code1, reg, typ = load_operand(self.cgen, self.src)
-        code2, reg = negate_operand(self.cgen, self.unary, reg, typ)
-        code3 = store_operand(self.cgen, self.dest, reg, typ)
-        return code1 + code2 + code3
+def is_const(obj):
+    if isinstance(obj, int) or isinstance(obj, float):
+        return True
+    if isinstance(obj, tuple) or isinstance(obj, list):
+        for n in obj:
+            if not is_num(n):
+                return False
+        return True
+    return False
 
-class StmAssignConst(Statement):
-    def __init__(self, cgen, dest, const):
-        self.cgen = cgen
-        self.dest = dest
-        self.const = const 
+def is_identifier(obj):
+    if isinstance(obj, str) or isinstance(obj, Attribute):
+        return True
+    return False
 
-    def asm_code(self):
-        arg = self.cgen.create_arg(self.dest, self.const)
-        if isinstance(arg, IntArg) and isinstance(self.const, int):
-            code = store_const_into_mem(self.cgen, self.dest, self.const)
-        elif isinstance(arg, FloatArg) and (isinstance(self.const, int) or isinstance(self.const, float)):
-            code = store_const_into_mem(self.cgen, self.dest, float(self.const))
-        elif isinstance(arg, Vector3Arg):
-            if (isinstance(self.const, tuple) or isinstance(self.const, list)) and len(self.const) == 3:
-                code = store_const_into_mem(self.cgen, self.dest, float(self.const[0]))
-                code += store_const_into_mem(self.cgen, self.dest, float(self.const[1]), offset=4)
-                code += store_const_into_mem(self.cgen, self.dest, float(self.const[2]), offset=8)
-                code += store_const_into_mem(self.cgen, self.dest, 0.0, offset=12)
-            else:
-                raise ValueError('Type mismatch',  arg, self.const)
+def assign_const_to_dest(cgen, dest, const):
+    arg = cgen.create_arg(dest, const)
+    if isinstance(arg, IntArg) and isinstance(const, int):
+        code = store_const_into_mem(cgen, dest, const)
+    elif isinstance(arg, FloatArg) and (isinstance(const, int) or isinstance(const, float)):
+        code = store_const_into_mem(cgen, dest, float(const))
+    elif isinstance(arg, Vector3Arg):
+        if (isinstance(const, tuple) or isinstance(const, list)) and len(const) == 3:
+            code = store_const_into_mem(cgen, dest, float(const[0]))
+            code += store_const_into_mem(cgen, dest, float(const[1]), offset=4)
+            code += store_const_into_mem(cgen, dest, float(const[2]), offset=8)
+            code += store_const_into_mem(cgen, dest, 0.0, offset=12)
         else:
-            raise ValueError('Unknown type of destination', arg, self.const)
-        return code
+            raise ValueError('It is suposed to vector3 constant! Type mismatch!',  arg, const)
+    else:
+        raise ValueError('Unsuported constant', arg, const)
+    return code
+
+def assign_identifier(cgen, dest, src, unary=None):
+    code1, reg, typ = load_operand(cgen, src)
+    code2, reg = negate_operand(cgen, unary, reg, typ)
+    code3 = store_operand(cgen, dest, reg, typ)
+    return code1 + code2 + code3
 
 def perform_operation_ints(cgen, reg1, reg2, operator):
     if operator == '+':
@@ -288,183 +238,116 @@ def is_operator(op):
     ops = ('+', '-', '/', '%', '*')
     return op in ops
 
-class StmAssignExpression(Statement):
-    def __init__(self, cgen, dest, operands):
-        self.cgen = cgen
-        self.dest = dest
-        self.operands = operands
-
-    def asm_code(self):
-        op1, operator, op2 = self.operands[0]
-        if isinstance(op1, Function) or isinstance(op2, Function):
-            raise ValueError("Handle function of argument, save temporary register, variables etc...")
-        code, reg, typ = gen_arithmetic_operation(self.cgen, op1, operator, op2)
-        for comp in self.operands[1:]:
-            if len(comp) == 1:
-                operator = comp 
-                raise ValueError("Not yet implemented")
-            elif len(comp) == 2:
-                if is_operator(comp[0]): # ('-', 'p.m')
-                    if isinstance(comp[1], Function):
-                        raise ValueError("Not yet implemented")
-                    code2, reg, typ = gen_arithmetic_operation2(self.cgen, reg, typ, comp[0], comp[1])
-                else: # ('p.m', '-')
-                    if isinstance(comp[0], Function):
-                        raise ValueError("Not yet implemented")
-                    code2, reg, typ = gen_arithmetic_operation1(self.cgen, comp[0], comp[1], reg, typ)
-                code += code2
-            elif len(comp) == 3:
-                op1, operator, op2 = comp 
-                raise ValueError("Not yet implemented")
-            else:
-                raise ValueError("Unsuported number arguments in expression")
-
-        
-        store = store_operand(self.cgen, self.dest, reg, typ)
-        return code + store
-
-
-class StmCall(Statement):
-    def __init__(self, cgen, func, args):
-        self.cgen = cgen
-        self.func = func
-        self.args = args
-
-    def asm_code(self):
-        if not self.cgen.func_exist(self.func):
-            raise ValueError("Function %s doesnt exist!" % self.func)
-
-        input_args = self.cgen.input_args(self.func)
-        
-        arguments = []
-        for a in self.args:
-            arg = self.cgen.fetch_argument(a)
-            if arg is None:
-                raise ValueError("Argument %s doesnt exist!", a)
-            arguments.append(arg)
-
-        if len(input_args) != len(arguments):
-            raise ValueError("Argument lengtsh doesnt match", input_args, arguments)
-        
-        for arg1, arg2 in zip(input_args, arguments):
-            if type(arg1) != type(arg2):
-                raise ValueError("Argument type mismatch", arg1, arg2)
-
-        code = _copy_to_regs_old(arguments)
-        code += "call %s\n" % self.func
-        return code
-
-def make_call(cgen, function):
-    name = function.name
-    args = function.args
-
-    cgen.clear_regs()
-
-    f = cgen.get_function(name)
-    if f is not None:
-        func, ret_type, inline = f
-        code = func(cgen, args)
-
-    s = cgen.get_shader(name)
-    if s is not None:
-        code = _copy_to_regs(cgen, args, s.input_args)
-        code += "call %s\n" % name
-        ret_type = s.ret_type
-
-    if f is None and s is None:
-        raise ValueError("Both function and shader doesnt exist")
-    return (code, ret_type)
-
-class StmAssignCall(Statement):
-    def __init__(self, cgen, dest, function):
-        self.cgen = cgen
-        self.dest = dest
-        self.function = function
-
-    def asm_code(self):
-
-        if not isinstance(self.function, Function):
-            raise ValueError("Wrong argument, Function object is expected.")
-        
-        if self.cgen.is_user_type(self.function.name): #create new structure argument
-            dst = self.cgen.get_arg(self.dest)
-            if isinstance(dst, StructArg):
-                if dst.typ.typ != self.function.name:
-                    raise ValueError("Mismatch type ", dst, self.function, name)
-            elif dst is None:
-                dst = self.cgen.create_arg(self.dest, typ=self.function.name)
-            else:
-                raise ValueError("Mismatch types", self.dest, dst)
-            return ''
-
-        code, ret_type = make_call(self.cgen, self.function)
-
-        dst = self.cgen.get_arg(self.dest)
-        if dst is None:
-            dst = self.cgen.create_arg(self.dest, typ=ret_type)
-
-        self.cgen.clear_regs()
-        if ret_type == IntArg and type(dst) == IntArg:
-            reg = self.cgen.register(reg="eax")
-            store = store_int_from_reg(self.cgen, reg, self.dest)
-        elif ret_type == FloatArg and type(dst) == FloatArg:
-            reg = self.cgen.register(reg="xmm0")
-            store = store_float_from_reg(self.cgen, reg, self.dest)
-        elif type(dst) == FloatArg and ret_type == IntArg:
-            reg = self.cgen.register(reg="eax")
-            to_reg = self.cgen.register(reg="xmm0")
-            store = convert_int_to_float(reg, to_reg)
-            store += store_float_from_reg(self.cgen, to_reg, self.dest)
-        elif ret_type == Vector3Arg and type(dst) == Vector3Arg:
-            reg = self.cgen.register(reg="xmm0")
-            store = store_vec3_from_reg(self.cgen, reg, self.dest)
-        elif ret_type == StructArg:
-            raise ValueError("Unsupported argument returned type!", ret_type, dst)
+def generate_arithmetic(cgen, src): #TODO --draw automat diagram then refacotr this
+    operands = src.operands
+    op1, operator, op2 = operands[0]
+    code, reg, typ = gen_arithmetic_operation(cgen, op1, operator, op2)
+    for comp in operands[1:]:
+        if len(comp) == 1:
+            operator = comp 
+            raise ValueError("Not yet implemented")
+        elif len(comp) == 2:
+            if is_operator(comp[0]): # ('-', 'p.m')
+                if isinstance(comp[1], Function):
+                    raise ValueError("Not yet implemented")
+                code2, reg, typ = gen_arithmetic_operation2(cgen, reg, typ, comp[0], comp[1])
+            else: # ('p.m', '-')
+                if isinstance(comp[0], Function):
+                    raise ValueError("Not yet implemented")
+                code2, reg, typ = gen_arithmetic_operation1(cgen, comp[0], comp[1], reg, typ)
+            code += code2
+        elif len(comp) == 3:
+            op1, operator, op2 = comp 
+            raise ValueError("Not yet implemented")
         else:
-            raise ValueError("Type mismatch", ret_type, dst)
-        return code + store
+            raise ValueError("Unsuported number arguments in expression")
+    return code, reg, typ
 
-#TODO --- why const and src?? maybe src is enough
-class StmReturn(Statement):
-    def __init__(self, cgen, const=None, src=None):
+class StmExpression(Statement):
+    def __init__(self, cgen, src):
         self.cgen = cgen
-        self.const = const
         self.src = src
 
     def asm_code(self):
-        if self.const is None and self.src is None:
-            return "ret \n"
-        if self.const is not None:
-            if isinstance(self.const, int):
-                self.cgen.register_ret_type(IntArg)
-                code = "mov eax, %i \n" % self.const
-                code += "ret \n"
-                return code
-            elif isinstance(self.const, float):
-                self.cgen.register_ret_type(FloatArg)
-                raise ValueError("Argument const float ", self.const)
-            elif isinstance(self.const, tuple) or isinstance(self.const, list):
-                raise ValueError("Return is const list or tuple ", self.const)
+        if isinstance(self.src, Callable):
+            if self.cgen.is_user_type(self.src):
+                return ValueError("User type illegal expression")
             else:
-                raise ValueError("Unsuported constant", self.const)
-        arg = self.cgen.get_arg(self.src)
-        if arg is None:
-            raise ValueError("Argument doesnt exist.", self.src)
-        self.cgen.register_ret_type(type(arg))
-        self.cgen.clear_regs()
-        if isinstance(arg, IntArg):
-            reg = self.cgen.register(reg="eax")
-            code = load_int_into_reg(self.cgen, reg, self.src)
-        elif isinstance(arg, FloatArg):
-            reg = self.cgen.register(reg="xmm0")
-            code = load_float_into_reg(self.cgen, reg, self.src)
-        elif isinstance(arg, Vector3Arg):
-            reg = self.cgen.register(reg="xmm0")
-            code = load_vec3_into_reg(self.cgen, reg, self.src)
+                code, reg, typ = self.cgen.generate_callable(self.src)
+                return code
         else:
-            raise ValueError("Unsuported return argument!", arg)
-        code += "ret \n"
+            return ValueError("Wrong expression")
+
+def unary_number(n, unary):
+    if unary is None or unary != '-':
+        return n
+    if isinstance(n, int):
+        return int(unary + str(n))
+    elif isinstance(n, float):
+        return float(unary + str(n))
+    else:
+        raise ValueError("Unknown unary number", n, unary)
+
+class StmAssign(Statement):
+    def __init__(self, cgen, dest, src, unary=None):
+        self.cgen = cgen
+        self.dest = dest
+        self.src = src
+        self.unary = unary
+
+    def asm_code(self):
+        if is_const(self.src):
+            code = assign_const_to_dest(self.cgen, self.dest, unary_number(self.src, self.unary))
+        elif is_identifier(self.src):
+            code = assign_identifier(self.cgen, self.dest, self.src, self.unary)
+        elif isinstance(self.src, Operands):
+            code, reg, typ = generate_arithmetic(self.cgen, self.src)
+            code2, reg = negate_operand(self.cgen, self.unary, reg, typ)
+            code += code2 + store_operand(self.cgen, self.dest, reg, typ)
+        elif isinstance(self.src, Callable):
+            if self.cgen.is_user_type(self.src):
+                self.cgen.create_arg(self.dest, self.src)
+                return ''
+            code, reg, typ = self.cgen.generate_callable(self.src)
+            if typ is not None:
+                code2, reg = negate_operand(self.cgen, self.unary, reg, typ)
+                code += code2 + store_operand(self.cgen, self.dest, reg, typ)
+            else:
+                raise ValueError("Callable doenst return value!!!", self.src.name)
+        else:
+            raise ValueError("Unknown source expression.", self.dest, self.src)
         return code
+
+class StmReturn(Statement):
+    def __init__(self, cgen, src):
+        self.cgen = cgen
+        self.src = src
+
+    def asm_code(self):
+        if is_const(self.src) or is_identifier(self.src):
+            code, reg, typ = load_operand(self.cgen, self.src)
+        elif isinstance(self.src, Operands):
+            code, reg, typ = generate_arithmetic(self.cgen, self.src)
+        elif isinstance(self.src, Callable):
+            if self.cgen.is_user_type(self.src):
+                raise ValueError("User type is not allowed in return", self.src)
+            else:
+                code, reg, typ = self.cgen.generate_callable(self.src)
+        else:
+            raise ValueError("Unsuported operand in return", self.src)
+        self.cgen.register_ret_type(typ)
+
+        xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
+        line = ''
+        if reg in xmm:
+            if reg != 'xmm0':
+                line = 'movaps xmm0, %s\n' % reg
+        else:
+            if reg != 'eax':
+                line = "mov eax, %s\n" % reg
+        line2 = "ret\n"
+        return code + line + line2
+            
 
 def generate_compare_ints(label, reg1, con, reg2):
     #if condition is met not jump to end of if
@@ -622,13 +505,13 @@ def _int_function(cgen, args):
         if isinstance(a, IntArg):
             reg = cgen.register(reg="eax")
             code = load_int_into_reg(cgen, reg, arg)
-            return code
+            return code, reg, IntArg
         elif isinstance(a, FloatArg):
             reg = cgen.register(reg="xmm0")
             to_reg = cgen.register(reg="eax")
             code = load_float_into_reg(cgen, reg, arg)
             code += convert_float_to_int(reg, to_reg)
-            return code
+            return code, to_reg, IntArg
         else:
             raise ValueError("Unsupprted argument for int function!", a)
     else:

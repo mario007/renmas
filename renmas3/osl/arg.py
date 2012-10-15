@@ -353,3 +353,12 @@ class Function:
         self.name = name
         self.args = args
 
+class Callable:
+    def __init__(self, name, args):
+        self.name = name
+        self.args = args
+
+class Operands:
+    def __init__(self, operands):
+        self.operands = operands
+

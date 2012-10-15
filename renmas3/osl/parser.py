@@ -1,8 +1,9 @@
 import ast
 
-from .statement import StmAssignConst, StmAssignName, StmIf, StmWhile, StmBreak
-from .statement import StmCall, StmAssignCall, StmReturn, StmAssignExpression
-from .arg import Function, Attribute
+from .statement import StmIf, StmWhile, StmBreak
+from .statement import StmReturn, StmExpression
+from .statement import StmAssign
+from .arg import Attribute, Operands, Callable
 
 def operator(obj):
     if isinstance(obj, ast.Add):
@@ -84,6 +85,8 @@ def extract_operand(obj):
         return obj.n
     elif isinstance(obj, ast.Name):
         return obj.id
+    elif isinstance(obj, ast.Tuple) or isinstance(obj, ast.List):
+        return extract_numbers(obj)
     elif isinstance(obj, ast.Attribute):
         src, src_path = extract_path(obj)
         return Attribute(src, src_path)
@@ -93,7 +96,7 @@ def extract_operand(obj):
         for arg in obj.args:
             op = extract_operand(arg)
             args.append(op)
-        return Function(func, args)
+        return Callable(func, args)
     else:
         raise ValueError("Unsuported operand in binary arithmetic.", obj)
 
@@ -215,59 +218,18 @@ class Parser:
         pass
 
     def _simple_assigments(self, targets, obj, unary=None):
-        if isinstance(obj, ast.Num):
-            n = obj.n
-            if isinstance(n, int) or isinstance(n, float):
-                for t in targets:
-                    if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
-                        if unary is not None:
-                            n = unary_number(n, unary)
-                        return StmAssignConst(self.cgen, make_name(t), n)
-                    else:
-                        raise ValueError("Unknown target", t)
+        op = extract_operand(obj)
+        for t in targets:
+            if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
+                return StmAssign(self.cgen, make_name(t), op, unary)
             else:
-                raise ValueError('Unknow number type', type(n))
-        elif isinstance(obj, ast.Name):
-            for t in targets:
-                if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
-                    return StmAssignName(self.cgen, make_name(t), obj.id, unary)
-                else:
-                    raise ValueError("Unknown target", t)
+                raise ValueError("Unknown target", t)
 
-        elif isinstance(obj, ast.Tuple) or isinstance(obj, ast.List):
-            if unary is not None:
-                raise ValueError("Unsuported constant with unary", unary, obj)
-            nums = extract_numbers(obj)
-            for t in targets:
-                if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
-                    return StmAssignConst(self.cgen, make_name(t), nums)
-                else:
-                    raise ValueError("Unknown target", t)
-        elif isinstance(obj, ast.Attribute):
-            src, src_path = extract_path(obj)
-            for t in targets:
-                if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
-                    return StmAssignName(self.cgen, make_name(t), Attribute(src, src_path), unary)
-                else:
-                    raise ValueError("Unknown target", t)
-        elif isinstance(obj, ast.Call):
-            if unary is not None:
-                raise ValueError("Unary is not yet suported in function call assign!!!")
-            func = obj.func.id
-            args = [extract_operand(arg) for arg in obj.args]
-            for t in targets:
-                if isinstance(t, ast.Name) or isinstance(t, ast.Attribute):
-                    return StmAssignCall(self.cgen, make_name(t), Function(func, args))
-                else:
-                    raise ValueError("Unknown target", t)
-        else:
-            raise ValueError("Unknown assigment!", obj)
-    
-    def _binary_operation(self, targets, obj):
+    def _binary_operation(self, targets, obj, unary=None):
         expr = parse_arithmetic(obj)
         for t in targets:
             if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
-                return StmAssignExpression(self.cgen, make_name(t), expr)
+                return StmAssign(self.cgen, make_name(t), Operands(expr), unary)
             else:
                 raise ValueError("Unknown target", t)
 
@@ -280,7 +242,10 @@ class Parser:
             return self._binary_operation(assign.targets, assign.value)
         elif isinstance(assign.value, ast.UnaryOp):
             op = extract_unary(assign.value.op)
-            return self._simple_assigments(assign.targets, assign.value.operand, op)
+            if isinstance(assign.value.operand, ast.BinOp):
+                return self._binary_operation(assign.targets, assign.value.operand, op)
+            else:
+                return self._simple_assigments(assign.targets, assign.value.operand, op)
         elif isinstance(assign.value, ast.Call):
             return self._simple_assigments(assign.targets, assign.value)
         elif isinstance(assign.value, ast.Subscript):
@@ -300,9 +265,12 @@ class Parser:
         for arg in call.args:
             op = extract_operand(arg)
             args.append(op)
-        return StmCall(self.cgen, Function(func, args))
+        return StmExpression(self.cgen, Callable(func, args))
 
     def _parse_return(self, obj):
+        src = extract_operand(obj)
+        return StmReturn(self.cgen, src)
+
         if isinstance(obj, ast.Num):
             return StmReturn(self.cgen, const=obj.n)
         elif isinstance(obj, ast.Name):

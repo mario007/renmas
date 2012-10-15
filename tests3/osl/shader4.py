@@ -52,6 +52,7 @@ sam = sample()
 ret = 1
 while ret != 0:
     ret = generate_sample(sam)
+x = sam.y
 """
 
 runtimes = [Runtime()]

@@ -2,14 +2,17 @@ import copy
 import platform
 from .arg import create_argument, StructArg, IntArg, FloatArg, Vector3Arg, UserType, Attribute
 from .arg import ConstIntArg, ConstFloatArg, ConstVector3Arg, ConstVector3IntsArg
+from .arg import Callable
 from .shader import Shader
 from ..core import Vector3
+from .instr import load_int_into_reg, load_float_into_reg, load_vec3_into_reg
+from .instr import load_struct_ptr
 
 _user_types = {}
 _built_in_functions = {}
 
-def register_function(name, func, return_type, inline=False):
-    _built_in_functions[name] = (func, return_type, inline)
+def register_function(name, func, inline=False):
+    _built_in_functions[name] = (func, inline)
 
 def register_user_type(typ):
     if typ.typ in _user_types:
@@ -40,6 +43,92 @@ def _copy_from_regs(args):
             raise ValueError('Unknown argument', a)
     return code
 
+def _load_and_check_int(cgen, reg, src, ptr_reg):
+    if isinstance(src, int):
+        code = "mov %s, %i\n" % (reg, src)
+    elif isinstance(src, str) or isinstance(src, Attribute):
+        arg = cgen.get_arg(src)
+        if not isinstance(arg, IntArg):
+            raise ValueError("Int argument is expected!", arg, src)
+        code = load_int_into_reg(cgen, reg, src, ptr_reg)
+    else:
+        raise ValueError("Unsuported argument to shader or function", src)
+    return code
+
+def _load_and_check_float(cgen, reg, src, ptr_reg, reg2):
+    if isinstance(src, int) or isinstance(src, float):
+        src = float(src)
+        arg = cgen.create_const(src)
+        code = load_float_into_reg(cgen, reg, arg.name, ptr_reg)
+    elif isinstance(src, str) or isinstance(src, Attribute):
+        arg = cgen.get_arg(src)
+        if isinstance(arg, IntArg):
+            code = load_int_into_reg(cgen, reg2, src, ptr_reg)
+            code += convert_int_to_float(reg2, reg)
+        elif isinstance(arg, FloatArg):
+            code = load_float_into_reg(cgen, reg, src, ptr_reg)
+        else:
+            raise ValueError('Float argument is expected.')
+        pass
+    else:
+        raise ValueError("Unsuported argument to shader or function", src)
+    return code
+
+def _load_and_check_vec3(cgen, reg, src, ptr_reg):
+    if isinstance(src, str) or isinstance(src, Attribute):
+        arg = cgen.get_arg(src)
+        if isinstance(arg, Vector3Arg):
+            code = load_vec3_into_reg(cgen, reg, src, ptr_reg)
+        else:
+            raise ValueError("Vector3 argument is expected.", src)
+    else:
+        raise ValueError("Unsuported argument to shader or function", src)
+    return code
+
+def _load_and_check_struct(cgen, reg, src):
+    if isinstance(src, str) or isinstance(src, Attribute):
+        arg = cgen.get_arg(src)
+        if isinstance(arg, StructArg):
+            code, dummy, dummy = load_struct_ptr(cgen, src, reg)
+        else:
+            raise ValueError("User type argument is expected.", src)
+    else:
+        raise ValueError("Unsuported argument to shader or function", src)
+    return code
+
+def _copy_to_regs(cgen, operands, input_args):
+    if len(operands) != len(input_args):
+        raise ValueError("Argument length mismatch", operands, input_args)
+
+    bits = platform.architecture()[0]
+    xmm = ['xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
+    general = ['esi', 'edx', 'ecx', 'ebx', 'eax']
+    if bits == '64bit':
+        ptr_reg = 'rbp'
+    else:
+        ptr_reg = 'ebp'
+    reg2 = 'edi'
+    tmp_xmm = 'xmm7'
+
+    code = ''
+    for operand, arg in zip(operands, input_args):
+        if isinstance(arg, IntArg):
+            reg = general.pop()
+            code += _load_and_check_int(cgen, reg, operand, ptr_reg)
+        elif isinstance(arg, FloatArg):
+            reg = xmm.pop()
+            code += _load_and_check_float(cgen, reg, operand, ptr_reg, reg2)
+        elif isinstance(arg, Vector3Arg):
+            reg = xmm.pop()
+            code += _load_and_check_vec3(cgen, reg, operand, ptr_reg)
+        elif isinstance(arg, StructArg):
+            reg = general.pop()
+            if bits == '64bit':
+                reg = 'r' + reg[1:]
+            code += _load_and_check_struct(cgen, reg, operand)
+        else:
+            raise ValueError("Unsuported argument type!", operand, arg)
+    return code
 
 class CodeGenerator:
     def __init__(self, name, args={}, input_args=[], shaders=[], func=False):
@@ -56,13 +145,51 @@ class CodeGenerator:
     def is_input_arg(self, arg):
         return arg in self._input_args
 
-    def is_user_type(self, name):
-        return name in _user_types
+    def is_user_type(self, obj):
+        if isinstance(obj, str):
+            return obj in _user_types
+        elif isinstance(obj, Callable):
+            return obj.name in _user_types
+        else:
+            raise ValueError("Callable or name is expected as argument", obj)
 
-    def is_inline_func(self, name):
-        if name in _built_in_functions:
-            return _built_in_functions[name][2]
-        return False
+    def is_inline(self, obj):
+        if isinstance(obj, Callable):
+            if obj.name in _built_in_functions:
+                return _built_in_functions[obj.name][2]
+            return False
+        else:
+            raise ValueError("Callable is expected!", obj)
+
+    def generate_callable(self, obj):
+        if not isinstance(obj, Callable):
+            raise ValueError("Callable is expected!", obj)
+
+        shader = self.get_shader(obj.name)
+        if shader is not None:
+            self.clear_regs()
+            code = _copy_to_regs(self, obj.args, shader.input_args)
+            code += "call %s\n" % obj.name
+            typ = shader.ret_type
+            if typ == IntArg:
+                reg = 'eax'
+            else:
+                reg = 'xmm0'
+            self.register(reg=reg)
+            return code, reg, typ
+
+
+        function = self.get_function(obj.name)
+        if function is not None:
+            func, inline = function
+            if not inline:
+                self.clear_regs()
+            code, reg, typ = func(self, obj.args)
+            if not inline:
+                self.register(reg=reg)
+            return code, reg, typ
+
+        raise ValueError("Callable %s doesn't exist." % obj.name)
 
     def add(self, stm):
         self._statements.append(stm)
@@ -178,7 +305,24 @@ class CodeGenerator:
                 arg = arg.get_argument(full_path)
         return arg
 
+    def _create_arg_from_callable(self, src, obj):
+        arg = self.get_arg(src)
+        if arg is not None and isinstance(arg, StructArg):
+            if arg.typ.typ != obj.name:
+                raise ValueError("Type mismatch", arg.typ.typ, obj.name)
+            return arg
+        if obj.name not in _user_types:
+            raise ValueError("Unregistered type %s is not registerd." % obj.name)
+
+        arg = StructArg(src, _user_types[obj.name])
+        self._locals[src] = arg
+        return arg
+
+
     def create_arg(self, dest, value=None, typ=None):
+        if isinstance(value, Callable):
+            return self._create_arg_from_callable(dest, value)
+
         if isinstance(dest, Attribute):
             name = dest.name
             path = dest.path

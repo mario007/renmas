@@ -260,7 +260,12 @@ class Parser:
             raise ValueError("Unknown assign", assign.value)
 
     def _parse_call(self, call):
-        func = call.func.id
+        if isinstance(call.func, ast.Name):
+            func = call.func.id
+        elif isinstance(call.func, ast.Attribute):
+            raise ValueError('Classes are not yet implemented!!!')
+        else:
+            raise ValueError("Unsuported function call", call.func)
         args = []
         for arg in call.args:
             op = extract_operand(arg)

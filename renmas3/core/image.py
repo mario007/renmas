@@ -180,6 +180,7 @@ class ImageBGRA(Image):
 class ImageFloatRGBA(Image):
     def __init__(self, width, height):
         super(ImageFloatRGBA, self).__init__(width, height, width*16)
+        self.pixels_ptr = self.pixels.ptr()
 
     def set_pixel(self, x, y, r, g, b, a=0.99):
         if x < 0 or x >= self.width: 
@@ -197,6 +198,14 @@ class ImageFloatRGBA(Image):
         # return r, g, b, a 
         pix = x86.GetFloat(self.pixels.ptr()+adr, 0, 4)
         return pix
+
+    
+    @staticmethod
+    def struct():
+        from ..osl import Integer, Pointer
+        typ_name = "ImageFloatRGBA"
+        fields = [('width', Integer), ('height', Integer), ('pitch', Integer), ('pixels_ptr', Pointer)]
+        return (typ_name, fields)
 
     def __repr__(self):
         adr = self.pixels.ptr()

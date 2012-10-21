@@ -1,79 +1,26 @@
 import platform
+import inspect
 from ..core import Vector3
 
 class Argument:
     def __init__(self, name):
         self.name = name
 
-    def set_value(self, ds, value, path=None, idx_thread=None):
+    @staticmethod
+    def set_value(ds, value, path, idx_thread=None):
         raise NotImplementedError()
 
-    def get_value(self, ds, value, path=None, idx_thread=None):
+    @staticmethod
+    def get_value(ds, path, idx_thread=None):
         raise NotImplementedError()
 
     def generate_data(self):
         raise NotImplementedError()
 
-
-class ConstIntArg(Argument):
-    def __init__(self, name, value=0):
-        super(ConstIntArg, self).__init__(name)
-        #assert int
-        self._value = int(value)
-
-    @property
-    def value(self):
-        return self._value
-
-    def generate_data(self):
-        return 'int32 %s = %i \n' % (self.name, self._value) 
-
-class ConstFloatArg(Argument):
-    def __init__(self, name, value=0.0):
-        super(ConstFloatArg, self).__init__(name)
-        #assert float
-        self._value = float(value)
-
-    @property
-    def value(self):
-        return self._value
-
-    def generate_data(self):
-        return 'float %s = %f \n' % (self.name, self._value)
-
-class ConstVector3Arg(Argument):
-    def __init__(self, name, value):
-        super(ConstVector3Arg, self).__init__(name)
-        #TODO assert Vector3
-        self._value = value
-
-    @property
-    def value(self):
-        return self._value
-
-    def generate_data(self):
-        v = self._value
-        return 'float %s[4] = %f,%f,%f,0.0 \n' % (self.name, v.x, v.y, v.z)
-
-class ConstVector3IntsArg(Argument):
-    def __init__(self, name, ints):
-        super(ConstVector3IntsArg, self).__init__(name)
-        #TODO assert 3 ints
-        self._value = ints 
-
-    @property
-    def value(self):
-        return self._value
-
-    def generate_data(self):
-        v = self._value
-        return 'int32 %s[4] = %i,%i,%i,0 \n' % (self.name, v[0], v[1], v[2])
-
-
-class IntArg(Argument):
+class Integer(Argument):
 
     def __init__(self, name, value=0):
-        super(IntArg, self).__init__(name)
+        super(Integer, self).__init__(name)
         self._value = value
 
     def _set_value(self, value):
@@ -83,36 +30,28 @@ class IntArg(Argument):
         return self._value
     value = property(_get_value, _set_value)
 
-    def set_value(self, ds, value, path=None, idx_thread=None):
-        #TODO check type of value
-        if path is not None:
-            name = path 
-        else:
-            name = self.name
-
+    @staticmethod
+    def set_value(ds, value, path, idx_thread=None):
         if idx_thread is None:
             for d in ds:
-                d[name] = value 
+                d[path] = value 
         else:
-            ds[idx_thread][name] = value
+            ds[idx_thread][path] = value
 
-    def get_value(self, ds, path=None, idx_thread=None):
-        if path is not None:
-            name = path 
-        else:
-            name = self.name
+    @staticmethod
+    def get_value(ds, path, idx_thread=None):
         if idx_thread is None:
-            return ds[0][name]
+            return ds[0][path]
         else:
-            return ds[idx_thread][name]
+            return ds[idx_thread][path]
 
     def generate_data(self):
         return 'int32 %s = %i \n' % (self.name, self._value) 
 
-class FloatArg(Argument):
+class Float(Argument):
 
     def __init__(self, name, value=0.0):
-        super(FloatArg, self).__init__(name)
+        super(Float, self).__init__(name)
         self._value = value
 
     def _set_value(self, value):
@@ -122,37 +61,28 @@ class FloatArg(Argument):
         return self._value
     value = property(_get_value, _set_value)
 
-    def set_value(self, ds, value, path=None, idx_thread=None):
-        #TODO check type of value
-        if path is not None:
-            name = path 
-        else:
-            name = self.name
-
+    @staticmethod
+    def set_value(ds, value, path, idx_thread=None):
         if idx_thread is None:
             for d in ds:
-                d[name] = value 
+                d[path] = value 
         else:
-            ds[idx_thread][name] = value
+            ds[idx_thread][path] = value
 
-    def get_value(self, ds, path=None, idx_thread=None):
-        if path is not None:
-            name = path 
-        else:
-            name = self.name
-
+    @staticmethod
+    def get_value(ds, path, idx_thread=None):
         if idx_thread is None:
-            return ds[0][name]
+            return ds[0][path]
         else:
-            return ds[idx_thread][name]
+            return ds[idx_thread][path]
 
     def generate_data(self):
         return 'float %s = %f \n' % (self.name, self._value)
 
-class Vector3Arg(Argument):
+class Vec3(Argument):
 
     def __init__(self, name, value):
-        super(Vector3Arg, self).__init__(name)
+        super(Vec3, self).__init__(name)
         self._value = value
 
     def _set_value(self, value):
@@ -162,33 +92,53 @@ class Vector3Arg(Argument):
         return self._value
     value = property(_get_value, _set_value)
 
-    def set_value(self, ds, value, path=None, idx_thread=None):
-        #TODO check type of value
-        #TODO think  is value can be tuple or list
-        if path is not None:
-            name = path 
-        else:
-            name = self.name
+    @staticmethod
+    def set_value(ds, value, path, idx_thread=None):
         if idx_thread is None:
             for d in ds:
-                d[name] = value.to_ds() 
+                d[path] = value.to_ds() 
         else:
-            ds[idx_thread][name] = value.to_ds()
+            ds[idx_thread][path] = value.to_ds()
 
-    def get_value(self, ds, path=None, idx_thread=None):
-        if path is not None:
-            name = path 
-        else:
-            name = self.name
+    @staticmethod
+    def get_value(ds, path, idx_thread=None):
         if idx_thread is None:
-            val = ds[0][name]
+            val = ds[0][path]
         else:
-            val = ds[idx_thread][name]
+            val = ds[idx_thread][path]
         return Vector3(val[0], val[1], val[2])
 
     def generate_data(self):
         v = self._value
         return 'float %s[4] = %f,%f,%f,0.0 \n' % (self.name, v.x, v.y, v.z)
+
+class Vec3I(Argument):
+
+    def __init__(self, name, x, y, z):
+        super(Vec3, self).__init__(name)
+        self.x = int(x)
+        self.y = int(y)
+        self.z = int(z)
+
+    @staticmethod
+    def set_value(ds, value, path, idx_thread=None):
+        x, y, z = value
+        if idx_thread is None:
+            for d in ds:
+                d[path] = (x, y, z, 0)
+        else:
+            ds[idx_thread][path] = (x, y, z, 0)
+
+    @staticmethod
+    def get_value(ds, path, idx_thread=None):
+        if idx_thread is None:
+            val = ds[0][path]
+        else:
+            val = ds[idx_thread][path]
+        return val[0:3]
+
+    def generate_data(self):
+        return 'int32 %s[4] = %i,%i,%i,0\n' % (self.name, self.x, self.y, self.z)
 
 class UserType:
     def __init__(self, typ):
@@ -209,7 +159,7 @@ class UserType:
     def generate_paths(self, name):
         paths = {}
         for arg in self._args_lst:
-            if isinstance(arg, StructArg):
+            if isinstance(arg, Struct):
                 #TODO not tested yet
                 for key, value in arg.paths.items():
                     self._paths[name + '.' + key] = value
@@ -224,9 +174,9 @@ class UserType:
         code += "end struct \n\n"
         return code
 
-class StructArg(Argument):
+class Struct(Argument):
     def __init__(self, name, typ):
-        super(StructArg, self).__init__(name)
+        super(Struct, self).__init__(name)
         self._typ = typ
         self._paths = typ.generate_paths(name)
 
@@ -246,20 +196,35 @@ class StructArg(Argument):
             return self._paths[path]
         return None
 
-    def generate_data(self, input_arg=False):
-        if input_arg:
-            bits = platform.architecture()[0]
-            if bits == '64bit':
-                return 'uint64 %s\n' % self.name
-            else:
-                return 'uint32 %s\n' % self.name
-        else:
-            return '%s %s\n' % (self._typ.typ, self.name)
+    def generate_data(self):
+        return '%s %s\n' % (self._typ.typ, self.name)
 
-class ConstPtrArg(Argument):
-    def __init__(self, name, value=0):
-        super(ConstPtrArg, self).__init__(name)
+    def set_value(self, ds, value, path, idx_thread=None):
+        raise ValueError("Not yet implemented")
+        for a in self._typ._args_lst:
+            print (a.name)
+
+        for key, arg in self._paths.items():
+            arg.set_value(ds, value, key, idx_thread)
+
+class StructPtr(Struct):
+    def generate_data(self):
+        bits = platform.architecture()[0]
+        if bits == '64bit':
+            return 'uint64 %s\n' % self.name
+        else:
+            return 'uint32 %s\n' % self.name
+
+
+class Pointer(Argument):
+    def __init__(self, name, typ=None, value=0):
+        super(Pointer, self).__init__(name)
+        self._typ = typ
         self._value = value
+
+    @property
+    def typ(self):
+        return self._typ
 
     def _set_value(self, value):
         self._value = value
@@ -275,7 +240,22 @@ class ConstPtrArg(Argument):
         else:
             return 'uint32 %s = %i \n' % (self.name, self._value) 
 
-#TODO implement locking of map and list
+    @staticmethod
+    def set_value(ds, value, path, idx_thread=None):
+        if idx_thread is None:
+            for d in ds:
+                d[path] = value 
+        else:
+            ds[idx_thread][path] = value
+
+    @staticmethod
+    def get_value(ds, path, idx_thread=None):
+        if idx_thread is None:
+            return ds[0][path]
+        else:
+            return ds[idx_thread][path]
+
+#TODO implement locking of map and list???
 class ArgumentList:
     def __init__(self, args=[]):
         self._args = []
@@ -318,40 +298,77 @@ class ArgumentMap:
         for a in self._args.items():
             yield a
 
-def create_argument(name, value):
+def create_argument(name, value=None, typ=None, input_arg=False):
+    if value is None and typ is None:
+        raise ValueError("Argument could not be created because type and value is missing")
+    if typ is not None:
+        if typ == Integer:
+            if value is None:
+                arg = Integer(name, 0)
+            else:
+                arg = Integer(name, int(value))
+        elif typ == Float:
+            if value is None:
+                arg = Float(name, 0.0)
+            else:
+                arg = Float(name, float(value))
+        elif typ == Vec3:
+            if value is None:
+                arg = Vec3(name, Vector3(0.0, 0.0, 0.0))
+            else:
+                if not isinstance(value, Vector3):
+                    raise ValueError("Value for Vec3 is expected to be instance of Vector3")
+                arg = Vec3(name, value)
+        elif typ == Vec3I:
+            if value is None:
+                arg = Vec3I(name, 0, 0, 0)
+            else:
+                x, y, z = value
+                arg = Vec3I(name, int(x), int(y), int(z))
+        elif typ == Pointer: #pointer in typ = UserType
+                arg = Pointer(name, typ=value)
+        elif hasattr(typ, 'struct'):
+            typ_name, fields = typ.struct()
+            usr_type = create_user_type(typ_name, fields)
+            arg = Struct(name, usr_type)
+        else:
+            raise ValueError("Unknown type of arugment")
+        return arg
+
     if isinstance(value, int):
-        arg = IntArg(name, value)
+        arg = Integer(name, value)
     elif isinstance(value, float):
-        arg = FloatArg(name, value)
+        arg = Float(name, value)
     elif isinstance(value, tuple) or isinstance(value, list):
         if len(value) != 3:
             raise ValueError('Wrong length of tuple', value)
-        arg = Vector3Arg(name, Vector3(float(value[0]), float(value[1]), float(value[2])))
+        arg = Vec3(name, Vector3(float(value[0]), float(value[1]), float(value[2])))
     elif isinstance(value, Vector3):
-        arg = Vector3Arg(name, value)
+        arg = Vec3(name, value)
     elif isinstance(value, UserType):
-        arg = StructArg(name, value)
-    else: #TODO tuple and list  for vector constants
+        if input_arg:
+            arg = StructPtr(name, value)
+        else:
+            arg = Struct(name, value)
+    else:
         raise ValueError('Unknown value type', value)
     return arg
 
 #a5 = create_user_type_(typ="point", fields=[('x', 55)])
 def create_user_type(typ, fields):
-    struct = UserType(typ)
+    usr_type = UserType(typ)
     for n, v in fields:
-        arg = create_argument(n, v)
-        struct.add(arg)
-    return struct
+        if inspect.isclass(v):
+            arg = create_argument(n, typ=v)
+        else:
+            arg = create_argument(n, value=v)
+        usr_type.add(arg)
+    return usr_type
 
 class Attribute:
     def __init__(self, name, path):
         self.name = name #name of struct
         self.path = path #path to member in struct
-
-class Function:
-    def __init__(self, name, args):
-        self.name = name
-        self.args = args
 
 class Callable:
     def __init__(self, name, args):

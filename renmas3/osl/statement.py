@@ -1,6 +1,6 @@
 import struct
 import platform
-from .arg import IntArg, FloatArg, Vector3Arg, StructArg, Attribute, Function
+from .arg import Integer, Float, Vec3, Struct, Attribute
 from .arg import Operands, Callable
 from .cgen import register_function
 
@@ -39,11 +39,11 @@ def is_identifier(obj):
 
 def assign_const_to_dest(cgen, dest, const):
     arg = cgen.create_arg(dest, const)
-    if isinstance(arg, IntArg) and isinstance(const, int):
+    if isinstance(arg, Integer) and isinstance(const, int):
         code = store_const_into_mem(cgen, dest, const)
-    elif isinstance(arg, FloatArg) and (isinstance(const, int) or isinstance(const, float)):
+    elif isinstance(arg, Float) and (isinstance(const, int) or isinstance(const, float)):
         code = store_const_into_mem(cgen, dest, float(const))
-    elif isinstance(arg, Vector3Arg):
+    elif isinstance(arg, Vec3):
         if (isinstance(const, tuple) or isinstance(const, list)) and len(const) == 3:
             code = store_const_into_mem(cgen, dest, float(const[0]))
             code += store_const_into_mem(cgen, dest, float(const[1]), offset=4)
@@ -185,33 +185,33 @@ def perform_operation_vector_int(cgen, reg1, reg2, operator):
     return code, reg1
 
 def perform_operation(cgen, reg1, typ1, operator, reg2, typ2):
-    if typ1 == IntArg and typ2 == IntArg:
+    if typ1 == Integer and typ2 == Integer:
         code, reg = perform_operation_ints(cgen, reg1, reg2, operator)
-        return (code, reg, IntArg)
-    elif typ1 == FloatArg and typ2 == FloatArg:
+        return (code, reg, Integer)
+    elif typ1 == Float and typ2 == Float:
         code, reg = perform_operation_floats(cgen, reg1, reg2, operator)
-        return (code, reg, FloatArg)
-    elif typ1 == IntArg and typ2 == FloatArg:
+        return (code, reg, Float)
+    elif typ1 == Integer and typ2 == Float:
         code, reg = perform_operation_int_float(cgen, reg1, reg2, operator)
-        return (code, reg, FloatArg)
-    elif typ1 == FloatArg and typ2 == IntArg:
+        return (code, reg, Float)
+    elif typ1 == Float and typ2 == Integer:
         code, reg = perform_operation_float_int(cgen, reg1, reg2, operator)
-        return (code, reg, FloatArg)
-    elif typ1 == Vector3Arg and typ2 == Vector3Arg:
+        return (code, reg, Float)
+    elif typ1 == Vec3 and typ2 == Vec3:
         code, reg = perform_operation_vectors3(cgen, reg1, reg2, operator)
-        return (code, reg, Vector3Arg)
-    elif typ1 == FloatArg and typ2 == Vector3Arg:
+        return (code, reg, Vec3)
+    elif typ1 == Float and typ2 == Vec3:
         code, reg = perform_operation_float_vector(cgen, reg1, reg2, operator)
-        return (code, reg, Vector3Arg)
-    elif typ1 == Vector3Arg and typ2 == FloatArg:
+        return (code, reg, Vec3)
+    elif typ1 == Vec3 and typ2 == Float:
         code, reg = perform_operation_vector_float(cgen, reg1, reg2, operator)
-        return (code, reg, Vector3Arg)
-    elif typ1 == IntArg and typ2 == Vector3Arg:
+        return (code, reg, Vec3)
+    elif typ1 == Integer and typ2 == Vec3:
         code, reg = perform_operation_int_vector(cgen, reg1, reg2, operator)
-        return (code, reg, Vector3Arg)
-    elif typ1 == Vector3Arg and typ2 == IntArg:
+        return (code, reg, Vec3)
+    elif typ1 == Vec3 and typ2 == Integer:
         code, reg = perform_operation_vector_int(cgen, reg1, reg2, operator)
-        return (code, reg, Vector3Arg)
+        return (code, reg, Vec3)
     else:
         raise ValueError('Unknown combination of operands', typ1, typ2)
 
@@ -248,11 +248,11 @@ def generate_arithmetic(cgen, src): #TODO --draw automat diagram then refacotr t
             raise ValueError("Not yet implemented")
         elif len(comp) == 2:
             if is_operator(comp[0]): # ('-', 'p.m')
-                if isinstance(comp[1], Function):
+                if isinstance(comp[1], Callable):
                     raise ValueError("Not yet implemented")
                 code2, reg, typ = gen_arithmetic_operation2(cgen, reg, typ, comp[0], comp[1])
             else: # ('p.m', '-')
-                if isinstance(comp[0], Function):
+                if isinstance(comp[0], Callable):
                     raise ValueError("Not yet implemented")
                 code2, reg, typ = gen_arithmetic_operation1(cgen, comp[0], comp[1], reg, typ)
             code += code2
@@ -389,7 +389,7 @@ def generate_test(label, cgen, test):
     if len(con1) == 1:
         op = con1[0]
         code, reg, typ = load_operand(cgen, op)
-        if typ == IntArg:
+        if typ == Integer:
             line1 = "cmp %s, 0\n" % reg
             line2 = "je %s\n" % label
             code += line1 + line2
@@ -399,18 +399,18 @@ def generate_test(label, cgen, test):
         left_op, con, right_op = con1
         code1, reg1, typ1 = load_operand(cgen, left_op)
         code2, reg2, typ2 = load_operand(cgen, right_op)
-        if typ1 == IntArg and typ2 == IntArg:
+        if typ1 == Integer and typ2 == Integer:
             code3 = generate_compare_ints(label, reg1, con, reg2)
             code = code1 + code2 + code3
-        elif typ1 == FloatArg and typ2 == FloatArg:
+        elif typ1 == Float and typ2 == Float:
             code3 = generate_compare_floats(label, reg1, con, reg2)
             code = code1 + code2 + code3
-        elif typ1 == IntArg and typ2 == FloatArg:
+        elif typ1 == Integer and typ2 == Float:
             to_reg = cgen.register(typ='xmm')
             conv = convert_int_to_float(reg1, to_reg)
             code3 = generate_compare_floats(label, to_reg, con, reg2)
             code = code1 + code2 + conv + code3
-        elif typ1 == FloatArg and typ2 == IntArg:
+        elif typ1 == Float and typ2 == Integer:
             to_reg = cgen.register(typ='xmm')
             conv = convert_int_to_float(reg2, to_reg)
             code3 = generate_compare_floats(label, reg1, con, to_reg)
@@ -485,37 +485,4 @@ class StmWhile(Statement):
     def label(self):
         end_label = 'endwhile_' + str(id(self))
         return end_label
-
-
-def _int_function(cgen, args):
-    if len(args) == 0:
-        return "mov eax, 0\n"
-    if len(args) != 1:
-        raise ValueError("Wrong number of arguments", args)
-    arg = args[0]
-    if isinstance(arg, int):
-        return "mov eax, %i\n" % arg
-    elif isinstance(arg, float):
-        return "mov eax, %i\n" % int(arg)
-    elif isinstance(arg, str) or isinstance(arg, Attribute):
-        cgen.clear_regs()
-        a = cgen.get_arg(arg)
-        if a is None:
-            raise ValueError("Argument %s doesn't exist!" % name)
-        if isinstance(a, IntArg):
-            reg = cgen.register(reg="eax")
-            code = load_int_into_reg(cgen, reg, arg)
-            return code, reg, IntArg
-        elif isinstance(a, FloatArg):
-            reg = cgen.register(reg="xmm0")
-            to_reg = cgen.register(reg="eax")
-            code = load_float_into_reg(cgen, reg, arg)
-            code += convert_float_to_int(reg, to_reg)
-            return code, to_reg, IntArg
-        else:
-            raise ValueError("Unsupprted argument for int function!", a)
-    else:
-        raise ValueError('Unsupported argument')
-
-register_function('int', _int_function, IntArg) 
 

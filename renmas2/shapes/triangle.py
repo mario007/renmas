@@ -318,7 +318,6 @@ class Triangle(Shape):
 
         hit_point = ray.origin + ray.dir * t
         
-        print(beta, gamma, beta+gamma)
         return HitPoint(t, hit_point, self.normal, self.material, ray)
 
     # eax = pointer to ray structure

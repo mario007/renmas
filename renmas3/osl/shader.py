@@ -1,6 +1,6 @@
 import x86
 from tdasm import Tdasm
-from .arg import StructArg
+from .arg import Struct
 
 class Shader:
     def __init__(self, name, code, args, input_args=[], shaders=[],
@@ -15,7 +15,7 @@ class Shader:
         self._struct_args = {}
         self._func = func 
         for key, arg in iter(args):
-            if isinstance(arg, StructArg):
+            if isinstance(arg, Struct):
                 self._struct_args.update(arg.paths)
 
     @property
@@ -55,13 +55,18 @@ class Shader:
 
     def get_value(self, name, idx_thread=None):
         if name in self._args:
-            return self._args[name].get_value(self._ds, idx_thread)
+            return self._args[name].get_value(self._ds, name, idx_thread)
         elif name in self._struct_args:
-            return self._struct_args[name].get_value(self._ds, path=name, idx_thread=idx_thread)
+            return self._struct_args[name].get_value(self._ds, name, idx_thread)
         else:
             raise ValueError("Wrong name of argument", name)
 
     def set_value(self, name, value, idx_thread=None):
-        return self._args[name].set_value(self._ds, value, idx_thread)
+        if name in self._args:
+            return self._args[name].set_value(self._ds, value, name, idx_thread)
+        elif name in self._struct_args:
+            return self._struct_args[name].set_value(self._ds, value, name, idx_thread)
+        else:
+            raise ValueError("Wrong name of argument", name)
 
 

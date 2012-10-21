@@ -1,15 +1,19 @@
 
+import inspect
 from .parser import Parser
 from .cgen import CodeGenerator
 from .arg import Argument, create_argument, ArgumentMap, ArgumentList
 
-def _create_arg(a):
+def _create_arg(a, input_arg=False):
     if isinstance(a, Argument):
         return a
     elif (isinstance(a, list) or isinstance(a, tuple)) and len(a) == 2:
         name = a[0]
         value = a[1]
-        arg = create_argument(name, value)
+        if inspect.isclass(value):
+            arg = create_argument(name, typ=value, input_arg=input_arg)
+        else:
+            arg = create_argument(name, value=value, input_arg=input_arg)
         return arg
     else:
         raise ValueError("Unknown data for creation of argument", a)
@@ -20,11 +24,11 @@ def arg_map(args):
     return arg_map
 
 def arg_list(args):
-    new_args = [_create_arg(a) for a in args]
+    new_args = [_create_arg(a, input_arg=True) for a in args]
     arg_lst = ArgumentList(new_args)
     return arg_lst
 
-def create_shader(name, source, args, input_args=[], shaders=[], func=False, functions=None):
+def create_shader(name, source, args, input_args=[], shaders=[], func=False):
 
     parser = Parser()
     cgen = CodeGenerator(name, args, input_args, shaders, func)

@@ -1,20 +1,17 @@
 
 from tdasm import Runtime
-from renmas3.core import ImageFloatRGBA
-import renmas3.osl
-from renmas3.osl import create_shader, create_argument, create_user_type
-from renmas3.osl import arg_map, arg_list
-from renmas3.osl import register_user_type
-from renmas3.core import Vector3
+from renmas3.base import ImageFloatRGBA
+import renmas3.base
+from renmas3.base import create_shader, create_argument, create_user_type
+from renmas3.base import arg_map, arg_list
+from renmas3.base import register_user_type
+from renmas3.base import Vector3
 
 
 point = create_user_type(typ="point", fields=[('x', 10), ('y', 20)])
 size = create_user_type(typ="size", fields=[('w', 0.0), ('h', 0.0), ('k', (3,4,5))])
 register_user_type(point)
 register_user_type(size)
-
-im_arg = create_argument('ds', typ=ImageFloatRGBA)
-register_user_type(im_arg.typ)
 
 arg_map1 = arg_map([('p1', 3), ('p2', 4), ('ps', point), ('pm', point),('p3', 0.3),
     ('p4', (4,5,6)), ('rect', size), ('slika', ImageFloatRGBA)])
@@ -47,6 +44,9 @@ while p1 < 100:
     p1 = p1 + 1
     if p1 > 96.8:
         break
+nn = (2.2, 1.1, 3.4)
+set_rgb(slika, 1, 2, nn)
+rect.k = get_rgb(slika, 1, 2)
 """
 
 code2 = """
@@ -61,10 +61,12 @@ shader2 = create_shader("ret_arg", code2, arg_map2, arg_lst, func=True)
 runtimes = [Runtime()]
 shader = create_shader("test", code, arg_map1, shaders=[shader2])
 shader.prepare(runtimes)
-shader.execute()
 
 img = ImageFloatRGBA(3,3)
-#shader.set_value('slika', img)
+img.set_pixel(1, 2, 0.2, 0.3, 0.1)
+shader.set_value('slika', img)
+
+shader.execute()
 
 print(shader.get_value('p1'))
 print(shader.get_value('ps.x'))
@@ -74,4 +76,9 @@ print(shader.get_value('p4'))
 print(shader.get_value('rect.w'))
 print(shader.get_value('rect.h'))
 print(shader.get_value('rect.k'))
+print(shader.get_value('slika.width'))
+print(shader.get_value('slika.height'))
+print(shader.get_value('slika.pitch'))
+print(shader.get_value('slika.pixels_ptr'))
+
 

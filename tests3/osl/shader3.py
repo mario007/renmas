@@ -37,7 +37,7 @@ p3 = ret_arg(p5)
 p5 = 22
 p55 = 9.3
 p66 = (6,7,8)
-rect.w = -p55
+rect.w = p55
 rect.k = - p66
 p1 = 78 
 while p1 < 100:
@@ -47,6 +47,7 @@ while p1 < 100:
 nn = (2.2, 1.1, 3.4)
 set_rgb(slika, 1, 2, nn)
 rect.k = get_rgb(slika, 1, 2)
+rect.w = pow(rect.w, 3.3)
 """
 
 code2 = """

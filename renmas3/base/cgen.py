@@ -155,6 +155,9 @@ class CodeGenerator:
         self._ret_type = None
         self._constants = {}
         self._counter = 0
+        self._asm_functions = []
+        self._used_temps = {}
+        self._free_temps = {}
 
     def is_user_type(self, obj):
         if isinstance(obj, str):
@@ -197,6 +200,7 @@ class CodeGenerator:
                 self.clear_regs()
             code, reg, typ = func(self, obj.args)
             if not inline:
+                self.clear_regs()
                 self.register(reg=reg)
             return code, reg, typ
 
@@ -256,11 +260,22 @@ class CodeGenerator:
         code = self.generate_code()
         #print (code)
         shader = Shader(self._name, code, self._args, self._input_args,
-                self._shaders, self._ret_type, self._func)
+                self._shaders, self._ret_type, self._func,
+                functions=self._asm_functions)
         return shader
 
     def create_temp(self, typ):
-        pass
+        #TODO check for free temp variable
+        name = self._generate_name('temp')
+        if typ == Integer:
+            temp = Integer(name, 0)
+        elif typ == Float:
+            temp = Float(name, 0.0)
+        elif typ == Vec3:
+            temp = Vec3(name, Vector3(0.0, 0.0, 0.0))
+        else:
+            raise ValueError("Not yet suported temp of type", typ)
+        return temp
 
     def release_temp(self, temp):
         pass
@@ -411,4 +426,7 @@ class CodeGenerator:
         self._xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
         self._general = ['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
         self._general64 = ['rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax']
+
+    def add_asm_function(self, label, code):
+        self._asm_functions.append((label, code))
 

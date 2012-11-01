@@ -4,7 +4,7 @@ import renmas3.base
 from renmas3.base import create_shader, create_user_type
 from renmas3.base import register_user_type
 from renmas3.base import arg_map, arg_list
-from renmas3.core import Tile
+from renmas3.base import Tile
 from renmas3.base import Vector3
 
 sample = create_user_type(typ="sample", fields=[('x', 0.0), ('y', 0.0), 

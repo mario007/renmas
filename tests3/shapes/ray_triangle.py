@@ -1,10 +1,8 @@
 
 from random import random
 from tdasm import Tdasm, Runtime
-from renmas3.core import Factory, ColorManager, Ray, ShadePoint
-from renmas3.shapes import Sphere
 from renmas3.shapes import  ray_triangle_intersection
-from renmas3.core import Vector3
+from renmas3.base import Vector3
 
 def ray_triangle_isect(v0, v1, v2, origin, direction): #ray direction must be normalized
         
@@ -79,7 +77,6 @@ float d
 float td
 float gamma
 float beta
-float min_dist = 99999.444
 int32 ret
 
 #CODE
@@ -88,7 +85,6 @@ movaps xmm4, oword [direction]
 movaps xmm5, oword [p0]
 movaps xmm6, oword [p1]
 movaps xmm7, oword [p2]
-mov edx, dword [min_dist]
 call ray_triangle_intersection
 movss dword [td], xmm0
 movss dword [gamma], xmm2
@@ -109,9 +105,17 @@ def gen_vectors():
     direction = Vector3(random(), random(), random())
     direction.normalize()
 
+    v0 = Vector3(2.2, 4.4, 6.6)
+    v1 = Vector3(1.1, 1.1, 1.1)
+    v2 = Vector3(5.1, -1.1, 5.1)
+
+    origin = Vector3(0.0, 0.0, 0.0)
+    direction = Vector3(3.0, 3.0, 3.02) #3.00 -- precission problem investigate 
+    direction.normalize()
+
     return (v0, v1, v2, origin, direction)
 
-for x in range(100):
+for x in range(1):
     v0, v1, v2, origin, direction = gen_vectors()
 
     ds['p0'] = v0.to_ds()
@@ -130,6 +134,7 @@ for x in range(100):
         beta, gamma, t = ret 
         print(ds['beta'], ds['gamma'], ds['td'])
         print(beta, gamma, t)
+        print(beta + gamma)
         raise ValueError("Exception if intersection")
 
     if ret is not False:

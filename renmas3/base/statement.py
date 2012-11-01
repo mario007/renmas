@@ -216,8 +216,22 @@ def perform_operation(cgen, reg1, typ1, operator, reg2, typ2):
         raise ValueError('Unknown combination of operands', typ1, typ2)
 
 def gen_arithmetic_operation(cgen, op1, operator, op2):
-    code1, reg1, typ1 = load_operand(cgen, op1)
-    code2, reg2, typ2 = load_operand(cgen, op2)
+    if isinstance(op1, Callable):
+        if cgen.is_user_type(op1):
+            return ValueError("User type illegal expression in arithmetic")
+        else:
+            if cgen.is_inline(op1):
+                code1, reg1, typ1 = cgen.generate_callable(op1)
+            else: #TODO save temp variable
+                code1, reg1, typ1 = cgen.generate_callable(op1)
+    else:
+        code1, reg1, typ1 = load_operand(cgen, op1)
+
+    if isinstance(op2, Callable):
+        raise ValueError("Arithmetic callable not yet implemented")
+    else:
+        code2, reg2, typ2 = load_operand(cgen, op2)
+
     code3, reg, typ3 = perform_operation(cgen, reg1, typ1, operator, reg2, typ2)
     code = code1 + code2 + code3
     return (code, reg, typ3)
@@ -237,6 +251,7 @@ def gen_arithmetic_operation2(cgen, reg, typ, operator, op1):
 def is_operator(op):
     ops = ('+', '-', '/', '%', '*')
     return op in ops
+
 
 def generate_arithmetic(cgen, src): #TODO --draw automat diagram then refacotr this
     operands = src.operands

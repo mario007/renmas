@@ -48,6 +48,7 @@ nn = (2.2, 1.1, 3.4)
 set_rgb(slika, 1, 2, nn)
 rect.k = get_rgb(slika, 1, 2)
 rect.w = pow(rect.w, 3.3)
+p1 = int(3) + 4
 """
 
 code2 = """

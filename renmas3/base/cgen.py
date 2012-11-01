@@ -170,7 +170,7 @@ class CodeGenerator:
     def is_inline(self, obj):
         if isinstance(obj, Callable):
             if obj.name in _built_in_functions:
-                return _built_in_functions[obj.name][2]
+                return _built_in_functions[obj.name][1]
             return False
         else:
             raise ValueError("Callable is expected!", obj)
@@ -185,6 +185,7 @@ class CodeGenerator:
             code = _copy_to_regs(self, obj.args, shader.input_args)
             code += "call %s\n" % obj.name
             typ = shader.ret_type
+            #TODO cover all possible return types
             if typ == Integer:
                 reg = 'eax'
             else:
@@ -265,20 +266,26 @@ class CodeGenerator:
         return shader
 
     def create_temp(self, typ):
-        #TODO check for free temp variable
+        if typ in self._free_temps:
+            if self._free_temps[typ]:
+                item = self._free_temps[typ].pop()
+                self._used_temps[typ].append(item)
+                return item
+
         name = self._generate_name('temp')
-        if typ == Integer:
-            temp = Integer(name, 0)
-        elif typ == Float:
-            temp = Float(name, 0.0)
-        elif typ == Vec3:
-            temp = Vec3(name, Vector3(0.0, 0.0, 0.0))
+        arg = create_argument(name, typ=typ)
+        if typ not in self._used_temps:
+            self._used_temps[typ] = [arg]
         else:
-            raise ValueError("Not yet suported temp of type", typ)
-        return temp
+            self._used_temps[typ].append(arg)
+        return arg
 
     def release_temp(self, temp):
-        pass
+        if type(temp) not in self._used_temps:
+            raise ValueError("Temp doesn't exist", temp)
+        self._used_temps[type(temp)].remove(temp)
+        self._free_temps[type(temp)].append(temp)
+
 
     #create const it it's doesnt exist
     def create_const(self, value):

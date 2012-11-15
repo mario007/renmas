@@ -376,3 +376,27 @@ class Operands:
     def __init__(self, operands):
         self.operands = operands
 
+class Const:
+    def __init__(self, const):
+        self.const = const
+
+class Name:
+    def __init__(self, name):
+        self.name = name
+
+class Subscript:
+    def __init__(self, name, index, path=None):
+        self.name = name
+        self.index = index
+        #if we have path than this array in struct
+        self.path = path #path to member in struct
+
+class EmptyOperand:
+    pass
+
+class Operation:
+    def __init__(self, left, operator, right):
+        self.left = left
+        self.operator = operator
+        self.right = right
+

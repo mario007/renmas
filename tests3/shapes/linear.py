@@ -34,8 +34,8 @@ linear.isect_asm([runtime], 'ray_scene_intersection')
 
 code = "#DATA \n"
 code += Ray.asm_struct() + HitPoint.asm_struct() + """
-    ray ray1
-    hitpoint hp1
+    Ray ray1
+    Hitpoint hp1
     uint32 ret
 
     #CODE

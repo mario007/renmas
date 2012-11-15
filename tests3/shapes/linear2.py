@@ -39,6 +39,17 @@ def create_triangle3(v0, v1, v2, n0, n1, n2):
     t = Triangle(p0, p1, p2, n0=n0, n1=n1, n2=n2)
     return t
 
+def create_triangle4(v0, v1, v2, uv0, uv1, uv2):
+    p0 = Vector3(v0[0], v0[1], v0[2])
+    p1 = Vector3(v1[0], v1[1], v1[2])
+    p2 = Vector3(v2[0], v2[1], v2[2])
+    tu0, tv0 = uv0
+    tu1, tv1 = uv1
+    tu2, tv2 = uv2
+    t = Triangle(p0, p1, p2, tu0=tu0,
+            tv0=tv0, tu1=tu1, tv1=tv1, tu2=tu2, tv2=tv2)
+    return t
+
 def populate_tb_vb(mgr, tb, vb):
     counter = 0
     name = "t" + str(id(tb))
@@ -64,8 +75,16 @@ def populate_tb_vnb(mgr, tb, vb):
         counter += 1
 
 def populate_tb_uv(mgr, tb, vb):
+    counter = 0
+    name = "t" + str(id(tb))
     for i in range(tb.size()):
-        pass
+        idx1, idx2, idx3 = tb.get(i)
+        v0, uv0 = vb.get(idx1)
+        v1, uv1 = vb.get(idx2)
+        v2, uv2 = vb.get(idx3)
+        t = create_triangle4(v0, v1, v2, uv0, uv1, uv2)
+        mgr.add(name+str(counter), t)
+        counter += 1
 
 def populate_tb_nuv(mgr, tb, vb):
     counter = 0
@@ -99,7 +118,8 @@ def populate_mgr(mgr, fname):
         populate_with_triangles(mgr, m)
 
 #fname = "F://ray_tracing_scenes/cube/cube.obj"
-fname = "F://ray_tracing_scenes/dragon/dragon.obj"
+#fname = "F://ray_tracing_scenes/dragon/dragon.obj"
+fname = "F://ray_tracing_scenes/head/head.obj"
 mgr = ShapeManager()
 populate_mgr(mgr, fname)
 
@@ -109,8 +129,8 @@ linear.isect_asm([runtime], 'ray_scene_intersection')
 
 code = "#DATA \n"
 code += Ray.asm_struct() + HitPoint.asm_struct() + """
-    ray ray1
-    hitpoint hp1
+    Ray ray1
+    Hitpoint hp1
     uint32 ret
 
     #CODE

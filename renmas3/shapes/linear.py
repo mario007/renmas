@@ -18,7 +18,7 @@ class LinearIsect(Intersector):
         min_dist = 99999999.0
         hit_point = False 
         for shape in self.mgr:
-            hit = shape.isect(ray)
+            hit = shape.isect(ray, min_dist)
             if hit is False:
                 continue
             if hit.t < min_dist:
@@ -30,7 +30,7 @@ class LinearIsect(Intersector):
         hit_t = False 
         min_dist = 99999999.0
         for shape in self.mgr:
-            t = shape.isect_b(ray)
+            t = shape.isect_b(ray, min_dist)
             if t is False:
                 continue
             if t < min_dist:
@@ -132,7 +132,7 @@ class LinearIsect(Intersector):
         if not visibility:
             ASM += """
             mov dword [hp], ebx
-            mov dword [ebx + hitpoint.t], edx
+            mov dword [ebx + Hitpoint.t], edx
             """
         code = ""
         for shp_type in self.mgr.shape_types():
@@ -224,7 +224,7 @@ class LinearIsect(Intersector):
         if not visibility:
             ASM += """
                 mov eax, dword [esp + 8]
-                mov ebx, dword [eax + hitpoint.t]
+                mov ebx, dword [eax + Hitpoint.t]
 
                 mov edx, dword [esp + 16] ;populate new minimum distance
                 mov dword [edx], ebx

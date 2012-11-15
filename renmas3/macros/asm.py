@@ -8,6 +8,8 @@ from .macro_if import macro_if
 from .macro_dotproduct import dot_product
 from .normalization import normalization
 from .cross_product import cross_product
+from .consts import generate_one
+from .stack import push, pop
 
 def create_assembler():
     assembler = Tdasm()
@@ -20,5 +22,8 @@ def create_assembler():
     assembler.register_macro('dot', dot_product)
     assembler.register_macro('normalization', normalization)
     assembler.register_macro('cross', cross_product)
+    assembler.register_macro('generate_one', generate_one)
+    assembler.register_macro('push', push)
+    assembler.register_macro('pop', pop)
     return assembler
 

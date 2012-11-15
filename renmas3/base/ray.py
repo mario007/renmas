@@ -13,9 +13,15 @@ class Ray():
     @classmethod
     def asm_struct(cls):
         ray = """
-            struct ray
+            struct Ray
             float dir[4]
             float origin[4]
             end struct
         """
         return ray
+
+    @classmethod
+    def populate_ds(cls, ds, ray, name):
+        ds[name + ".origin"] = ray.origin.to_ds() 
+        ds[name + ".dir"] = ray.dir.to_ds()
+

@@ -20,71 +20,48 @@ ray = Ray(origin, direction)
 t = Triangle(v0, v1, v2, n0=n0, n1=n1, n2=n2, tu0=0.1, tv0=0.6, tu1=0.2,
         tv1=0.5, tu2=0.45, tv2=0.2)
 
-hit = t.isect(ray)
+min_dist = 1.93
+hit = t.isect(ray, min_dist)
 
 runtime1 = Runtime()
 runtimes = [runtime1]
 
 asm = create_assembler()
-Triangle.isect_asm(runtimes, "ray_triangle_intersection", asm)
+Triangle.isect_asm(runtimes, "ray_triangle_intersection")
 
 code = """
     #DATA
 """
 code += Ray.asm_struct() + Triangle.asm_struct() + HitPoint.asm_struct() + """
-    ray ray1
-    triangle tri1
-    hitpoint hp1
+    Ray ray1
+    Triangle tri1
+    Hitpoint hp1
     uint32 ret
+    float min_dist = 1.92
+    float _xmm0
 
     #CODE
     macro mov eax, ray1
     macro mov ebx, tri1
+    macro mov ecx, min_dist
     macro mov edx, hp1
     call ray_triangle_intersection 
     mov dword [ret], eax
+    macro eq32 _xmm0 = xmm0 {xmm0}
     #END
 """
 mc = asm.assemble(code)
 ds = runtime1.load("test", mc)
 
-def ray_ds(ds, ray, name):
-    ds[name+ ".origin"] = ray.origin.to_ds() 
-    ds[name+ ".dir"] = ray.dir.to_ds()
-
-def triangle_ds(ds, triangle, name):
-    ds[name+ ".v0"] = triangle.v0.to_ds() 
-    ds[name+ ".v1"] = triangle.v1.to_ds()
-    ds[name+ ".v2"] = triangle.v2.to_ds()
-    if triangle.has_normals:
-        ds[name+ ".n0"] = triangle.n0.to_ds()
-        ds[name+ ".n1"] = triangle.n1.to_ds()
-        ds[name+ ".n2"] = triangle.n2.to_ds()
-        ds[name+ ".has_normals"] = 1
-    else:
-        ds[name+ ".normal"] = triangle.normal.to_ds()
-        ds[name+ ".has_normals"] = 0
-
-    if triangle.has_uv:
-        ds[name+ ".has_uv"] = 1
-        ds[name+ ".tu0"] = triangle.tu0
-        ds[name+ ".tu1"] = triangle.tu1
-        ds[name+ ".tu2"] = triangle.tu2
-        ds[name+ ".tv0"] = triangle.tv0
-        ds[name+ ".tv1"] = triangle.tv1
-        ds[name+ ".tv2"] = triangle.tv2
-    else:
-        ds[name+ ".has_uv"] = 0
-
-
-ray_ds(ds, ray, 'ray1')
-triangle_ds(ds, t, "tri1")
+Ray.populate_ds(ds, ray, 'ray1')
+Triangle.populate_ds(ds, t, 'tri1')
+ds['min_dist'] = min_dist
 
 runtime1.run("test")
 
 if hit:
     print('hit=true ', 'ds["ret"]=', ds['ret'])
-    print(hit.t, ds['hp1.t'])
+    print(hit.t, ds['hp1.t'], ds['_xmm0'])
     print(hit.hit)
     print(ds['hp1.hit'])
     print('----------------------------')
@@ -95,4 +72,6 @@ if hit:
     print('----------------------------')
     print(hit.u, hit.v)
     print(ds['hp1.u'], ds['hp1.v'])
+else:
+    print('hit=flase', 'ds["ret"]=', ds['ret'])
 

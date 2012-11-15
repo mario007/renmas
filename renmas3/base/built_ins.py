@@ -4,9 +4,7 @@ import renmas3.switch as proc
 from .arg import Integer, Float, Vec3, Struct, Attribute
 
 from .instr import load_struct_ptr
-from .instr import load_int_into_reg, load_float_into_reg, load_vec3_into_reg
-from .instr import store_int_from_reg, store_float_from_reg, store_vec3_from_reg
-from .instr import store_const_into_mem, convert_float_to_int, convert_int_to_float
+from .instr import convert_float_to_int, convert_int_to_float
 from .instr import load_operand, store_operand, negate_operand
 
 from .cgen import register_function
@@ -85,7 +83,7 @@ def _get_rgb(cgen, args):
 
     src = Attribute(arg1.name, 'pitch')
     reg3 = cgen.register(typ='general')
-    code3 = load_int_into_reg(cgen, reg3, src)
+    code3 = load_operand(cgen, src, dest_reg=reg3)
     code4 = "imul %s, %s\n" % (reg2, reg3)
     code5 = "imul %s, %s, 16\n" % (reg1, reg1) 
     code6 = "add %s, %s\n" % (reg2, reg1)
@@ -133,7 +131,7 @@ def _set_rgb(cgen, args):
 
     src = Attribute(arg1.name, 'pitch')
     reg3 = cgen.register(typ='general')
-    code3 = load_int_into_reg(cgen, reg3, src)
+    code3 = load_operand(cgen, src, dest_reg=reg3)
     code4 = "imul %s, %s\n" % (reg2, reg3)
     code5 = "imul %s, %s, 16\n" % (reg1, reg1) 
     code6 = "add %s, %s\n" % (reg2, reg1)
@@ -190,6 +188,11 @@ def _load_to_xmm(cgen, src, xmm):
 def _pow(cgen, args):
     if len(args) != 2:
         raise ValueError("Wrong number of arguments in pow fucntion", args)
+
+    #cgen.clear_regs()
+    #code, reg, typ = load(cgen, args[0], 'xmm0')
+    #code2, reg2, typ2 = load(cgen, args[1], 'xmm1')
+
 
     cgen.clear_regs()
     code1, typ1 = _load_to_xmm(cgen, args[0], 'xmm0')

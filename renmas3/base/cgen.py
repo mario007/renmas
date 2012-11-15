@@ -1,12 +1,13 @@
 import platform
 import inspect
+import renmas3.switch as proc
+
 from .arg import create_argument, Struct, Integer, Float, Vec3, UserType, Attribute
-from .arg import Integer, Vec3I, Pointer, StructPtr
+from .arg import Integer, Vec3I, Pointer, StructPtr, Name, Const, Subscript
 from .arg import Callable, create_user_type
 from .shader import Shader
 from .vector3 import Vector3
-from .instr import load_int_into_reg, load_float_into_reg, load_vec3_into_reg
-from .instr import load_struct_ptr
+from .instr import load_struct_ptr, load_operand
 
 _user_types = {}
 _built_in_functions = {}
@@ -57,59 +58,6 @@ def _copy_from_regs(args):
             raise ValueError('Unknown argument', a)
     return code
 
-def _load_and_check_int(cgen, reg, src, ptr_reg):
-    if isinstance(src, int):
-        code = "mov %s, %i\n" % (reg, src)
-    elif isinstance(src, str) or isinstance(src, Attribute):
-        arg = cgen.get_arg(src)
-        if not isinstance(arg, Integer):
-            raise ValueError("Int argument is expected!", arg, src)
-        code = load_int_into_reg(cgen, reg, src, ptr_reg)
-    else:
-        raise ValueError("Unsuported argument to shader or function", src)
-    return code
-
-def _load_and_check_float(cgen, reg, src, ptr_reg, reg2):
-    if isinstance(src, int) or isinstance(src, float):
-        src = float(src)
-        arg = cgen.create_const(src)
-        code = load_float_into_reg(cgen, reg, arg.name, ptr_reg)
-    elif isinstance(src, str) or isinstance(src, Attribute):
-        arg = cgen.get_arg(src)
-        if isinstance(arg, Integer):
-            code = load_int_into_reg(cgen, reg2, src, ptr_reg)
-            code += convert_int_to_float(reg2, reg)
-        elif isinstance(arg, Float):
-            code = load_float_into_reg(cgen, reg, src, ptr_reg)
-        else:
-            raise ValueError('Float argument is expected.')
-        pass
-    else:
-        raise ValueError("Unsuported argument to shader or function", src)
-    return code
-
-def _load_and_check_vec3(cgen, reg, src, ptr_reg):
-    if isinstance(src, str) or isinstance(src, Attribute):
-        arg = cgen.get_arg(src)
-        if isinstance(arg, Vec3):
-            code = load_vec3_into_reg(cgen, reg, src, ptr_reg)
-        else:
-            raise ValueError("Vector3 argument is expected.", src)
-    else:
-        raise ValueError("Unsuported argument to shader or function", src)
-    return code
-
-def _load_and_check_struct(cgen, reg, src):
-    if isinstance(src, str) or isinstance(src, Attribute):
-        arg = cgen.get_arg(src)
-        if isinstance(arg, Struct):
-            code, dummy, dummy = load_struct_ptr(cgen, src, reg)
-        else:
-            raise ValueError("User type argument is expected.", src)
-    else:
-        raise ValueError("Unsuported argument to shader or function", src)
-    return code
-
 def _copy_to_regs(cgen, operands, input_args):
     if len(operands) != len(input_args):
         raise ValueError("Argument length mismatch", operands, input_args)
@@ -117,29 +65,36 @@ def _copy_to_regs(cgen, operands, input_args):
     bits = platform.architecture()[0]
     xmm = ['xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
     general = ['esi', 'edx', 'ecx', 'ebx', 'eax']
-    if bits == '64bit':
-        ptr_reg = 'rbp'
-    else:
-        ptr_reg = 'ebp'
+    ptr_reg = 'rbp' if bits == '64bit' else 'ebp'
     reg2 = 'edi'
     tmp_xmm = 'xmm7'
+    cgen.register(reg=ptr_reg)
+    cgen.register(reg=reg2)
 
     code = ''
     for operand, arg in zip(operands, input_args):
         if isinstance(arg, Integer):
             reg = general.pop()
-            code += _load_and_check_int(cgen, reg, operand, ptr_reg)
-        elif isinstance(arg, Float):
+            cgen.register(reg=reg)
+            co, reg, typ = load_operand(cgen, operand, dest_reg=reg, ptr_reg=ptr_reg)
+            code += co
+            if typ != Integer:
+                raise ValueError("Type mismatch when passing parameter to function", arg, typ)
+        elif isinstance(arg, Float) or isinstance(arg, Vec3):
             reg = xmm.pop()
-            code += _load_and_check_float(cgen, reg, operand, ptr_reg, reg2)
-        elif isinstance(arg, Vec3):
-            reg = xmm.pop()
-            code += _load_and_check_vec3(cgen, reg, operand, ptr_reg)
+            co, reg, typ = load_operand(cgen, operand, dest_reg=reg, ptr_reg=ptr_reg)
+            code += co
+            if typ != type(arg):
+                raise ValueError("Type mismatch when passing parameter to function", arg, typ)
         elif isinstance(arg, StructPtr):
             reg = general.pop()
             if bits == '64bit':
                 reg = 'r' + reg[1:]
-            code += _load_and_check_struct(cgen, reg, operand)
+            arg = cgen.get_arg(operand)
+            if isinstance(arg, Struct):
+                code, dummy, dummy = load_struct_ptr(cgen, operand, reg)
+            else:
+                raise ValueError("User type argument is expected.", src)
         else:
             raise ValueError("Unsuported argument type!", operand, arg)
     return code
@@ -156,8 +111,7 @@ class CodeGenerator:
         self._constants = {}
         self._counter = 0
         self._asm_functions = []
-        self._used_temps = {}
-        self._free_temps = {}
+        self._saved_regs = set()
 
     def is_user_type(self, obj):
         if isinstance(obj, str):
@@ -183,6 +137,7 @@ class CodeGenerator:
         if shader is not None:
             self.clear_regs()
             code = _copy_to_regs(self, obj.args, shader.input_args)
+            self.clear_regs()
             code += "call %s\n" % obj.name
             typ = shader.ret_type
             #TODO cover all possible return types
@@ -234,6 +189,9 @@ class CodeGenerator:
         for arg in self._constants.values():
             data += arg.generate_data()
 
+        for ds_reg in self._saved_regs:
+            data += ds_reg
+
         return data
 
     def generate_code(self):
@@ -265,28 +223,6 @@ class CodeGenerator:
                 functions=self._asm_functions)
         return shader
 
-    def create_temp(self, typ):
-        if typ in self._free_temps:
-            if self._free_temps[typ]:
-                item = self._free_temps[typ].pop()
-                self._used_temps[typ].append(item)
-                return item
-
-        name = self._generate_name('temp')
-        arg = create_argument(name, typ=typ)
-        if typ not in self._used_temps:
-            self._used_temps[typ] = [arg]
-        else:
-            self._used_temps[typ].append(arg)
-        return arg
-
-    def release_temp(self, temp):
-        if type(temp) not in self._used_temps:
-            raise ValueError("Temp doesn't exist", temp)
-        self._used_temps[type(temp)].remove(temp)
-        self._free_temps[type(temp)].append(temp)
-
-
     #create const it it's doesnt exist
     def create_const(self, value):
         if value in self._constants:
@@ -316,6 +252,8 @@ class CodeGenerator:
         if isinstance(src, Attribute):
             name = src.name
             path = src.path
+        elif isinstance(src, Name):
+            name = src.name 
         else:
             name = src
 
@@ -435,5 +373,56 @@ class CodeGenerator:
         self._general64 = ['rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax']
 
     def add_asm_function(self, label, code):
+        #TODO --- code can also be callable
         self._asm_functions.append((label, code))
 
+    def save_regs(self, regs):
+        code = ''
+        for reg in regs:
+            code += self._save_reg(reg)
+        return code
+
+    def load_regs(self, regs):
+        code = ''
+        for reg in regs:
+            code += self._load_reg(reg)
+        return code
+
+    def _save_reg(self, reg):
+        #TODO make class that hold all regs and implement many usufel functions like is_xmm, is general32, etc...
+        xmms = ('xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0')
+        general32 = ('ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax')
+        general64 = ('rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax')
+        name = '%s_%i' % (reg, id(self))
+        if reg in xmms:
+            ds_reg = "float %s[4]\n" % name
+            if proc.AVX:
+                code = "vmovaps oword [%s], %s\n" % (name, reg)
+            else:
+                code = "movaps oword [%s], %s\n" % (name, reg)
+        elif reg in general32:
+            ds_reg = "uint32 %s\n" % name
+            code = "mov dword [%s], %s\n" % (name, reg)
+        elif reg in general64:
+            ds_reg = "uint64 %s\n" % name
+            code = "mov qword [%s], %s\n" % (name, reg)
+        else:
+            raise ValueError("Unknown register. Cannot be saved.", reg)
+        self._saved_regs.add(ds_reg)
+        return code
+
+    def _load_reg(self, reg):
+        xmms = ('xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0')
+        general32 = ('ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax')
+        general64 = ('rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax')
+        name = '%s_%i' % (reg, id(self))
+        if reg in xmms:
+            if proc.AVX:
+                code = "vmovaps %s, oword [%s]\n" % (reg, name) 
+            else:
+                code = "movaps %s, oword [%s]\n" % (reg, name)
+        elif reg in general32:
+            code = "mov %s, dword [%s]\n" % (reg, name)
+        elif reg in general64:
+            code = "mov %s, qword [%s]\n" % (reg, name)
+        return code

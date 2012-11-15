@@ -1,6 +1,15 @@
 import struct
 import platform
-from .arg import  Integer, Float, Vec3, Struct, Attribute, StructPtr
+import renmas3.switch as proc
+from .arg import  Integer, Float, Vec3, Struct, Attribute, StructPtr, Const, Name, Subscript
+
+def is_xmm(reg):
+    return reg in ('xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0')
+
+def valid_xmm(reg):
+    xmm = ('xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0')
+    if reg not in xmm:
+        raise ValueError("xmm register is expected", reg)
 
 def valid_reg32(reg):
     fs = frozenset(['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax'])
@@ -43,19 +52,6 @@ def load_struct_ptr(cgen, attr, reg=None):
         path = arg.typ.typ + "." + path
     return (code, reg, path)
 
-def load_int_into_reg(cgen, reg, src, op_reg=None):
-    if isinstance(src, str):
-        code = "mov %s, dword [%s] \n" % (reg, src)
-    elif isinstance(src, int):
-        code = "mov %s, %i \n" % (reg, src)
-    elif isinstance(src, Attribute):
-        code, reg2, path = load_struct_ptr(cgen, src, op_reg)
-        code += "mov %s, dword [%s + %s]\n" % (reg, reg2, path)
-        cgen.release_reg(reg2)
-    else:
-        raise ValueError("Unknown source of int", src)
-    return code
-
 def store_int_from_reg(cgen, reg, dest, op_reg=None):
     if isinstance(dest, str):
         code = "mov dword [%s], %s \n" % (dest, reg)
@@ -67,20 +63,6 @@ def store_int_from_reg(cgen, reg, dest, op_reg=None):
         raise ValueError("Unknown destination", dest)
     return code
     
-def load_float_into_reg(cgen, reg, src, op_reg=None): #reg must be xmm
-    if isinstance(src, str):
-        code = "movss %s, dword [%s] \n" % (reg, src)
-    elif isinstance(src, float):
-        #TODO create const in cgen
-        raise ValueError("Not implemented yet")
-    elif isinstance(src, Attribute):
-        code, reg2, path = load_struct_ptr(cgen, src, op_reg)
-        code += "movss %s, dword [%s + %s]\n" % (reg, reg2, path)
-        cgen.release_reg(reg2)
-    else:
-        raise ValueError("Unknown source", src)
-    return code
-
 def store_float_from_reg(cgen, reg, dest, op_reg=None):
     if isinstance(dest, str):
         code = "movss dword [%s], %s \n" % (dest, reg)
@@ -90,17 +72,6 @@ def store_float_from_reg(cgen, reg, dest, op_reg=None):
         cgen.release_reg(reg2)
     else:
         raise ValueError("Unknown destination", dest)
-    return code
-
-def load_vec3_into_reg(cgen, reg, src, op_reg=None): #reg must be xmm
-    if isinstance(src, str):
-        code = "movaps %s, oword [%s] \n" % (reg, src)
-    elif isinstance(src, Attribute):
-        code, reg2, path = load_struct_ptr(cgen, src, op_reg)
-        code += "movaps %s, oword [%s + %s]\n" % (reg, reg2, path)
-        cgen.release_reg(reg2)
-    else:
-        raise ValueError("Unknown source", src)
     return code
 
 def store_vec3_from_reg(cgen, reg, dest, op_reg=None):
@@ -114,8 +85,8 @@ def store_vec3_from_reg(cgen, reg, dest, op_reg=None):
         raise ValueError("Unknown destination")
     return code
 
-def convert_int_to_float(reg, to_reg):
-    return "cvtsi2ss %s, %s \n" % (to_reg, reg)
+def convert_int_to_float(reg, xmm):
+    return "cvtsi2ss %s, %s \n" % (xmm, reg)
 
 def convert_float_to_int(reg, to_reg):
     return "cvttss2si %s, %s \n" % (to_reg, reg)
@@ -158,41 +129,119 @@ def store_const_into_mem(cgen, dest, const, offset=None):
         raise ValueError("Unknown destination")
     return code
 
-def load_argument(cgen, arg, op):
+def load_const(cgen, const, dest_reg=None):
+    if isinstance(const, int):
+        if dest_reg is not None and is_xmm(dest_reg):
+            tmp = cgen.register(typ='general')
+            code = "mov %s, %i\n" % (tmp, const)
+            conversion = convert_int_to_float(tmp, dest_reg)
+            cgen.release_reg(tmp)
+            return code + conversion, dest_reg, Float
+
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='general')
+        code = "mov %s, %i\n" % (dest_reg, const)
+        return code, dest_reg, Integer
+    elif isinstance(const, float):
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='xmm')
+        arg = cgen.create_const(const)
+        if proc.AVX:
+            code = "vmovss %s, dword [%s] \n" % (dest_reg, arg.name)
+        else:
+            code = "movss %s, dword [%s] \n" % (dest_reg, arg.name)
+        return code, dest_reg, Float 
+    else:
+        raise ValueError("Not yet suported constant", op.const)
+
+def load_name(cgen, op, dest_reg=None):
+    arg = cgen.get_arg(op)
     if isinstance(arg, Integer):
-        reg = cgen.register(typ='general')
-        code = load_int_into_reg(cgen, reg, op)
+        if dest_reg is not None and is_xmm(dest_reg):
+            tmp = cgen.register(typ='general')
+            code = "mov %s, dword [%s] \n" % (tmp, arg.name)
+            conversion = convert_int_to_float(tmp, dest_reg)
+            cgen.release_reg(tmp)
+            return code + conversion, dest_reg, Float
+
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='general')
+        code = "mov %s, dword [%s] \n" % (dest_reg, arg.name)
+        return code, dest_reg, Integer 
+    elif isinstance(arg, Float):
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='xmm')
+        valid_xmm(dest_reg)
+        if proc.AVX:
+            code = "vmovss %s, dword [%s] \n" % (dest_reg, arg.name)
+        else:
+            code = "movss %s, dword [%s] \n" % (dest_reg, arg.name)
+        return code, dest_reg, Float 
+    elif isinstance(arg, Vec3):
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='xmm')
+        valid_xmm(dest_reg)
+        if proc.AVX:
+            code = "vmovaps %s, oword [%s] \n" % (dest_reg, arg.name)
+        else:
+            code = "movaps %s, oword [%s] \n" % (dest_reg, arg.name)
+        return code, dest_reg, Vec3 
+    else:
+        raise ValueError("Unknown argument or argument doesn't exist", arg)
+    
+def load_attribute(cgen, op, dest_reg=None, ptr_reg=None):
+    arg = cgen.get_arg(op)
+    code, ptr_reg2, path = load_struct_ptr(cgen, op, ptr_reg)
+    if isinstance(arg, Integer):
+        if dest_reg is not None and is_xmm(dest_reg):
+            tmp = cgen.register(typ='general')
+            code += "mov %s, dword [%s + %s]\n" % (tmp, ptr_reg2, path)
+            conversion = convert_int_to_float(tmp, dest_reg)
+            cgen.release_reg(tmp)
+            return code + conversion, dest_reg, Float
+
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='general')
+        code += "mov %s, dword [%s + %s]\n" % (dest_reg, ptr_reg2, path)
         typ = Integer
     elif isinstance(arg, Float):
-        reg = cgen.register(typ='xmm')
-        code = load_float_into_reg(cgen, reg, op)
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='xmm')
+        valid_xmm(dest_reg)
+        if proc.AVX:
+            code += "vmovss %s, dword [%s + %s]\n" % (dest_reg, ptr_reg2, path)
+        else:
+            code += "movss %s, dword [%s + %s]\n" % (dest_reg, ptr_reg2, path)
         typ = Float
     elif isinstance(arg, Vec3):
-        reg = cgen.register(typ='xmm')
-        code = load_vec3_into_reg(cgen, reg, op)
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='xmm')
+        valid_xmm(dest_reg)
+        if proc.AVX:
+            code += "vmovaps %s, oword [%s + %s]\n" % (dest_reg, ptr_reg2, path)
+        else:
+            code += "movaps %s, oword [%s + %s]\n" % (dest_reg, ptr_reg2, path)
         typ = Vec3
     else:
-        raise ValueError("Unknown argument", arg)
-    return (code, reg, typ)
+        raise ValueError("Unknown argument or argument doesn't exist", arg)
+    if ptr_reg is None:
+        cgen.release_reg(ptr_reg2)
+    return code, dest_reg, typ
 
-def load_operand(cgen, op):
-    if isinstance(op, int):
-        reg = cgen.register(typ='general')
-        code = "mov %s, %i\n" % (reg, op)
-        typ = Integer 
-    elif isinstance(op, float):
-        con_arg = cgen.create_const(op)
-        reg = cgen.register(typ='xmm')
-        code = load_float_into_reg(cgen, reg, con_arg.name)
-        typ = Float
-    elif isinstance(op, str) or isinstance(op, Attribute):
-        arg = cgen.get_arg(op)
-        if arg is None:
-            raise ValueError("Operand doesn't exist", op)
-        code, reg, typ = load_argument(cgen, arg, op)
+def load_subscript(cgen, op, dest_reg=None, ptr_reg=None):
+    raise ValueError("Not yet implemented loading of subscript")
+
+def load_operand(cgen, op, dest_reg=None, ptr_reg=None):
+    if isinstance(op, Const):
+        return load_const(cgen, op.const, dest_reg)
+    elif isinstance(op, Name):
+        return load_name(cgen, op, dest_reg)
+    elif isinstance(op, Attribute):
+        return load_attribute(cgen, op, dest_reg, ptr_reg)
+    elif isinstance(op, Subscript):
+        return load_subscript(cgen, op, dest_reg, ptr_reg)
     else:
-        raise ValueError("Unknown operand")
-    return (code, reg, typ)
+        raise ValueError("Unsuported operand type", op)
 
 def store_operand(cgen, dest, reg, typ):
     dst_arg = cgen.create_arg(dest, typ=typ)

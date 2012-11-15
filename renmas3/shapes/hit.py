@@ -12,7 +12,7 @@ class HitPoint():
     @classmethod
     def asm_struct(cls):
         hitpoint = """
-            struct hitpoint
+            struct Hitpoint
             float hit[4]
             float normal[4]
             float t

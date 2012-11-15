@@ -1,14 +1,12 @@
 import struct
 import platform
-from .arg import Integer, Float, Vec3, Struct, Attribute
-from .arg import Operands, Callable
+from .arg import Integer, Float, Vec3, Struct, Attribute, Operation
+from .arg import Operands, Callable, Name, Subscript, Const, EmptyOperand
 from .cgen import register_function
 
-from .instr import load_struct_ptr
-from .instr import load_int_into_reg, load_float_into_reg, load_vec3_into_reg
-from .instr import store_int_from_reg, store_float_from_reg, store_vec3_from_reg
 from .instr import store_const_into_mem, convert_float_to_int, convert_int_to_float
 from .instr import load_operand, store_operand, negate_operand
+import renmas3.switch as proc
 
 class Statement:
     def __init__(self):
@@ -16,26 +14,6 @@ class Statement:
     
     def asm_code(self):
         raise NotImplementedError()
-
-def is_num(obj):
-    if isinstance(obj, int) or isinstance(obj, float):
-        return True
-    return False
-
-def is_const(obj):
-    if isinstance(obj, int) or isinstance(obj, float):
-        return True
-    if isinstance(obj, tuple) or isinstance(obj, list):
-        for n in obj:
-            if not is_num(n):
-                return False
-        return True
-    return False
-
-def is_identifier(obj):
-    if isinstance(obj, str) or isinstance(obj, Attribute):
-        return True
-    return False
 
 def assign_const_to_dest(cgen, dest, const):
     arg = cgen.create_arg(dest, const)
@@ -55,11 +33,6 @@ def assign_const_to_dest(cgen, dest, const):
         raise ValueError('Unsuported constant', arg, const)
     return code
 
-def assign_identifier(cgen, dest, src, unary=None):
-    code1, reg, typ = load_operand(cgen, src)
-    code2, reg = negate_operand(cgen, unary, reg, typ)
-    code3 = store_operand(cgen, dest, reg, typ)
-    return code1 + code2 + code3
 
 def perform_operation_ints(cgen, reg1, reg2, operator):
     if operator == '+':
@@ -215,83 +188,9 @@ def perform_operation(cgen, reg1, typ1, operator, reg2, typ2):
     else:
         raise ValueError('Unknown combination of operands', typ1, typ2)
 
-def gen_arithmetic_operation(cgen, op1, operator, op2):
-    if isinstance(op1, Callable):
-        if cgen.is_user_type(op1):
-            return ValueError("User type illegal expression in arithmetic")
-        else:
-            if cgen.is_inline(op1):
-                code1, reg1, typ1 = cgen.generate_callable(op1)
-            else: #TODO save temp variable
-                code1, reg1, typ1 = cgen.generate_callable(op1)
-    else:
-        code1, reg1, typ1 = load_operand(cgen, op1)
-
-    if isinstance(op2, Callable):
-        raise ValueError("Arithmetic callable not yet implemented")
-    else:
-        code2, reg2, typ2 = load_operand(cgen, op2)
-
-    code3, reg, typ3 = perform_operation(cgen, reg1, typ1, operator, reg2, typ2)
-    code = code1 + code2 + code3
-    return (code, reg, typ3)
-
-def gen_arithmetic_operation1(cgen, op1, operator, reg, typ):
-    code1, reg1, typ1 = load_operand(cgen, op1)
-    code2, reg2, typ2 = perform_operation(cgen, reg1, typ1, operator, reg, typ)
-    code = code1 + code2
-    return (code, reg2, typ2)
-
-def gen_arithmetic_operation2(cgen, reg, typ, operator, op1):
-    code1, reg1, typ1 = load_operand(cgen, op1)
-    code2, reg2, typ2 = perform_operation(cgen, reg, typ, operator, reg1, typ1)
-    code = code1 + code2
-    return (code, reg2, typ2)
-
 def is_operator(op):
     ops = ('+', '-', '/', '%', '*')
     return op in ops
-
-
-def generate_arithmetic(cgen, src): #TODO --draw automat diagram then refacotr this
-    operands = src.operands
-    op1, operator, op2 = operands[0]
-    code, reg, typ = gen_arithmetic_operation(cgen, op1, operator, op2)
-    for comp in operands[1:]:
-        if len(comp) == 1:
-            operator = comp 
-            raise ValueError("Not yet implemented")
-        elif len(comp) == 2:
-            if is_operator(comp[0]): # ('-', 'p.m')
-                if isinstance(comp[1], Callable):
-                    raise ValueError("Not yet implemented")
-                code2, reg, typ = gen_arithmetic_operation2(cgen, reg, typ, comp[0], comp[1])
-            else: # ('p.m', '-')
-                if isinstance(comp[0], Callable):
-                    raise ValueError("Not yet implemented")
-                code2, reg, typ = gen_arithmetic_operation1(cgen, comp[0], comp[1], reg, typ)
-            code += code2
-        elif len(comp) == 3:
-            op1, operator, op2 = comp 
-            raise ValueError("Not yet implemented")
-        else:
-            raise ValueError("Unsuported number arguments in expression")
-    return code, reg, typ
-
-class StmExpression(Statement):
-    def __init__(self, cgen, src):
-        self.cgen = cgen
-        self.src = src
-
-    def asm_code(self):
-        if isinstance(self.src, Callable):
-            if self.cgen.is_user_type(self.src):
-                return ValueError("User type illegal expression")
-            else:
-                code, reg, typ = self.cgen.generate_callable(self.src)
-                return code
-        else:
-            return ValueError("Wrong expression")
 
 def unary_number(n, unary):
     if unary is None or unary != '-':
@@ -303,66 +202,187 @@ def unary_number(n, unary):
     else:
         raise ValueError("Unknown unary number", n, unary)
 
+def _filter_regs(xmms, general32, general64, ocupied_regs):
+    for r in ocupied_regs:
+        if r in xmms:
+            xmms.remove(r)
+        if r in general32:
+            general32.remove(r)
+        if r in general64:
+            general64.remove(r)
+
+def _move_to_free_reg(reg, ocupied_regs):
+    if ocupied_regs is None:
+        return '', None
+    if reg not in ocupied_regs:
+        return '', None
+    xmms = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
+    general32 = ['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
+    general64 = ['rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax']
+    if reg in xmms:
+        _filter_regs(xmms, general32, general64, ocupied_regs)
+        free_reg = xmms.pop()
+        if proc.AVX:
+            code = "vmovaps %s, %s\n" % (free_reg, reg)
+        else:
+            code = "movaps %s, %s\n" % (free_reg, reg)
+    elif reg in general32:
+        _filter_regs(xmms, general32, general64, ocupied_regs)
+        free_reg = general32.pop()
+        code = "mov %s, %s\n" % (free_reg, reg)
+    elif reg in general64:
+        _filter_regs(xmms, general32, general64, ocupied_regs)
+        free_reg = general64.pop()
+        code = "mov %s, %s\n" % (free_reg, reg)
+    else:
+        raise ValueError("Unknown register. Cannot be saved.", reg)
+    return code, free_reg 
+
+def process_callable(cgen, op, ocupied_regs=None):
+    if not isinstance(op, Callable):
+        raise ValueError("Operand is not callable", op)
+    if cgen.is_inline(op):
+        code, reg, typ = cgen.generate_callable(op)
+        return code, reg, typ
+    else:
+        code = ''
+        if ocupied_regs is not None:
+            code += cgen.save_regs(ocupied_regs)
+        co, reg, typ = cgen.generate_callable(op)
+        code += co
+        co, reg2 = _move_to_free_reg(reg, ocupied_regs)
+        code += co
+        if ocupied_regs is not None:
+            code += cgen.load_regs(ocupied_regs)
+            for r in ocupied_regs:
+                if r != reg:
+                    cgen.register(reg=r)
+        if reg2 is not None:
+            cgen.register(reg=reg2)
+            return code, reg2, typ
+        else:
+            return code, reg, typ
+
+def process_operand(cgen, op, ocupied_regs=None):
+    if isinstance(op, Callable):
+        return process_callable(cgen, op, ocupied_regs)
+    else:
+        code, reg, typ = load_operand(cgen, op)
+        return (code, reg, typ)
+
+def process_operation(cgen, operation, stack=None):
+    def release_free_reg(dest, reg1, reg2):
+        if dest != reg1:
+            cgen.release_reg(reg1)
+        if dest != reg2:
+            cgen.release_reg(reg2)
+
+    left = operation.left
+    right = operation.right
+    if not left is EmptyOperand and not right is EmptyOperand:
+        code, reg, typ = process_operand(cgen, operation.left)
+        code2, reg2, typ2 = process_operand(cgen, operation.right, ocupied_regs=[reg])
+        code3, reg3, typ3 = perform_operation(cgen, reg, typ, operation.operator, reg2, typ2)
+        release_free_reg(reg3, reg, reg2)
+        stack.append((reg3, typ3))
+        return code+code2+code3, reg3, typ3
+    elif left is EmptyOperand and right is EmptyOperand:
+        reg2, typ2 = stack.pop()
+        reg, typ = stack.pop()
+        code, reg3, typ3 = perform_operation(cgen, reg, typ, operation.operator, reg2, typ2)
+        release_free_reg(reg3, reg, reg2)
+        return code, reg3, typ3
+    elif left is EmptyOperand and not right is EmptyOperand:
+        ocupied = [r for r, t in stack]
+        reg, typ = stack.pop()
+        code2, reg2, typ2 = process_operand(cgen, operation.right, ocupied_regs=[ocupied])
+        code3, reg3, typ3 = perform_operation(cgen, reg, typ, operation.operator, reg2, typ2)
+        release_free_reg(reg3, reg, reg2)
+        return code2 + code3, reg3, typ3
+    elif not left is EmptyOperand and right is EmptyOperand:
+        ocupied = [r for r, t in stack]
+        code2, reg, typ = process_operand(cgen, operation.left, ocupied_regs=[ocupied])
+        reg2, typ2 = stack.pop()
+        code3, reg3, typ3 = perform_operation(cgen, reg, typ, operation.operator, reg2, typ2)
+        release_free_reg(reg3, reg, reg2)
+        return code2 + code3, reg3, typ3
+    else:
+        raise ValueError("Operation is wrong!")
+
+
+def process_expression(cgen, expr, unary=None):
+    if not isinstance(expr, Operands):
+        code, reg, typ = process_operand(cgen, expr)
+        if unary is not None:
+            code2, reg = negate_operand(cgen, unary, reg, typ)
+            code += code2
+        return code, reg, typ
+    #process operands and execute arithmetic
+    #TODO -- unary -- negate first operand
+    if unary is not None:
+        raise ValueError("Not yet implemented. Unary expression")
+    stack = []
+    code = ''
+    for operation in expr.operands:
+        co, reg, typ = process_operation(cgen, operation, stack)
+        code += co
+    print (stack)
+    return code, reg, typ
+
 class StmAssign(Statement):
-    def __init__(self, cgen, dest, src, unary=None):
+    def __init__(self, cgen, dest, expr, unary=None):
         self.cgen = cgen
         self.dest = dest
-        self.src = src
+        self.expr = expr 
         self.unary = unary
 
     def asm_code(self):
-        if is_const(self.src):
-            code = assign_const_to_dest(self.cgen, self.dest, unary_number(self.src, self.unary))
-        elif is_identifier(self.src):
-            code = assign_identifier(self.cgen, self.dest, self.src, self.unary)
-        elif isinstance(self.src, Operands):
-            code, reg, typ = generate_arithmetic(self.cgen, self.src)
-            code2, reg = negate_operand(self.cgen, self.unary, reg, typ)
-            code += code2 + store_operand(self.cgen, self.dest, reg, typ)
-        elif isinstance(self.src, Callable):
-            if self.cgen.is_user_type(self.src):
-                self.cgen.create_arg(self.dest, self.src)
-                return ''
-            code, reg, typ = self.cgen.generate_callable(self.src)
-            if typ is not None:
-                code2, reg = negate_operand(self.cgen, self.unary, reg, typ)
-                code += code2 + store_operand(self.cgen, self.dest, reg, typ)
-            else:
-                raise ValueError("Callable doenst return value!!!", self.src.name)
+        if isinstance(self.expr, Const): #little optimization
+            code = assign_const_to_dest(self.cgen, self.dest, unary_number(self.expr.const, self.unary))
+            return code
+        elif isinstance(self.expr, Callable) and self.cgen.is_user_type(self.expr):
+            self.cgen.create_arg(self.dest, self.expr)
+            return ''
         else:
-            raise ValueError("Unknown source expression.", self.dest, self.src)
-        return code
+            code, reg, typ = process_expression(self.cgen, self.expr, self.unary)
+            code2 = store_operand(self.cgen, self.dest, reg, typ)
+            return code + code2
 
-class StmReturn(Statement):
-    def __init__(self, cgen, src):
+class StmExpression(Statement):
+    def __init__(self, cgen, expr):
         self.cgen = cgen
-        self.src = src
+        self.expr = expr 
 
     def asm_code(self):
-        if is_const(self.src) or is_identifier(self.src):
-            code, reg, typ = load_operand(self.cgen, self.src)
-        elif isinstance(self.src, Operands):
-            code, reg, typ = generate_arithmetic(self.cgen, self.src)
-        elif isinstance(self.src, Callable):
-            if self.cgen.is_user_type(self.src):
-                raise ValueError("User type is not allowed in return", self.src)
-            else:
-                code, reg, typ = self.cgen.generate_callable(self.src)
-        else:
-            raise ValueError("Unsuported operand in return", self.src)
-        self.cgen.register_ret_type(typ)
+        code, reg, typ = process_expression(self.cgen, self.expr)
+        return code
 
-        xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
-        line = ''
-        if reg in xmm:
-            if reg != 'xmm0':
-                line = 'movaps xmm0, %s\n' % reg
-        else:
-            if reg != 'eax':
-                line = "mov eax, %s\n" % reg
-        line2 = "ret\n"
-        return code + line + line2
-            
+#TODO unary
+class StmReturn(Statement):
+    def __init__(self, cgen, expr):
+        self.cgen = cgen
+        self.expr = expr 
+
+    def asm_code(self):
+        if self.expr is None:
+            self.cgen.register_ret_type(Integer)
+            return "ret\n"
+        code, reg, typ = process_expression(self.cgen, self.expr)
+        self.cgen.register_ret_type(typ)
+        xmm = ('xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0')
+        general = ('ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax')
+        code2 = ''
+        if reg in xmm and reg !='xmm0':
+            if proc.AVX:
+                code2 = 'vmovaps xmm0, %s\n' % reg
+            else:
+                code2 = 'movaps xmm0, %s\n' % reg
+        if reg in general and reg != 'eax' and reg != 'rax':
+            if reg in general:
+                code2 = "mov eax, %s\n" % reg
+            else:
+                code2 = "mov rax, %s\n" % reg
+        return code + code2
 
 def generate_compare_ints(label, reg1, con, reg2):
     #if condition is met not jump to end of if

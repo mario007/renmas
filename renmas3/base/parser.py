@@ -3,7 +3,8 @@ import ast
 from .statement import StmIf, StmWhile, StmBreak
 from .statement import StmReturn, StmExpression
 from .statement import StmAssign
-from .arg import Attribute, Operands, Callable
+from .arg import Attribute, Operands, Callable, Name, Const, Subscript
+from .arg import Operation, EmptyOperand
 
 def operator(obj):
     if isinstance(obj, ast.Add):
@@ -74,19 +75,19 @@ def extract_operand(obj):
     if isinstance(obj, ast.UnaryOp):
         if isinstance(obj.operand, ast.Num):
             if isinstance(obj.operand.n, int):
-                return int(extract_unary(obj.op) + str(obj.operand.n))
+                return Const(int(extract_unary(obj.op) + str(obj.operand.n)))
             elif isinstance(obj.operand.n, float):
-                return float(extract_unary(obj.op) + str(obj.operand.n))
+                return Const(float(extract_unary(obj.op) + str(obj.operand.n)))
             else:
                 raise ValueError('Unsuported constant', obj.operand.n)
         else:
             raise ValueError("Unsuported operand in unary operator", obj.operand)
     if isinstance(obj, ast.Num):
-        return obj.n
+        return Const(obj.n)
     elif isinstance(obj, ast.Name):
-        return obj.id
+        return Name(obj.id)
     elif isinstance(obj, ast.Tuple) or isinstance(obj, ast.List):
-        return extract_numbers(obj)
+        return Const(extract_numbers(obj))
     elif isinstance(obj, ast.Attribute):
         src, src_path = extract_path(obj)
         return Attribute(src, src_path)
@@ -114,6 +115,7 @@ def parse_arithmetic(bin_op):
     #two operands version
     if not isinstance(left, ast.BinOp) and not isinstance(right, ast.BinOp):
         op1, o, op2 = extract_operands(bin_op)
+        return [Operation(left=op1, operator=o, right=op2)]
         return [(op1, o, op2)]
 
     #min four operands version
@@ -121,9 +123,9 @@ def parse_arithmetic(bin_op):
         ops = []
         op1, o1, op2 = extract_operands(left)
         op3, o2, op4 = extract_operands(right)
-        ops.append((op1, o1, op2))
-        ops.append((op3, o2, op4))
-        ops.append((operator(op),))
+        ops.append(Operation(left=op1, operator=o1, right=op2))
+        ops.append(Operation(left=op3, operator=o2, right=op4))
+        ops.append(Operation(left=EmptyOperand, operator=operator(op), right=EmptyOperand))
         return ops
 
     # min three operands version
@@ -135,36 +137,36 @@ def parse_arithmetic(bin_op):
                 ops.append((op1, o, op2))
                 o = operator(left.op)
                 op2 = extract_operand(left.right)
-                ops.append((o, op2))
+                ops.append(Operation(left=EmptyOperand, operator=o, right=op2))
             elif isinstance(left.right, ast.BinOp):
                 op1, o, op2 = extract_operands(left.right)
                 ops.append((op1, o, op2))
                 o = operator(left.op)
                 op2 = extract_operand(left.left)
-                ops.append((op2, o))
+                ops.append(Operation(left=op2, operator=o, right=EmptyOperand))
             else:
                 op1, o, op2 = extract_operands(left)
-                ops.append((op1, o, op2))
+                ops.append(Operation(left=op1, operator=o, right=op2))
         if isinstance(right, ast.BinOp):
             if isinstance(right.left, ast.BinOp): # four operands version
                 op1, o, op2 = extract_operands(right.left)
-                ops.append((op1, o, op2))
+                ops.append(Operation(left=op1, operator=o, right=op2))
                 o = operator(right.op)
                 op2 = extract_operand(right.right)
-                ops.append((o, op2))
+                ops.append(Operation(left=EmptyOperand, operator=o, right=op2))
             elif isinstance(right.right, ast.BinOp):
                 raise ValueError("Not yet implemented")
             else:
                 op1, o, op2 = extract_operands(right)
-                ops.append((op1, o, op2))
+                ops.append(Operation(left=op1, operator=o, right=op2))
 
         o = operator(op)
         if not isinstance(left, ast.BinOp):
             op2 = extract_operand(left)
-            ops.append((op2, o))
+            ops.append(Operation(left=op2, operator=o, right=EmptyOperand))
         if not isinstance(right, ast.BinOp):
             op2 = extract_operand(right)
-            ops.append((o, op2))
+            ops.append(Operation(left=EmptyOperand, operator=o, right=op2))
         return ops
     raise ValueError("Two complex expression")
 

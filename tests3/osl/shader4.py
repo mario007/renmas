@@ -44,6 +44,7 @@ args1 = arg_map([('endx', 0), ('endy', 0), ('tilex', 0), ('tiley', 0),
     ('pixel_size', 1.0), ('curx', 0), ('cury', 0), ('w2', 0.0), ('h2', 0.0)])
 args2 = arg_list([('sam', sample)])
 sample_shader = create_shader("generate_sample", code2, args1, args2, func=True)
+#print(sample_shader._code)
 
 
 arg_map1 = arg_map([('x', 0.0)])
@@ -58,6 +59,7 @@ x = sam.y
 runtimes = [Runtime()]
 shader = create_shader("test", code, arg_map1, shaders=[sample_shader])
 shader.prepare(runtimes)
+#print(shader._code)
 
 tile = Tile(0, 0, 10, 10)
 width = 100

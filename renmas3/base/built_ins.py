@@ -3,10 +3,7 @@ import renmas3.switch as proc
 
 from .arg import Integer, Float, Vec3, Struct, Attribute
 
-from .instr import load_struct_ptr
-from .instr import convert_float_to_int, convert_int_to_float
-from .instr import load_operand, store_operand, negate_operand
-
+from .instr import load_struct_ptr, convert_float_to_int, load_operand
 from .cgen import register_function
 
 from ..asm import pow_ps, pow_ss
@@ -83,7 +80,7 @@ def _get_rgb(cgen, args):
 
     src = Attribute(arg1.name, 'pitch')
     reg3 = cgen.register(typ='general')
-    code3 = load_operand(cgen, src, dest_reg=reg3)
+    code3, dummy, dummy = load_operand(cgen, src, dest_reg=reg3)
     code4 = "imul %s, %s\n" % (reg2, reg3)
     code5 = "imul %s, %s, 16\n" % (reg1, reg1) 
     code6 = "add %s, %s\n" % (reg2, reg1)
@@ -131,7 +128,7 @@ def _set_rgb(cgen, args):
 
     src = Attribute(arg1.name, 'pitch')
     reg3 = cgen.register(typ='general')
-    code3 = load_operand(cgen, src, dest_reg=reg3)
+    code3, dummy, dummy = load_operand(cgen, src, dest_reg=reg3)
     code4 = "imul %s, %s\n" % (reg2, reg3)
     code5 = "imul %s, %s, 16\n" % (reg1, reg1) 
     code6 = "add %s, %s\n" % (reg2, reg1)
@@ -170,39 +167,18 @@ def _set_rgb(cgen, args):
 
 register_function('set_rgb', _set_rgb, inline=True) 
 
-def _load_to_xmm(cgen, src, xmm):
-    code1, reg1, typ1 = load_operand(cgen, src)
-    if typ1 == Integer:
-        code1 +=convert_int_to_float(reg1, xmm)
-        return code1, Float
-    elif typ1 == Float or typ1 == Vec3:
-        if reg1 != xmm:
-            if proc.AVX:
-                code1 += "vmovaps %s, %s\n" % (xmm, reg1)
-            else:
-                code1 += "movaps %s, %s\n" % (xmm, reg1)
-        return code1, typ1
-    else:
-        raise ValueError("Unsuported operand")
-
 def _pow(cgen, args):
     if len(args) != 2:
         raise ValueError("Wrong number of arguments in pow fucntion", args)
 
-    #cgen.clear_regs()
-    #code, reg, typ = load(cgen, args[0], 'xmm0')
-    #code2, reg2, typ2 = load(cgen, args[1], 'xmm1')
-
-
     cgen.clear_regs()
-    code1, typ1 = _load_to_xmm(cgen, args[0], 'xmm0')
-    cgen.clear_regs()
-    cgen.register(reg='xmm0')
-    code2, typ2 = _load_to_xmm(cgen, args[1], 'xmm1')
+    xmm1 = cgen.register(reg='xmm0')
+    xmm2 = cgen.register(reg='xmm1')
+    code1, reg1, typ1 = load_operand(cgen, args[0], dest_reg=xmm1)
+    code2, reg2, typ2 = load_operand(cgen, args[1], dest_reg=xmm2)
 
     if typ1 != typ2:
         raise ValueError("Type mismatch", typ1, typ2)
-
 
     if typ1 == Float:
         cgen.add_asm_function('fast_pow_ss', pow_ss())
@@ -214,7 +190,6 @@ def _pow(cgen, args):
         return code3, 'xmm0', Vec3
     else:
         raise ValueError("Unsuported type for pow", typ1)
-
 
 register_function('pow', _pow, inline=False) 
 

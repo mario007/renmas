@@ -291,6 +291,7 @@ def process_operation(cgen, operation, stack=None):
         reg, typ = stack.pop()
         code, reg3, typ3 = perform_operation(cgen, reg, typ, operation.operator, reg2, typ2)
         release_free_reg(reg3, reg, reg2)
+        stack.append((reg3, typ3))
         return code, reg3, typ3
     elif left is EmptyOperand and not right is EmptyOperand:
         ocupied = [r for r, t in stack]
@@ -298,6 +299,7 @@ def process_operation(cgen, operation, stack=None):
         code2, reg2, typ2 = process_operand(cgen, operation.right, ocupied_regs=[ocupied])
         code3, reg3, typ3 = perform_operation(cgen, reg, typ, operation.operator, reg2, typ2)
         release_free_reg(reg3, reg, reg2)
+        stack.append((reg3, typ3))
         return code2 + code3, reg3, typ3
     elif not left is EmptyOperand and right is EmptyOperand:
         ocupied = [r for r, t in stack]
@@ -305,6 +307,7 @@ def process_operation(cgen, operation, stack=None):
         reg2, typ2 = stack.pop()
         code3, reg3, typ3 = perform_operation(cgen, reg, typ, operation.operator, reg2, typ2)
         release_free_reg(reg3, reg, reg2)
+        stack.append((reg3, typ3))
         return code2 + code3, reg3, typ3
     else:
         raise ValueError("Operation is wrong!")
@@ -326,7 +329,6 @@ def process_expression(cgen, expr, unary=None):
     for operation in expr.operands:
         co, reg, typ = process_operation(cgen, operation, stack)
         code += co
-    print (stack)
     return code, reg, typ
 
 class StmAssign(Statement):
@@ -382,7 +384,7 @@ class StmReturn(Statement):
                 code2 = "mov eax, %s\n" % reg
             else:
                 code2 = "mov rax, %s\n" % reg
-        return code + code2
+        return code + code2 + "ret\n"
 
 def generate_compare_ints(label, reg1, con, reg2):
     #if condition is met not jump to end of if

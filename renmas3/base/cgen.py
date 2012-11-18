@@ -99,6 +99,17 @@ def _copy_to_regs(cgen, operands, input_args):
             raise ValueError("Unsuported argument type!", operand, arg)
     return code
 
+class Registers:
+    def __init__(self):
+        self._xmm = ('xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0')
+        self._general32 = ('ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax')
+        self._general64 = ('rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax')
+        pass
+
+    def is_xmm(self, reg):
+        pass
+
+
 class CodeGenerator:
     def __init__(self, name, args={}, input_args=[], shaders=[], func=False):
         self._name = name

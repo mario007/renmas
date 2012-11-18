@@ -23,12 +23,14 @@ def valid_reg64(reg):
 
 def load_struct_ptr(cgen, attr, reg=None):
     bits = platform.architecture()[0]
-    if isinstance(attr, str):
-        name = attr
+    if isinstance(attr, Name):
+        name = attr.name
         path = None
-    else:
+    elif isinstance(attr, Attribute):
         name = attr.name
         path = attr.path
+    else:
+        raise ValueError("Unsuported operand type for loading struct pointer.", attr)
 
     arg = cgen.get_arg(name) # arg is Struct
     if not isinstance(arg, Struct) and not isinstance(arg, StructPtr):

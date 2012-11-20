@@ -23,15 +23,15 @@ def register_user_type(typ):
             _user_types[typ.typ] = typ
     else:
         if inspect.isclass(typ):
-            if hasattr(typ, 'struct'):
-                typ_name, fields = typ.struct()
+            if hasattr(typ, 'user_type'):
+                typ_name, fields = typ.user_type()
                 usr_type = create_user_type(typ_name, fields)
                 if usr_type.typ in _user_types:
                     pass #TODO -- check if two types are compatabile
                 else:
                     _user_types[usr_type.typ] = usr_type
             else:
-                raise ValueError("Class does not have struct metod defined", typ)
+                raise ValueError("Class does not have user_type metod defined", typ)
         else:
             raise ValueError("Type is not class", typ)
 

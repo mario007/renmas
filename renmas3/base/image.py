@@ -77,17 +77,20 @@ def _convert_pixels(npixels, src, dst):
 ## Base image class. 
 # Image
 class Image:
-    ## Constructor.
-    # Create Image of specified width, height.  
+    ## Create Image of specified width, height.  
     # You also must specifies number of bytes in one row. It is usually called pitch.
     # @param self The object pointer
     # @param width Width of the image
     # @param height Height of the image
     # @param pitch Pitch of the image
     def __init__(self, width, height, pitch):
+        ## @brief pitch of the image(number of bytes in row)
         self.pitch = pitch
+        ## @brief width of the image
         self.width = width
+        ## @brief height of the image
         self.height = height
+        ## @brief array of pixels
         self.pixels = x86.MemData(height * pitch)
 
     ## Return size of image  
@@ -96,9 +99,9 @@ class Image:
     def size(self):
         return (self.width, self.height)
 
-    ## Return address of pixels and pitch  
+    ## Return address of pixel array and pitch  
     # @param self The object pointer
-    # @return Return adrress, pitch of image 
+    # @return Return tuple (pixels, pitch)
     def address_info(self):
         return (self.pixels.ptr(), self.pitch)
 
@@ -107,22 +110,46 @@ class Image:
         return '<Image object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \
                 (hex(id(self)), self.width, self.height, self.pitch, hex(adr))
 
-## Main image class for holding images, textures. 
-# Pixels is represented in rgba format.  
+## Image class that stores pixels in rgba format.
+# For each component (red, green, blue, alpha) 8 bits are used.
 class ImageRGBA(Image):
+    ## Create Image of specified width, height.  
+    # @param self The object pointer
+    # @param width Width of the image
+    # @param height Height of the image
     def __init__(self, width, height):
         super(ImageRGBA, self).__init__(width, height, width*4)
         
+    ## Set color of pixel at cooridantes x, y.
+    # @param self The object pointer
+    # @param x x coordinate
+    # @param y y coordiante
+    # @param r red component in range 0-255
+    # @param g green component in range 0-255
+    # @param b blue component in range 0-255
+    # @param a alpa component of the image in range 0-255. Default value is 255.
+    # @return Return False if coordinates are out of range otherwise True
     def set_pixel(self, x, y, r, g, b, a=255):
-        if x < 0 or x >= self.width: return
-        if y < 0 or y >= self.height: return
+        if x < 0 or x >= self.width:
+            return False
+        if y < 0 or y >= self.height:
+            return False
         adr = y * self.pitch + x * 4
         pix = (a<<24) | (b<<16) | (g<<8) | r
         x86.SetUInt32(self.pixels.ptr()+adr, pix, 0)
+        return True
 
+    ## Get color of pixel at cooridantes x, y.
+    # If cooridantes are out of range None is return.
+    # @param self The object pointer
+    # @param x x coordinate
+    # @param y y coordiante
+    # @return Return tuple (r, g, b, a)
     def get_pixel(self, x, y):
-        if x < 0 or x >= self.width: return None
-        if y < 0 or y >= self.height: return None
+        if x < 0 or x >= self.width:
+            return None
+        if y < 0 or y >= self.height:
+            return None
         adr = y * self.pitch + x * 4
         pix = x86.GetUInt32(self.pixels.ptr()+adr, 0, 0)
         r = pix & 0xFF
@@ -131,6 +158,9 @@ class ImageRGBA(Image):
         a = pix >> 24
         return (r, g, b, a) 
 
+    ## Create copy of this image in bgra format.
+    # @param self The object pointer
+    # @return Return image in brga format
     def to_bgra(self):
         img = ImageBGRA(self.width, self.height)
         src, pitch = self.address_info()
@@ -143,23 +173,42 @@ class ImageRGBA(Image):
         return '<ImageRGBA object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \
                 (hex(id(self)), self.width, self.height, self.pitch, hex(adr))
 
-## Main image class for display.
-# WindowsGDI wants that pixels are in bgra format!!!. 
-# Because of that this class is used as frame buffer.
+## Image class that stores pixels in bgra format.
+# For each component (blue, green, red, alpha) 8 bits are used.
 class ImageBGRA(Image):
     def __init__(self, width, height):
         super(ImageBGRA, self).__init__(width, height, width*4)
 
+    ## Set color of pixel at cooridantes x, y.
+    # @param self The object pointer
+    # @param x x coordinate
+    # @param y y coordiante
+    # @param r red component in range 0-255
+    # @param g green component in range 0-255
+    # @param b blue component in range 0-255
+    # @param a alpa component of the image in range 0-255. Default value is 255.
+    # @return Return False if coordinates are out of range otherwise True
     def set_pixel(self, x, y, r, g, b, a=255):
-        if x < 0 or x >= self.width: return
-        if y < 0 or y >= self.height: return
+        if x < 0 or x >= self.width:
+            return False
+        if y < 0 or y >= self.height:
+            return False
         adr = y * self.pitch + x * 4
         pix = (a<<24) | (r<<16) | (g<<8) | b
         x86.SetUInt32(self.pixels.ptr()+adr, pix, 0)
+        return True
 
+    ## Get color of pixel at cooridantes x, y.
+    # If cooridinates are out of range None is return.
+    # @param self The object pointer
+    # @param x x coordinate
+    # @param y y coordiante
+    # @return Return tuple (r, g, b, a)
     def get_pixel(self, x, y):
-        if x < 0 or x >= self.width: return None
-        if y < 0 or y >= self.height: return None
+        if x < 0 or x >= self.width:
+            return None
+        if y < 0 or y >= self.height:
+            return None
         adr = y * self.pitch + x * 4
         pix = x86.GetUInt32(self.pixels.ptr()+adr, 0, 0)
         b = pix & 0xFF
@@ -168,6 +217,9 @@ class ImageBGRA(Image):
         a = pix >> 24
         return (r, g, b, a) 
 
+    ## Create copy of this image in rgba format.
+    # @param self The object pointer
+    # @return Return image in rgba format
     def to_rgba(self):
         img = ImageRGBA(self.width, self.height)
         src, pitch = self.address_info()
@@ -180,38 +232,55 @@ class ImageBGRA(Image):
         return '<ImageBGRA object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \
                 (hex(id(self)), self.width, self.height, self.pitch, hex(adr))
 
-class ImageFloatRGBA(Image):
+## Image class that stores pixels in rgba format.
+# For each component (red, green, blue, alpha) 32 bits are used.
+class ImagePRGBA(Image):
     def __init__(self, width, height):
-        super(ImageFloatRGBA, self).__init__(width, height, width*16)
+        super(ImagePRGBA, self).__init__(width, height, width*16)
         self.pixels_ptr = self.pixels.ptr()
 
+    ## Set color of pixel at cooridantes x, y.
+    # @param self The object pointer
+    # @param x x coordinates
+    # @param y y coordiantes
+    # @param r red component in range 0.0-0.99
+    # @param g green component in range 0.0-0.99
+    # @param b blue component in range 0.0-0.99
+    # @param a alpa component of the image in range 0.0-0.99. Default value is 0.99.
+    # @return Return False if coordinates are out of range otherwise True
     def set_pixel(self, x, y, r, g, b, a=0.99):
         if x < 0 or x >= self.width: 
-            raise ValueError("Out of bounds:x=" + str(x) + " y=" + str(y) + " width=" + str(self.width) + " height=" + str(self.height))
+            return False
         if y < 0 or y >= self.height: 
-            raise ValueError("Out of bounds:x=" + str(x) + " y=" + str(y) + " width=" + str(self.width) + " height=" + str(self.height))
+            return False
         adr = y * self.pitch + x * 16
-
         x86.SetFloat(self.pixels.ptr()+adr, (r, g, b, a), 0)
+        return True
 
+    ## Get color of pixel at cooridantes x, y.
+    # If cooridinates are out of range None is return.
+    # @param self The object pointer
+    # @param x x coordinate
+    # @param y y coordiante
+    # @return Return tuple (r, g, b, a)
     def get_pixel(self, x, y):
-        if x < 0 or x >= self.width: return None
-        if y < 0 or y >= self.height: return None
+        if x < 0 or x >= self.width:
+            return None
+        if y < 0 or y >= self.height:
+            return None
         adr = y * self.pitch + x * 16
         # return r, g, b, a 
-        pix = x86.GetFloat(self.pixels.ptr()+adr, 0, 4)
-        return pix
-
+        return x86.GetFloat(self.pixels.ptr()+adr, 0, 4)
     
-    @staticmethod
-    def struct():
-        typ_name = "ImageFloatRGBA"
+    @classmethod
+    def user_type(cls):
+        typ_name = "ImagePRGBA"
         fields = [('width', Integer), ('height', Integer), ('pitch', Integer), ('pixels_ptr', Pointer)]
         return (typ_name, fields)
 
     def __repr__(self):
         adr = self.pixels.ptr()
-        return '<ImageFloatRGBA object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \
+        return '<ImagePRGBA object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \
                 (hex(id(self)), self.width, self.height, self.pitch, hex(adr))
 
-register_user_type(ImageFloatRGBA)
+register_user_type(ImagePRGBA)

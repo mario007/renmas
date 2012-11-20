@@ -1,7 +1,7 @@
 import platform
 from tdasm import Tdasm, Runtime
 import renmas3.switch as proc
-from renmas3.core import ImageBGRA, ImageFloatRGBA
+from renmas3.base import ImageBGRA, ImagePRGBA
 
 #NOTE here we have tree different way how pack float r, g, b, a to b, g, r, a byte for display 
 # Main difference here is that we in ssse3 have pshufb instruction for converting bytes  
@@ -202,7 +202,7 @@ _data_section = _runtime.load("bltfloatrgba", _mc)
 # blt float rgba to byte bgra
 def blt_floatbgra(src, dest):
 
-    assert isinstance(src, ImageFloatRGBA)
+    assert isinstance(src, ImagePRGBA)
     assert isinstance(dest, ImageBGRA)
 
     sa, spitch = src.address_info() 

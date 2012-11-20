@@ -148,7 +148,8 @@ def blt_rgba(src, dest, sx=0, sy=0, sw=-1, sh=-1, dx=0, dy=0, fliped=False):
 # return False if function didn't sucussed in blitting, otherwise True
 def blt_rect(sa, sx, sy, sw, sh, spitch, da, dx, dy, dpitch, fliped=False):
 
-    if sx < 0 or sy < 0 or sw <= 0 or sh <= 0 or dx < 0 or dy < 0: return False
+    if sx < 0 or sy < 0 or sw <= 0 or sh <= 0 or dx < 0 or dy < 0:
+        return False
 
     ds = _data_section
     ds["da"] = da

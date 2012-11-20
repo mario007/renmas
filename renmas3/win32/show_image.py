@@ -1,10 +1,11 @@
 
-from renmas3.core import ImageRGBA, ImageBGRA
+from renmas3.base import ImageRGBA, ImageBGRA
 from .window import Window, main_loop
 from renmas3.utils import blt_rect
 
 #TODO -- window buffer is big in dimension of destkop window
 # so if image is bigger than this it will craches
+# WindowsGDI wants that pixels are in bgra format!!!. 
 def show_image_in_window(image, fname=None):
 
     if fname is None: fname = "UnknownImage"

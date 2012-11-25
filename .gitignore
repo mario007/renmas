@@ -19,6 +19,9 @@
 *.tga
 *.tar.gz
 *.zip
+*.exe
+/PyAPI/PyAPI/Release
+/PyAPI/PyAPI/Debug
 /RenmasAPI/Release
 /RenmasAPI/RenmasAPI/Release
 /RenmasAPI/RenmasAPI/Debug

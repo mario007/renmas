@@ -3,7 +3,7 @@ import os
 import os.path
 import struct
 import math
-from ..core import ImageFloatRGBA
+from .image import ImagePRGBA
 
 def _read_bin_to_asci_line(f):
     a = b''
@@ -35,7 +35,8 @@ class _HdrHeader:
 
 def _read_header(f):
     line1 = _read_bin_to_asci_line(f)
-    if line1 != "#?RADIANCE": return None
+    if line1 != "#?RADIANCE":
+        return None
     header = _HdrHeader()
     while True:
         line = _read_bin_to_asci_line(f)
@@ -76,7 +77,8 @@ def _read_one_scanline(f, scanline_width):
             scanline_buffer.extend([int(buff[1])]*count)
         else:
             count = buff[0]
-            if count == 0: return None
+            if count == 0:
+                return None
             scanline_buffer.append(int(buff[1]))
             count -= 1
             if count > 0:
@@ -96,16 +98,17 @@ def _convert_scanline_to_pixels(red, green, blue, exponent, y, img):
 
 
 def _read_scanlines(f, header, width, height):
-    import pdb; pdb.set_trace()
     if width < 8 or width > 32767:
+        raise ValueError("Not yet implemented reading of uncompressed image!!!")
         pass # read uncompressed image
     max_gg = 0.0
-    img = ImageFloatRGBA(width, height)
+    img = ImagePRGBA(width, height)
     for i in range(height, 0, -1):
         rgbe = f.read(4)
         if int(rgbe[0]) != 2 or int(rgbe[1]) != 2 or bool(rgbe[2] & 0x80):
             #this file is not run legnth encode
             #read uncompressed image
+            raise ValueError("Not yet implemented reading of uncompressed image!!!")
             return None
         scanline_width = int(int(rgbe[2]) << 8 | rgbe[3]) 
         if scanline_width != width:

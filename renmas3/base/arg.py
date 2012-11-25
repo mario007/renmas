@@ -324,12 +324,12 @@ def create_argument(name, value=None, typ=None, input_arg=False):
                 arg = Vec3I(name, int(x), int(y), int(z))
         elif typ == Pointer: #pointer in typ = UserType
                 arg = Pointer(name, typ=value)
-        elif hasattr(typ, 'struct'):
-            typ_name, fields = typ.struct()
+        elif hasattr(typ, 'user_type'):
+            typ_name, fields = typ.user_type()
             usr_type = create_user_type(typ_name, fields)
             arg = Struct(name, usr_type)
         else:
-            raise ValueError("Unknown type of arugment")
+            raise ValueError("Unknown type of arugment", typ)
         return arg
 
     if isinstance(value, int):

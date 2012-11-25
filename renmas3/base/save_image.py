@@ -2,7 +2,7 @@
 import platform
 import os.path
 
-from renmas3.core import ImageBGRA
+from .image import ImageBGRA
 from .tga import save_tga
 
 _image_writers = {
@@ -21,7 +21,8 @@ def save_image(fname, image, typ=None):
             return _image_writers[typ](fname, image)
 
     name, ext = os.path.splitext(fname)
-    if ext == "": return save_tga(fname, image)
+    if ext == "":
+        return save_tga(fname, image)
     ext = ext[1:] # Remove period from extension 
     if ext in _image_writers:
         return _image_writers[ext](fname, image)

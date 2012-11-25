@@ -1,6 +1,6 @@
 
 from tdasm import Runtime
-from renmas3.base import ImageFloatRGBA
+from renmas3.base import ImagePRGBA
 import renmas3.base
 from renmas3.base import create_shader, create_argument, create_user_type
 from renmas3.base import arg_map, arg_list
@@ -14,7 +14,7 @@ register_user_type(point)
 register_user_type(size)
 
 arg_map1 = arg_map([('p1', 3), ('p2', 4), ('ps', point), ('pm', point),('p3', 0.3),
-    ('p4', (4,5,6)), ('rect', size), ('slika', ImageFloatRGBA)])
+    ('p4', (4,5,6)), ('rect', size), ('slika', ImagePRGBA)])
 
 code = """
 p1 = 484
@@ -64,7 +64,7 @@ runtimes = [Runtime()]
 shader = create_shader("test", code, arg_map1, shaders=[shader2])
 shader.prepare(runtimes)
 
-img = ImageFloatRGBA(3,3)
+img = ImagePRGBA(3,3)
 img.set_pixel(1, 2, 0.2, 0.3, 0.1)
 shader.set_value('slika', img)
 
@@ -81,6 +81,6 @@ print(shader.get_value('rect.k'))
 print(shader.get_value('slika.width'))
 print(shader.get_value('slika.height'))
 print(shader.get_value('slika.pitch'))
-print(shader.get_value('slika.pixels_ptr'))
+print(shader.get_value('slika.pixels'))
 
 

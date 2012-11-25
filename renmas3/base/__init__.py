@@ -16,3 +16,5 @@ from .spectrum import RGBSpectrum, SampledSpectrum
 
 from .built_ins import * #solve this TODO
 
+from .load_image import load_image
+

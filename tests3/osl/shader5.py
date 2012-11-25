@@ -1,11 +1,11 @@
 
 import time
 from tdasm import Runtime
-from renmas3.base import ImageFloatRGBA, arg_map, create_shader
+from renmas3.base import ImagePRGBA, arg_map, create_shader
 
-arg_map1 = arg_map([('image1', ImageFloatRGBA)])
+arg_map1 = arg_map([('image1', ImagePRGBA)])
 
-img1 = ImageFloatRGBA(1024, 768)
+img1 = ImagePRGBA(1024, 768)
 
 code = """
 value = (0.5, 0.5, 0.5)

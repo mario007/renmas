@@ -1,7 +1,7 @@
 import platform
 import os.path
 
-from ..core import ImageRGBA
+from .image import ImageRGBA
 from .tga import load_tga
 from .rgbe import load_hdr
 
@@ -52,10 +52,12 @@ def _detect_format(fname):
 
 def load_image(fname):
 
-    if not os.path.isfile(fname): return None #file doesn't exists
+    if not os.path.isfile(fname):
+        return None #file doesn't exists
 
     typ = _detect_format(fname)
-    if typ is None: return None #unknown type of image file
+    if typ is None:
+        return None #unknown type of image file
     if typ in _image_loaders:
         return _image_loaders[typ](fname)
 

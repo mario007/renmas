@@ -90,8 +90,15 @@ class Image:
         self.width = width
         ## @brief height of the image
         self.height = height
-        ## @brief array of pixels
-        self.pixels = x86.MemData(height * pitch)
+
+        self._pixels = x86.MemData(height * pitch)
+
+    ## Return address of pixel array 
+    # @param self The object pointer
+    # @return Return address of pixel array
+    @property
+    def pixels(self):
+        return self._pixels.ptr()
 
     ## Return size of image  
     # @param self The object pointer
@@ -103,10 +110,10 @@ class Image:
     # @param self The object pointer
     # @return Return tuple (pixels, pitch)
     def address_info(self):
-        return (self.pixels.ptr(), self.pitch)
+        return (self._pixels.ptr(), self.pitch)
 
     def __repr__(self):
-        adr = self.pixels.ptr()
+        adr = self._pixels.ptr()
         return '<Image object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \
                 (hex(id(self)), self.width, self.height, self.pitch, hex(adr))
 
@@ -136,7 +143,7 @@ class ImageRGBA(Image):
             return False
         adr = y * self.pitch + x * 4
         pix = (a<<24) | (b<<16) | (g<<8) | r
-        x86.SetUInt32(self.pixels.ptr()+adr, pix, 0)
+        x86.SetUInt32(self._pixels.ptr()+adr, pix, 0)
         return True
 
     ## Get color of pixel at cooridantes x, y.
@@ -151,7 +158,7 @@ class ImageRGBA(Image):
         if y < 0 or y >= self.height:
             return None
         adr = y * self.pitch + x * 4
-        pix = x86.GetUInt32(self.pixels.ptr()+adr, 0, 0)
+        pix = x86.GetUInt32(self._pixels.ptr()+adr, 0, 0)
         r = pix & 0xFF
         g = (pix >> 8) & 0xFF
         b = (pix >> 16) & 0xFF
@@ -169,7 +176,7 @@ class ImageRGBA(Image):
         return img
 
     def __repr__(self):
-        adr = self.pixels.ptr()
+        adr = self._pixels.ptr()
         return '<ImageRGBA object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \
                 (hex(id(self)), self.width, self.height, self.pitch, hex(adr))
 
@@ -195,7 +202,7 @@ class ImageBGRA(Image):
             return False
         adr = y * self.pitch + x * 4
         pix = (a<<24) | (r<<16) | (g<<8) | b
-        x86.SetUInt32(self.pixels.ptr()+adr, pix, 0)
+        x86.SetUInt32(self._pixels.ptr()+adr, pix, 0)
         return True
 
     ## Get color of pixel at cooridantes x, y.
@@ -210,7 +217,7 @@ class ImageBGRA(Image):
         if y < 0 or y >= self.height:
             return None
         adr = y * self.pitch + x * 4
-        pix = x86.GetUInt32(self.pixels.ptr()+adr, 0, 0)
+        pix = x86.GetUInt32(self._pixels.ptr()+adr, 0, 0)
         b = pix & 0xFF
         g = (pix >> 8) & 0xFF
         r = (pix >> 16) & 0xFF
@@ -228,7 +235,7 @@ class ImageBGRA(Image):
         return img
 
     def __repr__(self):
-        adr = self.pixels.ptr()
+        adr = self._pixels.ptr()
         return '<ImageBGRA object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \
                 (hex(id(self)), self.width, self.height, self.pitch, hex(adr))
 
@@ -237,7 +244,6 @@ class ImageBGRA(Image):
 class ImagePRGBA(Image):
     def __init__(self, width, height):
         super(ImagePRGBA, self).__init__(width, height, width*16)
-        self.pixels_ptr = self.pixels.ptr()
 
     ## Set color of pixel at cooridantes x, y.
     # @param self The object pointer
@@ -254,7 +260,7 @@ class ImagePRGBA(Image):
         if y < 0 or y >= self.height: 
             return False
         adr = y * self.pitch + x * 16
-        x86.SetFloat(self.pixels.ptr()+adr, (r, g, b, a), 0)
+        x86.SetFloat(self._pixels.ptr()+adr, (r, g, b, a), 0)
         return True
 
     ## Get color of pixel at cooridantes x, y.
@@ -270,16 +276,16 @@ class ImagePRGBA(Image):
             return None
         adr = y * self.pitch + x * 16
         # return r, g, b, a 
-        return x86.GetFloat(self.pixels.ptr()+adr, 0, 4)
+        return x86.GetFloat(self._pixels.ptr()+adr, 0, 4)
     
     @classmethod
     def user_type(cls):
         typ_name = "ImagePRGBA"
-        fields = [('width', Integer), ('height', Integer), ('pitch', Integer), ('pixels_ptr', Pointer)]
+        fields = [('width', Integer), ('height', Integer), ('pitch', Integer), ('pixels', Pointer)]
         return (typ_name, fields)
 
     def __repr__(self):
-        adr = self.pixels.ptr()
+        adr = self._pixels.ptr()
         return '<ImagePRGBA object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \
                 (hex(id(self)), self.width, self.height, self.pitch, hex(adr))
 

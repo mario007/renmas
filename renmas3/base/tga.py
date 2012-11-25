@@ -3,7 +3,7 @@ import os.path
 from struct import unpack, pack
 from io import SEEK_CUR
 
-from ..core import ImageRGBA
+from .image import ImageRGBA
 
 def _add_pixel(image, x, y, nbytes, data):
     if nbytes == 4:
@@ -20,7 +20,8 @@ def _read_uncompressed(f, width, height, nbytes, image):
     for j in range(height):
         for i in range(width):
             b = f.read(nbytes)
-            if len(b) != nbytes: return None # unexpected end of file
+            if len(b) != nbytes:
+                return None # unexpected end of file
             _add_pixel(image, i, j, nbytes, b)
     return image
 
@@ -30,7 +31,8 @@ def _read_compressed(f, width, height, nbytes, image):
 
     while j < height:
         b = f.read(nbytes + 1)
-        if len(b) != nbytes+1: return None # unexpected end of file
+        if len(b) != nbytes+1:
+            return None # unexpected end of file
         _add_pixel(image, i, j, nbytes, b[1:])
         i += 1
         if i == width: i = 0; j += 1
@@ -44,14 +46,16 @@ def _read_compressed(f, width, height, nbytes, image):
         else: # Normal chunk
             for m in range(c):
                 b = f.read(nbytes)
-                if len(b) != nbytes: return None # unexpected end of file
+                if len(b) != nbytes:
+                    return None # unexpected end of file
                 _add_pixel(image, i, j, nbytes, b)
                 i += 1
                 if i == width: i = 0; j += 1
     return image
 
 def load_tga(fname):
-    if not os.path.isfile(fname): return None #file doesn't exists
+    if not os.path.isfile(fname):
+        return None #file doesn't exists
 
     f = open(fname, 'rb')
 
@@ -75,9 +79,12 @@ def load_tga(fname):
     image_descriptor = f.read(1)[0]
 
     # CHECK IF LOADER SUPPORT IMAGE
-    if image_type != 2 and image_type != 10: return None # only true color is supported 
-    if pixel_depth != 16 and pixel_depth != 24 and pixel_depth != 32: return None
-    if color_map_type !=0 and color_map_type != 1: return None
+    if image_type != 2 and image_type != 10:
+        return None # only true color is supported 
+    if pixel_depth != 16 and pixel_depth != 24 and pixel_depth != 32:
+        return None
+    if color_map_type !=0 and color_map_type != 1:
+        return None
 
     # SKIP OVER UNNECESSARY BYTES
     skip = id_length + color_map_type * color_map_length

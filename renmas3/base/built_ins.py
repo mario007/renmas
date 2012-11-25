@@ -71,7 +71,7 @@ def _get_rgb(cgen, args):
     if len(args) != 3:
         raise ValueError("Wrong number of arguments in get_rgb fucntion", args)
     arg1 = cgen.get_arg(args[0])
-    if arg1.typ.typ != "ImageFloatRGBA":
+    if arg1.typ.typ != "ImagePRGBA":
         raise ValueError("Wrong image format", arg1.typ.typ)
     code1, reg1, typ1 = load_operand(cgen, args[1])
     code2, reg2, typ2 = load_operand(cgen, args[2])
@@ -88,7 +88,7 @@ def _get_rgb(cgen, args):
     cgen.release_reg(reg1)
     cgen.release_reg(reg3)
 
-    code7, reg4, path = load_struct_ptr(cgen, Attribute(arg1.name, 'pixels_ptr'))
+    code7, reg4, path = load_struct_ptr(cgen, Attribute(arg1.name, 'pixels'))
 
     bits = platform.architecture()[0]
     if bits == '64bit':
@@ -119,7 +119,7 @@ def _set_rgb(cgen, args):
     if len(args) != 4:
         raise ValueError("Wrong number of arguments in get_rgb fucntion", args)
     arg1 = cgen.get_arg(args[0])
-    if arg1.typ.typ != "ImageFloatRGBA":
+    if arg1.typ.typ != "ImagePRGBA":
         raise ValueError("Wrong image format", arg1.typ.typ)
     code1, reg1, typ1 = load_operand(cgen, args[1])
     code2, reg2, typ2 = load_operand(cgen, args[2])
@@ -136,7 +136,7 @@ def _set_rgb(cgen, args):
     cgen.release_reg(reg1)
     cgen.release_reg(reg3)
 
-    code7, reg4, path = load_struct_ptr(cgen, Attribute(arg1.name, 'pixels_ptr'))
+    code7, reg4, path = load_struct_ptr(cgen, Attribute(arg1.name, 'pixels'))
 
     bits = platform.architecture()[0]
     if bits == '64bit':

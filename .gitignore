@@ -20,6 +20,8 @@
 *.tar.gz
 *.zip
 *.exe
+/PyWrapper/PyWrapper/bin
+/PyWrapper/PyWrapper/obj
 /PyAPI/PyAPI/Release
 /PyAPI/PyAPI/Debug
 /RenmasAPI/Release

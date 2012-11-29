@@ -104,11 +104,43 @@ class Registers:
         self._xmm = ('xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0')
         self._general32 = ('ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax')
         self._general64 = ('rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax')
-        pass
 
     def is_xmm(self, reg):
-        pass
+        return reg in self._xmm
 
+    def is_reg32(self, reg):
+        return reg in self._general32
+
+    def is_reg64(self, reg):
+        return reg in self._general64
+
+class Reference:
+    def __init__(self, name, obj):
+        self.name = name
+        self.obj = obj
+        self._counter = 0
+
+class _Locals:
+    def __init__(self):
+        self._free_args = {}
+        self._used_args = {}
+
+    def gen_name(self):
+        name = "local" + str(id(self)) + str(self._counter)
+        self._counter += 1
+        return name
+
+    def create_arg(self, name, arg_type):
+        pass
+        # 1. unbind name if it exist
+        # 2. try find free arg of specified type
+        # 3. if arg is not find create new arg
+        # 4. bind name to new argument
+
+    def get_arg(self, name):
+        for key, value in self._used_args.items():
+            pass
+        return None
 
 class CodeGenerator:
     def __init__(self, name, args={}, input_args=[], shaders=[], func=False):
@@ -123,6 +155,11 @@ class CodeGenerator:
         self._counter = 0
         self._asm_functions = []
         self._saved_regs = set()
+        self.regs = Registers()
+
+    @property
+    def AVX(self):
+        return proc.AVX
 
     def is_user_type(self, obj):
         if isinstance(obj, str):
@@ -297,6 +334,8 @@ class CodeGenerator:
 
 
     def create_arg(self, dest, value=None, typ=None):
+        if isinstance(dest, Name):
+            dest = dest.name
         if isinstance(value, Callable):
             return self._create_arg_from_callable(dest, value)
         arg = self.get_arg(dest)

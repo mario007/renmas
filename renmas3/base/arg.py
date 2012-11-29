@@ -48,6 +48,46 @@ class Integer(Argument):
     def generate_data(self):
         return 'int32 %s = %i \n' % (self.name, self._value) 
 
+    @staticmethod
+    def load_cmd(cgen, name, dest_reg=None, path=None, ptr_reg=None):
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='general')
+        #TODO pointer register check 32 or 64 bit
+        
+        tmp = dest_reg
+        if cgen.regs.is_xmm(dest_reg):
+            tmp = cgen.register(typ='general')
+        if path is None:
+            code = "mov %s, dword [%s] \n" % (tmp, name)
+        else:
+            if ptr_reg is None:
+                raise ValueError("If Integer is attribute register pointer is also required")
+            code = "mov %s, dword [%s + %s]\n" % (tmp, ptr_reg, path)
+
+        if cgen.regs.is_xmm(dest_reg): #implicit conversion to float
+            if cgen.AVX:
+                conversion = "vcvtsi2ss %s, %s, %s \n" % (dest_reg, dest_reg, tmp)
+            else:
+                conversion = "cvtsi2ss %s, %s \n" % (dest_reg, tmp)
+            cgen.release_reg(tmp)
+            return code + conversion, dest_reg, Float
+        else:
+            return code, tmp, Integer
+
+    @staticmethod
+    def store_cmd(cgen, reg, name, path=None, ptr_reg=None):
+        if path is None:
+            code = "mov dword [%s], %s \n" % (name, reg)
+        else:
+            if ptr_reg is None:
+                raise ValueError("If Integer is attribute register pointer is also required")
+            code = "mov dword [%s + %s], %s\n" % (ptr_reg, path, reg)
+        return code
+
+    @staticmethod
+    def neg_cmd(cgen, reg):
+        return 'neg %s\n' % reg
+
 class Float(Argument):
 
     def __init__(self, name, value=0.0):
@@ -78,6 +118,61 @@ class Float(Argument):
 
     def generate_data(self):
         return 'float %s = %f \n' % (self.name, self._value)
+
+    @staticmethod
+    def load_cmd(cgen, name, dest_reg=None, path=None, ptr_reg=None):
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='xmm')
+        if not cgen.regs.is_xmm(dest_reg):
+            raise ValueError("Destination register must be xmm register!", dest_reg)
+        #TODO pointer register check 32 or 64 bit
+        if path is None:
+            if cgen.AVX:
+                code = "vmovss %s, dword [%s] \n" % (dest_reg, name)
+            else:
+                code = "movss %s, dword [%s] \n" % (dest_reg, name)
+        else:
+            if ptr_reg is None:
+                raise ValueError("If Float is attribute register pointer is also required")
+            if cgen.AVX:
+                code = "vmovss %s, dword [%s + %s]\n" % (dest_reg, ptr_reg, path)
+            else:
+                code = "movss %s, dword [%s + %s]\n" % (dest_reg, ptr_reg, path)
+        return code, dest_reg, Float 
+
+    @staticmethod
+    def store_cmd(cgen, xmm, name, path=None, ptr_reg=None):
+        if not cgen.regs.is_xmm(xmm):
+            raise ValueError("xmm register is expected!")
+
+        if path is None:
+            if cgen.AVX:
+                code = "vmovss dword [%s], %s \n" % (name, xmm)
+            else:
+                code = "movss dword [%s], %s \n" % (name, xmm)
+            return code
+
+        if ptr_reg is None:
+            raise ValueError("If Float is attribute register pointer is also required")
+
+        if cgen.AVX:
+            code = "vmovss dword [%s + %s], %s\n" % (ptr_reg, path, xmm)
+        else:
+            code = "movss dword [%s + %s], %s\n" % (ptr_reg, path, xmm)
+        return code
+
+    @staticmethod
+    def neg_cmd(cgen, xmm):
+        if not cgen.regs.is_xmm(xmm):
+            raise ValueError("xmm register is expected!", xmm)
+
+        #TODO Vector4 const (-1.0, -1.0, -1.0, -1.0)
+        arg = cgen.create_const((-1.0, -1.0, -1.0))
+        if cgen.AVX:
+            code = "vmulss %s, %s, dword[%s]\n" % (xmm, xmm, arg.name) 
+        else:
+            code = "mulss %s, dword[%s]\n" % (xmm, arg.name) 
+        return code
 
 class Vec3(Argument):
 
@@ -111,6 +206,61 @@ class Vec3(Argument):
     def generate_data(self):
         v = self._value
         return 'float %s[4] = %f,%f,%f,0.0 \n' % (self.name, v.x, v.y, v.z)
+
+    @staticmethod
+    def load_cmd(cgen, name, dest_reg=None, path=None, ptr_reg=None):
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='xmm')
+        if not cgen.regs.is_xmm(dest_reg):
+            raise ValueError("Destination register must be xmm register!")
+        #TODO pointer register check 32 or 64 bit
+        if path is None:
+            if cgen.AVX:
+                code = "vmovaps %s, oword [%s] \n" % (dest_reg, name)
+            else:
+                code = "movaps %s, oword [%s] \n" % (dest_reg, name)
+        else:
+            if ptr_reg is None:
+                raise ValueError("If vector is attribute register pointer is also required")
+            if cgen.AVX:
+                code = "vmovaps %s, oword [%s + %s]\n" % (dest_reg, ptr_reg, path)
+            else:
+                code = "movaps %s, oword [%s + %s]\n" % (dest_reg, ptr_reg, path)
+        return code, dest_reg, Vec3 
+            
+    @staticmethod
+    def store_cmd(cgen, xmm, name, path=None, ptr_reg=None):
+        if not cgen.regs.is_xmm(xmm):
+            raise ValueError("xmm register is expected!")
+    
+        if path is None:
+            if cgen.AVX:
+                code = "vmovaps oword [%s], %s \n" % (name, xmm)
+            else:
+                code = "movaps oword [%s], %s \n" % (name, xmm)
+            return code
+
+        if ptr_reg is None:
+            raise ValueError("If Float is attribute register pointer is also required")
+
+        if cgen.AVX:
+            code = "vmovaps oword [%s + %s], %s\n" % (ptr_reg, path, xmm)
+        else:
+            code = "movaps oword [%s + %s], %s\n" % (ptr_reg, path, xmm)
+        return code
+
+    @staticmethod
+    def neg_cmd(cgen, xmm):
+        if not cgen.regs.is_xmm(xmm):
+            raise ValueError("xmm register is expected!", xmm)
+
+        #TODO Vector4 const (-1.0, -1.0, -1.0, -1.0)
+        arg = cgen.create_const((-1.0, -1.0, -1.0))
+        if cgen.AVX:
+            code = "vmulps %s, %s, oword[%s]\n" % (xmm, xmm, arg.name) 
+        else:
+            code = "mulps %s, oword[%s]\n" % (xmm, arg.name) 
+        return code
 
 class Vec3I(Argument):
 
@@ -295,6 +445,7 @@ class ArgumentMap:
         for a in self._args.items():
             yield a
 
+#TODO check if name is something other than string!!!
 def create_argument(name, value=None, typ=None, input_arg=False):
     if value is None and typ is None:
         raise ValueError("Argument could not be created because type and value is missing")
@@ -372,9 +523,9 @@ class Callable:
         self.name = name
         self.args = args
 
-class Operands:
-    def __init__(self, operands):
-        self.operands = operands
+class Operations:
+    def __init__(self, operations):
+        self.operations = operations
 
 class Const:
     def __init__(self, const):

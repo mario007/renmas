@@ -1,11 +1,10 @@
-import struct
 import platform
 from .arg import Integer, Float, Vec3, Struct, Attribute, Operation
-from .arg import Operands, Callable, Name, Subscript, Const, EmptyOperand
+from .arg import Operations, Callable, Name, Subscript, Const, EmptyOperand
 from .cgen import register_function
 
 from .instr import store_const_into_mem, convert_float_to_int, convert_int_to_float
-from .instr import load_operand, store_operand, negate_operand
+from .instr import load_operand, store_operand
 import renmas3.switch as proc
 
 class Statement:
@@ -186,7 +185,7 @@ def perform_operation(cgen, reg1, typ1, operator, reg2, typ2):
         code, reg = perform_operation_vector_int(cgen, reg1, reg2, operator)
         return (code, reg, Vec3)
     else:
-        raise ValueError('Unknown combination of operands', typ1, typ2)
+        raise ValueError('Unknown combination of operation', typ1, typ2)
 
 def is_operator(op):
     ops = ('+', '-', '/', '%', '*')
@@ -312,21 +311,19 @@ def process_operation(cgen, operation, stack=None):
     else:
         raise ValueError("Operation is wrong!")
 
-
 def process_expression(cgen, expr, unary=None):
-    if not isinstance(expr, Operands):
+    if not isinstance(expr, Operations):
         code, reg, typ = process_operand(cgen, expr)
-        if unary is not None:
-            code2, reg = negate_operand(cgen, unary, reg, typ)
-            code += code2
+        if unary is not None and unary == '-':
+            code += typ.neg_cmd(cgen, reg)
         return code, reg, typ
-    #process operands and execute arithmetic
+    #process operations and execute arithmetic
     #TODO -- unary -- negate first operand
     if unary is not None:
         raise ValueError("Not yet implemented. Unary expression")
     stack = []
     code = ''
-    for operation in expr.operands:
+    for operation in expr.operations:
         co, reg, typ = process_operation(cgen, operation, stack)
         code += co
     return code, reg, typ

@@ -67,7 +67,6 @@ shader.prepare(runtimes)
 img = ImagePRGBA(3,3)
 img.set_pixel(1, 2, 0.2, 0.3, 0.1)
 shader.set_value('slika', img)
-
 shader.execute()
 
 print(shader.get_value('p1'))

@@ -3,7 +3,7 @@ import ast
 from .statement import StmIf, StmWhile, StmBreak
 from .statement import StmReturn, StmExpression
 from .statement import StmAssign
-from .arg import Attribute, Operands, Callable, Name, Const, Subscript
+from .arg import Attribute, Operations, Callable, Name, Const, Subscript
 from .arg import Operation, EmptyOperand
 
 def operator(obj):
@@ -67,7 +67,7 @@ def make_name(obj):
         name, path = extract_path(obj)
         return Attribute(name, path)
     elif isinstance(obj, ast.Name):
-        return obj.id
+        return Name(obj.id)
     else:
         raise ValueError("Unsuported source")
 
@@ -116,7 +116,6 @@ def parse_arithmetic(bin_op):
     if not isinstance(left, ast.BinOp) and not isinstance(right, ast.BinOp):
         op1, o, op2 = extract_operands(bin_op)
         return [Operation(left=op1, operator=o, right=op2)]
-        return [(op1, o, op2)]
 
     #min four operands version
     if isinstance(left, ast.BinOp) and isinstance(right, ast.BinOp):
@@ -231,7 +230,7 @@ class Parser:
         expr = parse_arithmetic(obj)
         for t in targets:
             if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
-                return StmAssign(self.cgen, make_name(t), Operands(expr), unary)
+                return StmAssign(self.cgen, make_name(t), Operations(expr), unary)
             else:
                 raise ValueError("Unknown target", t)
 

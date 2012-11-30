@@ -114,6 +114,13 @@ class Registers:
     def is_reg64(self, reg):
         return reg in self._general64
 
+    def type(self, reg):
+        if reg in self._xmm:
+            return 'xmm'
+        if reg in self._general32 or reg in self._general64:
+            return 'general'
+        return None
+
 class Reference:
     def __init__(self, name, obj):
         self.name = name
@@ -195,7 +202,6 @@ class CodeGenerator:
                 reg = 'xmm0'
             self.register(reg=reg)
             return code, reg, typ
-
 
         function = self.get_function(obj.name)
         if function is not None:

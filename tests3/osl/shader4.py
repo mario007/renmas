@@ -31,8 +31,11 @@ if curx == endx:
     cury = cury + 1
     if cury == endy:
         return 0
-x = pixel_size * (curx + w2)
-y = pixel_size * (cury + h2)
+#x = pixel_size * (curx + w2)
+#y = pixel_size * (cury + h2)
+
+x = pixel_size * (w2 + curx)
+y = pixel_size * (w2 + cury)
 sam.x = x
 sam.y = y
 sam.ix = curx

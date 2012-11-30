@@ -88,6 +88,63 @@ class Integer(Argument):
     def neg_cmd(cgen, reg):
         return 'neg %s\n' % reg
 
+    @staticmethod
+    def supported(operator, typ):
+        if typ != Integer:
+            return False
+        if operator not in ('+', '-', '/', '*', '%'):
+            return False
+        return True
+
+    @staticmethod
+    def arith_cmd(cgen, reg1, reg2, typ2, operator):
+        if typ2 != Integer:
+            raise ValueError('Wrong type for integer arithmetic', typ2)
+        if operator == '+':
+            code = 'add %s, %s\n' % (reg1, reg2)
+        elif operator == '-':
+            code = 'sub %s, %s\n' % (reg1, reg2)
+        elif operator == '%' or operator == '/': #TODO test 64-bit implementation is needed
+            code, reg1 = Integer._arith_div(cgen, reg1, reg2, operator)
+        elif operator == '*':
+            code = "imul %s, %s\n" % (reg1, reg2)
+        else:
+            raise ValueError("Unsuported operator", operator)
+        return code, reg1, Integer
+
+    @staticmethod
+    def _arith_div(cgen, reg1, reg2, operator):
+        epilog = """
+        push eax
+        push edx
+        push esi
+        """
+        line1 = "mov eax, %s\n" % reg1
+        line2 = "mov esi, %s\n" % reg2
+        line3 = "xor edx, edx\n"
+        line4 = "idiv esi\n"
+        line5 = "pop esi\n"
+        if operator == '/':
+            line6 = "pop edx\n"
+            line7 = "mov %s, eax\n" % reg1
+            if reg1 == 'eax':
+                line8 = "add esp, 4\n"
+            else:
+                line8 = "pop eax\n"
+        else:
+            line6 = "mov %s, edx\n" % reg1
+            if reg1 == 'edx':
+                line7 = "add esp, 4\n"
+            else:
+                line7 = "pop edx\n"
+            if reg1 == 'eax':
+                line8 = "add esp, 4\n"
+            else:
+                line8 = "pop eax\n"
+        code = epilog + line1 + line2 + line3 + line4 + line5 + line6 + line7 + line8
+        return code, reg1
+
+
 class Float(Argument):
 
     def __init__(self, name, value=0.0):
@@ -173,6 +230,73 @@ class Float(Argument):
         else:
             code = "mulss %s, dword[%s]\n" % (xmm, arg.name) 
         return code
+
+    @staticmethod
+    def supported(operator, typ):
+        if typ != Integer and typ != Float:
+            return False
+        if operator not in ('+', '-', '/', '*'):
+            return False
+        return True
+
+    @staticmethod
+    def arith_cmd(cgen, reg1, reg2, typ2, operator):
+        if typ2 != Integer and typ2 != Float:
+            raise ValueError('Wrong type for float arithmetic', typ2)
+        if not cgen.regs.is_xmm(reg1):
+            raise ValueError('Destination register must be xmm register', reg1)
+
+        code = ''
+        xmm = reg2
+        if typ2 == Integer:
+            xmm = cgen.register(typ="xmm")
+            if cgen.AVX:
+                code += "vcvtsi2ss %s, %s, %s \n" % (xmm, xmm, reg2)
+            else:
+                code += "cvtsi2ss %s, %s \n" % (xmm, reg2)
+            cgen.release_reg(xmm)
+
+        if operator == '+':
+            if cgen.AVX:
+                code += "vaddss %s, %s, %s \n" % (reg1, reg1, xmm)
+            else:
+                code += "addss %s, %s \n" % (reg1, xmm)
+        elif operator == '-':
+            if cgen.AVX:
+                code += "vsubss %s, %s, %s \n" % (reg1, reg1, xmm)
+            else:
+                code += "subss %s, %s \n" % (reg1, xmm)
+        elif operator == '/':
+            if cgen.AVX:
+                code += "vdivss %s, %s, %s \n" % (reg1, reg1, xmm)
+            else:
+                code += "divss %s, %s \n" % (reg1, xmm)
+        elif operator == '*':
+            if cgen.AVX:
+                code += "vmulss %s, %s \n" % (reg1, reg1, xmm)
+            else:
+                code += "mulss %s, %s \n" % (reg1, xmm)
+        else:
+            raise ValueError("Unsuported operator", operator)
+        return code, reg1, Float
+
+    @staticmethod
+    def rev_arith_cmd(cgen, reg1, reg2, typ2, operator):
+        if not cgen.regs.is_xmm(reg1):
+            raise ValueError('Destination register must be xmm register', reg1)
+
+        code = ''
+        xmm = reg2
+        if typ2 == Integer:
+            xmm = cgen.register(typ="xmm")
+            if cgen.AVX:
+                code += "vcvtsi2ss %s, %s, %s \n" % (xmm, xmm, reg2)
+            else:
+                code += "cvtsi2ss %s, %s \n" % (xmm, reg2)
+            cgen.release_reg(xmm)
+
+        code3, reg3, typ3 = Float.arith_cmd(cgen, xmm, reg1, Float, operator)
+        return code + code3, reg3, typ3
 
 class Vec3(Argument):
 
@@ -261,6 +385,80 @@ class Vec3(Argument):
         else:
             code = "mulps %s, oword[%s]\n" % (xmm, arg.name) 
         return code
+
+    @staticmethod
+    def supported(operator, typ):
+        if operator == '*':
+            if typ == Integer or typ == Float or typ == Vec3:
+                return True
+        if operator not in ('+', '-', '/', '*'):
+            return False
+        if typ != Vec3:
+            return False
+        return True
+
+    @staticmethod
+    def _conv(cgen, reg2, typ2):
+        code = ''
+        xmm = reg2
+        if typ2 == Integer and operator == '*':
+            xmm = cgen.register(typ="xmm")
+            if cgen.AVX:
+                code += "vcvtsi2ss %s, %s, %s \n" % (xmm, xmm, reg2)
+            else:
+                code += "cvtsi2ss %s, %s \n" % (xmm, reg2)
+            cgen.release_reg(xmm)
+
+        if typ2 == Float and operator == '*':
+            if cgen.AVX: #vblends maybe is faster investigate TODO
+                code += "vshufps %s, %s, %s, 0x00\n" % (xmm, xmm, xmm)
+            else:
+                code += "shufps %s, %s, 0x00\n" % (xmm, xmm)
+        return code, xmm
+
+    @staticmethod
+    def arith_cmd(cgen, reg1, reg2, typ2, operator):
+        if not cgen.regs.is_xmm(reg1):
+            raise ValueError('Destination register must be xmm register', reg1)
+
+        if operator != '*' and (typ2 == Integer or typ2 == Float):
+            raise ValueError('Wrong type for vector arithmetic', typ2)
+
+        code, xmm = Vec3._conv(cgen, reg2, typ2)
+        if operator == '+':
+            if cgen.AVX:
+                code += "vaddps %s, %s, %s \n" % (reg1, reg1, xmm)
+            else:
+                code += "addps %s, %s \n" % (reg1, xmm)
+        elif operator == '-':
+            if cgen.AVX:
+                code += "vsubps %s, %s, %s \n" % (reg1, reg1, xmm)
+            else:
+                code += "subps %s, %s \n" % (reg1, xmm)
+        elif operator == '/':
+            if cgen.AVX:
+                code += "vdivps %s, %s, %s \n" % (reg1, reg1, xmm)
+            else:
+                code += "divps %s, %s \n" % (reg1, xmm)
+        elif operator == '*':
+            if cgen.AVX:
+                code += "vmulps %s, %s, %s \n" % (reg1, reg1, xmm)
+            else:
+                code += "mulps %s, %s \n" % (reg1, xmm)
+        else:
+            raise ValueError("Unsuported operator", operator)
+
+        return code, reg1, Vec3
+
+    @staticmethod
+    def rev_arith_cmd(cgen, reg1, reg2, typ2, operator):
+        if not cgen.regs.is_xmm(reg1):
+            raise ValueError('Destination register must be xmm register', reg1)
+
+        code, xmm = Vec3._conv(cgen, reg2, typ2)
+        code3, reg3, typ3 = Vec3.arith_cmd(cgen, xmm, reg1, Vec3, operator)
+        return code + code3, reg3, typ3
+
 
 class Vec3I(Argument):
 

@@ -33,164 +33,6 @@ def assign_const_to_dest(cgen, dest, const):
     return code
 
 
-def perform_operation_ints(cgen, reg1, reg2, operator):
-    if operator == '+':
-        code = 'add %s, %s\n' % (reg1, reg2)
-        return code, reg1
-    elif operator == '-':
-        code = 'sub %s, %s\n' % (reg1, reg2)
-        return code, reg1
-    elif operator == '%' or operator == '/': #TODO test 64-bit implementation is needed
-        epilog = """
-        push eax
-        push edx
-        push esi
-        """
-        line1 = "mov eax, %s\n" % reg1
-        line2 = "mov esi, %s\n" % reg2
-        line3 = "xor edx, edx\n"
-        line4 = "idiv esi\n"
-        line5 = "pop esi\n"
-        if operator == '/':
-            line6 = "pop edx\n"
-            line7 = "mov %s, eax\n" % reg1
-            if reg1 == 'eax':
-                line8 = "add esp, 4\n"
-            else:
-                line8 = "pop eax\n"
-        else:
-            line6 = "mov %s, edx\n" % reg1
-            if reg1 == 'edx':
-                line7 = "add esp, 4\n"
-            else:
-                line7 = "pop edx\n"
-            if reg1 == 'eax':
-                line8 = "add esp, 4\n"
-            else:
-                line8 = "pop eax\n"
-        code = epilog + line1 + line2 + line3 + line4 + line5 + line6 + line7 + line8
-        return code, reg1
-    elif operator == '*':
-        code = "imul %s, %s\n" % (reg1, reg2)
-        return code, reg1
-    else:
-        raise ValueError("Unsuported operator", operator)
-
-def perform_operation_floats(cgen, reg1, reg2, operator):
-    if operator == '+':
-        code = "addss %s, %s \n" % (reg1, reg2)
-    elif operator == '-':
-        code = "subss %s, %s \n" % (reg1, reg2)
-    elif operator == '/':
-        code = "divss %s, %s \n" % (reg1, reg2)
-    elif operator == '*':
-        code = "mulss %s, %s \n" % (reg1, reg2)
-    else:
-        raise ValueError("Unsuported operator", operator)
-    return code, reg1
-
-def perform_operation_int_float(cgen, reg1, reg2, operator):
-    reg3 = cgen.register(typ="xmm")
-    conversion = convert_int_to_float(reg1, reg3)
-    code, reg = perform_operation_floats(cgen, reg3, reg2, operator)
-    code = conversion + code
-    return code, reg
-
-def perform_operation_float_int(cgen, reg1, reg2, operator):
-    reg3 = cgen.register(typ="xmm")
-    conversion = convert_int_to_float(reg2, reg3)
-    code, reg = perform_operation_floats(cgen, reg1, reg3, operator)
-    code = conversion + code
-    return code, reg
-
-def perform_operation_vectors3(cgen, reg1, reg2, operator):
-    if operator == '+':
-        code = "addps %s, %s \n" % (reg1, reg2)
-    elif operator == '-':
-        code = "subps %s, %s \n" % (reg1, reg2)
-    elif operator == '/':
-        code = "divps %s, %s \n" % (reg1, reg2)
-    elif operator == '*':
-        code = "mulps %s, %s \n" % (reg1, reg2)
-    else:
-        raise ValueError("Unsuported operator", operator)
-    return code, reg1
-
-def perform_operation_float_vector(cgen, reg1, reg2, operator):
-    line1 = "shufps %s, %s, 0x00\n" % (reg1, reg1)
-    if operator == '*':
-        code = "mulps %s, %s \n" % (reg1, reg2)
-    else:
-        raise ValueError("Unsuported operator", operator, reg1, reg2)
-    code = line1 + code
-    return code, reg1
-
-def perform_operation_vector_float(cgen, reg1, reg2, operator):
-    line1 = "shufps %s, %s, 0x00\n" % (reg2, reg2)
-    if operator == '*':
-        code = "mulps %s, %s \n" % (reg1, reg2)
-    else:
-        raise ValueError("Unsuported operator", operator, reg1, reg2)
-    code = line1 + code
-    return code, reg1
-
-def perform_operation_int_vector(cgen, reg1, reg2, operator):
-    reg3 = cgen.register(typ="xmm")
-    conversion = convert_int_to_float(reg1, reg3)
-    broadcast = "shufps %s, %s, 0x00\n" % (reg3, reg3)
-    if operator == '*':
-        code = "mulps %s, %s \n" % (reg3, reg2)
-    else:
-        raise ValueError("Unsuported operator", operator, reg1, reg2)
-    code = conversion + broadcast + code
-    return code, reg3
-
-def perform_operation_vector_int(cgen, reg1, reg2, operator):
-    reg3 = cgen.register(typ="xmm")
-    conversion = convert_int_to_float(reg2, reg3)
-    broadcast = "shufps %s, %s, 0x00\n" % (reg3, reg3)
-    if operator == '*':
-        code = "mulps %s, %s \n" % (reg1, reg3)
-    else:
-        raise ValueError("Unsuported operator", operator, reg1, reg2)
-    code = conversion + broadcast + code
-    return code, reg1
-
-def perform_operation(cgen, reg1, typ1, operator, reg2, typ2):
-    if typ1 == Integer and typ2 == Integer:
-        code, reg = perform_operation_ints(cgen, reg1, reg2, operator)
-        return (code, reg, Integer)
-    elif typ1 == Float and typ2 == Float:
-        code, reg = perform_operation_floats(cgen, reg1, reg2, operator)
-        return (code, reg, Float)
-    elif typ1 == Integer and typ2 == Float:
-        code, reg = perform_operation_int_float(cgen, reg1, reg2, operator)
-        return (code, reg, Float)
-    elif typ1 == Float and typ2 == Integer:
-        code, reg = perform_operation_float_int(cgen, reg1, reg2, operator)
-        return (code, reg, Float)
-    elif typ1 == Vec3 and typ2 == Vec3:
-        code, reg = perform_operation_vectors3(cgen, reg1, reg2, operator)
-        return (code, reg, Vec3)
-    elif typ1 == Float and typ2 == Vec3:
-        code, reg = perform_operation_float_vector(cgen, reg1, reg2, operator)
-        return (code, reg, Vec3)
-    elif typ1 == Vec3 and typ2 == Float:
-        code, reg = perform_operation_vector_float(cgen, reg1, reg2, operator)
-        return (code, reg, Vec3)
-    elif typ1 == Integer and typ2 == Vec3:
-        code, reg = perform_operation_int_vector(cgen, reg1, reg2, operator)
-        return (code, reg, Vec3)
-    elif typ1 == Vec3 and typ2 == Integer:
-        code, reg = perform_operation_vector_int(cgen, reg1, reg2, operator)
-        return (code, reg, Vec3)
-    else:
-        raise ValueError('Unknown combination of operation', typ1, typ2)
-
-def is_operator(op):
-    ops = ('+', '-', '/', '%', '*')
-    return op in ops
-
 def unary_number(n, unary):
     if unary is None or unary != '-':
         return n
@@ -265,11 +107,11 @@ def process_callable(cgen, op, ocupied_regs=None):
 def process_operand(cgen, op, ocupied_regs=None):
     if isinstance(op, Callable):
         return process_callable(cgen, op, ocupied_regs)
-    else:
+    else: #Note --cgen.register(reg) is allocate in load command
         code, reg, typ = load_operand(cgen, op)
         return (code, reg, typ)
 
-def process_operation(cgen, operation, stack=None):
+def process_operation(cgen, operation, stack=[]):
     def release_free_reg(dest, reg1, reg2):
         if dest != reg1:
             cgen.release_reg(reg1)
@@ -279,37 +121,36 @@ def process_operation(cgen, operation, stack=None):
     left = operation.left
     right = operation.right
     if not left is EmptyOperand and not right is EmptyOperand:
+        ocupied = [r for r, t in stack]
         code, reg, typ = process_operand(cgen, operation.left)
-        code2, reg2, typ2 = process_operand(cgen, operation.right, ocupied_regs=[reg])
-        code3, reg3, typ3 = perform_operation(cgen, reg, typ, operation.operator, reg2, typ2)
-        release_free_reg(reg3, reg, reg2)
-        stack.append((reg3, typ3))
-        return code+code2+code3, reg3, typ3
+        ocupied.append(reg)
+        code2, reg2, typ2 = process_operand(cgen, operation.right, ocupied_regs=ocupied)
+        code += code2
     elif left is EmptyOperand and right is EmptyOperand:
         reg2, typ2 = stack.pop()
         reg, typ = stack.pop()
-        code, reg3, typ3 = perform_operation(cgen, reg, typ, operation.operator, reg2, typ2)
-        release_free_reg(reg3, reg, reg2)
-        stack.append((reg3, typ3))
-        return code, reg3, typ3
+        code = ''
     elif left is EmptyOperand and not right is EmptyOperand:
         ocupied = [r for r, t in stack]
         reg, typ = stack.pop()
-        code2, reg2, typ2 = process_operand(cgen, operation.right, ocupied_regs=[ocupied])
-        code3, reg3, typ3 = perform_operation(cgen, reg, typ, operation.operator, reg2, typ2)
-        release_free_reg(reg3, reg, reg2)
-        stack.append((reg3, typ3))
-        return code2 + code3, reg3, typ3
+        code, reg2, typ2 = process_operand(cgen, operation.right, ocupied_regs=ocupied)
     elif not left is EmptyOperand and right is EmptyOperand:
         ocupied = [r for r, t in stack]
-        code2, reg, typ = process_operand(cgen, operation.left, ocupied_regs=[ocupied])
+        code, reg, typ = process_operand(cgen, operation.left, ocupied_regs=ocupied)
         reg2, typ2 = stack.pop()
-        code3, reg3, typ3 = perform_operation(cgen, reg, typ, operation.operator, reg2, typ2)
-        release_free_reg(reg3, reg, reg2)
-        stack.append((reg3, typ3))
-        return code2 + code3, reg3, typ3
     else:
-        raise ValueError("Operation is wrong!")
+        raise ValueError("Operation is wrong!", operation)
+
+    if typ.supported(operation.operator, typ2):
+        code3, reg3, typ3 = typ.arith_cmd(cgen, reg, reg2, typ2, operation.operator)
+    elif typ2.supported(operation.operator, typ):
+        code3, reg3, typ3 = typ2.rev_arith_cmd(cgen, reg2, reg, typ, operation.operator)
+    else:
+        raise ValueError("Operation not suported", reg, typ, operation.operator, reg2, typ2)
+
+    release_free_reg(reg3, reg, reg2)
+    stack.append((reg3, typ3))
+    return code + code3, reg3, typ3
 
 def process_expression(cgen, expr, unary=None):
     if not isinstance(expr, Operations):

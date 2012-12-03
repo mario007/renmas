@@ -11,6 +11,8 @@ mm = 4.4
 f1 = mm
 gg = 44
 i1 = gg + 88
+p55 = 33
+p55 = 4.4
 """
 shader = create_shader("test", code, arg_map1)
 print (shader._code)

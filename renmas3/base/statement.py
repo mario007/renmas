@@ -16,6 +16,9 @@ class Statement:
 
 def assign_const_to_dest(cgen, dest, const):
     arg = cgen.create_arg(dest, const)
+    if isinstance(dest, Name):
+        dest = Name(arg.name)
+
     if isinstance(arg, Integer) and isinstance(const, int):
         code = store_const_into_mem(cgen, dest, const)
     elif isinstance(arg, Float) and (isinstance(const, int) or isinstance(const, float)):

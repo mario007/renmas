@@ -508,7 +508,7 @@ class UserType:
         paths = {}
         for arg in self._args_lst:
             if isinstance(arg, Struct):
-                #TODO not tested yet
+                #TODO not tested yet - struct inside struct
                 for key, value in arg.paths.items():
                     self._paths[name + '.' + key] = value
             else:
@@ -600,7 +600,7 @@ class Pointer(Argument):
         else:
             return ds[idx_thread][path]
 
-#TODO implement locking of map and list???
+#TODO implement locking of map and list???-think
 class ArgumentList:
     def __init__(self, args=[]):
         self._args = []

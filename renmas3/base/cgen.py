@@ -121,33 +121,59 @@ class Registers:
             return 'general'
         return None
 
-class Reference:
-    def __init__(self, name, obj):
-        self.name = name
-        self.obj = obj
-        self._counter = 0
-
 class _Locals:
     def __init__(self):
         self._free_args = {}
         self._used_args = {}
 
-    def gen_name(self):
-        name = "local" + str(id(self)) + str(self._counter)
-        self._counter += 1
-        return name
+    def _move_to_free_args(self, arg):
+        if type(arg) not in self._free_args:
+            self._free_args[type(arg)] = set()
+        self._free_args[type(arg)].add(arg)
 
-    def create_arg(self, name, arg_type):
-        pass
-        # 1. unbind name if it exist
-        # 2. try find free arg of specified type
-        # 3. if arg is not find create new arg
-        # 4. bind name to new argument
+    def _get_free_arg(self, arg_type):
+        if arg_type in self._free_args:
+            try:
+                return self._free_args[arg_type].pop()
+            except KeyError:
+                return None
+        return None
 
     def get_arg(self, name):
-        for key, value in self._used_args.items():
-            pass
+        if name in self._used_args:
+            return self._used_args[name]
         return None
+
+    def generate_data(self):
+        data = ''
+        for name, arg in self._used_args.items():
+            data += arg.generate_data()
+
+        for arg_type, s in self._free_args.items():
+            for arg in s:
+                data += arg.generate_data()
+        return data
+
+    def add(self, name, arg):
+        loc_arg = self.get_arg(name)
+        if loc_arg is not None and type(loc_arg) == type(arg):
+            return loc_arg
+
+        if loc_arg is not None:
+            self._move_to_free_args(loc_arg)
+
+        loc_arg = self._get_free_arg(type(arg))
+        if loc_arg is None:
+            loc_arg = arg
+
+        self._used_args[name] = loc_arg
+        return loc_arg 
+
+    def __contains__(self, name):
+        return name in self._used_args
+
+    def __getitem__(self, name):
+        return self._used_args[name]
 
 class CodeGenerator:
     def __init__(self, name, args={}, input_args=[], shaders=[], func=False):
@@ -228,6 +254,7 @@ class CodeGenerator:
     def _generate_data_section(self):
         data = ''
         #TODO remove duplicates, struct inside sturct
+        # Only generate struct that are used in current program TODO
         for typ_name, typ in _user_types.items():
             data += typ.generate_struct()
 
@@ -237,8 +264,9 @@ class CodeGenerator:
         for name, arg in iter(self._args):
             data += arg.generate_data()
 
-        for arg in self._locals.values():
-            data += arg.generate_data()
+        data += self._locals.generate_data()
+        #for arg in self._locals.values():
+        #    data += arg.generate_data()
 
         for arg in self._constants.values():
             data += arg.generate_data()
@@ -249,7 +277,9 @@ class CodeGenerator:
         return data
 
     def generate_code(self):
-        self._locals = {}
+        #self._locals = {}
+        self._locals = _Locals()
+
         self._constants = {}
         self._ret_type = None
         code = ''
@@ -319,23 +349,36 @@ class CodeGenerator:
             if name == a.name:
                 arg = a
                 break
-        if path is not None:
+        if path is not None: #NOTE fixed arg test this
             if isinstance(arg, Struct):
-                full_path = name + '.' + path
+                full_path = arg.name + '.' + path
                 arg = arg.get_argument(full_path)
         return arg
+
+    def _is_fixed_name(self, name):
+        if name in self._args:
+            return True
+        for a in iter(self._input_args):
+            if name == a.name:
+                return True
+        return False
 
     def _create_arg_from_callable(self, src, obj):
         arg = self.get_arg(src)
         if arg is not None and isinstance(arg, Struct):
-            if arg.typ.typ != obj.name:
-                raise ValueError("Type mismatch", arg.typ.typ, obj.name)
-            return arg
+            if arg.typ.typ == obj.name:
+                return arg
+                #raise ValueError("Type mismatch", arg.typ.typ, obj.name)
         if obj.name not in _user_types:
             raise ValueError("Unregistered type %s is not registerd." % obj.name)
 
-        arg = Struct(src, _user_types[obj.name])
-        self._locals[src] = arg
+        if arg is None:
+            arg = Struct(self._generate_name('local'), _user_types[obj.name])
+
+        if self._is_fixed_name(arg.name):
+            return arg
+
+        arg = self._locals.add(src, arg)
         return arg
 
 
@@ -346,22 +389,26 @@ class CodeGenerator:
             return self._create_arg_from_callable(dest, value)
         arg = self.get_arg(dest)
         if arg is not None:
-            return arg
+            if type(arg) == typ or self._is_fixed_name(arg.name):
+                return arg
         if isinstance(dest, Attribute):
-            raise ValueError("Cannot create loacl argument for attribut!")
+            if arg is not None:
+                return arg
+            raise ValueError("Cannot create local argument for attribut!")
 
         if isinstance(value, str): # a = b --- create argument a that have same type as b
             arg2 = self.get_arg(value)
             if isinstance(arg2, Struct):
-                arg = create_argument(dest, value=arg2.typ)
+                arg = create_argument(self._generate_name('local'), value=arg2.typ)
             else:
-                arg = create_argument(dest, typ=type(arg2))
+                arg = create_argument(self._generate_name('local'), typ=type(arg2))
         else:
-            arg = create_argument(dest, value=value, typ=typ)
+            arg = create_argument(self._generate_name('local'), value=value, typ=typ)
         if isinstance(arg, Struct): #automatic registration!!!! think TODO
             if arg.typ.typ not in _user_types:
                 raise ValueError("User type %s is not registerd." % arg.typ.typ)
-        self._locals[dest] = arg
+
+        arg = self._locals.add(dest, arg)
         return arg
 
     def get_shader(self, name):
@@ -433,16 +480,10 @@ class CodeGenerator:
         self._asm_functions.append((label, code))
 
     def save_regs(self, regs):
-        code = ''
-        for reg in regs:
-            code += self._save_reg(reg)
-        return code
+        return ''.join(self._save_reg(reg) for reg in regs)
 
     def load_regs(self, regs):
-        code = ''
-        for reg in regs:
-            code += self._load_reg(reg)
-        return code
+        return ''.join(self._load_reg(reg) for reg in regs)
 
     def _save_reg(self, reg):
         #TODO make class that hold all regs and implement many usufel functions like is_xmm, is general32, etc...

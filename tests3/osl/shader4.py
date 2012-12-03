@@ -61,8 +61,8 @@ x = sam.y
 
 runtimes = [Runtime()]
 shader = create_shader("test", code, arg_map1, shaders=[sample_shader])
-shader.prepare(runtimes)
 #print(shader._code)
+shader.prepare(runtimes)
 
 tile = Tile(0, 0, 10, 10)
 width = 100

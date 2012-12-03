@@ -22,17 +22,17 @@ def load_struct_ptr(cgen, attr, reg=None):
         if not cgen.regs.is_reg64(reg):
             raise ValueError("64-bit general register is expected!", reg)
         if isinstance(arg, StructPtr):
-            code = "mov %s, qword [%s] \n" % (reg, name)
+            code = "mov %s, qword [%s] \n" % (reg, arg.name)
         else:
-            code = "mov %s, %s \n" % (reg, name)
+            code = "mov %s, %s \n" % (reg, arg.name)
     else:
         reg = cgen.register(typ='general', bit=32) if reg is None else reg
         if not cgen.regs.is_reg32(reg):
             raise ValueError("32-bit general register is expected!", reg)
         if isinstance(arg, StructPtr):
-            code = "mov %s, dword [%s] \n" % (reg, name)
+            code = "mov %s, dword [%s] \n" % (reg, arg.name)
         else:
-            code = "mov %s, %s \n" % (reg, name)
+            code = "mov %s, %s \n" % (reg, arg.name)
     
     if path is not None:
         path = arg.typ.typ + "." + path
@@ -113,7 +113,7 @@ def load_operand(cgen, op, dest_reg=None, ptr_reg=None):
     elif isinstance(op, Name) or isinstance(op, Attribute):
         arg = cgen.get_arg(op)
         if arg is None:
-            raise ValueError("Argument doesn't exist", op)
+            raise ValueError("Argument doesn't exist", op.name)
         if isinstance(op, Name):
             return arg.load_cmd(cgen, arg.name, dest_reg)
         else:
@@ -142,11 +142,11 @@ def store_operand(cgen, dest, reg, typ):
         raise ValueError("Type mismatch, cannot sotre operand", type(dst_arg), typ)
 
     if isinstance(dest, Name):
-        code += dst_arg.store_cmd(cgen, reg, dest.name)
+        code += dst_arg.store_cmd(cgen, reg, dst_arg.name)
     elif isinstance(dest, Attribute):
         code2, ptr_reg, path = load_struct_ptr(cgen, dest)
         code += code2
-        code += dst_arg.store_cmd(cgen, reg, dest.name, path=path, ptr_reg=ptr_reg)
+        code += dst_arg.store_cmd(cgen, reg, dst_arg.name, path=path, ptr_reg=ptr_reg)
         cgen.release_reg(ptr_reg)
     else:
         raise ValueError("Unknown type of destination.", dest)

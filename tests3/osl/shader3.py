@@ -56,12 +56,14 @@ code2 = """
 p2 = p1 
 return p2
 """
+
 arg_lst = arg_list([('p1', 3)])
 arg_map2 = arg_map([])
 shader2 = create_shader("ret_arg", code2, arg_map2, arg_lst, func=True)
 
 runtimes = [Runtime()]
 shader = create_shader("test", code, arg_map1, shaders=[shader2])
+print(shader._code)
 shader.prepare(runtimes)
 
 img = ImagePRGBA(3,3)

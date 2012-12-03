@@ -98,4 +98,70 @@ class Shader:
         else:
             raise ValueError("Wrong name of argument", name)
 
+class Properties:
+    def __init__(self):
+        self._props = {}
+
+    def get_value(self, name):
+        return self._props[name].value
+
+    def set_value(self, name, value):
+        self._props[name].value = value
+
+    def add(self, props):
+        for p in props:
+            if p.name in self._props:
+                raise ValueError("Property %s allready exist" % p.name)
+            self._props[p.name] = p
+
+class GeneralShader:
+    def __init__(self, name=None, code=None, py_code=None, props=None):
+        self._default_code = code
+        self._default_py_code = py_code
+        if props is None:
+            props = []
+        self._default_props = props
+
+        self._code = code
+        self._py_code = py_code
+        self._name = name
+        if name is None:
+            self._name = 'name' + str(id(self)) 
+
+        self._props = Properties()
+        if props is not None:
+            self._props.add(props)
+
+    @property
+    def props(self):
+        return self._props
+
+    def set_code(self, code=None, py_code=None):
+        self._code = code
+        self._py_code = py_code
+
+    ## reset to state he was when it is created
+    # this will be usefull so that we can easly
+    # from gui return shader to initial state
+    def reset(self):
+        self._code = self._default_code
+        self._py_code = self._default_py_code
+
+        self._props = Properties()
+        self._props.add(self._default_props)
+
+    def prepare(self, runtimes, shaders=None):
+        pass
+
+    #stand alone shader
+    def execute(self):
+        pass
+
+    #stand_alone_shader
+    def execute_py(self, *args):
+        return self._py_code(self._props, *args)
+
+    #return shader object so that other shader can call this shader
+    def shader(self):
+        pass
 

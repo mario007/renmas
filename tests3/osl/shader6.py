@@ -31,7 +31,7 @@ b = 3 + pow(2,3) * 2.5
 shader = create_shader("test", code, arg_map1, shaders=[sh1])
 shader.prepare(runtimes)
 shader.execute()
-#print (shader._code)
+print (shader._code)
 
 print(shader.get_value('a'))
 print(shader.get_value('b'))

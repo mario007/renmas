@@ -55,7 +55,7 @@ def _copy_from_regs(args):
             else:
                 code += "mov dword [%s], %s \n" % (a.name, general.pop())
         else:
-            raise ValueError('Unknown argument', a)
+            raise ValueError('Unknown argument', a, a.name)
     return code
 
 def _copy_to_regs(cgen, operands, input_args):
@@ -92,9 +92,10 @@ def _copy_to_regs(cgen, operands, input_args):
                 reg = 'r' + reg[1:]
             arg = cgen.get_arg(operand)
             if isinstance(arg, Struct):
-                code, dummy, dummy = load_struct_ptr(cgen, operand, reg)
+                co, dummy, dummy = load_struct_ptr(cgen, operand, reg)
+                code += co
             else:
-                raise ValueError("User type argument is expected.", src)
+                raise ValueError("User type argument is expected.", arg)
         else:
             raise ValueError("Unsuported argument type!", operand, arg)
     return code
@@ -364,6 +365,7 @@ class CodeGenerator:
         return False
 
     def _create_arg_from_callable(self, src, obj):
+        #TODO FIXME sample = Sample() -- sample is argument it means it is fixed structure
         arg = self.get_arg(src)
         if arg is not None and isinstance(arg, Struct):
             if arg.typ.typ == obj.name:

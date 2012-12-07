@@ -151,6 +151,9 @@ class GeneralShader:
         self._props.add(self._default_props)
 
     def prepare(self, runtimes, shaders=None):
+        # 1. Prepare shader for execution
+        # 2. runtimes(multicore problem) clone ??
+        # 3. Throw exception if we don't have shader code
         pass
 
     #stand alone shader

@@ -1,4 +1,6 @@
 
+from ..base import register_user_type, Integer, Float
+
 class Sample:
     __slots__ = ['x', 'y', 'ix', 'iy', 'weight']
     def __init__(self, x, y, ix, iy, weight):
@@ -14,7 +16,7 @@ class Sample:
     @classmethod
     def struct(cls):
         sample = """
-            struct sample
+            struct Sample
             float xyxy[4] 
             uint32 ix, iy
             float weight 
@@ -22,3 +24,11 @@ class Sample:
         """
         return sample 
 
+    @classmethod
+    def user_type(cls):
+        typ_name = "Sample"
+        fields = [('x', Float), ('y', Float), ('ix', Integer), ('iy', Integer),
+                ('weight', Float)]
+        return (typ_name, fields)
+
+register_user_type(Sample)

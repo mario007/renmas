@@ -398,7 +398,7 @@ class Vec3(Argument):
         return True
 
     @staticmethod
-    def _conv(cgen, reg2, typ2):
+    def _conv(cgen, reg2, typ2, operator):
         code = ''
         xmm = reg2
         if typ2 == Integer and operator == '*':
@@ -424,7 +424,7 @@ class Vec3(Argument):
         if operator != '*' and (typ2 == Integer or typ2 == Float):
             raise ValueError('Wrong type for vector arithmetic', typ2)
 
-        code, xmm = Vec3._conv(cgen, reg2, typ2)
+        code, xmm = Vec3._conv(cgen, reg2, typ2, operator)
         if operator == '+':
             if cgen.AVX:
                 code += "vaddps %s, %s, %s \n" % (reg1, reg1, xmm)
@@ -455,7 +455,7 @@ class Vec3(Argument):
         if not cgen.regs.is_xmm(reg1):
             raise ValueError('Destination register must be xmm register', reg1)
 
-        code, xmm = Vec3._conv(cgen, reg2, typ2)
+        code, xmm = Vec3._conv(cgen, reg2, typ2, operator)
         code3, reg3, typ3 = Vec3.arith_cmd(cgen, xmm, reg1, Vec3, operator)
         return code + code3, reg3, typ3
 
@@ -676,7 +676,10 @@ def create_argument(name, value=None, typ=None, input_arg=False):
         elif hasattr(typ, 'user_type'):
             typ_name, fields = typ.user_type()
             usr_type = create_user_type(typ_name, fields)
-            arg = Struct(name, usr_type)
+            if input_arg:
+                arg = StructPtr(name, usr_type)
+            else:
+                arg = Struct(name, usr_type)
         else:
             raise ValueError("Unknown type of arugment", typ)
         return arg

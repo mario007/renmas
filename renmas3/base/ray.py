@@ -1,4 +1,7 @@
 
+from .arg import Vec3
+from .cgen import register_user_type
+
 class Ray():
     __slots__ = ['origin', 'dir']
     def __init__(self, o, d):
@@ -24,4 +27,12 @@ class Ray():
     def populate_ds(cls, ds, ray, name):
         ds[name + ".origin"] = ray.origin.to_ds() 
         ds[name + ".dir"] = ray.dir.to_ds()
+
+    @classmethod
+    def user_type(cls):
+        typ_name = "Ray"
+        fields = [('origin', Vec3), ('direction', Vec3)]
+        return (typ_name, fields)
+
+register_user_type(Ray)
 

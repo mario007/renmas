@@ -5,6 +5,8 @@ from tdasm import Runtime
 
 from ..macros import MacroCall, create_assembler
 
+from ..base import Float, register_user_type
+
 class ImageProps:
     def __init__(self, image, red_avg=None, green_avg=None, blue_avg=None,\
             lum_avg=None, lum_min=None, lum_max=None):
@@ -15,6 +17,19 @@ class ImageProps:
         self.lum_min = lum_min
         self.lum_max = lum_max
         self.image = image
+
+    @classmethod
+    def user_type(cls):
+        typ_name = "ImageProps"
+        fields = [('lum_avg', Float), ('lum_min', Float), ('lum_max', Float),
+                ('red_avg', Float), ('green_avg', Float), ('blue_avg', Float)]
+        return (typ_name, fields)
+
+    def __repr__(self):
+        return '<ImageProps object at %s LumMax=%f, LumMin=%f, LumAvg=%f>' % \
+                (hex(id(self)), self.lum_max, self.lum_min, self.lum_avg)
+
+register_user_type(ImageProps)
 
 def calc_img_props_py(image):
     lum_avg = red_avg = green_avg = blue_avg = 0.0

@@ -7,7 +7,7 @@ from .arg import Integer, Vec3I, Pointer, StructPtr, Name, Const, Subscript
 from .arg import Callable, create_user_type
 from .shader import Shader
 from .vector3 import Vector3
-from .instr import load_struct_ptr, load_operand
+from .instr import load_operand, load_func_args, store_func_args
 
 _user_types = {}
 _built_in_functions = {}
@@ -21,84 +21,19 @@ def register_user_type(typ):
             pass #TODO -- check if two types are compatabile
         else:
             _user_types[typ.typ] = typ
+        return
+
+    if not inspect.isclass(typ):
+        raise ValueError("Type is not class", typ)
+    if not hasattr(typ, 'user_type'):
+        raise ValueError("Class does not have user_type metod defined", typ)
+
+    typ_name, fields = typ.user_type()
+    usr_type = create_user_type(typ_name, fields)
+    if usr_type.typ in _user_types:
+        pass #TODO -- check if two types are compatabile
     else:
-        if inspect.isclass(typ):
-            if hasattr(typ, 'user_type'):
-                typ_name, fields = typ.user_type()
-                usr_type = create_user_type(typ_name, fields)
-                if usr_type.typ in _user_types:
-                    pass #TODO -- check if two types are compatabile
-                else:
-                    _user_types[usr_type.typ] = usr_type
-            else:
-                raise ValueError("Class does not have user_type metod defined", typ)
-        else:
-            raise ValueError("Type is not class", typ)
-
-def _copy_from_regs(args):
-    xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
-    general = ['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
-    code = ''
-    bits = platform.architecture()[0]
-    for a in args:
-        if isinstance(a, Integer):
-            code += "mov dword [%s], %s \n" % (a.name, general.pop())
-        elif isinstance(a, Float):
-            code += "movss dword [%s], %s \n" % (a.name, xmm.pop())
-        elif isinstance(a, Vec3):
-            code += "movaps oword [%s], %s \n" % (a.name, xmm.pop())
-        elif isinstance(a, StructPtr):
-            if bits == '64bit':
-                reg = general.pop()
-                reg = 'r' + reg[1:]
-                code += "mov qword [%s], %s \n" % (a.name, reg)
-            else:
-                code += "mov dword [%s], %s \n" % (a.name, general.pop())
-        else:
-            raise ValueError('Unknown argument', a, a.name)
-    return code
-
-def _copy_to_regs(cgen, operands, input_args):
-    if len(operands) != len(input_args):
-        raise ValueError("Argument length mismatch", operands, input_args)
-
-    bits = platform.architecture()[0]
-    xmm = ['xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
-    general = ['esi', 'edx', 'ecx', 'ebx', 'eax']
-    ptr_reg = 'rbp' if bits == '64bit' else 'ebp'
-    reg2 = 'edi'
-    tmp_xmm = 'xmm7'
-    cgen.register(reg=ptr_reg)
-    cgen.register(reg=reg2)
-
-    code = ''
-    for operand, arg in zip(operands, input_args):
-        if isinstance(arg, Integer):
-            reg = general.pop()
-            cgen.register(reg=reg)
-            co, reg, typ = load_operand(cgen, operand, dest_reg=reg, ptr_reg=ptr_reg)
-            code += co
-            if typ != Integer:
-                raise ValueError("Type mismatch when passing parameter to function", arg, typ)
-        elif isinstance(arg, Float) or isinstance(arg, Vec3):
-            reg = xmm.pop()
-            co, reg, typ = load_operand(cgen, operand, dest_reg=reg, ptr_reg=ptr_reg)
-            code += co
-            if typ != type(arg):
-                raise ValueError("Type mismatch when passing parameter to function", arg, typ)
-        elif isinstance(arg, StructPtr):
-            reg = general.pop()
-            if bits == '64bit':
-                reg = 'r' + reg[1:]
-            arg = cgen.get_arg(operand)
-            if isinstance(arg, Struct):
-                co, dummy, dummy = load_struct_ptr(cgen, operand, reg)
-                code += co
-            else:
-                raise ValueError("User type argument is expected.", arg)
-        else:
-            raise ValueError("Unsuported argument type!", operand, arg)
-    return code
+        _user_types[usr_type.typ] = usr_type
 
 class Registers:
     def __init__(self):
@@ -187,7 +122,7 @@ class CodeGenerator:
         self._ret_type = None
         self._constants = {}
         self._counter = 0
-        self._asm_functions = []
+        self._asm_functions = {}
         self._saved_regs = set()
         self.regs = Registers()
 
@@ -218,7 +153,8 @@ class CodeGenerator:
         shader = self.get_shader(obj.name)
         if shader is not None:
             self.clear_regs()
-            code = _copy_to_regs(self, obj.args, shader.input_args)
+            arg_types = [type(arg) for arg in shader.input_args]
+            code = load_func_args(self, obj.args, arg_types)
             self.clear_regs()
             code += "call %s\n" % obj.name
             typ = shader.ret_type
@@ -292,7 +228,7 @@ class CodeGenerator:
         glo = ''
         if self._func:
             glo = "global %s:\n" % self._name
-        code = glo + _copy_from_regs(self._input_args) + code
+        code = glo + store_func_args(self, self._input_args) + code
         if self._func:
             code += "ret\n"
         if self._func:
@@ -302,13 +238,13 @@ class CodeGenerator:
 
     def create_shader(self):
         code = self.generate_code()
-        #print (code)
         shader = Shader(self._name, code, self._args, self._input_args,
                 self._shaders, self._ret_type, self._func,
                 functions=self._asm_functions)
         return shader
 
     #create const it it's doesnt exist
+    #TODO improve this
     def create_const(self, value):
         if value in self._constants:
             return self._constants[value]
@@ -455,21 +391,15 @@ class CodeGenerator:
             raise ValueError('Unknown type of register', typ)
 
     def release_reg(self, reg):
-        if reg in self._xmm or reg in self._general or reg in self._general64:
-            return
-        xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
-        if reg in xmm:
+        if self.regs.is_xmm(reg) and reg not in self._xmm:
             self._xmm.append(reg)
-            return
-        general = ['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
-        if reg in general:
+        elif self.regs.is_reg32(reg) and reg not in self._general:
             self._general.append(reg)
             self._general64.append('r' + reg[1:])
-            return
-        general64 = ['rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax']
-        if reg in general64:
+        elif self.regs.is_reg64(reg) and reg not in self._general64:
             self._general64.append(reg)
             self._general.append('e' + reg[1:])
+
 
     # clear ocupied registers
     def clear_regs(self):
@@ -479,7 +409,7 @@ class CodeGenerator:
 
     def add_asm_function(self, label, code):
         #TODO --- code can also be callable
-        self._asm_functions.append((label, code))
+        self._asm_functions[label] = code
 
     def save_regs(self, regs):
         return ''.join(self._save_reg(reg) for reg in regs)
@@ -488,21 +418,17 @@ class CodeGenerator:
         return ''.join(self._load_reg(reg) for reg in regs)
 
     def _save_reg(self, reg):
-        #TODO make class that hold all regs and implement many usufel functions like is_xmm, is general32, etc...
-        xmms = ('xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0')
-        general32 = ('ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax')
-        general64 = ('rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax')
         name = '%s_%i' % (reg, id(self))
-        if reg in xmms:
+        if self.regs.is_xmm(reg):
             ds_reg = "float %s[4]\n" % name
             if proc.AVX:
                 code = "vmovaps oword [%s], %s\n" % (name, reg)
             else:
                 code = "movaps oword [%s], %s\n" % (name, reg)
-        elif reg in general32:
+        elif self.regs.is_reg32(reg):
             ds_reg = "uint32 %s\n" % name
             code = "mov dword [%s], %s\n" % (name, reg)
-        elif reg in general64:
+        elif self.regs.is_reg64(reg):
             ds_reg = "uint64 %s\n" % name
             code = "mov qword [%s], %s\n" % (name, reg)
         else:
@@ -511,17 +437,14 @@ class CodeGenerator:
         return code
 
     def _load_reg(self, reg):
-        xmms = ('xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0')
-        general32 = ('ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax')
-        general64 = ('rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax')
         name = '%s_%i' % (reg, id(self))
-        if reg in xmms:
+        if self.regs.is_xmm(reg):
             if proc.AVX:
                 code = "vmovaps %s, oword [%s]\n" % (reg, name) 
             else:
                 code = "movaps %s, oword [%s]\n" % (reg, name)
-        elif reg in general32:
+        elif self.regs.is_reg32(reg):
             code = "mov %s, dword [%s]\n" % (reg, name)
-        elif reg in general64:
+        elif self.regs.is_reg64(reg):
             code = "mov %s, qword [%s]\n" % (reg, name)
         return code

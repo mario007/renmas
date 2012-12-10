@@ -2,6 +2,18 @@ import platform
 import inspect
 from .vector3 import Vector3
 
+def conv_int_to_float(cgen, reg, xmm):
+    if cgen.AVX:
+        return "vcvtsi2ss %s, %s, %s \n" % (xmm, xmm, reg)
+    else:
+        return "cvtsi2ss %s, %s \n" % (xmm, reg)
+
+def conv_float_to_int(cgen, reg, xmm):
+    if cgen.AVX:
+        return "vcvttss2si %s, %s \n" % (reg, xmm)
+    else:
+        return "cvttss2si %s, %s \n" % (reg, xmm)
+
 class Argument:
     def __init__(self, name):
         self.name = name
@@ -65,10 +77,7 @@ class Integer(Argument):
             code = "mov %s, dword [%s + %s]\n" % (tmp, ptr_reg, path)
 
         if cgen.regs.is_xmm(dest_reg): #implicit conversion to float
-            if cgen.AVX:
-                conversion = "vcvtsi2ss %s, %s, %s \n" % (dest_reg, dest_reg, tmp)
-            else:
-                conversion = "cvtsi2ss %s, %s \n" % (dest_reg, tmp)
+            conversion = conv_int_to_float(cgen, tmp, dest_reg)
             cgen.release_reg(tmp)
             return code + conversion, dest_reg, Float
         else:
@@ -250,10 +259,7 @@ class Float(Argument):
         xmm = reg2
         if typ2 == Integer:
             xmm = cgen.register(typ="xmm")
-            if cgen.AVX:
-                code += "vcvtsi2ss %s, %s, %s \n" % (xmm, xmm, reg2)
-            else:
-                code += "cvtsi2ss %s, %s \n" % (xmm, reg2)
+            code += conv_int_to_float(cgen, reg2, xmm)
             cgen.release_reg(xmm)
 
         if operator == '+':
@@ -289,10 +295,7 @@ class Float(Argument):
         xmm = reg2
         if typ2 == Integer:
             xmm = cgen.register(typ="xmm")
-            if cgen.AVX:
-                code += "vcvtsi2ss %s, %s, %s \n" % (xmm, xmm, reg2)
-            else:
-                code += "cvtsi2ss %s, %s \n" % (xmm, reg2)
+            code += conv_int_to_float(cgen, reg2, xmm)
             cgen.release_reg(xmm)
 
         code3, reg3, typ3 = Float.arith_cmd(cgen, xmm, reg1, Float, operator)
@@ -300,7 +303,7 @@ class Float(Argument):
 
 class Vec3(Argument):
 
-    def __init__(self, name, value):
+    def __init__(self, name, value=Vector3(0.0, 0.0, 0.0)):
         super(Vec3, self).__init__(name)
         self._value = value
 
@@ -403,10 +406,7 @@ class Vec3(Argument):
         xmm = reg2
         if typ2 == Integer and operator == '*':
             xmm = cgen.register(typ="xmm")
-            if cgen.AVX:
-                code += "vcvtsi2ss %s, %s, %s \n" % (xmm, xmm, reg2)
-            else:
-                code += "cvtsi2ss %s, %s \n" % (xmm, reg2)
+            code += conv_int_to_float(cgen, reg2, xmm)
             cgen.release_reg(xmm)
 
         if typ2 == Float and operator == '*':

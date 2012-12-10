@@ -16,7 +16,7 @@ def dot_ins(a, b, txmm):
                 code = " movaps " + txmm + ", " + b + "\n"
                 code += " mulps " + a + "," + txmm + "\n"
                 code += " movhlps " + txmm + "," + a + "\n"
-                code += " addps " + a + "," + txmm + "\n"
+                code += " addss " + a + "," + txmm + "\n"
                 code += " pshufd " + txmm + "," + a + ",1\n"
                 code += " addss " + a + "," + txmm + "\n"
     else:
@@ -29,7 +29,7 @@ def dot_ins(a, b, txmm):
                 code = " movaps " + txmm + ", oword [" + b + "]\n"
                 code += " mulps " + a + "," + txmm + "\n"
                 code += " movhlps " + txmm + "," + a + "\n"
-                code += " addps " + a + "," + txmm + "\n"
+                code += " addss " + a + "," + txmm + "\n"
                 code += " pshufd " + txmm + "," + a + ",1\n"
                 code += " addss " + a + "," + txmm + "\n"
 

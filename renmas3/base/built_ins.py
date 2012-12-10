@@ -2,8 +2,9 @@ import platform
 import renmas3.switch as proc
 
 from .arg import Integer, Float, Vec3, Struct, Attribute
+from .arg import conv_float_to_int
 
-from .instr import load_struct_ptr, convert_float_to_int, load_operand
+from .instr import load_struct_ptr, load_operand
 from .cgen import register_function
 
 from ..asm import pow_ps, pow_ss
@@ -20,13 +21,47 @@ def _int_function(cgen, args):
         return code, reg, typ
     elif typ == Float:
         to_reg = cgen.register(typ="general")
-        code += convert_float_to_int(reg, to_reg)
+        code += conv_float_to_int(cgen, to_reg, reg)
         cgen.release_reg(reg)
         return code, to_reg, Integer
     else:
         raise ValueError("Unsuported argument type", args[0])
 
 register_function('int', _int_function, inline=True) 
+
+def _luminance(cgen, args):
+    if len(args) != 1:
+        raise ValueError("Wrong number of arguments in normalize fucntion", args)
+    code1, reg1, typ1 = load_operand(cgen, args[0])
+    if typ1 != Vec3:
+        raise ValueError("Type mismatch in normalize function", args[0])
+
+    arg = cgen.create_const((0.2126, 0.7152, 0.0722))
+
+    tmp1 = cgen.register(typ='xmm')
+    tmp2 = cgen.register(typ='xmm')
+
+    if cgen.AVX:
+        line1 = "vmovaps %s, oword [%s]\n" % (tmp1, arg.name)
+        line2 = "vdpps %s, %s, %s, 0x71 \n" % (reg1, reg1, tmp1)
+        code = code1 + line1 + line2
+    elif proc.SSE41:
+        line1 = "movaps %s, oword [%s]\n" % (tmp1, arg.name)
+        line2 = "dpps %s, %s, 0x71\n" % (reg1, tmp1)
+        code = code1 + line1 + line2
+    else: #SSE2 implementation
+        line1 = "movaps %s, oword [%s]\n" % (tmp1, arg.name)
+        line2 = "mulps %s, %s\n" % (reg1, tmp1)
+        line3 = "movhlps %s, %s\n" % (tmp1, reg1)
+        line4 = "addss %s, %s\n" % (reg1, tmp1)
+        line5 = "pshufd %s, %s, 1\n" % (tmp1, reg1)
+        line6 = "addss %s, %s\n" % (reg1, tmp1)
+        code = code1 + line1 + line2 + line3 + line4 + line5 + line6
+
+    cgen.release_reg(tmp1)
+    return code, reg1, Float
+
+register_function('luminance', _luminance, inline=True) 
 
 def _normalize_function(cgen, args):
     if len(args) != 1:
@@ -41,7 +76,7 @@ def _normalize_function(cgen, args):
     if proc.AVX:
         line1 = "vdpps %s, %s, %s, 0x7f \n" % (tmp1, reg1, reg1)
         line2 = "vsqrtps %s, %s\n" % (tmp1, tmp1)
-        line3 = "vdivps %s, %s\n" % (reg1, tmp1)
+        line3 = "vdivps %s, %s, %s\n" % (reg1, reg1, tmp1)
         code = code1 + line1 + line2 + line3
     elif proc.SSE41:
         line1 = "movaps %s, %s\n" % (tmp1, reg1)
@@ -53,7 +88,7 @@ def _normalize_function(cgen, args):
         line1 = "movaps %s, %s\n" % (tmp2, reg1)
         line2 = "mulps %s, %s\n" % (tmp2, tmp2)
         line3 = "movhlps %s, %s\n" % (tmp1, tmp2)
-        line4 = "addps %s, %s\n" % (tmp2, tmp1)
+        line4 = "addss %s, %s\n" % (tmp2, tmp1)
         line5 = "pshufd %s, %s, 1\n" % (tmp1, tmp2)
         line6 = "addss %s, %s\n" % (tmp2, tmp1)
         line7 = "shufps %s, %s, 0x00\n" % (tmp2, tmp2)
@@ -171,6 +206,8 @@ def _pow(cgen, args):
     if len(args) != 2:
         raise ValueError("Wrong number of arguments in pow fucntion", args)
 
+    #NOTE here we dont use load_func_args function because pow can accept
+    # different type parameters Float, Vector3, ...
     cgen.clear_regs()
     xmm1 = cgen.register(reg='xmm0')
     xmm2 = cgen.register(reg='xmm1')

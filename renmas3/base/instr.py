@@ -1,6 +1,7 @@
 import platform
 import renmas3.switch as proc
 from .arg import  Integer, Float, Vec3, Struct, Attribute, StructPtr, Const, Name, Subscript
+from .arg import conv_int_to_float
 from .util import float2hex
 
 def load_struct_ptr(cgen, attr, reg=None):
@@ -37,12 +38,6 @@ def load_struct_ptr(cgen, attr, reg=None):
     if path is not None:
         path = arg.typ.typ + "." + path
     return (code, reg, path)
-
-def convert_int_to_float(reg, xmm):
-    return "cvtsi2ss %s, %s \n" % (xmm, reg)
-
-def convert_float_to_int(reg, to_reg):
-    return "cvttss2si %s, %s \n" % (to_reg, reg)
 
 def store_const_into_mem(cgen, dest, const, offset=None):
     #TODO -- be careful to binding to differenent argument
@@ -84,7 +79,7 @@ def load_const(cgen, const, dest_reg=None):
         if dest_reg is not None and cgen.regs.is_xmm(dest_reg):
             tmp = cgen.register(typ='general')
             code = "mov %s, %i\n" % (tmp, const)
-            conversion = convert_int_to_float(tmp, dest_reg)
+            conversion = conv_int_to_float(cgen, tmp, dest_reg)
             cgen.release_reg(tmp)
             return code + conversion, dest_reg, Float
 
@@ -134,7 +129,7 @@ def store_operand(cgen, dest, reg, typ):
     #implicit conversion int to float
     if isinstance(dst_arg, Float) and typ == Integer:
         to_reg = cgen.register(typ='xmm')
-        code = convert_int_to_float(reg, to_reg)
+        code = conv_int_to_float(cgen, reg, to_reg)
         reg = to_reg
         typ = Float
 
@@ -152,3 +147,73 @@ def store_operand(cgen, dest, reg, typ):
         raise ValueError("Unknown type of destination.", dest)
     return code
 
+def load_func_args(cgen, operands, arg_types):
+    if len(operands) != len(arg_types):
+        raise ValueError("Argument length mismatch", operands, arg_types)
+
+    bits = platform.architecture()[0]
+    xmm = ['xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
+    general = ['esi', 'edx', 'ecx', 'ebx', 'eax']
+    ptr_reg = 'rbp' if bits == '64bit' else 'ebp'
+    reg2 = 'edi'
+    tmp_xmm = 'xmm7'
+    cgen.register(reg=ptr_reg)
+    cgen.register(reg=reg2)
+
+    code = ''
+    for operand, arg_type in zip(operands, arg_types):
+        if arg_type is Integer:
+            reg = general.pop()
+            cgen.register(reg=reg)
+            co, reg, typ = load_operand(cgen, operand, dest_reg=reg, ptr_reg=ptr_reg)
+            code += co
+            if typ != Integer:
+                raise ValueError("Type mismatch when passing parameter to function", arg, typ)
+        elif arg_type is Float or arg_type is Vec3:
+            reg = xmm.pop()
+            co, reg, typ = load_operand(cgen, operand, dest_reg=reg, ptr_reg=ptr_reg)
+            code += co
+            if typ != arg_type:
+                raise ValueError("Type mismatch when passing parameter to function", arg_type, typ)
+        elif arg_type is StructPtr:
+            reg = general.pop()
+            if bits == '64bit':
+                reg = 'r' + reg[1:]
+            arg = cgen.get_arg(operand)
+            if isinstance(arg, Struct):
+                co, dummy, dummy = load_struct_ptr(cgen, operand, reg)
+                code += co
+            else:
+                raise ValueError("User type argument is expected.", arg)
+        else:
+            raise ValueError("Unsuported argument type!", operand, arg_type)
+    return code
+
+def store_func_args(cgen, args):
+    xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
+    general = ['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
+    code = ''
+    bits = platform.architecture()[0]
+    for a in args:
+        if isinstance(a, Integer):
+            code += "mov dword [%s], %s \n" % (a.name, general.pop())
+        elif isinstance(a, Float):
+            if cgen.AVX:
+                code += "vmovss dword [%s], %s \n" % (a.name, xmm.pop())
+            else:
+                code += "movss dword [%s], %s \n" % (a.name, xmm.pop())
+        elif isinstance(a, Vec3):
+            if cgen.AVX:
+                code += "vmovaps oword [%s], %s \n" % (a.name, xmm.pop())
+            else:
+                code += "movaps oword [%s], %s \n" % (a.name, xmm.pop())
+        elif isinstance(a, StructPtr):
+            if bits == '64bit':
+                reg = general.pop()
+                reg = 'r' + reg[1:]
+                code += "mov qword [%s], %s \n" % (a.name, reg)
+            else:
+                code += "mov dword [%s], %s \n" % (a.name, general.pop())
+        else:
+            raise ValueError('Unknown argument', a, a.name)
+    return code

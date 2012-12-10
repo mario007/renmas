@@ -4,7 +4,7 @@ from .arg import Integer, Pointer, Float, Argument, create_argument, create_user
 from .cgen import CodeGenerator, register_user_type
 from .shader import Shader
 from .factory import create_shader, arg_map, arg_list, create_function
-from .tile import Tile
+from .tile import Tile2D
 from .image import ImageRGBA, ImageBGRA, ImagePRGBA
 from .graphics import GraphicsRGBA, GraphicsPRGBA
 from .ray import Ray

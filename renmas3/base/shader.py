@@ -50,8 +50,7 @@ class Shader:
         name = 'shader' + str(id(self))
 
         for r in runtimes:
-            for f in self._functions:
-                label, code = f
+            for label, code in self._functions.items():
                 if not r.global_exists(label):
                     if label in self._mc_cache:
                         r.load(label, self._mc_cache[label])
@@ -73,13 +72,14 @@ class Shader:
             self._ds = ds
 
 
-    def execute(self):
+    def execute(self, nthreads=1):
         if len(self._runtimes) == 1:
             name = 'shader' + str(id(self))
             self._runtimes[0].run(name)
-        else:
+        else: #we can prepare that we can actually run
             name = 'shader' + str(id(self))
-            addrs = [r.address_module(name) for r in self._runtimes]
+            #addrs = [r.address_module(name) for r in self._runtimes]
+            addrs = [self._runtimes[idx].address_module(name) for idx in range(nthreads)]
             x86.ExecuteModules(tuple(addrs))
 
     def get_value(self, name, idx_thread=None):

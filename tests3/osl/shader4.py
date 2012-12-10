@@ -4,7 +4,7 @@ import renmas3.base
 from renmas3.base import create_shader, create_user_type
 from renmas3.base import register_user_type
 from renmas3.base import arg_map, arg_list
-from renmas3.base import Tile
+from renmas3.base import Tile2D
 from renmas3.base import Vector3
 
 sample = create_user_type(typ="sample", fields=[('x', 0.0), ('y', 0.0), 
@@ -64,7 +64,7 @@ shader = create_shader("test", code, arg_map1, shaders=[sample_shader])
 #print(shader._code)
 shader.prepare(runtimes)
 
-tile = Tile(0, 0, 10, 10)
+tile = Tile2D(0, 0, 10, 10)
 width = 100
 height = 100
 sample_shader.set_value('endx', tile.x + tile.width)

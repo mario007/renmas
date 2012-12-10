@@ -1,9 +1,10 @@
 import platform
 from .arg import Integer, Float, Vec3, Struct, Attribute, Operation
 from .arg import Operations, Callable, Name, Subscript, Const, EmptyOperand
+from .arg import conv_int_to_float
 from .cgen import register_function
 
-from .instr import store_const_into_mem, convert_float_to_int, convert_int_to_float
+from .instr import store_const_into_mem
 from .instr import load_operand, store_operand
 import renmas3.switch as proc
 
@@ -285,12 +286,12 @@ def generate_test(label, cgen, test):
             code = code1 + code2 + code3
         elif typ1 == Integer and typ2 == Float:
             to_reg = cgen.register(typ='xmm')
-            conv = convert_int_to_float(reg1, to_reg)
+            conv = conv_int_to_float(cgen, reg1, to_reg)
             code3 = generate_compare_floats(label, to_reg, con, reg2)
             code = code1 + code2 + conv + code3
         elif typ1 == Float and typ2 == Integer:
             to_reg = cgen.register(typ='xmm')
-            conv = convert_int_to_float(reg2, to_reg)
+            conv = conv_int_to_float(cgen, reg2, to_reg)
             code3 = generate_compare_floats(label, reg1, con, to_reg)
             code = code1 + code2 + conv + code3
         else:

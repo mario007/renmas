@@ -55,7 +55,7 @@ class Registers:
             return 'xmm'
         if reg in self._general32 or reg in self._general64:
             return 'general'
-        return None
+        raise ValueError("Unknown register!", reg)
 
 class _Locals:
     def __init__(self):
@@ -222,7 +222,7 @@ class CodeGenerator:
         code = ''
         for s in self._statements:
             self.clear_regs()
-            code += s.asm_code()
+            code += s.asm_code(self)
         data = self._generate_data_section() + '\n'
         data = "\n#DATA \n" + data + "#CODE \n"
         glo = ''

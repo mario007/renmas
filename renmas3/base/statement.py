@@ -12,7 +12,7 @@ class Statement:
     def __init__(self):
         pass
     
-    def asm_code(self):
+    def asm_code(self, cgen):
         raise NotImplementedError()
 
 def assign_const_to_dest(cgen, dest, const):
@@ -174,45 +174,42 @@ def process_expression(cgen, expr, unary=None):
     return code, reg, typ
 
 class StmAssign(Statement):
-    def __init__(self, cgen, dest, expr, unary=None):
-        self.cgen = cgen
+    def __init__(self, dest, expr, unary=None):
         self.dest = dest
         self.expr = expr 
         self.unary = unary
 
-    def asm_code(self):
+    def asm_code(self, cgen):
         if isinstance(self.expr, Const): #little optimization
-            code = assign_const_to_dest(self.cgen, self.dest, unary_number(self.expr.const, self.unary))
+            code = assign_const_to_dest(cgen, self.dest, unary_number(self.expr.const, self.unary))
             return code
-        elif isinstance(self.expr, Callable) and self.cgen.is_user_type(self.expr):
-            self.cgen.create_arg(self.dest, self.expr)
+        elif isinstance(self.expr, Callable) and cgen.is_user_type(self.expr):
+            cgen.create_arg(self.dest, self.expr)
             return ''
         else:
-            code, reg, typ = process_expression(self.cgen, self.expr, self.unary)
-            code2 = store_operand(self.cgen, self.dest, reg, typ)
+            code, reg, typ = process_expression(cgen, self.expr, self.unary)
+            code2 = store_operand(cgen, self.dest, reg, typ)
             return code + code2
 
 class StmExpression(Statement):
-    def __init__(self, cgen, expr):
-        self.cgen = cgen
+    def __init__(self, expr):
         self.expr = expr 
 
-    def asm_code(self):
-        code, reg, typ = process_expression(self.cgen, self.expr)
+    def asm_code(self, cgen):
+        code, reg, typ = process_expression(cgen, self.expr)
         return code
 
 #TODO unary
 class StmReturn(Statement):
-    def __init__(self, cgen, expr):
-        self.cgen = cgen
+    def __init__(self, expr):
         self.expr = expr 
 
-    def asm_code(self):
+    def asm_code(self, cgen):
         if self.expr is None:
-            self.cgen.register_ret_type(Integer)
+            cgen.register_ret_type(Integer)
             return "ret\n"
-        code, reg, typ = process_expression(self.cgen, self.expr)
-        self.cgen.register_ret_type(typ)
+        code, reg, typ = process_expression(cgen, self.expr)
+        cgen.register_ret_type(typ)
         xmm = ('xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0')
         general = ('ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax')
         code2 = ''
@@ -301,31 +298,30 @@ def generate_test(label, cgen, test):
     return code
 
 class StmIf(Statement):
-    def __init__(self, cgen, body, test, orelse=None):
-        self.cgen = cgen
+    def __init__(self, body, test, orelse=None):
         self.body = body
         self.test = test
         self.orelse = orelse
 
-    def asm_code(self):
+    def asm_code(self, cgen):
         if_label = 'if_' + str(id(self))
         orelse_label = 'orelse_' + str(id(self))
         endif_label = 'endif_' + str(id(self))
 
         if self.orelse is not None:
-            code = generate_test(orelse_label, self.cgen, self.test)
+            code = generate_test(orelse_label, cgen, self.test)
         else:
-            code = generate_test(if_label, self.cgen, self.test)
+            code = generate_test(if_label, cgen, self.test)
 
         for i in self.body:
-            self.cgen.clear_regs()
-            code += i.asm_code()
+            cgen.clear_regs()
+            code += i.asm_code(cgen)
 
         if self.orelse is not None:
             code += "jmp %s\n" % endif_label
             code += "%s:\n" % orelse_label
             for i in self.orelse:
-                self.cgen.clear_regs()
+                cgen.clear_regs()
                 code += i.asm_code()
             code += "%s:\n" % endif_label
         else:
@@ -338,25 +334,24 @@ class StmBreak(Statement):
             raise ValueError("Break statement out of loop!")
         self.label = label
 
-    def asm_code(self):
+    def asm_code(self, cgen):
         return "jmp %s\n" % self.label
 
 
 class StmWhile(Statement):
-    def __init__(self, cgen, body, test):
-        self.cgen = cgen
+    def __init__(self, body, test):
         self.body = body
         self.test = test
 
-    def asm_code(self):
+    def asm_code(self, cgen):
         begin_label = 'while_' + str(id(self))
         end_label = 'endwhile_' + str(id(self))
 
         code = "%s:\n" % begin_label
-        code += generate_test(end_label, self.cgen, self.test)
+        code += generate_test(end_label, cgen, self.test)
         for i in self.body:
-            self.cgen.clear_regs()
-            code += i.asm_code()
+            cgen.clear_regs()
+            code += i.asm_code(cgen)
         code += "jmp %s\n" % begin_label
         code += "%s:\n" % end_label
         return code

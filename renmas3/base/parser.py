@@ -222,7 +222,7 @@ class Parser:
         op = extract_operand(obj)
         for t in targets:
             if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
-                return StmAssign(self.cgen, make_name(t), op, unary)
+                return StmAssign(make_name(t), op, unary)
             else:
                 raise ValueError("Unknown target", t)
 
@@ -230,7 +230,7 @@ class Parser:
         expr = parse_arithmetic(obj)
         for t in targets:
             if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
-                return StmAssign(self.cgen, make_name(t), Operations(expr), unary)
+                return StmAssign(make_name(t), Operations(expr), unary)
             else:
                 raise ValueError("Unknown target", t)
 
@@ -271,21 +271,21 @@ class Parser:
         for arg in call.args:
             op = extract_operand(arg)
             args.append(op)
-        return StmExpression(self.cgen, Callable(func, args))
+        return StmExpression(Callable(func, args))
 
     def _parse_return(self, obj):
         src = extract_operand(obj)
-        return StmReturn(self.cgen, src)
+        return StmReturn(src)
 
         if isinstance(obj, ast.Num):
-            return StmReturn(self.cgen, const=obj.n)
+            return StmReturn(cgen, const=obj.n)
         elif isinstance(obj, ast.Name):
-            return StmReturn(self.cgen, src=obj.id)
+            return StmReturn(cgen, src=obj.id)
         elif isinstance(obj, ast.Attribute):
             name, path = extract_path(t)
-            return StmReturn(self.cgen, src=Attribute(name, path))
+            return StmReturn(src=Attribute(name, path))
         elif obj is None: #empty return statement
-            return StmReturn(self.cgen)
+            return StmReturn()
         else:
             raise ValueError("Unknown return object", obj)
 
@@ -296,7 +296,7 @@ class Parser:
             stm = self._parse_statement(statement, br_label)
             body.append(stm)
         if not obj.orelse:
-            stm_if = StmIf(self.cgen, body, test)
+            stm_if = StmIf(body, test)
             return stm_if
         else:
             if isinstance(obj.orelse[0], ast.If):
@@ -305,7 +305,7 @@ class Parser:
             for statement in obj.orelse:
                 stm = self._parse_statement(statement, br_label)
                 orelse_body.append(stm)
-            stm_if = StmIf(self.cgen, body, test, orelse_body)
+            stm_if = StmIf(body, test, orelse_body)
             return stm_if
 
         raise ValueError("Not yet implemented this version of If statement", obj)
@@ -315,7 +315,7 @@ class Parser:
             raise ValueError("Orelse in while still not suported")
         test = extract_test(obj.test)
         body = []
-        stm_while = StmWhile(self.cgen, body, test)
+        stm_while = StmWhile(body, test)
         for statement in obj.body:
             stm = self._parse_statement(statement, stm_while.label())
             body.append(stm)
@@ -346,14 +346,13 @@ class Parser:
 
     def parse(self, source, cgen):
         code = ast.parse(source)
-        self.cgen = cgen
 
         if isinstance(code, ast.Module):
             for statement in code.body:
                 stm = self._parse_statement(statement)
-                self.cgen.add(stm)
+                cgen.add(stm)
         else:
             raise ValueError('Source is not instance of ast.Module', code)
 
-        return self.cgen
+        return cgen
 

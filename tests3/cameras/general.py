@@ -2,7 +2,7 @@
 from tdasm import Runtime
 from renmas3.base import Vector3, Ray
 from renmas3.samplers import Sample
-from renmas3.cameras import GeneralCamera
+from renmas3.cameras import Camera
 from renmas3.base import create_shader, arg_map
 
 eye = Vector3(2.2, 3.3, 4.4)
@@ -25,12 +25,12 @@ def generate_ray(props, sample):
     direction.normalize()
     return Ray(props['eye'], direction)
 
-camera = GeneralCamera(eye, lookat, distance, py_code=generate_ray, code=code)
+camera = Camera(eye, lookat, distance, code=code, py_code=generate_ray)
 
 runtimes = [Runtime()]
 camera.prepare(runtimes)
 
-ray = camera.generate_ray(sample)
+ray = camera.execute_py(sample)
 
 
 call_code = """
@@ -38,8 +38,6 @@ generate_ray(sample, ray)
 """
 args = arg_map([('sample', Sample), ('ray', Ray)])
 shader = create_shader('test', call_code, args=args, shaders=[camera.shader])
-        #def create_shader(name, source, args, input_args=[], shaders=[], func=False):
-
 
 shader.prepare(runtimes)
 shader.set_value('sample', sample)

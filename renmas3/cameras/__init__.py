@@ -1,4 +1,4 @@
 
 #from .pinhole import Pinhole
-from .general import GeneralCamera 
+from .general import Camera 
 

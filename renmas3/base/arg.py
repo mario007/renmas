@@ -621,9 +621,7 @@ class ArgumentMap:
     def __init__(self, args=[]):
         self._args = {}
         for a in args:
-            if not isinstance(a, Argument):
-                raise ValueError("Wrong argument type", a)
-            self._args[a.name] = a
+            self.add(a)
 
     def add(self, arg):
         if not isinstance(arg, Argument):
@@ -643,46 +641,8 @@ class ArgumentMap:
         for a in self._args.items():
             yield a
 
-#TODO check if name is something other than string!!!
-def create_argument(name, value=None, typ=None, input_arg=False):
-    if value is None and typ is None:
-        raise ValueError("Argument could not be created because type and value is missing")
-    if typ is not None:
-        if typ == Integer:
-            if value is None:
-                arg = Integer(name, 0)
-            else:
-                arg = Integer(name, int(value))
-        elif typ == Float:
-            if value is None:
-                arg = Float(name, 0.0)
-            else:
-                arg = Float(name, float(value))
-        elif typ == Vec3:
-            if value is None:
-                arg = Vec3(name, Vector3(0.0, 0.0, 0.0))
-            else:
-                if not isinstance(value, Vector3):
-                    raise ValueError("Value for Vec3 is expected to be instance of Vector3")
-                arg = Vec3(name, value)
-        elif typ == Vec3I:
-            if value is None:
-                arg = Vec3I(name, 0, 0, 0)
-            else:
-                x, y, z = value
-                arg = Vec3I(name, int(x), int(y), int(z))
-        elif typ == Pointer: #pointer in typ = UserType
-                arg = Pointer(name, typ=value)
-        elif hasattr(typ, 'user_type'):
-            typ_name, fields = typ.user_type()
-            usr_type = create_user_type(typ_name, fields)
-            if input_arg:
-                arg = StructPtr(name, usr_type)
-            else:
-                arg = Struct(name, usr_type)
-        else:
-            raise ValueError("Unknown type of arugment", typ)
-        return arg
+def arg_from_value(name, value, input_arg=False):
+    """Create argument based on type of value."""
 
     if isinstance(value, int):
         arg = Integer(name, value)
@@ -699,9 +659,62 @@ def create_argument(name, value=None, typ=None, input_arg=False):
             arg = StructPtr(name, value)
         else:
             arg = Struct(name, value)
+    elif hasattr(type(value), 'user_type'):
+        typ_name, fields = type(value).user_type()
+        usr_type = create_user_type(typ_name, fields)
+        if input_arg:
+            arg = StructPtr(name, usr_type)
+        else:
+            arg = Struct(name, usr_type)
     else:
         raise ValueError('Unknown value type', value)
     return arg
+
+def arg_from_type(name, typ, value=None, input_arg=False):
+    """Create argument of specified type."""
+
+    if typ == Integer:
+        val = 0 if value is None else int(value)
+        arg = Integer(name, val)
+    elif typ == Float:
+        val = 0.0 if value is None else float(value)
+        arg = Float(name, val)
+    elif typ == Vec3:
+        val = Vector3(0.0, 0.0, 0.0) if value is None else value
+        if not isinstance(val, Vector3):
+            raise ValueError("Value for Vec3 is expected to be instance of Vector3")
+        arg = Vec3(name, val)
+    elif typ == Vec3I: #FIXME
+        if value is None:
+            arg = Vec3I(name, 0, 0, 0)
+        else:
+            x, y, z = value
+            arg = Vec3I(name, int(x), int(y), int(z))
+    elif typ == Pointer: #pointer in typ = UserType
+            arg = Pointer(name, typ=value)
+    elif hasattr(typ, 'user_type'):
+        typ_name, fields = typ.user_type()
+        usr_type = create_user_type(typ_name, fields)
+        if input_arg:
+            arg = StructPtr(name, usr_type)
+        else:
+            arg = Struct(name, usr_type)
+    else:
+        raise ValueError("Unknown type of arugment", typ)
+
+    return arg
+
+def create_argument(name, value=None, typ=None, input_arg=False):
+    """Factory for creating argument based on value or based on type."""
+
+    if value is None and typ is None:
+        raise ValueError("Argument could not be created because type and value is None.")
+
+    if typ is not None:
+        return arg_from_type(name, typ, value, input_arg)
+
+    return arg_from_value(name, value, input_arg)
+
 
 #a5 = create_user_type_(typ="point", fields=[('x', 55)])
 def create_user_type(typ, fields):

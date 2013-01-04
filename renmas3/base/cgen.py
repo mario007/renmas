@@ -230,9 +230,7 @@ class CodeGenerator:
             glo = "global %s:\n" % self._name
         code = glo + store_func_args(self, self._input_args) + code
         if self._func:
-            code += "ret\n"
-        if self._func:
-            return data + code
+            return data + code + 'ret\n'
         else:
             return data + code + '#END \n'
 

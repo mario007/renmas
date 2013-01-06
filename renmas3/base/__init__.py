@@ -3,7 +3,7 @@ from .vector3 import Vector3
 from .arg import Integer, Pointer, Float, Argument, create_argument, create_user_type
 from .cgen import CodeGenerator, register_user_type
 from .factory import create_shader, arg_map, arg_list, create_function
-from .shader import Shader, BaseShader
+from .shader import Shader, BaseShader, BasicShader
 from .tile import Tile2D
 from .image import ImageRGBA, ImageBGRA, ImagePRGBA
 from .graphics import GraphicsRGBA, GraphicsPRGBA

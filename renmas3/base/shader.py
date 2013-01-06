@@ -83,7 +83,7 @@ class Shader:
         if len(self._runtimes) == 1:
             name = 'shader' + str(id(self))
             self._runtimes[0].run(name)
-        else: #we can prepare that we can actually run
+        else: #we can prepare more that we can actually run
             name = 'shader' + str(id(self))
             #addrs = [r.address_module(name) for r in self._runtimes]
             addrs = [self._runtimes[idx].address_module(name) for idx in range(nthreads)]
@@ -178,6 +178,8 @@ class BaseShader:
 
     def execute_py(self, *args):
         """Run execution of python shader."""
+        if self._py_code is None:
+            raise ValueError("Code for python shader is missing!")
         #NOTE python shaders doesn't support multithreading for now
         return self._py_code(self.get_props(1), *args)
 
@@ -207,11 +209,14 @@ class BasicShader(BaseShader):
     """Implementation of simple generic shader that is used to preform intesive
     coputation."""
 
-    def __init__(self, code, py_code, props, standalone=True, shader_name=None):
-        super(GenericShader, self).__init__(code, py_code)
+    def __init__(self, code, py_code, props,
+                 input_args=None, standalone=True, method_name=None):
+        super(BasicShader, self).__init__(code, py_code)
+
         self.props = props
         self._standalone = standalone
-        self._shader_name = shader_name
+        self._method_name = method_name
+        self.input_args = input_args
 
     def arg_map(self):
         p = self.props
@@ -221,18 +226,24 @@ class BasicShader(BaseShader):
         return args
 
     def arg_list(self):
-        p = self.props
-        if not isinstance(self.props, dict):
-            p = self.props[0]
-        args = ArgumentList(arg_from_value(key, value, True) for key, value in p.items())
+        if self.input_args is None:
+            return ArgumentList()
+        args = ArgumentList(arg_from_value(name, value, True)
+                                    for name, value in self.input_args)
         return args
 
     def method_name(self):
-        if self._shader_name is None:
+        if self._method_name is None:
             return 'generic_shader_' + str(id(self))
-        return self._shader_name
+        return self._method_name
 
     def get_props(self, nthreads):
+        #NOTE: if properties for one thread is requested and we have multiple
+        #      sets of properties we only return first set of properties 
+        #      For better handling of this we must create more specialized
+        #      shader that will handle this in more intelignet way
+        if nthreads == 1 and not isinstance(self.props, dict):
+            return self.props[0]
         return self.props
 
     def standalone(self):

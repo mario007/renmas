@@ -33,7 +33,7 @@ class Camera(BaseShader):
             self._v = Vector3(0.0, 0.0, 1.0)
             self._w = Vector3(0.0, -1.0, 0.0)
 
-    def get_props(self, id_thread):
+    def get_props(self, nthreads):
         props = {}
         props['eye'] = self._eye
         props['lookat'] = self._lookat

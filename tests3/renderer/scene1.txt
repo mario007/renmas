@@ -1,0 +1,15 @@
+
+Options
+sampler_type = regular
+pixel_size = 0.3
+width = 100
+height = 100
+End
+
+Camera
+type = perspective
+eye = 3, 4, 5 
+lookat = 0, 0, 0
+distance = 333
+End
+

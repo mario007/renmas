@@ -58,3 +58,27 @@ class Camera(BaseShader):
     def standalone(self):
         return False
 
+
+def create_perspective_camera(eye, lookat, distance):
+    code = """
+tmp1 = u * sample.x
+tmp2 = v * sample.y
+tmp3 = w * distance
+direction = tmp1 + tmp2 - tmp3
+ray.origin = eye
+ray.direction =  normalize(direction)
+
+    """
+
+    py_code = """
+def generate_ray(props, sample):
+    from renmas3.base import Ray
+    direction = props['u'] * sample.x + props['v'] * sample.y - props['w'] * props['distance']
+    direction.normalize()
+    return Ray(props['eye'], direction)
+    """
+
+    camera = Camera(eye, lookat, distance, code=code, py_code=py_code)
+    return camera
+    
+

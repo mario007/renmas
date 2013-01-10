@@ -250,6 +250,7 @@ class Float(Argument):
 
     @staticmethod
     def arith_cmd(cgen, reg1, reg2, typ2, operator):
+        #FIXME -- call here suported!!!
         if typ2 != Integer and typ2 != Float:
             raise ValueError('Wrong type for float arithmetic', typ2)
         if not cgen.regs.is_xmm(reg1):
@@ -288,6 +289,7 @@ class Float(Argument):
 
     @staticmethod
     def rev_arith_cmd(cgen, reg1, reg2, typ2, operator):
+        #FIXME call here suported
         if not cgen.regs.is_xmm(reg1):
             raise ValueError('Destination register must be xmm register', reg1)
 
@@ -298,7 +300,10 @@ class Float(Argument):
             code += conv_int_to_float(cgen, reg2, xmm)
             cgen.release_reg(xmm)
 
-        code3, reg3, typ3 = Float.arith_cmd(cgen, xmm, reg1, Float, operator)
+        if operator == '/':
+            code3, reg3, typ3 = Float.arith_cmd(cgen, reg1, xmm, Float, operator)
+        else:
+            code3, reg3, typ3 = Float.arith_cmd(cgen, xmm, reg1, Float, operator)
         return code + code3, reg3, typ3
 
 class Vec3(Argument):

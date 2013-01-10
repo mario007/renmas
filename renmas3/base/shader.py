@@ -80,13 +80,14 @@ class Shader:
 
 
     def execute(self, nthreads=1):
+        #FIXME fix this correctly
         if len(self._runtimes) == 1:
             name = 'shader' + str(id(self))
             self._runtimes[0].run(name)
         else: #we can prepare more that we can actually run
             name = 'shader' + str(id(self))
-            #addrs = [r.address_module(name) for r in self._runtimes]
-            addrs = [self._runtimes[idx].address_module(name) for idx in range(nthreads)]
+            addrs = [r.address_module(name) for r in self._runtimes]
+            #addrs = [self._runtimes[idx].address_module(name) for idx in range(nthreads)]
             x86.ExecuteModules(tuple(addrs))
 
     def get_value(self, name, idx_thread=None):
@@ -105,6 +106,35 @@ class Shader:
         else:
             raise ValueError("Wrong name of argument", name)
 
+    def __getstate__(self):
+        d = {}
+        d['name'] = self._name
+        d['code'] = self._code
+        d['args'] = self._args
+        d['input_args'] = self._input_args
+        d['shaders'] = self._shaders
+        d['functions'] = self._functions
+        d['ret_type'] = self._ret_type
+        d['func'] = self._func
+        return d
+
+    def __setstate__(self, state):
+        self._name = state['name']
+        self._code = state['code']
+        self._args = state['args']
+        self._input_args = state['input_args']
+        self._shaders = state['shaders']
+        self._functions = state['functions']
+        self._ret_type = state['ret_type']
+        self._func = state['func']
+
+        self._ds = []
+        self._struct_args = {}
+        self._mc_cache = {}
+        for key, arg in iter(self._args):
+            if isinstance(arg, Struct):
+                self._struct_args.update(arg.paths)
+        self._runtimes = None
 
 def create_shader(name, source, args, input_args=[], shaders=[], func=False):
     from .parser import Parser
@@ -124,7 +154,18 @@ class BaseShader:
     def __init__(self, code, py_code):
         self._code = code
         self._py_code = py_code
+        self._py_func = None
+        if py_code is not None:
+            self._py_func = self._create_func(py_code)
         self._shader = None
+
+    def _create_func(self, code):
+        d = {}
+        exec(code, globals(), d)
+        if len(d) != 1:
+            raise ValueError("Only one key is expected in dict, function key!")
+        key, func = d.popitem()
+        return func
 
     @property
     def shader(self):
@@ -178,10 +219,10 @@ class BaseShader:
 
     def execute_py(self, *args):
         """Run execution of python shader."""
-        if self._py_code is None:
+        if self._py_func is None:
             raise ValueError("Code for python shader is missing!")
         #NOTE python shaders doesn't support multithreading for now
-        return self._py_code(self.get_props(1), *args)
+        return self._py_func(self.get_props(1), *args)
 
     def standalone(self):
         """Return wethever this shader can be executed directly."""
@@ -204,6 +245,15 @@ class BaseShader:
         """Create argument list for calling arguments of shader."""
         raise NotImplementedError()
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state['_py_func']
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        if self._py_code is not None:
+            self._py_func = self._create_func(py_code)
 
 class BasicShader(BaseShader):
     """Implementation of simple generic shader that is used to preform intesive

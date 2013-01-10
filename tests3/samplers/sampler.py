@@ -2,7 +2,7 @@
 import time
 from tdasm import Runtime
 from renmas3.base import Tile2D, BasicShader
-from renmas3.samplers import Sample, create_regular_sampler
+from renmas3.samplers import RegularSampler, Sample
 
 def extract(shader):
     ix = shader.get_value('sample.ix')
@@ -23,17 +23,18 @@ def test_values(sample, shader):
         raise ValueError("ix is wrong! ix_py=%i, ix_asm=%i" % (sample.ix, ix))
     if iy != sample.iy:
         raise ValueError("iy is wrong! iy_py=%i, iy_asm=%i" % (sample.iy, iy))
-    if x != sample.x:
+    if round(sample.x - x, 5) != 0:
         raise ValueError("x is wrong! x_py=%f, x_asm=%f" % (sample.x, x))
-    if y != sample.y:
+    if round(sample.y - y, 5) != 0:
         raise ValueError("y is wrong! y_py=%f, y_asm=%f" % (sample.y, y))
 
 def test_regular_sampler(width, height):
-    sam = create_regular_sampler(width, height)
+    sam = RegularSampler(width, height, 0.1)
     runtime = Runtime()
     sam.prepare([runtime])
     tile = Tile2D(0, 0, width, height)
     sam.set_tile(tile)
+    sam.spp = 44
 
     code = """
 ret = generate_sample(sample)
@@ -51,8 +52,8 @@ ret = generate_sample(sample)
             break
 
 def performance_regular_sampler(width, height):
-    sam = create_regular_sampler(width, height)
-    runtimes = [Runtime()]
+    sam = RegularSampler(width, height)
+    runtimes = [Runtime(), Runtime(), Runtime(), Runtime()]
     sam.prepare(runtimes)
     tile = Tile2D(0, 0, width, height)
     sam.set_tile(tile)
@@ -77,7 +78,7 @@ while ret != 0:
     print("Exectution of generating %i samples took %f" % (bas.shader.get_value('nsamples') , end - start))
 
 start = time.clock()
-test_regular_sampler(100, 100)
+test_regular_sampler(10, 10)
 end = time.clock()
 print("Regular sampler working correctly. Time to verify took ", end - start)
 

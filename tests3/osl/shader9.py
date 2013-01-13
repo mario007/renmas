@@ -6,8 +6,10 @@ code = """
 a = 555
 """
 
+py_code = """
 def py_code(props):
     props['a'] = 555
+"""
 
 props = {'a':125}
 bs = BasicShader(code, py_code, props)

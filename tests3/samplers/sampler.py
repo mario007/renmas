@@ -32,9 +32,7 @@ def test_regular_sampler(width, height):
     sam = RegularSampler(width, height, 0.1)
     runtime = Runtime()
     sam.prepare([runtime])
-    tile = Tile2D(0, 0, width, height)
-    sam.set_tile(tile)
-    sam.spp = 44
+    sam.set_pass(0)
 
     code = """
 ret = generate_sample(sample)
@@ -55,8 +53,7 @@ def performance_regular_sampler(width, height):
     sam = RegularSampler(width, height)
     runtimes = [Runtime(), Runtime(), Runtime(), Runtime()]
     sam.prepare(runtimes)
-    tile = Tile2D(0, 0, width, height)
-    sam.set_tile(tile)
+    sam.set_pass(0)
 
     code = """
 ret = 1

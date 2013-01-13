@@ -322,7 +322,7 @@ class StmIf(Statement):
             code += "%s:\n" % orelse_label
             for i in self.orelse:
                 cgen.clear_regs()
-                code += i.asm_code()
+                code += i.asm_code(cgen)
             code += "%s:\n" % endif_label
         else:
             code += "%s:\n" % if_label

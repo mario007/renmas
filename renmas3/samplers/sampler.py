@@ -11,19 +11,26 @@ class Sampler(BaseShader):
         self.width = width
         self.height = height
         self.pixel_size = pixel_size
-        self.tile = None
+        self._tile = Tile2D(0, 0, width, height)
         self.set_spp(nsamples)
 
+    def set_resolution(self, width, height):
+        self.width = width
+        self.height = height
+
     def set_spp(self, nsamples):
-        self.spp = int(nsamples)
+        self._spp = int(nsamples)
 
-    def set_tile(self, tile):
-        self._curx = tile.x
-        self._cury = tile.y
-        self._endx = tile.x + tile.width
-        self._endy = tile.y + tile.height
+    def has_more_samples(self, n):
+        if n >= self._spp:
+            return False
+        return True
 
-        self.tile = tile
+    def set_pass(self, n):
+        self._curx = self._tile.x
+        self._cury = self._tile.y
+        self._endx = self._tile.x + self._tile.width
+        self._endy = self._tile.y + self._tile.height
         self.update()
 
     def get_props(self, nthreads):
@@ -31,20 +38,18 @@ class Sampler(BaseShader):
         props['width'] = self.width
         props['height'] = self.height
         props['pixel_size'] = self.pixel_size
-        props['spp'] = self.spp
-        if self.tile is None:
-            return props
+        props['spp'] = self._spp
         if nthreads == 1:
-            props['tile'] = self.tile
-            props['curx'] = self.tile.x
-            props['cury'] = self.tile.y
-            props['endx'] = self.tile.x + self.tile.width 
-            props['endy'] = self.tile.y + self.tile.height
+            props['tile'] = self._tile
+            props['curx'] = self._tile.x
+            props['cury'] = self._tile.y
+            props['endx'] = self._tile.x + self._tile.width 
+            props['endy'] = self._tile.y + self._tile.height
             return props
 
         arr_props = []
-        self.tile.split(nthreads)
-        for tile in self.tile.tiles:
+        self._tile.split(nthreads)
+        for tile in self._tile.tiles:
             d = props.copy()
             d['tile'] = tile
             d['curx'] = tile.x
@@ -85,7 +90,7 @@ class RegularSampler(Sampler):
                                              code, 1, pixel_size)
 
     def set_spp(self, nsamples):
-        self.spp = 1
+        self._spp = 1
 
     def shader_code(self):
         code = """
@@ -123,7 +128,7 @@ return 1
 
         self._curx += 1
         if self._curx == self._endx:
-            self._curx = self.tile.x
+            self._curx = self._tile.x
             self._cury += 1
         return sample
 

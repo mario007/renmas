@@ -253,7 +253,7 @@ class BaseShader:
     def __setstate__(self, state):
         self.__dict__.update(state)
         if self._py_code is not None:
-            self._py_func = self._create_func(py_code)
+            self._py_func = self._create_func(self._py_code)
 
 class BasicShader(BaseShader):
     """Implementation of simple generic shader that is used to preform intesive

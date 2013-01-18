@@ -1,6 +1,7 @@
 
 import renmas3.switch as proc
 import struct
+from ..base.util import float2hex
 
 #input
 # xmm3 - origin
@@ -14,11 +15,6 @@ import struct
 # xmm1 = beta
 # xmm2 = gamma
 # eax = intersection_ocur 0-no , 1-yes
-
-def float2hex(f):
-    r = struct.pack('f', f)
-    r1 = struct.unpack('I', r)[0]
-    return hex(r1)
 
 def ray_triangle_intersection(label, epsilon=0.00005):
     epsilon = float2hex(epsilon)

@@ -10,6 +10,7 @@ from .normalization import normalization
 from .cross_product import cross_product
 from .consts import generate_one
 from .stack import push, pop
+from .general import sqrtss
 
 def create_assembler():
     assembler = Tdasm()
@@ -25,5 +26,6 @@ def create_assembler():
     assembler.register_macro('generate_one', generate_one)
     assembler.register_macro('push', push)
     assembler.register_macro('pop', pop)
+    assembler.register_macro('sqrtss', sqrtss)
     return assembler
 

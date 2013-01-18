@@ -1,18 +1,20 @@
 import math
 
-from tdasm import Tdasm
-
-from ..core import Vector3, Ray, ShadePoint
-from .bbox import BBox
+import renmas3.switch as proc
+from ..base import Ray
+from ..macros import create_assembler
+from .hit import HitPoint
 from .shape import Shape
 
 class Sphere(Shape):
-    def __init__(self, origin, radius, material):
+    __slots__ = ['origin', 'radius', 'material_idx']
+
+    def __init__(self, origin, radius, material_idx=0):
         self.origin = origin
         self.radius = radius
-        self.material = material
+        self.material_idx = material_idx
 
-    def isect_b(self, ray, min_dist=999999.0): #ray direction must be normalized
+    def isect_b(self, ray, min_dist=99999.0): #ray direction must be normalized
         temp = ray.origin - self.origin
         a = ray.dir.dot(ray.dir)
         b = temp.dot(ray.dir) * 2.0
@@ -37,11 +39,11 @@ class Sphere(Shape):
     # ebx = pointer to sphere structure
     # ecx = pointer to minimum distance
     @classmethod
-    def isect_asm_b(cls, runtimes, label, assembler):
+    def isect_asm_b(cls, runtimes, label):
         code = """
             #DATA
         """
-        code += Ray.struct() + cls.struct() + """
+        code += Ray.asm_struct() + cls.asm_struct() + """
         float two[4] = 2.0, 2.0, 2.0, 0.0
         float epsilon = 0.0005
         float minus_four = -4.0
@@ -51,14 +53,14 @@ class Sphere(Shape):
         #CODE
         """
         code += " global " + label + ":\n" + """
-        macro eq128 xmm0 = eax.ray.dir
+        macro eq128 xmm0 = eax.Ray.dir
         macro eq128 xmm1 = xmm0
         macro dot xmm0 = xmm0 * xmm0 {xmm6, xmm7}
-        macro eq128 xmm2 = eax.ray.origin - ebx.sphere.origin 
+        macro eq128 xmm2 = eax.Ray.origin - ebx.Sphere.origin 
         macro eq128 xmm3 = xmm2 * two
         macro dot  xmm3 = xmm3 * xmm1 {xmm6, xmm7}
         macro dot xmm2 = xmm2 * xmm2 {xmm6, xmm7}
-        macro eq32 xmm4 = ebx.sphere.radius
+        macro eq32 xmm4 = ebx.Sphere.radius
         macro eq32 xmm4 = xmm4 * xmm4
         macro eq32 xmm2 = xmm2 - xmm4
 
@@ -68,7 +70,7 @@ class Sphere(Shape):
         macro eq32 xmm5 = xmm0 * xmm2 * minus_four
         macro eq32 xmm4 = xmm4 + xmm5
         macro if xmm4 < zero goto _reject
-        macro call sqrtss xmm5, xmm4
+        macro sqrtss xmm5, xmm4
         macro eq32 xmm6 = xmm0 * two
         macro eq32 xmm7 = xmm3 * minus_one
         macro eq32 xmm7 = xmm7 - xmm5
@@ -92,6 +94,7 @@ class Sphere(Shape):
         ret
         """
 
+        assembler = create_assembler()
         mc = assembler.assemble(code, True)
         #mc.print_machine_code()
         name = "ray_sphere_b" + str(id(cls))
@@ -121,7 +124,7 @@ class Sphere(Shape):
                 if phi < 0.0: phi += 2 * math.pi
                 u = phi / (2 * math.pi) 
                 v = 1 - theta / math.pi
-                return ShadePoint(t, hit_point, normal, self.material, ray, u, v)
+                return HitPoint(t, hit_point, normal, self.material_idx, u, v)
             
             t = (-b + e) / denom # larger root
             if t > 0.0005 and t < min_dist:
@@ -132,7 +135,7 @@ class Sphere(Shape):
                 if phi < 0.0: phi += 2 * math.pi
                 u = phi / (2 * math.pi) 
                 v = 1 - theta / math.pi
-                return ShadePoint(t, hit_point, normal, self.material, ray, u, v)
+                return HitPoint(t, hit_point, normal, self.material_idx, u, v)
         return False
 
     # eax = pointer to ray structure
@@ -140,11 +143,11 @@ class Sphere(Shape):
     # ecx = pointer to minimum distance
     # edx = pointer to hitpoint
     @classmethod
-    def isect_asm(cls, runtimes, label, assembler, spectrum_struct):
+    def isect_asm(cls, runtimes, label):
         code = """
             #DATA
         """
-        code += spectrum_struct + ShadePoint.struct() + Ray.struct() + cls.struct() + """
+        code += HitPoint.asm_struct() + Ray.asm_struct() + cls.asm_struct() + """
         float two[4] = 2.0, 2.0, 2.0, 0.0
         float epsilon = 0.0005
         float minus_four = -4.0
@@ -154,14 +157,14 @@ class Sphere(Shape):
         #CODE
         """
         code += " global " + label + ":\n" + """
-        macro eq128 xmm0 = eax.ray.dir
+        macro eq128 xmm0 = eax.Ray.dir
         macro eq128 xmm1 = xmm0
         macro dot xmm0 = xmm0 * xmm0 {xmm6, xmm7}
-        macro eq128 xmm2 = eax.ray.origin - ebx.sphere.origin 
+        macro eq128 xmm2 = eax.Ray.origin - ebx.Sphere.origin 
         macro eq128 xmm3 = xmm2 * two
         macro dot  xmm3 = xmm3 * xmm1 {xmm6, xmm7}
         macro dot xmm2 = xmm2 * xmm2 {xmm6, xmm7}
-        macro eq32 xmm4 = ebx.sphere.radius
+        macro eq32 xmm4 = ebx.Sphere.radius
         macro eq32 xmm4 = xmm4 * xmm4
         macro eq32 xmm2 = xmm2 - xmm4
 
@@ -171,7 +174,7 @@ class Sphere(Shape):
         macro eq32 xmm5 = xmm0 * xmm2 * minus_four
         macro eq32 xmm4 = xmm4 + xmm5
         macro if xmm4 < zero goto _reject
-        macro call sqrtss xmm5, xmm4
+        macro sqrtss xmm5, xmm4
         macro eq32 xmm6 = xmm0 * two
         macro eq32 xmm7 = xmm3 * minus_one
         macro eq32 xmm7 = xmm7 - xmm5
@@ -188,19 +191,19 @@ class Sphere(Shape):
         macro if xmm7 > ecx goto _reject 
 
         macro broadcast xmm5 = xmm7[0]
-        macro eq128 xmm6 = xmm5 * eax.ray.dir
-        macro eq128 xmm4 = eax.ray.origin - ebx.sphere.origin 
-        macro eq128 xmm5 = xmm6 + eax.ray.origin
+        macro eq128 xmm6 = xmm5 * eax.Ray.dir
+        macro eq128 xmm4 = eax.Ray.origin - ebx.Sphere.origin 
+        macro eq128 xmm5 = xmm6 + eax.Ray.origin
         macro eq128 xmm3 = xmm6 + xmm4
-        macro eq32 xmm2 = ebx.sphere.radius
+        macro eq32 xmm2 = ebx.Sphere.radius
         macro broadcast xmm2 = xmm2[0]
         macro eq128 xmm3 = xmm3 / xmm2
-        macro eq32 xmm1 = ebx.sphere.material
+        macro eq32 xmm1 = ebx.Sphere.material_idx
 
-        macro eq32 edx.shadepoint.t = xmm7 {xmm0}
-        macro eq128 edx.shadepoint.hit = xmm5 {xmm0}
-        macro eq128 edx.shadepoint.normal = xmm3 {xmm0}
-        macro eq32 edx.shadepoint.material = xmm1 {xmm0}
+        macro eq32 edx.Hitpoint.t = xmm7 {xmm0}
+        macro eq128 edx.Hitpoint.hit = xmm5 {xmm0}
+        macro eq128 edx.Hitpoint.normal = xmm3 {xmm0}
+        macro eq32 edx.Hitpoint.material_idx = xmm1 {xmm0}
 
         mov eax, 1
         ret
@@ -209,7 +212,8 @@ class Sphere(Shape):
         xor eax, eax
         ret
         """
-
+        
+        assembler = create_assembler()
         mc = assembler.assemble(code, True)
         #mc.print_machine_code()
         name = "ray_sphere" + str(id(cls))
@@ -221,35 +225,23 @@ class Sphere(Shape):
         d = {}
         d["origin"] = self.origin.to_ds()
         d["radius"] = self.radius
-        if self.material is None:
-            d["material"] = 999999 #TODO solve this in better way 
-        else:
-            d["material"] = self.material
+        d["material_idx"] = self.material_idx
         return d
 
     @classmethod
-    def name(cls):
-        return "sphere"
+    def asm_struct_name(cls):
+        return "Sphere"
 
     @classmethod
-    def compiled_struct(cls):
-        code = " #DATA " + cls.struct() + """
-        #CODE
-        #END
-        """
-        mc = Tdasm().assemble(code)
-        return mc.get_struct('sphere')
-
-    @classmethod
-    def struct(cls):
-        sphere = """
-            struct sphere
+    def asm_struct(cls):
+        code = """
+            struct Sphere
             float origin[4]
             float radius
-            uint32 material
+            uint32 material_idx
             end struct
         """
-        return sphere 
+        return code
 
     def bbox(self):
 

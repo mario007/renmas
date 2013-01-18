@@ -2,8 +2,9 @@
 import unittest
 from random import random
 from tdasm import Runtime
-from renmas3.core import Factory, ColorManager, Ray, ShadePoint
-from renmas3.shapes import Sphere
+from renmas3.base import Vector3, Ray
+from renmas3.shapes import HitPoint, Sphere
+from renmas3.macros import create_assembler
 
 class SphereIsectTest(unittest.TestCase):
     def setUp(self):
@@ -16,17 +17,16 @@ class SphereIsectTest(unittest.TestCase):
     def sphere_ds(self, ds, sphere, name):
         ds[name+".origin"] =  sphere.origin.to_ds()
         ds[name+".radius"] = sphere.radius
-        #TODO -- test this if material is None -- fix this in assembler - raise exception
-        ds[name+".material"] = sphere.material
+        ds[name+".material_idx"] = sphere.material_idx
 
-    def asm_code(self, spec_struct):
+    def asm_code(self):
         code = """
             #DATA
         """
-        code += spec_struct + Ray.struct() + Sphere.struct() + ShadePoint.struct() + """
-            ray ray1
-            sphere sph1
-            shadepoint hp1
+        code += Ray.asm_struct() + Sphere.asm_struct() + HitPoint.asm_struct() + """
+            Ray ray1
+            Sphere sph1
+            Hitpoint hp1
             float min_dist = 99999.000
             uint32 ret
             #CODE
@@ -58,18 +58,16 @@ class SphereIsectTest(unittest.TestCase):
         hit2 = ds[name + ".hit"]
         self.compare_seq((hit1.x, hit1.y, hit1.z), (hit2[0], hit2[1], hit2[2]))
 
-
     def random_sphere(self):
-        factory = Factory()
-        origin = (random(), random(), random())
+        origin = Vector3(random(), random(), random())
         radius = random()
-        return factory.sphere(origin, radius)
+        return Sphere(origin, radius)
 
     def random_ray(self):
-        factory = Factory()
-        origin = (random(), random(), random())
-        direction = (random(), random(), random())
-        return factory.ray(origin, direction)
+        origin = Vector3(random(), random(), random())
+        direction = Vector3(random(), random(), random())
+        direction.normalize()
+        return Ray(origin, direction)
 
     def intersect(self, ray, sphere, runtime, ds):
         self.ray_ds(ds, ray, "ray1")
@@ -83,14 +81,15 @@ class SphereIsectTest(unittest.TestCase):
             self.compare(hp, ds, "hp1", ray, sphere)
 
     def test_isect1(self):
-        factory = Factory()
-        ray = factory.ray(origin=(5,5,5), direction=(-1,-1,-1))
-        sphere = factory.sphere(origin=(0,0,0), radius=2)
+        direction = Vector3(-1.0, -1.0, -1.0)
+        direction.normalize()
+        ray = Ray(Vector3(5.0, 5.0, 5.0), direction)
+        sphere = Sphere(Vector3(0.0, 0.0, 0.0), 2)
 
-        mgr = ColorManager()
         runtime = Runtime()
-        sphere.isect_asm([runtime], "ray_sphere_intersection", mgr.assembler, mgr.spectrum_struct())
-        mc = mgr.assembler.assemble(self.asm_code(mgr.spectrum_struct()))
+        assembler = create_assembler()
+        sphere.isect_asm([runtime], "ray_sphere_intersection")
+        mc = assembler.assemble(self.asm_code())
         ds = runtime.load("test", mc)
 
         self.intersect(ray, sphere, runtime, ds)
@@ -103,9 +102,9 @@ class SphereIsectTest(unittest.TestCase):
         code = """
             #DATA
         """
-        code += Ray.struct() + Sphere.struct() + """
-            ray ray1
-            sphere sph1
+        code += Ray.asm_struct() + Sphere.asm_struct() + """
+            Ray ray1
+            Sphere sph1
             float min_dist = 99999.000
             uint32 ret
             float t
@@ -133,13 +132,16 @@ class SphereIsectTest(unittest.TestCase):
             self.assertAlmostEqual(hp, t2, 4)
 
     def test_isect2(self):
-        factory = Factory()
-        ray = factory.ray(origin=(5,5,5), direction=(-1,-1,-1))
-        sphere = factory.sphere(origin=(0,0,0), radius=2)
-        mgr = ColorManager() 
+        direction = Vector3(-1.0, -1.0, -1.0)
+        direction.normalize()
+        ray = Ray(Vector3(5.0, 5.0, 5.0), direction)
+        sphere = Sphere(Vector3(0.0, 0.0, 0.0), 2)
+
+
         runtime = Runtime()
-        sphere.isect_asm_b([runtime], "ray_sphere_intersection", mgr.assembler)
-        mc = mgr.assembler.assemble(self.asm_code2())
+        assembler = create_assembler()
+        sphere.isect_asm_b([runtime], "ray_sphere_intersection")
+        mc = assembler.assemble(self.asm_code2())
         ds = runtime.load("test", mc)
 
         self.intersect2(ray, sphere, runtime, ds)

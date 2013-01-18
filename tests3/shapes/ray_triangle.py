@@ -129,13 +129,13 @@ for x in range(1):
 
     if ret is False and ds['ret'] == 1:
         print(ds['beta'], ds['gamma'], ds['t'])
-        raise ValueError("Exception if intersection")
+        raise ValueError("Exception in intersection", ret, ds['ret'])
     if ret is not False and ds['ret'] == 0:
         beta, gamma, t = ret 
         print(ds['beta'], ds['gamma'], ds['td'])
         print(beta, gamma, t)
         print(beta + gamma)
-        raise ValueError("Exception if intersection")
+        raise ValueError("Exception in intersection", ret, ds['ret'])
 
     if ret is not False:
         beta, gamma, t = ret 

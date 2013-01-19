@@ -37,7 +37,7 @@ def cmp_vec3(vec1, vec2):
 
 def compare_rays(ray, shader):
     cmp_vec3(ray.origin, shader.get_value('ray.origin'))
-    cmp_vec3(ray.dir, shader.get_value('ray.direction'))
+    cmp_vec3(ray.dir, shader.get_value('ray.dir'))
 
 
 compare_rays(ray, shader)
@@ -46,4 +46,4 @@ print(ray.origin)
 print(shader.get_value('ray.origin'))
 print('---------------------------')
 print(ray.dir)
-print(shader.get_value('ray.direction'))
+print(shader.get_value('ray.dir'))

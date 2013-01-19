@@ -117,9 +117,9 @@ def populate_mgr(mgr, fname):
     for m in meshes:
         populate_with_triangles(mgr, m)
 
-#fname = "F://ray_tracing_scenes/cube/cube.obj"
+fname = "F://ray_tracing_scenes/cube/cube.obj"
 #fname = "F://ray_tracing_scenes/dragon/dragon.obj"
-fname = "F://ray_tracing_scenes/head/head.obj"
+#fname = "F://ray_tracing_scenes/head/head.obj"
 mgr = ShapeManager()
 populate_mgr(mgr, fname)
 

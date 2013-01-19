@@ -153,8 +153,8 @@ class CodeGenerator:
         shader = self.get_shader(obj.name)
         if shader is not None:
             self.clear_regs()
-            arg_types = [type(arg) for arg in shader.input_args]
-            code = load_func_args(self, obj.args, arg_types)
+            in_args = [arg for arg in shader.input_args]
+            code = load_func_args(self, obj.args, in_args)
             self.clear_regs()
             code += "call %s\n" % obj.name
             typ = shader.ret_type

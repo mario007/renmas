@@ -1,8 +1,9 @@
 import platform
-from ..base import Ray
+from ..base import Ray, Integer
 from .intersector import Intersector
 from .hit import HitPoint
 from ..macros import create_assembler
+from ..base import arg_list, arg_map, Shader
 
 class LinearIsect(Intersector):
     def __init__(self, mgr=None):
@@ -248,4 +249,26 @@ class LinearIsect(Intersector):
         ret
         """
         return ASM
+
+    def isect_shader(self, runtimes):
+        
+        label = 'ray_scene_intersection' + str(id(self))
+        self.isect_asm(runtimes, label)
+
+        # input arguments ray=eax, hitpoint=ebx
+        in_args = arg_list([('ray', Ray), ('hit', HitPoint)])
+        args = arg_map([])
+        ret_type = Integer
+        name = 'isect' #NOTE this is name of the shader
+
+        code = " #DATA \n #CODE \n "
+        code += "global %s:\n" % name
+        code += "call %s\n" % label
+        code += "ret\n"
+        shader = Shader(name, code, args, input_args=in_args, ret_type=ret_type,
+                func=True, functions={})
+
+        shader.prepare(runtimes)
+        return shader
+
 

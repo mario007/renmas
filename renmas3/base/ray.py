@@ -31,7 +31,7 @@ class Ray():
     @classmethod
     def user_type(cls):
         typ_name = "Ray"
-        fields = [('origin', Vec3), ('direction', Vec3)]
+        fields = [('dir', Vec3), ('origin', Vec3)]
         return (typ_name, fields)
 
 register_user_type(Ray)

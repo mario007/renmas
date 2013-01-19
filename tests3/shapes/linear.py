@@ -3,6 +3,7 @@ from tdasm import Tdasm, Runtime
 from renmas3.base import Vector3, Ray
 from renmas3.shapes import LinearIsect, ShapeManager, Triangle, HitPoint
 from renmas3.macros import create_assembler
+from renmas3.base import BasicShader, Integer
 
 v0 = Vector3(2.2, 4.4, 6.6)
 v1 = Vector3(1.1, 1.1, 1.1)
@@ -56,6 +57,23 @@ def ray_ds(ds, ray, name):
 
 ray_ds(ds, ray, 'ray1')
 runtime.run('test')
-print (hit)
+print (hit, hit.t)
+print (hit.normal)
 print (ds['ret'], ds['hp1.t'])
+print (ds['hp1.normal'])
+print ('------------------')
 
+
+shader = linear.isect_shader([runtime])
+hit2 = HitPoint()
+props = {'hit': hit2, 'ret': 0, 'ray': ray}
+code = """
+ret = isect(ray, hit)
+"""
+bs = BasicShader(code, None, props)
+bs.prepare([runtime], [shader])
+
+bs.execute()
+print (bs.shader.get_value('ret'))
+print (bs.shader.get_value('hit.t'))
+print (bs.shader.get_value('hit.normal'))

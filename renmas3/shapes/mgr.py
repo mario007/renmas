@@ -81,3 +81,11 @@ class ShapeManager:
         for shape in self._shape_names.values():
             yield shape
 
+    def __getstate__(self):
+        #TODO
+        d = {}
+        return d
+
+    def __setstate__(self, state):
+        pass
+

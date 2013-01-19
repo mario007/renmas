@@ -87,6 +87,7 @@ def load_const(cgen, const, dest_reg=None):
             dest_reg = cgen.register(typ='general')
         code = "mov %s, %i\n" % (dest_reg, const)
         return code, dest_reg, Integer
+
     elif isinstance(const, float):
         if dest_reg is None:
             dest_reg = cgen.register(typ='xmm')
@@ -147,9 +148,9 @@ def store_operand(cgen, dest, reg, typ):
         raise ValueError("Unknown type of destination.", dest)
     return code
 
-def load_func_args(cgen, operands, arg_types):
-    if len(operands) != len(arg_types):
-        raise ValueError("Argument length mismatch", operands, arg_types)
+def load_func_args(cgen, operands, in_args):
+    if len(operands) != len(in_args):
+        raise ValueError("Argument length mismatch", operands, in_args)
 
     bits = platform.architecture()[0]
     xmm = ['xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
@@ -161,32 +162,34 @@ def load_func_args(cgen, operands, arg_types):
     cgen.register(reg=reg2)
 
     code = ''
-    for operand, arg_type in zip(operands, arg_types):
-        if arg_type is Integer:
+    for operand, arg in zip(operands, in_args):
+        if type(arg) is Integer:
             reg = general.pop()
             cgen.register(reg=reg)
             co, reg, typ = load_operand(cgen, operand, dest_reg=reg, ptr_reg=ptr_reg)
             code += co
             if typ != Integer:
-                raise ValueError("Type mismatch when passing parameter to function", arg, typ)
-        elif arg_type is Float or arg_type is Vec3:
+                raise ValueError("Type mismatch when passing parameter to function", type(arg), typ)
+        elif type(arg) is Float or type(arg) is Vec3:
             reg = xmm.pop()
             co, reg, typ = load_operand(cgen, operand, dest_reg=reg, ptr_reg=ptr_reg)
             code += co
-            if typ != arg_type:
-                raise ValueError("Type mismatch when passing parameter to function", arg_type, typ)
-        elif arg_type is StructPtr:
+            if typ != type(arg):
+                raise ValueError("Type mismatch when passing parameter to function", type(arg), typ)
+        elif type(arg) is StructPtr:
             reg = general.pop()
             if bits == '64bit':
                 reg = 'r' + reg[1:]
-            arg = cgen.get_arg(operand)
-            if isinstance(arg, Struct):
+            arg2 = cgen.get_arg(operand)
+            if isinstance(arg2, Struct):
+                if arg.typ.typ != arg2.typ.typ:
+                    raise ValueError("Wrong structure type in function argument!", arg.typ.typ, arg2.typ.typ)
                 co, dummy, dummy = load_struct_ptr(cgen, operand, reg)
                 code += co
             else:
-                raise ValueError("User type argument is expected.", arg)
+                raise ValueError("User type argument is expected.", arg2)
         else:
-            raise ValueError("Unsuported argument type!", operand, arg_type)
+            raise ValueError("Unsuported argument type!", operand, type(arg))
     return code
 
 def store_func_args(cgen, args):

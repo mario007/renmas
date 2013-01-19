@@ -555,6 +555,8 @@ class Struct(Argument):
     def set_value(self, ds, value, path, idx_thread=None):
         for p, arg in self._paths.items():
             obj = getattr(value, arg.name)
+            if obj is None:
+                continue
             arg.set_value(ds, obj, p, idx_thread)
 
 class StructPtr(Struct):

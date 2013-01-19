@@ -90,6 +90,7 @@ class Renderer:
         self._runtimes = None
         self._pass = 0
         self._film = Film()
+        self._intersector = None
 
     def set_resolution(self, width, height):
         """Set resolution of output image. """
@@ -152,7 +153,14 @@ class Renderer:
         sam_sh = self._project.sampler.shader
         cam_sh = self._project.camera.shader
         film_sh = self._film.shader
+
+        isect_sh = self._isect_shader(runtimes)
         self._integrator.prepare(runtimes, [sam_sh, cam_sh, film_sh])
+
+    def _isect_shader(self, runtimes):
+        pass
+        # shader = self._intersector.isect_shader(runtimes)
+        # return shader
 
     def render(self):
         """Execute rendering of one sample for each pixel. If we have

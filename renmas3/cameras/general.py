@@ -66,7 +66,7 @@ tmp2 = v * sample.y
 tmp3 = w * distance
 direction = tmp1 + tmp2 - tmp3
 ray.origin = eye
-ray.direction =  normalize(direction)
+ray.dir =  normalize(direction)
 
     """
 

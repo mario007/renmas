@@ -1,5 +1,4 @@
 import time
-from tdasm import Runtime
 from renmas3.base import ImageBGRA
 from renmas3.renderer import Renderer, Project
 from renmas3.utils import blt_prgba_to_bgra
@@ -17,7 +16,6 @@ color4 = (0.88, 0.0, 0.0)
 while ret != 0:
     ret = generate_sample(sample)
     generate_ray(sample, ray)
-    #generate_ray(ray, sample) FIXME -- trow execption somehow
     if ret == 0:
         break
     nsamples = nsamples + 1
@@ -32,6 +30,7 @@ ren.parse_scene_file('scene1.txt')
 ren.set_integrator_code(INTEGRATORS_CODE)
 
 ren.prepare()
+print (ren._project.sampler.shader._code)
 
 start = time.clock()
 ren.render()

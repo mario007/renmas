@@ -69,6 +69,7 @@ class LinearIsect(Intersector):
     def _isect_asm(self, runtimes, label, visibility=False):
         if self.mgr is None:
             raise ValueError("Shape manager is not set")
+        self._load_isect_routines(runtimes, visibility)
         data = self._generate_data_section()
         bits = platform.architecture()[0]
         if bits == '64bit':
@@ -120,6 +121,17 @@ class LinearIsect(Intersector):
         data = "#DATA\n" + structs + data + data2
         return data
 
+    def _load_isect_routines(self, runtimes, visibility):
+        for shp_type in self.mgr.shape_types():
+            if not visibility:
+                lbl_isect = shp_type.asm_struct_name() + "_intersect"
+                shp_type.isect_asm(runtimes, lbl_isect)
+                self._isect_ray_shape_array_asm(shp_type, runtimes, shp_type.asm_struct_name() + '_array', lbl_isect)
+            else:
+                lbl_isect = shp_type.asm_struct_name() + "_intersect_bool"
+                shp_type.isect_asm_b(runtimes, lbl_isect)
+                self._isect_ray_shape_array_asm(shp_type, runtimes, shp_type.asm_struct_name() + '_array_bool', lbl_isect, True)
+
     # eax - pointer to ray
     # ebx - pointer to hitpoint
     def _generate_code_section32(self, runtimes, label, visibility):
@@ -152,15 +164,6 @@ class LinearIsect(Intersector):
             code = code1 + line1 + line2 + call
             ASM += code
             
-            if not visibility:
-                lbl_isect = shp_type.asm_struct_name() + "_intersect"
-                shp_type.isect_asm(runtimes, lbl_isect)
-                self._isect_ray_shape_array_asm(shp_type, runtimes, shp_type.asm_struct_name() + '_array', lbl_isect)
-            else:
-                lbl_isect = shp_type.asm_struct_name() + "_intersect_bool"
-                shp_type.isect_asm_b(runtimes, lbl_isect)
-                self._isect_ray_shape_array_asm(shp_type, runtimes, shp_type.asm_struct_name() + '_array_bool', lbl_isect, True)
-        
         ASM += """
             macro eq32 xmm0 = min_dist
             macro if xmm0 < max_dist goto _accept
@@ -176,6 +179,54 @@ class LinearIsect(Intersector):
             ret
         """
         return ASM 
+
+    # rax - pointer to ray
+    # rbx - pointer to shadepoint 
+    def _generate_code_section64(self, runtimes, label, visibility):
+        ASM = "#CODE \n"
+        ASM += "global " + label + ":\n"
+        ASM += """
+            mov qword [r1], rax
+            mov edx , dword [zero]
+            macro eq32 min_dist = max_dist + one {xmm0}
+        """
+        if not visibility:
+            ASM += """
+            mov qword [hp], rbx
+            mov dword [rbx + Hitpoint.t], edx
+            """
+        code = ""
+        for shp_type in self.mgr.shape_types():
+            code1 = """ 
+            ;=== intersection of array
+            mov rax, qword [r1]
+            mov rbx, qword [hp]
+            mov rcx, min_dist
+            """
+            line1 = "mov rsi, qword [ptr_%s] \n" % shp_type.asm_struct_name()
+            line2 = "mov edi, dword [n_%s]\n" % shp_type.asm_struct_name()
+            if not visibility:
+                call = "call " + shp_type.asm_struct_name() + "_array \n"
+            else:
+                call = "call " + shp_type.asm_struct_name() + "_array_bool \n"
+            code = code1 + line1 + line2 + call
+            ASM += code
+            
+        ASM += """
+            macro eq32 xmm0 = min_dist
+            macro if xmm0 < max_dist goto _accept
+            mov eax, 0
+            ret
+
+            _accept:
+            macro if xmm0 < epsilon goto _reject
+            mov eax, 1
+            ret
+            _reject:
+            mov eax, 0
+            ret
+        """
+        return ASM
 
     # eax - ray
     # ebx - hitpoint
@@ -246,6 +297,59 @@ class LinearIsect(Intersector):
         
         _end_objects:
         add esp, 20 
+        ret
+        """
+        return ASM
+
+    def _isect_ray_shape_array_asm_code64(self, typ_shape, isect_ray_shapes, isect_ray_shape, visibility):
+
+        ASM = "#DATA \n" + HitPoint.asm_struct() + typ_shape.asm_struct() +"  #CODE \n "
+
+        ASM += " global " + isect_ray_shapes + ":\n" + """
+          ; rax - ray, rbx - hp , rcx - min_dist, rsi - ptr_array, edi - nshapes
+        push rcx
+        push rax
+        push rbx
+        push rsi
+        push rdi
+        
+
+        _objects_loop:
+        mov rax, qword [rsp + 24] ; mov eax, ray
+        mov rbx, qword [rsp + 8] ; mov ebx, shape 
+        mov rcx, qword [rsp + 32]; address of minimum distance
+        """
+        if not visibility:
+            ASM += " mov rdx, qword [rsp + 16] ; mov edx, hp \n "
+
+        ASM += " call " + isect_ray_shape + "\n" + """
+        cmp eax, 0  ; 0 - no intersection ocur
+        je _next_object
+        """
+        if not visibility:
+            ASM += """
+                mov rax, qword [rsp + 16]
+                mov ebx, dword [rax + Hitpoint.t]
+
+                mov rdx, qword [rsp + 32] ;populate new minimum distance
+                mov dword [rdx], ebx
+                """
+        else:
+            ASM += """
+                mov rdx, qword [rsp + 32] ;populate new minimum distance
+                macro eq32 edx = xmm0 {xmm0}
+            """
+
+        ASM += """
+        _next_object:
+        sub dword [rsp], 1  
+        jz _end_objects
+        """
+        ASM += "add qword [rsp + 8], sizeof " + typ_shape.asm_struct_name() + "\n" + """ 
+        jmp _objects_loop
+        
+        _end_objects:
+        add rsp, 40 
         ret
         """
         return ASM

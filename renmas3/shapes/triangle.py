@@ -308,7 +308,7 @@ class Triangle(Shape):
         je _reject
         """
         if bits == '64bit':
-            code += "mov rcx, dword [rsp + 8]\n"
+            code += "mov rcx, qword [rsp + 8]\n"
         else:
             code += "mov ecx, dword [esp + 4]\n"
         code += """

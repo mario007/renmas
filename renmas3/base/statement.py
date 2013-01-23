@@ -124,9 +124,9 @@ def process_operation(cgen, operation, stack=[]):
 
     left = operation.left
     right = operation.right
+    ocupied = [r for r, t in stack]
     if not left is EmptyOperand and not right is EmptyOperand:
-        ocupied = [r for r, t in stack]
-        code, reg, typ = process_operand(cgen, operation.left)
+        code, reg, typ = process_operand(cgen, operation.left, ocupied_regs=ocupied)
         ocupied.append(reg)
         code2, reg2, typ2 = process_operand(cgen, operation.right, ocupied_regs=ocupied)
         code += code2
@@ -135,11 +135,9 @@ def process_operation(cgen, operation, stack=[]):
         reg, typ = stack.pop()
         code = ''
     elif left is EmptyOperand and not right is EmptyOperand:
-        ocupied = [r for r, t in stack]
         reg, typ = stack.pop()
         code, reg2, typ2 = process_operand(cgen, operation.right, ocupied_regs=ocupied)
     elif not left is EmptyOperand and right is EmptyOperand:
-        ocupied = [r for r, t in stack]
         code, reg, typ = process_operand(cgen, operation.left, ocupied_regs=ocupied)
         reg2, typ2 = stack.pop()
     else:

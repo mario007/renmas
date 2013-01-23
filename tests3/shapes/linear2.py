@@ -8,117 +8,66 @@ from renmas3.macros import create_assembler
 from renmas3.base import VertexBuffer, VertexNBuffer, VertexUVBuffer, VertexNUVBuffer, TriangleBuffer
 
 
-def create_triangle(v0, v1, v2):
-    p0 = Vector3(v0[0], v0[1], v0[2])
-    p1 = Vector3(v1[0], v1[1], v1[2])
-    p2 = Vector3(v2[0], v2[1], v2[2])
-    t = Triangle(p0, p1, p2)
-    return t
+def create_triangle(v0, v1, v2, n0=None, n1=None, n2=None,
+                     uv0=None, uv1=None, uv2=None):
 
-def create_triangle2(v0, v1, v2, n0, n1, n2, uv0, uv1, uv2):
     p0 = Vector3(v0[0], v0[1], v0[2])
     p1 = Vector3(v1[0], v1[1], v1[2])
     p2 = Vector3(v2[0], v2[1], v2[2])
-    n0 = Vector3(n0[0], n0[1], n0[2])
-    n1 = Vector3(n1[0], n1[1], n1[2])
-    n2 = Vector3(n2[0], n2[1], n2[2])
-    tu0, tv0 = uv0
-    tu1, tv1 = uv1
-    tu2, tv2 = uv2
+    if n0 is not None:
+        n0 = Vector3(n0[0], n0[1], n0[2])
+        n1 = Vector3(n1[0], n1[1], n1[2])
+        n2 = Vector3(n2[0], n2[1], n2[2])
+    if uv0 is not None:
+        tu0, tv0 = uv0
+        tu1, tv1 = uv1
+        tu2, tv2 = uv2
+    else:
+        tu0 = tv0 = tu1 = tv1 = tu2 = tv2 = None
+
     t = Triangle(p0, p1, p2, n0=n0, n1=n1, n2=n2, tu0=tu0,
             tv0=tv0, tu1=tu1, tv1=tv1, tu2=tu2, tv2=tv2)
     return t
 
-def create_triangle3(v0, v1, v2, n0, n1, n2):
-    p0 = Vector3(v0[0], v0[1], v0[2])
-    p1 = Vector3(v1[0], v1[1], v1[2])
-    p2 = Vector3(v2[0], v2[1], v2[2])
-    n0 = Vector3(n0[0], n0[1], n0[2])
-    n1 = Vector3(n1[0], n1[1], n1[2])
-    n2 = Vector3(n2[0], n2[1], n2[2])
-    t = Triangle(p0, p1, p2, n0=n0, n1=n1, n2=n2)
-    return t
-
-def create_triangle4(v0, v1, v2, uv0, uv1, uv2):
-    p0 = Vector3(v0[0], v0[1], v0[2])
-    p1 = Vector3(v1[0], v1[1], v1[2])
-    p2 = Vector3(v2[0], v2[1], v2[2])
-    tu0, tv0 = uv0
-    tu1, tv1 = uv1
-    tu2, tv2 = uv2
-    t = Triangle(p0, p1, p2, tu0=tu0,
-            tv0=tv0, tu1=tu1, tv1=tv1, tu2=tu2, tv2=tv2)
-    return t
-
-def populate_tb_vb(mgr, tb, vb):
+def populate(mgr, tb, vb):
     counter = 0
     name = "t" + str(id(tb))
     for i in range(tb.size()):
         idx1, idx2, idx3 = tb.get(i)
-        v0 = vb.get(idx1)
-        v1 = vb.get(idx2)
-        v2 = vb.get(idx3)
-        t = create_triangle(v0, v1, v2)
+        if isinstance(vb, VertexBuffer):
+            v0 = vb.get(idx1)
+            v1 = vb.get(idx2)
+            v2 = vb.get(idx3)
+            n0 = n1 = n2 = uv0 = uv1 = uv2 = None
+        elif isinstance(vb, VertexNBuffer):
+            v0, n0 = vb.get(idx1)
+            v1, n1 = vb.get(idx2)
+            v2, n2 = vb.get(idx3)
+            uv0 = uv1 = uv2 = None
+        elif isinstance(vb, VertexUVBuffer):
+            v0, uv0 = vb.get(idx1)
+            v1, uv1 = vb.get(idx2)
+            v2, uv2 = vb.get(idx3)
+            n0 = n1 = n2 = None
+        elif isinstance(vb, VertexNUVBuffer):
+            v0, n0, uv0 = vb.get(idx1)
+            v1, n1, uv1 = vb.get(idx2)
+            v2, n2, uv2 = vb.get(idx3)
+        else:
+            raise ValueError("Unknown vertex buffer", vb)
+
+        t = create_triangle(v0, v1, v2, n0=n0, n1=n1, n2=n2,
+                             uv0=uv0, uv1=uv1, uv2=uv2)
         mgr.add(name+str(counter), t)
         counter += 1
-
-def populate_tb_vnb(mgr, tb, vb):
-    counter = 0
-    name = "t" + str(id(tb))
-    for i in range(tb.size()):
-        idx1, idx2, idx3 = tb.get(i)
-        v0, n0 = vb.get(idx1)
-        v1, n1 = vb.get(idx2)
-        v2, n2 = vb.get(idx3)
-        t = create_triangle3(v0, v1, v2, n0, n1, n2)
-        mgr.add(name+str(counter), t)
-        counter += 1
-
-def populate_tb_uv(mgr, tb, vb):
-    counter = 0
-    name = "t" + str(id(tb))
-    for i in range(tb.size()):
-        idx1, idx2, idx3 = tb.get(i)
-        v0, uv0 = vb.get(idx1)
-        v1, uv1 = vb.get(idx2)
-        v2, uv2 = vb.get(idx3)
-        t = create_triangle4(v0, v1, v2, uv0, uv1, uv2)
-        mgr.add(name+str(counter), t)
-        counter += 1
-
-def populate_tb_nuv(mgr, tb, vb):
-    counter = 0
-    name = "t" + str(id(tb))
-    for i in range(tb.size()):
-        idx1, idx2, idx3 = tb.get(i)
-        v0, n0, uv0 = vb.get(idx1)
-        v1, n1, uv1 = vb.get(idx2)
-        v2, n2, uv2 = vb.get(idx3)
-        t = create_triangle2(v0, v1, v2, n0, n1, n2, uv0, uv1, uv2)
-        mgr.add(name+str(counter), t)
-        counter += 1
-
-def populate_with_triangles(mgr, mesh):
-    tb = mesh.tb
-    vb = mesh.vb
-    if isinstance(vb, VertexBuffer):
-        populate_tb_vb(mgr, tb, vb)
-    elif isinstance(vb, VertexNBuffer):
-        populate_tb_vnb(mgr, tb, vb)
-    elif isinstance(vb, VertexUVBuffer):
-        populate_tb_uv(mgr, tb, vb)
-    elif isinstance(vb, VertexNUVBuffer):
-        populate_tb_nuv(mgr, tb, vb)
-    else:
-        raise ValueError("Unknown vertex buffer", vb)
 
 def populate_mgr(mgr, fname):
     meshes = load_meshes(fname)
     for m in meshes:
-        populate_with_triangles(mgr, m)
+        populate(mgr, m.tb, m.vb)
 
-fname = "F://ray_tracing_scenes/cube/cube.obj"
-#fname = "F://ray_tracing_scenes/dragon/dragon.obj"
+#fname = "F://ray_tracing_scenes/cube/cube.obj"
+fname = "F://ray_tracing_scenes/dragon/dragon.obj"
 #fname = "F://ray_tracing_scenes/head/head.obj"
 mgr = ShapeManager()
 populate_mgr(mgr, fname)

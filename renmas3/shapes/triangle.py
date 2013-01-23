@@ -2,10 +2,11 @@ import platform
 
 import renmas3.switch as proc
 
-from ..base import Ray
+from ..base import Ray, Vector3
 from ..macros import create_assembler
 from .hit import HitPoint
 from .shape import Shape
+from .bbox import BBox
 
 from .ray_triangle import ray_triangle_intersection
 
@@ -422,4 +423,19 @@ class Triangle(Shape):
             ds[name + ".tv2"] = triangle.tv2
         else:
             ds[name + ".has_uv"] = 0
+
+    def bbox(self):
+        epsilon = 0.0001
+        v0 = self.v0 
+        v1 = self.v1
+        v2 = self.v2
+        minx = min(min(v0.x, v1.x), v2.x) - epsilon
+        maxx = max(max(v0.x, v1.x), v2.x) + epsilon
+        miny = min(min(v0.y, v1.y), v2.y) - epsilon
+        maxy = max(max(v0.y, v1.y), v2.y) + epsilon
+        minz = min(min(v0.z, v1.z), v2.z) - epsilon
+        maxz = max(max(v0.z, v1.z), v2.z) + epsilon
+        p0 = Vector3(minx, miny, minz)
+        p1 = Vector3(maxx, maxy, maxz)
+        return BBox(p0, p1)
 

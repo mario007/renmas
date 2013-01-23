@@ -1,7 +1,8 @@
 
 from tdasm import Tdasm
-from ..base import DynamicArray
+from ..base import DynamicArray, Vector3
 from ..base.logger import log
+from .bbox import BBox
 
 class ShapeManager:
     def __init__(self):
@@ -57,7 +58,7 @@ class ShapeManager:
         self._shape_addr[shape] = idx 
 
     def remove(self, name): #TODO
-        pass
+        raise NotImplementedError()
 
     def update(self, shape):
         try:
@@ -80,6 +81,24 @@ class ShapeManager:
     def __iter__(self):
         for shape in self._shape_names.values():
             yield shape
+
+    def bbox(self):
+        p0 = Vector3(9999999.0, 9999999.0, 9999999.0)
+        p1 = Vector3(-9999999.0, -9999999.0, -9999999.0)
+        bb_min = BBox(p0, p1) 
+
+        for shape in self:
+            bbox = shape.bbox()
+
+            if bbox.x0 < bb_min.x0: bb_min.x0 = bbox.x0
+            if bbox.y0 < bb_min.y0: bb_min.y0 = bbox.y0
+            if bbox.z0 < bb_min.z0: bb_min.z0 = bbox.z0
+
+            if bbox.x1 > bb_min.x1: bb_min.x1 = bbox.x1
+            if bbox.y1 > bb_min.y1: bb_min.y1 = bbox.y1
+            if bbox.z1 > bb_min.z1: bb_min.z1 = bbox.z1
+
+        return bb_min
 
     def __getstate__(self):
         #TODO

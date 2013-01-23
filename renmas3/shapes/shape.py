@@ -27,7 +27,7 @@ class Shape:
         pass
 
     def bbox(self):
-        pass
+        raise NotImplementedError()
 
     @classmethod
     def name(cls):

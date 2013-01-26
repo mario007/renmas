@@ -101,10 +101,18 @@ class ShapeManager:
         return bb_min
 
     def __getstate__(self):
-        #TODO
         d = {}
+        d['shapes'] = self._shape_names
         return d
 
     def __setstate__(self, state):
-        pass
+
+        self._shape_names = {} 
+        self._shape_addr = {} 
+        self._shape_arrays = {}
+
+        shapes = state['shapes']
+        for name, shape in shapes.items():
+            self.add(name, shape)
+
 

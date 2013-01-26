@@ -195,9 +195,9 @@ def extract_con_op(obj):
 
 def extract_test(obj):
     if isinstance(obj, ast.Num):
-        test = ((obj.n,),)
+        test = ((Const(obj.n),),)
     elif isinstance(obj, ast.Name):
-        test = ((obj.id,),)
+        test = ((Name(obj.id),),)
     elif isinstance(obj, ast.Attribute):
         name, path = extract_path(obj)
         test = ((Attribute(name, path),),)

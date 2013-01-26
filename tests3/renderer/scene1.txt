@@ -1,16 +1,23 @@
 
 Options
 sampler_type = regular
-pixel_size = 0.3
-width = 1000
-height = 1000
-nthreads = 4
+pixel_size = 1.0
+width = 400
+height = 400
+nthreads = 1
 End
 
 Camera
 type = perspective
-eye = 3, 4, 5 
+eye = 5, 5, 5 
 lookat = 0, 0, 0
-distance = 333
+distance = 400
+End
+
+Shape
+type = Sphere
+name = Sphere 1
+radius = 1.0
+origin = 0, 0, 0
 End
 

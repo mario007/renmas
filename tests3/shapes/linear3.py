@@ -107,19 +107,9 @@ def isect(bbox, shader, linear):
         return 0
     return 1
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('fname')
-    args = parser.parse_args()
-
-    #populate manager with triangles
-    mgr = ShapeManager()
-    populate_mgr(mgr, args.fname)
-    bbox = mgr.bbox()
-
-    linear = LinearIsect(mgr)
+def test_isect(intersector, bbox, nrays=10):
     runtime = Runtime()
-    shader = linear.isect_shader([runtime])
+    shader = intersector.isect_shader([runtime])
     hit2 = HitPoint()
     origin = Vector3(0.0, 0.0, 0.0)
     direction = Vector3(1.2, 1.1, 1.12)
@@ -133,10 +123,57 @@ ret = isect(ray, hit)
     bs.prepare([runtime], [shader])
 
     hits = 0
-    nrays = 20
     for x in range(nrays):
-        hits += isect(bbox, bs, linear)
+        hits += isect(bbox, bs, intersector)
     print("Fired ray = %s, Number of intersection = %d" % (nrays, hits))
+
+def visible(bbox, shader, linear):
+    p1 = random_in_bbox(bbox)
+    p2 = random_in_bbox(bbox)
+    props = {'p1': p1, 'ret': 5, 'p2': p2}
+    shader.props = props
+    shader.update()
+
+    shader.execute()
+    h = linear.visibility(p1, p2)
+    ret = shader.shader.get_value('ret')
+    if h is True and ret != 1:
+        print (p1)
+        print (p2)
+        raise ValueError("Something is wrong")
+    if h is False and ret != 0:
+        print (p1)
+        print (p2)
+        raise ValueError("Something is wrong")
+
+def test_visibility(intersector, bbox, nrays=10):
+    runtime = Runtime()
+    shader = intersector.visible_shader([runtime])
+    p1 = Vector3(0.0, 0.0, 0.0)
+    p2 = Vector3(1.2, 1.1, 1.12)
+    props = {'p1': p1, 'ret': 0, 'p2': p2}
+    code = """
+ret = visible(p1, p2)
+    """
+    bs = BasicShader(code, None, props)
+    bs.prepare([runtime], [shader])
+    for x in range(nrays):
+        visible(bbox, bs, intersector)
+    print("Fired ray = %s" % (nrays,))
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('fname')
+    args = parser.parse_args()
+
+    #populate manager with triangles
+    mgr = ShapeManager()
+    populate_mgr(mgr, args.fname)
+    bbox = mgr.bbox()
+
+    linear = LinearIsect(mgr)
+    #test_isect(linear, bbox, nrays=50)
+    test_visibility(linear, bbox, nrays=10)
 
 if __name__ == "__main__":
     main()

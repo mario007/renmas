@@ -1,5 +1,5 @@
 import platform
-from ..base import Ray, Integer
+from ..base import Ray, Integer, Vec3
 from .intersector import Intersector
 from .hit import HitPoint
 from ..macros import create_assembler
@@ -357,7 +357,8 @@ class LinearIsect(Intersector):
     def isect_shader(self, runtimes):
         
         label = 'ray_scene_intersection' + str(id(self))
-        self.isect_asm(runtimes, label)
+        def load(runtimes):
+            self.isect_asm(runtimes, label)
 
         # input arguments ray=eax, hitpoint=ebx
         in_args = arg_list([('ray', Ray), ('hit', HitPoint)])
@@ -371,8 +372,84 @@ class LinearIsect(Intersector):
         code += "ret\n"
         shader = Shader(name, code, args, input_args=in_args, ret_type=ret_type,
                 func=True, functions={})
-
-        shader.prepare(runtimes)
+        shader.loader = load
         return shader
 
+
+    def visibility_asm(self, runtimes, label):
+        # visibility of two points # xmm0 = p1  xmm1 = p2
+        # xmm0 -- return value minimum distance
+
+        lbl_vis = "__ray_scene_intersection_visibility__"
+        self.isect_asm_b(runtimes, lbl_vis)
+
+        asm_structs = Ray.asm_struct() 
+        ASM = """
+        #DATA
+        """
+        ASM += asm_structs + """
+        Ray r1
+        float distance
+        float epsilon = 0.0005
+        #CODE
+        """
+        ASM += " global " + label + ":\n" + """
+        macro eq128 xmm1 = xmm1 - xmm0 
+        macro eq128 r1.origin = xmm0 {xmm0} 
+        macro eq128 xmm5 = xmm1
+        macro dot xmm0 = xmm1 * xmm1 {xmm2, xmm3} 
+        macro sqrtss xmm0 = xmm0
+        macro eq32 distance = xmm0 - epsilon {xmm2}
+        macro normalization xmm5 {xmm6, xmm7}
+        macro eq128 r1.dir = xmm5 {xmm2}
+        
+        ; call ray scene intersection
+        macro mov eax, r1
+        call __ray_scene_intersection_visibility__
+
+        cmp eax, 0
+        jne _maybe_visible
+        ;no intersection ocure that mean that points are visible
+        mov eax, 1 
+        ret
+
+        _maybe_visible:
+        macro if xmm0 > distance goto accept
+        xor eax, eax 
+        ret
+        
+        accept:
+        mov eax, 1
+        ret
+
+        """
+
+        assembler = create_assembler()
+        mc = assembler.assemble(ASM, True)
+        #mc.print_machine_code()
+        name = "isect_ray_scene_visible" + str(id(self))
+        for r in runtimes:
+            if not r.global_exists(label):
+                r.load(name, mc)
+
+    def visible_shader(self, runtimes):
+        
+        label = 'visibility' + str(id(self))
+        def load(runtimes):
+            self.visibility_asm(runtimes, label)
+
+        # input arguments p1=xmm0, p2=xmm1
+        in_args = arg_list([('p1', Vec3), ('p2', Vec3)])
+        args = arg_map([])
+        ret_type = Integer
+        name = 'visible' #NOTE this is name of the shader
+
+        code = " #DATA \n #CODE \n "
+        code += "global %s:\n" % name
+        code += "call %s\n" % label
+        code += "ret\n"
+        shader = Shader(name, code, args, input_args=in_args, ret_type=ret_type,
+                func=True, functions={})
+        shader.loader = load
+        return shader
 

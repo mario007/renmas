@@ -6,6 +6,7 @@ from .parse_scene import parse_scene
 from ..base import arg_list, arg_map, Vec3
 from ..base import BaseShader, BasicShader, ImageRGBA, ImagePRGBA, ImageBGRA 
 from ..samplers import Sample
+from ..shapes import ShapeManager, LinearIsect
 
 
 class Project:
@@ -18,6 +19,7 @@ class Project:
         self.camera = None
         self.integrators_code = None
         self.nthreads = 1
+        self.shapes = ShapeManager()
 
     @staticmethod
     def load(fname):
@@ -84,7 +86,7 @@ class Renderer:
     """Main class that is used for holding all the parts together that
     are required for rendering of image."""
     def __init__(self):
-        self._project = None
+        self._project = Project()
         self._integrator = None
         self._ready = False
         self._runtimes = None
@@ -155,12 +157,15 @@ class Renderer:
         film_sh = self._film.shader
 
         isect_sh = self._isect_shader(runtimes)
-        self._integrator.prepare(runtimes, [sam_sh, cam_sh, film_sh])
+        self._integrator.prepare(runtimes, [sam_sh, cam_sh, film_sh, isect_sh])
 
     def _isect_shader(self, runtimes):
-        pass
-        # shader = self._intersector.isect_shader(runtimes)
-        # return shader
+        if self._intersector is None:
+            self._intersector = LinearIsect(self._project.shapes)
+
+        shader = self._intersector.isect_shader(runtimes)
+        shader.prepare(runtimes)
+        return shader
 
     def render(self):
         """Execute rendering of one sample for each pixel. If we have

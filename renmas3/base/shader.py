@@ -29,6 +29,10 @@ class Shader:
             if isinstance(arg, Struct):
                 self._struct_args.update(arg.paths)
         self._runtimes = None
+        #NOTE this is callable that must load some additionaly code
+        # that is dynamically created like code for intersection
+        # that depends on how many different shapes we have
+        self.loader = None
 
     @property
     def nthreads(self):
@@ -49,6 +53,9 @@ class Shader:
         return self._input_args
 
     def prepare(self, runtimes):
+        if self.loader:
+            self.loader(runtimes)
+
         for s in self._shaders:
             s.prepare(runtimes)
 
@@ -127,6 +134,7 @@ class Shader:
         self._functions = state['functions']
         self._ret_type = state['ret_type']
         self._func = state['func']
+        self.loader = None
 
         self._ds = []
         self._struct_args = {}

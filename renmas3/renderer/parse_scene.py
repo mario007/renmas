@@ -2,6 +2,7 @@
 from renmas3.base import Vector3
 from renmas3.samplers import RegularSampler
 from renmas3.cameras import create_perspective_camera
+from renmas3.shapes import Sphere
 
 def _parse_line(line):
     keyword, vals = line.split('=')
@@ -62,6 +63,23 @@ def _parse_camera(fobj, project):
     else:
         raise ValueError("Unknown camera")
 
+def _parse_shape(fobj, project):
+    values = _extract_values(fobj)
+    #NOTE keywords are expected to be in lower case!!! Improve this
+
+    if 'type' not in values:
+        raise ValueError("Type attribut is missing")
+    typ = values['type'][0].strip().lower()
+    name = values['name'][0].strip()
+    if typ == 'sphere':
+        radius = float(values['radius'][0])
+        o = values['origin']
+        origin = Vector3(float(o[0]), float(o[1]), float(o[2]))
+        sphere = Sphere(origin, radius)
+        project.shapes.add(name, sphere)
+    else:
+        raise ValueError("Unsuported type of shape!", typ)
+
 def parse_scene(fobj, project):
     for line in fobj:
         line = line.strip()
@@ -71,6 +89,8 @@ def parse_scene(fobj, project):
             _parse_options(fobj, project)
         elif line.lower() == "camera":
             _parse_camera(fobj, project)
+        elif line.lower() == "shape":
+            _parse_shape(fobj, project)
         else:
             raise ValueError("Unknown keyword in scene file!", line)
 

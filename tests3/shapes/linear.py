@@ -77,3 +77,33 @@ bs.execute()
 print (bs.shader.get_value('ret'))
 print (bs.shader.get_value('hit.t'))
 print (bs.shader.get_value('hit.normal'))
+
+
+linear.visibility_asm([runtime], 'visibility')
+code = """
+    #DATA
+    uint32 ret
+    float p1[4] = 0.2, 0.2, 0.2, 0.0
+    float p2[4] = 1.5, 1.5, 1.5, 0.0
+    float _xmm0[4]
+
+    #CODE
+    macro eq128 xmm0 = p1
+    macro eq128 xmm1 = p2
+    call visibility 
+    mov dword [ret], eax
+    macro eq128 _xmm0 = xmm0 {xmm7}
+    #END
+"""
+p1 = Vector3(0.2, 0.2, 0.2)
+p2 = Vector3(1.5, 1.5, 1.51)
+mc = asm.assemble(code)
+ds = runtime.load('test_vis', mc)
+ds['p1'] = p1.to_ds()
+ds['p2'] = p2.to_ds()
+runtime.run('test_vis')
+print("--------------")
+print("Points are visible", ds['ret'])
+print(linear.visibility(p1, p2))
+print(ds['_xmm0'])
+

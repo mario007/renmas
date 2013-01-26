@@ -7,19 +7,20 @@ from renmas3.win32 import show_image_in_window
 INTEGRATORS_CODE = """
 sample = Sample()
 ray = Ray()
+hitpoint = Hitpoint()
 ret = 1
 nsamples = 0
-color = (0.12, 0.0, 0.0)
-color2 = (0.32, 0.6, 0.0)
-color3 = (0.52, 0.0, 0.0)
-color4 = (0.88, 0.0, 0.0)
+color = (0.3, 0.0, 0.0)
+color2 = (0.0, 0.3, 0.0)
+
 while ret != 0:
     ret = generate_sample(sample)
     generate_ray(sample, ray)
     if ret == 0:
         break
     nsamples = nsamples + 1
-    if sample.iy > 20:
+    hit = isect(ray, hitpoint)
+    if hit:
         add_sample(sample, color)
     else:
         add_sample(sample, color2)
@@ -27,15 +28,17 @@ while ret != 0:
 
 ren = Renderer()
 ren.parse_scene_file('scene1.txt')
+#ren.open_project('scene1.proj')
 ren.set_integrator_code(INTEGRATORS_CODE)
 
 ren.prepare()
-print (ren._project.sampler.shader._code)
+#print (ren._project.sampler.shader._code)
 
 start = time.clock()
 ren.render()
 print(time.clock() - start)
 
+#ren.save_project('scene1.proj')
 
 img = ren._film._hdr_image
 width, height = img.size()

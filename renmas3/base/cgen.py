@@ -50,6 +50,9 @@ class Registers:
     def is_reg64(self, reg):
         return reg in self._general64
 
+    def is_general(self, reg):
+        return reg in self._general32 or reg in self._general64
+
     def type(self, reg):
         if reg in self._xmm:
             return 'xmm'
@@ -130,6 +133,13 @@ class CodeGenerator:
     def AVX(self):
         return proc.AVX
 
+    @property
+    def BIT64(self):
+        bits = platform.architecture()[0]
+        if bits == '64bit':
+            return True
+        return False
+
     def is_user_type(self, obj):
         if isinstance(obj, str):
             return obj in _user_types
@@ -152,7 +162,6 @@ class CodeGenerator:
 
         shader = self.get_shader(obj.name)
         if shader is not None:
-            self.clear_regs()
             in_args = [arg for arg in shader.input_args]
             code = load_func_args(self, obj.args, in_args)
             self.clear_regs()
@@ -241,22 +250,10 @@ class CodeGenerator:
                 functions=self._asm_functions)
         return shader
 
-    #create const it it's doesnt exist
-    #TODO improve this
-    def create_const(self, value):
+    def create_const(self, value, typ=None):
         if value in self._constants:
             return self._constants[value]
-        if isinstance(value, list) or isinstance(value, tuple):
-            if len(value) == 3:
-                v = value
-                if isinstance(v[0], int) and isinstance(v[1], int) and isinstance(v[2], int):
-                    arg = Vec3I(self._generate_name('const'), v[0], v[1], v[2])
-                else:
-                    v = Vector3(float(value[0]), float(value[1]), float(value[2]))
-                    arg = Vec3(self._generate_name('const'), v)
-            else:
-                raise "Curently only constants of length 3 is suported for now!!!" #TODO
-        arg = create_argument(self._generate_name('const'), value=value)
+        arg = create_argument(self._generate_name('const'), value=value, typ=typ)
         self._constants[value] = arg
         return arg
 
@@ -267,10 +264,8 @@ class CodeGenerator:
 
     def get_arg(self, src):
         arg = None
-        path = None
         if isinstance(src, Attribute):
             name = src.name
-            path = src.path
         elif isinstance(src, Name):
             name = src.name 
         else:
@@ -284,10 +279,6 @@ class CodeGenerator:
             if name == a.name:
                 arg = a
                 break
-        if path is not None: #NOTE fixed arg test this
-            if isinstance(arg, Struct):
-                full_path = arg.name + '.' + path
-                arg = arg.get_argument(full_path)
         return arg
 
     def _is_fixed_name(self, name):

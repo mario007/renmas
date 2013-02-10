@@ -1,10 +1,9 @@
 import platform
-from .arg import Integer, Float, Vec3, Struct, Attribute, Operation
+from .arg import Integer, Float, Vec3, Vec2, Vec4, Struct, Attribute, Operation
 from .arg import Operations, Callable, Name, Subscript, Const, EmptyOperand
 from .arg import conv_int_to_float
 from .cgen import register_function
 
-from .instr import store_const_into_mem
 from .instr import load_operand, store_operand
 import renmas3.switch as proc
 
@@ -14,38 +13,6 @@ class Statement:
     
     def asm_code(self, cgen):
         raise NotImplementedError()
-
-def assign_const_to_dest(cgen, dest, const):
-    arg = cgen.create_arg(dest, const)
-    if isinstance(dest, Name):
-        dest = Name(arg.name)
-
-    if isinstance(arg, Integer) and isinstance(const, int):
-        code = store_const_into_mem(cgen, dest, const)
-    elif isinstance(arg, Float) and (isinstance(const, int) or isinstance(const, float)):
-        code = store_const_into_mem(cgen, dest, float(const))
-    elif isinstance(arg, Vec3):
-        if (isinstance(const, tuple) or isinstance(const, list)) and len(const) == 3:
-            code = store_const_into_mem(cgen, dest, float(const[0]))
-            code += store_const_into_mem(cgen, dest, float(const[1]), offset=4)
-            code += store_const_into_mem(cgen, dest, float(const[2]), offset=8)
-            code += store_const_into_mem(cgen, dest, 0.0, offset=12)
-        else:
-            raise ValueError('It is suposed to vector3 constant! Type mismatch!',  arg, const)
-    else:
-        raise ValueError('Unsuported constant', arg, const)
-    return code
-
-
-def unary_number(n, unary):
-    if unary is None or unary != '-':
-        return n
-    if isinstance(n, int):
-        return int(unary + str(n))
-    elif isinstance(n, float):
-        return float(unary + str(n))
-    else:
-        raise ValueError("Unknown unary number", n, unary)
 
 def _filter_regs(xmms, general32, general64, ocupied_regs):
     for r in ocupied_regs:
@@ -179,7 +146,13 @@ class StmAssign(Statement):
 
     def asm_code(self, cgen):
         if isinstance(self.expr, Const): #little optimization
-            code = assign_const_to_dest(cgen, self.dest, unary_number(self.expr.const, self.unary))
+            arg = cgen.create_arg(self.dest, self.expr.const)
+            if isinstance(self.dest, Name):
+                code = arg.store_const(cgen, self.expr.const)
+            elif isinstance(self.dest, Attribute):
+                code = arg.store_attr_const(cgen, self.dest.path, self.expr.const)
+            else:
+                raise ValueError("Not supported destination of const!")
             return code
         elif isinstance(self.expr, Callable) and cgen.is_user_type(self.expr):
             cgen.create_arg(self.dest, self.expr)
@@ -197,7 +170,7 @@ class StmExpression(Statement):
         code, reg, typ = process_expression(cgen, self.expr)
         return code
 
-#TODO unary
+#TODO unary operator
 class StmReturn(Statement):
     def __init__(self, expr):
         self.expr = expr 

@@ -1,6 +1,7 @@
 import x86
 from tdasm import Tdasm
-from .arg import Struct, create_argument, arg_from_value, ArgumentMap, ArgumentList
+from .arg import Struct, create_argument, arg_from_value, arg_from_type
+from .arg import ArgumentMap, ArgumentList
 
 class Shader:
     def __init__(self, name, asm_code, args, input_args=None, shaders=None,

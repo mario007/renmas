@@ -28,6 +28,16 @@ def extract_unary(obj):
     else:
         raise ValueError("Unknown unary operand", obj)
 
+def unary_number(n, unary):
+    if unary is None or unary != '-':
+        return n
+    if isinstance(n, int):
+        return int(unary + str(n))
+    elif isinstance(n, float):
+        return float(unary + str(n))
+    else:
+        raise ValueError("Unknown unary number", n, unary)
+
 def extract_numbers(obj):
     if isinstance(obj, ast.Tuple) or isinstance(obj, ast.List):
         nums = obj.elts
@@ -169,14 +179,6 @@ def parse_arithmetic(bin_op):
         return ops
     raise ValueError("Two complex expression")
 
-def unary_number(n, unary):
-    if isinstance(n, int):
-        return int(unary + str(n))
-    elif isinstance(n, float):
-        return float(unary + str(n))
-    else:
-        raise ValueError("Unknown unary number", n, unary)
-
 def extract_con_op(obj):
     if isinstance(obj, ast.Lt):
         return '<'
@@ -220,6 +222,9 @@ class Parser:
 
     def _simple_assigments(self, targets, obj, unary=None):
         op = extract_operand(obj)
+        if unary is not None and isinstance(op, Const):
+            op.const = unary_number(op.const, unary)
+            unary = None
         for t in targets:
             if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
                 return StmAssign(make_name(t), op, unary)

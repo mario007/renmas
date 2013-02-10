@@ -1,57 +1,110 @@
 import platform
 import inspect
-from .vector3 import Vector3
+from .vector3 import Vector2, Vector3, Vector4
+from .util import float2hex
 
 def conv_int_to_float(cgen, reg, xmm):
+    #TODO --- test that reg is general and xmm is xmm
     if cgen.AVX:
         return "vcvtsi2ss %s, %s, %s \n" % (xmm, xmm, reg)
     else:
         return "cvtsi2ss %s, %s \n" % (xmm, reg)
 
 def conv_float_to_int(cgen, reg, xmm):
+    #TODO --- test that reg is general and xmm is xmm
     if cgen.AVX:
         return "vcvttss2si %s, %s \n" % (reg, xmm)
     else:
         return "cvttss2si %s, %s \n" % (reg, xmm)
 
+def check_ptr_reg(cgen, ptr_reg):
+    if ptr_reg is None:
+        raise ValueError("If vector is attribute register pointer is also required")
+
+    if cgen.BIT64 and cgen.regs.is_reg32(ptr_reg):
+        raise ValueError("Pointer register must be 64-bit!", ptr_reg)
+    if not cgen.BIT64 and cgen.regs.is_reg64(ptr_reg):
+        raise ValueError("Pointer register must be 32-bit!", ptr_reg)
+
 class Argument:
+    """
+    Abstract base class that define interface for type in shading language.
+    All supported types in shading language must inherit this class.
+    """
     def __init__(self, name):
+        """Name of the argument."""
         self.name = name
 
-    @staticmethod
-    def set_value(ds, value, path, idx_thread=None):
+    @classmethod
+    def set_value(cls, ds, value, path, idx_thread=None):
+        """Store number in data section."""
         raise NotImplementedError()
 
-    @staticmethod
-    def get_value(ds, path, idx_thread=None):
+    @classmethod
+    def get_value(cls, ds, path, idx_thread=None):
+        """Load number form data section."""
         raise NotImplementedError()
 
     def generate_data(self):
+        """Generate code for local variable in #DATA section."""
+        raise NotImplementedError()
+
+    @classmethod
+    def load_cmd(cls, cgen, name, reg=None, path=None, ptr_reg=None, offset=None):
+        """Generate code that load number from memory location to register."""
+        raise NotImplementedError()
+
+    @classmethod
+    def store_cmd(cls, cgen, reg, name, path=None, ptr_reg=None, offset=None):
+        """Generate code that store number from register to memory location."""
+        raise NotImplementedError()
+
+    @classmethod
+    def neg_cmd(cls, cgen, reg):
+        """Generate arightmetic code that negates number."""
+        raise NotImplementedError()
+
+    @classmethod
+    def arith_cmd(cls, cgen, reg1, reg2, typ2, operator):
+        """Generate code for arithmetic operation between registers."""
+        raise NotImplementedError()
+
+    @classmethod
+    def rev_arith_cmd(cls, cgen, reg1, reg2, typ2, operator):
+        """Generate code for arithmetic operation between registers."""
+        raise NotImplementedError()
+
+    @classmethod
+    def supported(cls, operator, typ):
+        """Return true if arithmetic with specified type is suppored."""
         raise NotImplementedError()
 
 class Integer(Argument):
 
     def __init__(self, name, value=0):
         super(Integer, self).__init__(name)
+        assert int is type(value)
         self._value = value
 
     def _set_value(self, value):
-        self._value = int(value)
+        assert int is type(value)
+        self._value = value
 
     def _get_value(self):
         return self._value
     value = property(_get_value, _set_value)
 
-    @staticmethod
-    def set_value(ds, value, path, idx_thread=None):
+    @classmethod
+    def set_value(cls, ds, value, path, idx_thread=None):
+        assert int is type(value)
         if idx_thread is None:
             for d in ds:
                 d[path] = value 
         else:
             ds[idx_thread][path] = value
 
-    @staticmethod
-    def get_value(ds, path, idx_thread=None):
+    @classmethod
+    def get_value(cls, ds, path, idx_thread=None):
         if idx_thread is None:
             return ds[0][path]
         else:
@@ -60,69 +113,85 @@ class Integer(Argument):
     def generate_data(self):
         return 'int32 %s = %i \n' % (self.name, self._value) 
 
-    @staticmethod
-    def load_cmd(cgen, name, dest_reg=None, path=None, ptr_reg=None):
+    def load_cmd(self, cgen, dest_reg=None):
         if dest_reg is None:
             dest_reg = cgen.register(typ='general')
-        #TODO pointer register check 32 or 64 bit
-        
+
         tmp = dest_reg
         if cgen.regs.is_xmm(dest_reg):
             tmp = cgen.register(typ='general')
-        if path is None:
-            code = "mov %s, dword [%s] \n" % (tmp, name)
-        else:
-            if ptr_reg is None:
-                raise ValueError("If Integer is attribute register pointer is also required")
-            code = "mov %s, dword [%s + %s]\n" % (tmp, ptr_reg, path)
+        code = "mov %s, dword [%s] \n" % (tmp, self.name)
 
-        if cgen.regs.is_xmm(dest_reg): #implicit conversion to float
-            conversion = conv_int_to_float(cgen, tmp, dest_reg)
-            cgen.release_reg(tmp)
-            return code + conversion, dest_reg, Float
-        else:
+        if not cgen.regs.is_xmm(dest_reg):
             return code, tmp, Integer
 
-    @staticmethod
-    def store_cmd(cgen, reg, name, path=None, ptr_reg=None):
-        if path is None:
-            code = "mov dword [%s], %s \n" % (name, reg)
-        else:
-            if ptr_reg is None:
-                raise ValueError("If Integer is attribute register pointer is also required")
-            code = "mov dword [%s + %s], %s\n" % (ptr_reg, path, reg)
+        # implicit conversion to float
+        conversion = conv_int_to_float(cgen, tmp, dest_reg)
+        cgen.release_reg(tmp)
+        return code + conversion, dest_reg, Float
+
+    def store_cmd(self, cgen, reg):
+        return "mov dword [%s], %s \n" % (self.name, reg)
+
+    def store_const(self, cgen, const):
+        if not isinstance(const, int):
+            raise ValueError("Integer constant is expected and got ", const)
+        return'mov dword [%s], %i \n' % (self.name, const)
+
+    @classmethod
+    def store_attr_const(cls, cgen, path, ptr_reg, const):
+        check_ptr_reg(cgen, ptr_reg)
+        code = "mov dword [%s + %s], %i\n" % (ptr_reg, path, int(const))
         return code
 
-    @staticmethod
-    def neg_cmd(cgen, reg):
+    @classmethod
+    def load_attr(cls, cgen, path, ptr_reg, dest_reg=None):
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='general')
+
+        tmp = dest_reg
+        if cgen.regs.is_xmm(dest_reg):
+            tmp = cgen.register(typ='general')
+        check_ptr_reg(cgen, ptr_reg)
+        code = "mov %s, dword [%s + %s]\n" % (tmp, ptr_reg, path)
+        if not cgen.regs.is_xmm(dest_reg):
+            return code, tmp, Integer
+
+        # implicit conversion to float
+        conversion = conv_int_to_float(cgen, tmp, dest_reg)
+        cgen.release_reg(tmp)
+        return code + conversion, dest_reg, Float
+
+    @classmethod
+    def store_attr(cls, cgen, path, ptr_reg, src_reg):
+        check_ptr_reg(cgen, ptr_reg)
+        return "mov dword [%s + %s], %s\n" % (ptr_reg, path, src_reg)
+
+    @classmethod
+    def neg_cmd(cls, cgen, reg):
         return 'neg %s\n' % reg
 
-    @staticmethod
-    def supported(operator, typ):
+    @classmethod
+    def supported(cls, operator, typ):
         if typ != Integer:
             return False
         if operator not in ('+', '-', '/', '*', '%'):
             return False
         return True
 
-    @staticmethod
-    def arith_cmd(cgen, reg1, reg2, typ2, operator):
-        if typ2 != Integer:
-            raise ValueError('Wrong type for integer arithmetic', typ2)
-        if operator == '+':
-            code = 'add %s, %s\n' % (reg1, reg2)
-        elif operator == '-':
-            code = 'sub %s, %s\n' % (reg1, reg2)
-        elif operator == '%' or operator == '/': #TODO test 64-bit implementation is needed
+    @classmethod
+    def arith_cmd(cls, cgen, reg1, reg2, typ2, operator):
+        if not cls.supported(operator, typ2):
+            raise ValueError('This type or arithmetic operation is not allowed', typ2, operator)
+        ops = {'+': 'add', '-': 'sub', '*': 'imul'}
+        if operator in ops:
+            code = '%s %s, %s\n' % (ops[operator], reg1, reg2)
+        if operator == '%' or operator == '/': #TODO test 64-bit implementation is needed
             code, reg1 = Integer._arith_div(cgen, reg1, reg2, operator)
-        elif operator == '*':
-            code = "imul %s, %s\n" % (reg1, reg2)
-        else:
-            raise ValueError("Unsuported operator", operator)
         return code, reg1, Integer
 
-    @staticmethod
-    def _arith_div(cgen, reg1, reg2, operator):
+    @classmethod
+    def _arith_div(cls, cgen, reg1, reg2, operator):
         epilog = """
         push eax
         push edx
@@ -153,12 +222,11 @@ class Integer(Argument):
         code = epilog + line1 + line2 + line3 + line4 + line5 + line6 + line7 + line8
         return code, reg1
 
-
 class Float(Argument):
 
     def __init__(self, name, value=0.0):
         super(Float, self).__init__(name)
-        self._value = value
+        self._value = float(value)
 
     def _set_value(self, value):
         self._value = float(value)
@@ -167,16 +235,16 @@ class Float(Argument):
         return self._value
     value = property(_get_value, _set_value)
 
-    @staticmethod
-    def set_value(ds, value, path, idx_thread=None):
+    @classmethod
+    def set_value(cls, ds, value, path, idx_thread=None):
         if idx_thread is None:
             for d in ds:
-                d[path] = value 
+                d[path] = float(value) 
         else:
-            ds[idx_thread][path] = value
+            ds[idx_thread][path] = float(value)
 
-    @staticmethod
-    def get_value(ds, path, idx_thread=None):
+    @classmethod
+    def get_value(cls, ds, path, idx_thread=None):
         if idx_thread is None:
             return ds[0][path]
         else:
@@ -185,76 +253,83 @@ class Float(Argument):
     def generate_data(self):
         return 'float %s = %f \n' % (self.name, self._value)
 
-    @staticmethod
-    def load_cmd(cgen, name, dest_reg=None, path=None, ptr_reg=None):
+    def load_cmd(self, cgen, dest_reg=None):
         if dest_reg is None:
             dest_reg = cgen.register(typ='xmm')
         if not cgen.regs.is_xmm(dest_reg):
             raise ValueError("Destination register must be xmm register!", dest_reg)
-        #TODO pointer register check 32 or 64 bit
-        if path is None:
-            if cgen.AVX:
-                code = "vmovss %s, dword [%s] \n" % (dest_reg, name)
-            else:
-                code = "movss %s, dword [%s] \n" % (dest_reg, name)
+        if cgen.AVX:
+            code = "vmovss %s, dword [%s] \n" % (dest_reg, self.name)
         else:
-            if ptr_reg is None:
-                raise ValueError("If Float is attribute register pointer is also required")
-            if cgen.AVX:
-                code = "vmovss %s, dword [%s + %s]\n" % (dest_reg, ptr_reg, path)
-            else:
-                code = "movss %s, dword [%s + %s]\n" % (dest_reg, ptr_reg, path)
-        return code, dest_reg, Float 
+            code = "movss %s, dword [%s] \n" % (dest_reg, self.name)
+        return code, dest_reg, Float
 
-    @staticmethod
-    def store_cmd(cgen, xmm, name, path=None, ptr_reg=None):
+    def store_cmd(self, cgen, xmm):
         if not cgen.regs.is_xmm(xmm):
             raise ValueError("xmm register is expected!")
+        if cgen.AVX:
+            code = "vmovss dword [%s], %s \n" % (self.name, xmm)
+        else:
+            code = "movss dword [%s], %s \n" % (self.name, xmm)
+        return code
 
-        if path is None:
-            if cgen.AVX:
-                code = "vmovss dword [%s], %s \n" % (name, xmm)
-            else:
-                code = "movss dword [%s], %s \n" % (name, xmm)
-            return code
+    def store_const(self, cgen, const):
+        fl = float2hex(float(const))
+        return'mov dword [%s], %s ;float value = %f \n' % (self.name, fl, const)
 
-        if ptr_reg is None:
-            raise ValueError("If Float is attribute register pointer is also required")
+    @classmethod
+    def store_attr_const(cls, cgen, path, ptr_reg, const):
+        fl = float2hex(float(const))
+        check_ptr_reg(cgen, ptr_reg)
+        code = "mov dword [%s + %s], %s ;float value = %f \n" % (ptr_reg, path, fl, const)
+        return code
 
+    @classmethod
+    def load_attr(cls, cgen, path, ptr_reg, dest_reg=None):
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='xmm')
+        if not cgen.regs.is_xmm(dest_reg):
+            raise ValueError("Destination register must be xmm register!", dest_reg)
+        check_ptr_reg(cgen, ptr_reg)
+        if cgen.AVX:
+            code = "vmovss %s, dword [%s + %s]\n" % (dest_reg, ptr_reg, path)
+        else:
+            code = "movss %s, dword [%s + %s]\n" % (dest_reg, ptr_reg, path)
+        return code, dest_reg, Float
+
+    @classmethod
+    def store_attr(cls, cgen, path, ptr_reg, xmm):
+        check_ptr_reg(cgen, ptr_reg)
         if cgen.AVX:
             code = "vmovss dword [%s + %s], %s\n" % (ptr_reg, path, xmm)
         else:
             code = "movss dword [%s + %s], %s\n" % (ptr_reg, path, xmm)
         return code
 
-    @staticmethod
-    def neg_cmd(cgen, xmm):
+    @classmethod
+    def neg_cmd(cls, cgen, xmm):
         if not cgen.regs.is_xmm(xmm):
             raise ValueError("xmm register is expected!", xmm)
 
-        #TODO Vector4 const (-1.0, -1.0, -1.0, -1.0)
-        arg = cgen.create_const((-1.0, -1.0, -1.0))
+        arg = cgen.create_const(-1.0)
         if cgen.AVX:
             code = "vmulss %s, %s, dword[%s]\n" % (xmm, xmm, arg.name) 
         else:
             code = "mulss %s, dword[%s]\n" % (xmm, arg.name) 
         return code
 
-    @staticmethod
-    def supported(operator, typ):
+    @classmethod
+    def supported(cls, operator, typ):
         if typ != Integer and typ != Float:
             return False
         if operator not in ('+', '-', '/', '*'):
             return False
         return True
 
-    @staticmethod
-    def arith_cmd(cgen, reg1, reg2, typ2, operator):
-        #FIXME -- call here suported!!!
-        if typ2 != Integer and typ2 != Float:
-            raise ValueError('Wrong type for float arithmetic', typ2)
-        if not cgen.regs.is_xmm(reg1):
-            raise ValueError('Destination register must be xmm register', reg1)
+    @classmethod
+    def arith_cmd(cls, cgen, reg1, reg2, typ2, operator):
+        if not cls.supported(operator, typ2):
+            raise ValueError('This type or arithmetic operation is not allowed', typ2, operator)
 
         code = ''
         xmm = reg2
@@ -263,35 +338,19 @@ class Float(Argument):
             code += conv_int_to_float(cgen, reg2, xmm)
             cgen.release_reg(xmm)
 
-        if operator == '+':
-            if cgen.AVX:
-                code += "vaddss %s, %s, %s \n" % (reg1, reg1, xmm)
-            else:
-                code += "addss %s, %s \n" % (reg1, xmm)
-        elif operator == '-':
-            if cgen.AVX:
-                code += "vsubss %s, %s, %s \n" % (reg1, reg1, xmm)
-            else:
-                code += "subss %s, %s \n" % (reg1, xmm)
-        elif operator == '/':
-            if cgen.AVX:
-                code += "vdivss %s, %s, %s \n" % (reg1, reg1, xmm)
-            else:
-                code += "divss %s, %s \n" % (reg1, xmm)
-        elif operator == '*':
-            if cgen.AVX:
-                code += "vmulss %s, %s \n" % (reg1, reg1, xmm)
-            else:
-                code += "mulss %s, %s \n" % (reg1, xmm)
+        ops_avx = {'+': 'vaddss', '-': 'vsubss', '*': 'vmulss', '/': 'vdivss'}
+        ops = {'+': 'addss', '-': 'subss', '*': 'mulss', '/': 'divss'}
+
+        if cgen.AVX:
+            code += "%s %s, %s, %s \n" % (ops_avx[operator], reg1, reg1, xmm)
         else:
-            raise ValueError("Unsuported operator", operator)
+            code += "%s %s, %s \n" % (ops[operator], reg1, xmm)
         return code, reg1, Float
 
-    @staticmethod
-    def rev_arith_cmd(cgen, reg1, reg2, typ2, operator):
-        #FIXME call here suported
-        if not cgen.regs.is_xmm(reg1):
-            raise ValueError('Destination register must be xmm register', reg1)
+    @classmethod
+    def rev_arith_cmd(cls, cgen, reg1, reg2, typ2, operator):
+        if not cls.supported(operator, typ2):
+            raise ValueError('This type or arithmetic operation is not allowed', typ2, operator)
 
         code = ''
         xmm = reg2
@@ -300,113 +359,87 @@ class Float(Argument):
             code += conv_int_to_float(cgen, reg2, xmm)
             cgen.release_reg(xmm)
 
-        if operator == '/':
-            code3, reg3, typ3 = Float.arith_cmd(cgen, reg1, xmm, Float, operator)
-        else:
-            code3, reg3, typ3 = Float.arith_cmd(cgen, xmm, reg1, Float, operator)
+        code3, reg3, typ3 = Float.arith_cmd(cgen, xmm, reg1, Float, operator)
         return code + code3, reg3, typ3
 
-class Vec3(Argument):
+class _Vec234(Argument):
 
-    def __init__(self, name, value=Vector3(0.0, 0.0, 0.0)):
-        super(Vec3, self).__init__(name)
-        self._value = value
-
-    def _set_value(self, value):
-        self._value = value
-
-    def _get_value(self):
-        return self._value
-    value = property(_get_value, _set_value)
-
-    @staticmethod
-    def set_value(ds, value, path, idx_thread=None):
-        if idx_thread is None:
-            for d in ds:
-                d[path] = value.to_ds() 
-        else:
-            ds[idx_thread][path] = value.to_ds()
-
-    @staticmethod
-    def get_value(ds, path, idx_thread=None):
-        if idx_thread is None:
-            val = ds[0][path]
-        else:
-            val = ds[idx_thread][path]
-        return Vector3(val[0], val[1], val[2])
-
-    def generate_data(self):
-        v = self._value
-        return 'float %s[4] = %f,%f,%f,0.0 \n' % (self.name, v.x, v.y, v.z)
-
-    @staticmethod
-    def load_cmd(cgen, name, dest_reg=None, path=None, ptr_reg=None):
+    def load_cmd(self, cgen, dest_reg=None):
         if dest_reg is None:
             dest_reg = cgen.register(typ='xmm')
         if not cgen.regs.is_xmm(dest_reg):
-            raise ValueError("Destination register must be xmm register!")
-        #TODO pointer register check 32 or 64 bit
-        if path is None:
-            if cgen.AVX:
-                code = "vmovaps %s, oword [%s] \n" % (dest_reg, name)
-            else:
-                code = "movaps %s, oword [%s] \n" % (dest_reg, name)
+            raise ValueError("Destination register must be xmm register!", dest_reg)
+
+        if cgen.AVX:
+            code = "vmovaps %s, oword [%s] \n" % (dest_reg, self.name)
         else:
-            if ptr_reg is None:
-                raise ValueError("If vector is attribute register pointer is also required")
-            if cgen.AVX:
-                code = "vmovaps %s, oword [%s + %s]\n" % (dest_reg, ptr_reg, path)
-            else:
-                code = "movaps %s, oword [%s + %s]\n" % (dest_reg, ptr_reg, path)
-        return code, dest_reg, Vec3 
-            
-    @staticmethod
-    def store_cmd(cgen, xmm, name, path=None, ptr_reg=None):
+            code = "movaps %s, oword [%s] \n" % (dest_reg, self.name)
+        return code, dest_reg, type(self)
+
+    def store_cmd(self, cgen, xmm):
         if not cgen.regs.is_xmm(xmm):
-            raise ValueError("xmm register is expected!")
-    
-        if path is None:
-            if cgen.AVX:
-                code = "vmovaps oword [%s], %s \n" % (name, xmm)
-            else:
-                code = "movaps oword [%s], %s \n" % (name, xmm)
-            return code
+            raise ValueError("xmm register is expected!", xmm)
+        if cgen.AVX:
+            code = "vmovaps oword [%s], %s \n" % (self.name, xmm)
+        else:
+            code = "movaps oword [%s], %s \n" % (self.name, xmm)
+        return code
 
-        if ptr_reg is None:
-            raise ValueError("If Float is attribute register pointer is also required")
+    @classmethod
+    def load_attr(cls, cgen, path, ptr_reg, dest_reg=None):
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='xmm')
+        if not cgen.regs.is_xmm(dest_reg):
+            raise ValueError("Destination register must be xmm register!", dest_reg)
+        check_ptr_reg(cgen, ptr_reg)
+        if cgen.AVX:
+            code = "vmovaps %s, oword [%s + %s]\n" % (dest_reg, ptr_reg, path)
+        else:
+            code = "movaps %s, oword [%s + %s]\n" % (dest_reg, ptr_reg, path)
+        return code, dest_reg, type(self)
 
+    @classmethod
+    def store_attr(cls, cgen, path, ptr_reg, xmm):
+        if not cgen.regs.is_xmm(xmm):
+            raise ValueError("xmm register is expected!", xmm)
+        check_ptr_reg(cgen, ptr_reg)
         if cgen.AVX:
             code = "vmovaps oword [%s + %s], %s\n" % (ptr_reg, path, xmm)
         else:
             code = "movaps oword [%s + %s], %s\n" % (ptr_reg, path, xmm)
         return code
 
-    @staticmethod
-    def neg_cmd(cgen, xmm):
+    def load_subscript(self, cgen, index, dest_reg=None):
+        pass
+
+    def store_subscript(self, cgen, index, src_reg):
+        pass
+
+    @classmethod
+    def neg_cmd(cls, cgen, xmm):
         if not cgen.regs.is_xmm(xmm):
             raise ValueError("xmm register is expected!", xmm)
 
-        #TODO Vector4 const (-1.0, -1.0, -1.0, -1.0)
-        arg = cgen.create_const((-1.0, -1.0, -1.0))
+        arg = cgen.create_const((-1.0, -1.0, -1.0, -1.0))
         if cgen.AVX:
             code = "vmulps %s, %s, oword[%s]\n" % (xmm, xmm, arg.name) 
         else:
             code = "mulps %s, oword[%s]\n" % (xmm, arg.name) 
         return code
 
-    @staticmethod
-    def supported(operator, typ):
+    @classmethod
+    def supported(cls, operator, typ):
         if operator == '*':
-            if typ == Integer or typ == Float or typ == Vec3:
+            if typ == Integer or typ == Float or typ == cls:
                 return True
         if operator not in ('+', '-', '/', '*'):
             return False
-        if typ != Vec3:
+        if typ != cls:
             return False
         return True
 
-    @staticmethod
-    def _conv(cgen, reg2, typ2, operator):
+    @classmethod
+    def _conv(cls, cgen, reg2, typ2, operator):
         code = ''
         xmm = reg2
         if typ2 == Integer and operator == '*':
@@ -421,77 +454,323 @@ class Vec3(Argument):
                 code += "shufps %s, %s, 0x00\n" % (xmm, xmm)
         return code, xmm
 
-    @staticmethod
-    def arith_cmd(cgen, reg1, reg2, typ2, operator):
+    @classmethod
+    def arith_cmd(cls, cgen, reg1, reg2, typ2, operator):
         if not cgen.regs.is_xmm(reg1):
             raise ValueError('Destination register must be xmm register', reg1)
 
-        if operator != '*' and (typ2 == Integer or typ2 == Float):
-            raise ValueError('Wrong type for vector arithmetic', typ2)
+        if not cls.supported(operator, typ2):
+            raise ValueError('This type or arithmetic operation is not allowed', typ2, operator)
 
-        code, xmm = Vec3._conv(cgen, reg2, typ2, operator)
-        if operator == '+':
-            if cgen.AVX:
-                code += "vaddps %s, %s, %s \n" % (reg1, reg1, xmm)
-            else:
-                code += "addps %s, %s \n" % (reg1, xmm)
-        elif operator == '-':
-            if cgen.AVX:
-                code += "vsubps %s, %s, %s \n" % (reg1, reg1, xmm)
-            else:
-                code += "subps %s, %s \n" % (reg1, xmm)
-        elif operator == '/':
-            if cgen.AVX:
-                code += "vdivps %s, %s, %s \n" % (reg1, reg1, xmm)
-            else:
-                code += "divps %s, %s \n" % (reg1, xmm)
-        elif operator == '*':
-            if cgen.AVX:
-                code += "vmulps %s, %s, %s \n" % (reg1, reg1, xmm)
-            else:
-                code += "mulps %s, %s \n" % (reg1, xmm)
+        code, xmm = cls._conv(cgen, reg2, typ2, operator)
+        ops_avx = {'+': 'vaddps', '-': 'vsubps', '*': 'vmulps', '/': 'vdivps'}
+        ops = {'+': 'addps', '-': 'subps', '*': 'mulps', '/': 'divps'}
+        if cgen.AVX:
+            code += "%s %s, %s, %s \n" % (ops_avx[operator], reg1, reg1, xmm)
         else:
-            raise ValueError("Unsuported operator", operator)
+            code += "%s %s, %s \n" % (ops[operator], reg1, xmm)
+        return code, reg1, cls
 
-        return code, reg1, Vec3
-
-    @staticmethod
-    def rev_arith_cmd(cgen, reg1, reg2, typ2, operator):
+    @classmethod
+    def rev_arith_cmd(cls, cgen, reg1, reg2, typ2, operator):
         if not cgen.regs.is_xmm(reg1):
             raise ValueError('Destination register must be xmm register', reg1)
 
-        code, xmm = Vec3._conv(cgen, reg2, typ2, operator)
-        code3, reg3, typ3 = Vec3.arith_cmd(cgen, xmm, reg1, Vec3, operator)
+        if not cls.supported(operator, typ2):
+            raise ValueError('This type or arithmetic operation is not allowed', typ2, operator)
+
+        code, xmm = cls._conv(cgen, reg2, typ2, operator)
+        code3, reg3, typ3 = cls.arith_cmd(cgen, xmm, reg1, cls, operator)
+
         return code + code3, reg3, typ3
 
+class Vec2(_Vec234):
+    def __init__(self, name, value=Vector2(0.0, 0.0)):
+        super(Vec2, self).__init__(name)
+        assert Vector2 is type(value)
+        self._value = value
 
-class Vec3I(Argument):
+    def _set_value(self, value):
+        assert Vector2 is type(value)
+        self._value = value
 
-    def __init__(self, name, x, y, z):
+    def _get_value(self):
+        return self._value
+    value = property(_get_value, _set_value)
+
+    @classmethod
+    def set_value(cls, ds, value, path, idx_thread=None):
+        assert Vector2 is type(value)
+        if idx_thread is None:
+            for d in ds:
+                d[path] = value.to_ds() 
+        else:
+            ds[idx_thread][path] = value.to_ds()
+
+    @classmethod
+    def get_value(cls, ds, path, idx_thread=None):
+        if idx_thread is None:
+            val = ds[0][path]
+        else:
+            val = ds[idx_thread][path]
+        return Vector2(val[0], val[1])
+
+    def generate_data(self):
+        v = self._value
+        return 'float %s[4] = %f,%f,0.0,0.0 \n' % (self.name, v.x, v.y)
+
+    def store_const(self, cgen, const):
+        if not isinstance(const, (tuple, list)) and len(const) != 2:
+            raise ValueError("Tuple constat of 2 element is expected", const)
+        fl = float2hex(float(const[0]))
+        line1 = 'mov dword [%s], %s ;float value = %f \n' % (self.name, fl, const[0])
+        fl = float2hex(float(const[1]))
+        line2 = 'mov dword [%s + 4], %s ;float value = %f \n' % (self.name, fl, const[1])
+        return line1 + line2
+
+    @classmethod
+    def store_attr_const(cls, cgen, path, ptr_reg, const):
+        if not isinstance(const, (tuple, list)) and len(const) != 2:
+            raise ValueError("Tuple constat of 2 element is expected", const)
+        check_ptr_reg(cgen, ptr_reg)
+
+        fl = float2hex(float(const[0]))
+        line1 = "mov dword [%s + %s], %s ;float value = %f \n" % (ptr_reg, path, fl, const[0])
+        fl = float2hex(float(const[1]))
+        line2 = "mov dword [%s + %s + 4], %s ;float value = %f \n" % (ptr_reg, path, fl, const[1])
+        return line1 + line2
+
+class Vec3(_Vec234):
+    def __init__(self, name, value=Vector3(0.0, 0.0, 0.0)):
         super(Vec3, self).__init__(name)
-        self.x = int(x)
-        self.y = int(y)
-        self.z = int(z)
+        assert Vector3 is type(value)
+        self._value = value
 
-    @staticmethod
-    def set_value(ds, value, path, idx_thread=None):
-        x, y, z = value
+    def _set_value(self, value):
+        assert Vector3 is type(value)
+        self._value = value
+
+    def _get_value(self):
+        return self._value
+    value = property(_get_value, _set_value)
+
+    @classmethod
+    def set_value(cls, ds, value, path, idx_thread=None):
+        assert Vector3 is type(value)
+        if idx_thread is None:
+            for d in ds:
+                d[path] = value.to_ds() 
+        else:
+            ds[idx_thread][path] = value.to_ds()
+
+    @classmethod
+    def get_value(cls, ds, path, idx_thread=None):
+        if idx_thread is None:
+            val = ds[0][path]
+        else:
+            val = ds[idx_thread][path]
+        return Vector3(val[0], val[1], val[2])
+
+    def generate_data(self):
+        v = self._value
+        return 'float %s[4] = %f,%f,%f,0.0 \n' % (self.name, v.x, v.y, v.z)
+
+    def store_const(self, cgen, const):
+        if not isinstance(const, (tuple, list)) and len(const) != 3:
+            raise ValueError("Tuple constat of 3 element is expected", const)
+        fl = float2hex(float(const[0]))
+        line1 = 'mov dword [%s], %s ;float value = %f \n' % (self.name, fl, const[0])
+        fl = float2hex(float(const[1]))
+        line2 = 'mov dword [%s + 4], %s ;float value = %f \n' % (self.name, fl, const[1])
+        fl = float2hex(float(const[2]))
+        line3 = 'mov dword [%s + 8], %s ;float value = %f \n' % (self.name, fl, const[2])
+        return line1 + line2 + line3
+
+    @classmethod
+    def store_attr_const(cls, cgen, path, ptr_reg, const):
+        if not isinstance(const, (tuple, list)) and len(const) != 3:
+            raise ValueError("Tuple constat of 3 element is expected", const)
+        check_ptr_reg(cgen, ptr_reg)
+
+        fl = float2hex(float(const[0]))
+        line1 = "mov dword [%s + %s], %s ;float value = %f \n" % (ptr_reg, path, fl, const[0])
+        fl = float2hex(float(const[1]))
+        line2 = "mov dword [%s + %s + 4], %s ;float value = %f \n" % (ptr_reg, path, fl, const[1])
+        fl = float2hex(float(const[2]))
+        line3 = "mov dword [%s + %s + 8], %s ;float value = %f \n" % (ptr_reg, path, fl, const[2])
+        return line1 + line2 + line3
+
+class Vec4(_Vec234):
+    def __init__(self, name, value=Vector4(0.0, 0.0, 0.0, 0.0)):
+        super(Vec4, self).__init__(name)
+        assert Vector4 is type(value)
+        self._value = value
+
+    def _set_value(self, value):
+        assert Vector4 is type(value)
+        self._value = value
+
+    def _get_value(self):
+        return self._value
+    value = property(_get_value, _set_value)
+
+    @classmethod
+    def set_value(cls, ds, value, path, idx_thread=None):
+        assert Vector4 is type(value)
+        if idx_thread is None:
+            for d in ds:
+                d[path] = value.to_ds() 
+        else:
+            ds[idx_thread][path] = value.to_ds()
+
+    @classmethod
+    def get_value(cls, ds, path, idx_thread=None):
+        if idx_thread is None:
+            val = ds[0][path]
+        else:
+            val = ds[idx_thread][path]
+        return Vector4(val[0], val[1], val[2], val[3])
+
+    def generate_data(self):
+        v = self._value
+        return 'float %s[4] = %f,%f,%f,%f \n' % (self.name, v.x, v.y, v.z, v.w)
+
+    def store_const(self, cgen, const):
+        if not isinstance(const, (tuple, list)) and len(const) != 4:
+            raise ValueError("Tuple constat of 2 element is expected", const)
+        fl = float2hex(float(const[0]))
+        line1 = 'mov dword [%s], %s ;float value = %f \n' % (self.name, fl, const[0])
+        fl = float2hex(float(const[1]))
+        line2 = 'mov dword [%s + 4], %s ;float value = %f \n' % (self.name, fl, const[1])
+        fl = float2hex(float(const[2]))
+        line3 = 'mov dword [%s + 8], %s ;float value = %f \n' % (self.name, fl, const[2])
+        fl = float2hex(float(const[3]))
+        line4 = 'mov dword [%s + 12], %s ;float value = %f \n' % (self.name, fl, const[3])
+        return line1 + line2 + line3 + line4
+
+    @classmethod
+    def store_attr_const(cls, cgen, path, ptr_reg, const):
+        if not isinstance(const, (tuple, list)) and len(const) != 4:
+            raise ValueError("Tuple constat of 2 element is expected", const)
+        check_ptr_reg(cgen, ptr_reg)
+
+        fl = float2hex(float(const[0]))
+        line1 = "mov dword [%s + %s], %s ;float value = %f \n" % (ptr_reg, path, fl, const[0])
+        fl = float2hex(float(const[1]))
+        line2 = "mov dword [%s + %s + 4], %s ;float value = %f \n" % (ptr_reg, path, fl, const[1])
+        fl = float2hex(float(const[2]))
+        line3 = "mov dword [%s + %s + 8], %s ;float value = %f \n" % (ptr_reg, path, fl, const[2])
+        fl = float2hex(float(const[3]))
+        line4 = "mov dword [%s + %s + 12], %s ;float value = %f \n" % (ptr_reg, path, fl, const[3])
+        return line1 + line2 + line3 + line4
+
+class _Vec234I(Argument):
+    pass
+
+class Vec2I(_Vec234I):
+    def __init__(self, name, value=Vector2(0, 0)):
+        super(Vec2I, self).__init__(name)
+        assert Vector2 is type(value)
+        self._value = value
+
+    @classmethod
+    def set_value(cls, ds, value, path, idx_thread=None):
+        x, y = int(value.x), int(value.y)
+        if idx_thread is None:
+            for d in ds:
+                d[path] = (x, y, 0, 0)
+        else:
+            ds[idx_thread][path] = (x, y, 0, 0)
+
+    @classmethod
+    def get_value(cls, ds, path, idx_thread=None):
+        if idx_thread is None:
+            val = ds[0][path]
+        else:
+            val = ds[idx_thread][path]
+        return Vector2(val[0], val[1])
+
+    def _set_value(self, value):
+        assert Vector2 is type(value)
+        self._value = value
+
+    def _get_value(self):
+        return self._value
+    value = property(_get_value, _set_value)
+
+    def generate_data(self):
+        v = self._value
+        return 'int32 %s[4] = %i,%i,0,0\n' % (self.name, int(v.x), int(v.y))
+
+class Vec3I(_Vec234I):
+    def __init__(self, name, value=Vector3(0, 0, 0)):
+        super(Vec3I, self).__init__(name)
+        assert Vector3 is type(value)
+        self._value = value
+
+    @classmethod
+    def set_value(cls, ds, value, path, idx_thread=None):
+        x, y, z = int(value.x), int(value.y), int(value.z)
         if idx_thread is None:
             for d in ds:
                 d[path] = (x, y, z, 0)
         else:
             ds[idx_thread][path] = (x, y, z, 0)
 
-    @staticmethod
-    def get_value(ds, path, idx_thread=None):
+    @classmethod
+    def get_value(cls, ds, path, idx_thread=None):
         if idx_thread is None:
             val = ds[0][path]
         else:
             val = ds[idx_thread][path]
-        return val[0:3]
+        return Vector3(val[0], val[1], val[2])
+
+    def _set_value(self, value):
+        assert Vector3 is type(value)
+        self._value = value
+
+    def _get_value(self):
+        return self._value
+    value = property(_get_value, _set_value)
 
     def generate_data(self):
-        return 'int32 %s[4] = %i,%i,%i,0\n' % (self.name, self.x, self.y, self.z)
+        v = self._value
+        return 'int32 %s[4] = %i,%i,%i,0\n' % (self.name, int(v.x), int(v.y), int(v.z))
+
+class Vec4I(_Vec234I):
+    def __init__(self, name, value=Vector4(0, 0, 0, 0)):
+        super(Vec3I, self).__init__(name)
+        assert Vector4 is type(value)
+        self._value = value
+
+    @classmethod
+    def set_value(cls, ds, value, path, idx_thread=None):
+        x, y, z, w = int(value.x), int(value.y), int(value.z), int(value.w)
+        if idx_thread is None:
+            for d in ds:
+                d[path] = (x, y, z, w)
+        else:
+            ds[idx_thread][path] = (x, y, z, w)
+
+    @classmethod
+    def get_value(cls, ds, path, idx_thread=None):
+        if idx_thread is None:
+            val = ds[0][path]
+        else:
+            val = ds[idx_thread][path]
+        return Vector4(val[0], val[1], val[2], val[3])
+
+    def _set_value(self, value):
+        assert Vector4 is type(value)
+        self._value = value
+
+    def _get_value(self):
+        return self._value
+    value = property(_get_value, _set_value)
+
+    def generate_data(self):
+        v = self._value
+        return 'int32 %s[4] = %i,%i,%i,%i\n' % (self.name, int(v.x), int(v.y), int(v.z), int(v.w))
 
 class UserType:
     def __init__(self, typ):
@@ -515,7 +794,7 @@ class UserType:
             if isinstance(arg, Struct):
                 #TODO not tested yet - struct inside struct
                 for key, value in arg.paths.items():
-                    self._paths[name + '.' + key] = value
+                    paths[name + '.' + key] = value
             else:
                 paths[name + '.' + arg.name] = arg
         return paths
@@ -559,6 +838,52 @@ class Struct(Argument):
                 continue
             arg.set_value(ds, obj, p, idx_thread)
 
+    def load_cmd(self, cgen, dest_reg=None):
+        if dest_reg is None:
+            if cgen.BIT64:
+                dest_reg = cgen.register(typ='general', bit=64)
+            else:
+                dest_reg = cgen.register(typ='general', bit=32)
+        check_ptr_reg(cgen, dest_reg)
+        code = "mov %s, %s \n" % (dest_reg, self.name)
+        return code, dest_reg, Struct
+
+    def load_attr_cmd(self, cgen, path, dest_reg=None, ptr_reg=None):
+        arg = self.get_argument('%s.%s' % (self.name, path))
+        if arg is None:
+            raise ValueError("Argument %s doesn't exist in structure %s" % (path, self.name))
+        code1, src_reg, type1 = self.load_cmd(cgen, ptr_reg)
+
+        asm_path = "%s.%s" %(self.typ.typ, path)
+        code2, src_reg2, type2 = arg.load_attr(cgen, asm_path, src_reg, dest_reg)
+        if ptr_reg is None:
+            cgen.release_reg(src_reg)
+
+        return code1 + code2, src_reg2, type2 
+
+    def store_attr_cmd(self, cgen, path, reg):
+        arg = self.get_argument('%s.%s' % (self.name, path))
+        if arg is None:
+            raise ValueError("Argument %s doesn't exist in structure %s" % (path, self.name))
+        code1, src_reg, type1 = self.load_cmd(cgen)
+
+        asm_path = "%s.%s" %(self.typ.typ, path)
+        code2 = arg.store_attr(cgen, asm_path, src_reg, reg)
+        cgen.release_reg(src_reg)
+        return code1 + code2
+
+    def store_attr_const(self, cgen, path, const):
+        arg = self.get_argument('%s.%s' % (self.name, path))
+        if arg is None:
+            raise ValueError("Argument %s doesn't exist in structure %s" % (path, self.name))
+        code1, src_reg, type1 = self.load_cmd(cgen)
+
+        asm_path = "%s.%s" %(self.typ.typ, path)
+        code2 = arg.store_attr_const(cgen, asm_path, src_reg, const)
+
+        cgen.release_reg(src_reg)
+        return code1 + code2
+
 class StructPtr(Struct):
     def generate_data(self):
         bits = platform.architecture()[0]
@@ -567,6 +892,18 @@ class StructPtr(Struct):
         else:
             return 'uint32 %s\n' % self.name
 
+    def load_cmd(self, cgen, dest_reg=None):
+        if dest_reg is None:
+            if cgen.BIT64:
+                dest_reg = cgen.register(typ='general', bit=64)
+            else:
+                dest_reg = cgen.register(typ='general', bit=32)
+        check_ptr_reg(cgen, dest_reg)
+        if cgen.BIT64:
+            code = "mov %s, qword [%s] \n" % (dest_reg, self.name)
+        else:
+            code = "mov %s, dword [%s] \n" % (dest_reg, self.name)
+        return code, dest_reg, StructPtr
 
 class Pointer(Argument):
     def __init__(self, name, typ=None, value=0):
@@ -592,16 +929,16 @@ class Pointer(Argument):
         else:
             return 'uint32 %s = %i \n' % (self.name, self._value) 
 
-    @staticmethod
-    def set_value(ds, value, path, idx_thread=None):
+    @classmethod
+    def set_value(cls, ds, value, path, idx_thread=None):
         if idx_thread is None:
             for d in ds:
                 d[path] = value 
         else:
             ds[idx_thread][path] = value
 
-    @staticmethod
-    def get_value(ds, path, idx_thread=None):
+    @classmethod
+    def get_value(cls, ds, path, idx_thread=None):
         if idx_thread is None:
             return ds[0][path]
         else:
@@ -656,11 +993,23 @@ def arg_from_value(name, value, input_arg=False):
     elif isinstance(value, float):
         arg = Float(name, value)
     elif isinstance(value, tuple) or isinstance(value, list):
-        if len(value) != 3:
-            raise ValueError('Wrong length of tuple', value)
-        arg = Vec3(name, Vector3(float(value[0]), float(value[1]), float(value[2])))
+        if len(value) > 4:
+            raise ValueError('Vector is to big!', value)
+        if len(value) == 2:
+            arg = Vec2(name, Vector2(float(value[0]), float(value[1])))
+        elif len(value) == 3:
+            arg = Vec3(name, Vector3(float(value[0]), float(value[1]), float(value[2])))
+        elif len(value) == 4:
+            arg = Vec4(name, Vector4(float(value[0]), float(value[1]),
+                                     float(value[2]), float(value[3])))
+        else:
+            raise ValueError('Vector is to small!', value)
+    elif isinstance(value, Vector2):
+        arg = Vec2(name, value)
     elif isinstance(value, Vector3):
         arg = Vec3(name, value)
+    elif isinstance(value, Vector4):
+        arg = Vec4(name, value)
     elif isinstance(value, UserType):
         if input_arg:
             arg = StructPtr(name, value)
@@ -686,17 +1035,24 @@ def arg_from_type(name, typ, value=None, input_arg=False):
     elif typ == Float:
         val = 0.0 if value is None else float(value)
         arg = Float(name, val)
+    elif typ == Vec2:
+        val = Vector2(0.0, 0.0) if value is None else value
+        arg = Vec2(name, val)
     elif typ == Vec3:
         val = Vector3(0.0, 0.0, 0.0) if value is None else value
-        if not isinstance(val, Vector3):
-            raise ValueError("Value for Vec3 is expected to be instance of Vector3")
         arg = Vec3(name, val)
-    elif typ == Vec3I: #FIXME
-        if value is None:
-            arg = Vec3I(name, 0, 0, 0)
-        else:
-            x, y, z = value
-            arg = Vec3I(name, int(x), int(y), int(z))
+    elif typ == Vec4:
+        val = Vector4(0.0, 0.0, 0.0, 0.0) if value is None else value
+        arg = Vec4(name, val)
+    elif typ == Vec2I:
+        val = Vector2(0, 0) if value is None else value
+        arg = Vec2I(name, val)
+    elif typ == Vec3I:
+        val = Vector3(0, 0, 0) if value is None else value
+        arg = Vec3I(name, val)
+    elif typ == Vec4I:
+        val = Vector4(0, 0, 0, 0) if value is None else value
+        arg = Vec4I(name, val)
     elif typ == Pointer: #pointer in typ = UserType
             arg = Pointer(name, typ=value)
     elif hasattr(typ, 'user_type'):
@@ -760,7 +1116,7 @@ class Subscript:
     def __init__(self, name, index, path=None):
         self.name = name
         self.index = index
-        #if we have path than this array in struct
+        #if we have path than this is array in struct
         self.path = path #path to member in struct
 
 class EmptyOperand:

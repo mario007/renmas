@@ -1,6 +1,7 @@
 
 from .vector3 import Vector2, Vector3, Vector4
 from .arg import Integer, Pointer, Float, Argument, create_argument, create_user_type
+from .arg import Vec2, Vec3, Vec4
 from .cgen import CodeGenerator, register_user_type
 from .factory import create_shader, arg_map, arg_list, create_function
 from .shader import Shader, BaseShader, BasicShader

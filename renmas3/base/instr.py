@@ -39,111 +39,53 @@ def load_struct_ptr(cgen, attr, reg=None):
         path = arg.typ.typ + "." + path
     return (code, reg, path)
 
-def store_const_into_mem(cgen, dest, const, offset=None):
-    #TODO -- be careful to binding to differenent argument
-    # we cant directly write dest, we must create argument
-    if isinstance(dest, Attribute):
-        code, reg, path = load_struct_ptr(cgen, dest)
-        if isinstance(const, float):
-            fl = float2hex(const)
-            if offset is not None:
-                code += "mov dword [%s + %s + %i], %s ;float value = %f \n" % (reg, path, offset, fl, const)
-            else:
-                code += "mov dword [%s + %s], %s ;float value = %f \n" % (reg, path, fl, const)
-        elif isinstance(const, int):
-            if offset is not None:
-                code += "mov dword [%s + %s + %i], %i\n" % (reg, path, offset, const)
-            else:
-                code += "mov dword [%s + %s], %i\n" % (reg, path, const)
-        else:
-            raise ValueError("Unsuported constant")
-
-    elif isinstance(dest, Name):
-        if isinstance(const, float):
-            fl = float2hex(const)
-            code = 'mov dword [%s], %s ;float value = %f \n' % (dest.name, fl, const)
-            if offset is not None:
-                code = 'mov dword [%s + %i], %s ;float value = %f \n' % (dest.name, offset, fl, const)
-        elif isinstance(const, int):
-            code = 'mov dword [%s], %i \n' % (dest.name, const)
-            if offset is not None:
-                code = 'mov dword [%s + %i], %i \n' % (dest.name, offset, const)
-        else:
-            raise ValueError("Unsuported constant", const)
-    else:
-        raise ValueError("Unknown destination", dest)
-    return code
-
-def load_const(cgen, const, dest_reg=None):
-    if isinstance(const, int):
-        if dest_reg is not None and cgen.regs.is_xmm(dest_reg):
-            tmp = cgen.register(typ='general')
-            code = "mov %s, %i\n" % (tmp, const)
-            conversion = conv_int_to_float(cgen, tmp, dest_reg)
-            cgen.release_reg(tmp)
-            return code + conversion, dest_reg, Float
-
-        if dest_reg is None:
-            dest_reg = cgen.register(typ='general')
-        code = "mov %s, %i\n" % (dest_reg, const)
-        return code, dest_reg, Integer
-
-    elif isinstance(const, float):
-        if dest_reg is None:
-            dest_reg = cgen.register(typ='xmm')
-        arg = cgen.create_const(const)
-        if proc.AVX:
-            code = "vmovss %s, dword [%s] \n" % (dest_reg, arg.name)
-        else:
-            code = "movss %s, dword [%s] \n" % (dest_reg, arg.name)
-        return code, dest_reg, Float 
-    else:
-        raise ValueError("Not yet suported constant", const)
-
-def load_subscript(cgen, op, dest_reg=None, ptr_reg=None):
-    raise ValueError("Not yet implemented loading of subscript")
 
 def load_operand(cgen, op, dest_reg=None, ptr_reg=None):
     if isinstance(op, Const):
-        return load_const(cgen, op.const, dest_reg)
-    elif isinstance(op, Name) or isinstance(op, Attribute):
-        arg = cgen.get_arg(op)
-        if arg is None:
-            raise ValueError("Argument doesn't exist", op.name)
-        if isinstance(op, Name):
-            return arg.load_cmd(cgen, arg.name, dest_reg)
-        else:
-            code, ptr_reg2, path = load_struct_ptr(cgen, op, ptr_reg)
-            code2, dest_reg, typ =  arg.load_cmd(cgen, arg.name, dest_reg, path=path, ptr_reg=ptr_reg2)
-            if ptr_reg is None:
-                cgen.release_reg(ptr_reg2)
-            return code + code2, dest_reg, typ
+        arg = cgen.create_const(op.const)
+        return arg.load_cmd(cgen, dest_reg)
+    if not isinstance(op, (Name, Attribute, Subscript)):
+        raise ValueError("Can't load operand of type ", op)
+    arg = cgen.get_arg(op.name)
+    if arg is None:
+        raise ValueError("Argument doesn't exist", op.name)
+    if isinstance(op, Name):
+        return arg.load_cmd(cgen, dest_reg)
+    elif isinstance(op, Attribute) and isinstance(arg, Struct):
+        return arg.load_attr_cmd(cgen, op.path, dest_reg, ptr_reg)
     elif isinstance(op, Subscript):
-        return load_subscript(cgen, op, dest_reg, ptr_reg)
+        if op.path is not None and isinstance(arg, Struct):
+            return arg.load_subscript(cgen, op.path, op.index, dest_reg, ptr_reg)
+        elif op.path is None:
+            return arg.load_subscript(cgen, op.index, dest_reg)
+        else:
+            raise ValueError("Can't load operand!", op, arg)
     else:
-        raise ValueError("Unsuported operand type", op)
+        raise ValueError("Can't load operand!", op, arg)
 
 def store_operand(cgen, dest, reg, typ):
     dst_arg = cgen.create_arg(dest, typ=typ)
-
     code = ''
+
     #implicit conversion int to float
-    if isinstance(dst_arg, Float) and typ == Integer:
+    arg = dst_arg
+    if isinstance(dest, Attribute):
+        arg = dst_arg.get_argument('%s.%s' % (dest.name, dest.path))
+    if isinstance(arg, Float) and typ == Integer:
         to_reg = cgen.register(typ='xmm')
         code = conv_int_to_float(cgen, reg, to_reg)
         reg = to_reg
         typ = Float
 
-    if type(dst_arg) != typ:
-        raise ValueError("Type mismatch, cannot sotre operand", type(dst_arg), typ)
-
     if isinstance(dest, Name):
-        code += dst_arg.store_cmd(cgen, reg, dst_arg.name)
+        if type(dst_arg) != typ:
+            raise ValueError("Type mismatch, cannot sotre operand", type(dst_arg), typ)
+        code += dst_arg.store_cmd(cgen, reg)
     elif isinstance(dest, Attribute):
-        code2, ptr_reg, path = load_struct_ptr(cgen, dest)
-        code += code2
-        code += dst_arg.store_cmd(cgen, reg, dst_arg.name, path=path, ptr_reg=ptr_reg)
-        cgen.release_reg(ptr_reg)
+        arg = dst_arg.get_argument('%s.%s' % (dest.name, dest.path))
+        if type(arg) != typ:
+            raise ValueError("Type mismatch, cannot sotre operand", type(arg), typ)
+        code += dst_arg.store_attr_cmd(cgen, dest.path, reg)
     else:
         raise ValueError("Unknown type of destination.", dest)
     return code
@@ -152,6 +94,7 @@ def load_func_args(cgen, operands, in_args):
     if len(operands) != len(in_args):
         raise ValueError("Argument length mismatch", operands, in_args)
 
+    cgen.clear_regs()
     bits = platform.architecture()[0]
     xmm = ['xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
     general = ['esi', 'edx', 'ecx', 'ebx', 'eax']

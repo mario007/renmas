@@ -6,8 +6,8 @@ from ..samplers import Sample
 class Camera(BaseShader):
     """General shader for camera."""
 
-    def __init__(self, eye, lookat, distance, code, py_code):
-        super(Camera, self).__init__(code, py_code)
+    def __init__(self, eye, lookat, distance, code):
+        super(Camera, self).__init__(code)
         self._eye = eye
         self._lookat = lookat
         self._up = Vector3(0.0, 1.0, 0.0)
@@ -70,15 +70,7 @@ ray.dir =  normalize(direction)
 
     """
 
-    py_code = """
-def generate_ray(props, sample):
-    from renmas3.base import Ray
-    direction = props['u'] * sample.x + props['v'] * sample.y - props['w'] * props['distance']
-    direction.normalize()
-    return Ray(props['eye'], direction)
-    """
-
-    camera = Camera(eye, lookat, distance, code=code, py_code=py_code)
+    camera = Camera(eye, lookat, distance, code=code)
     return camera
     
 

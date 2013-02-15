@@ -70,7 +70,7 @@ props = {'hit': hit2, 'ret': 0, 'ray': ray}
 code = """
 ret = isect(ray, hit)
 """
-bs = BasicShader(code, None, props)
+bs = BasicShader(code, props)
 bs.prepare([runtime], [shader])
 
 bs.execute()

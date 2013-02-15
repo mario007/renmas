@@ -13,7 +13,7 @@ from .dynamic_array import DynamicArray
 from .buffers import VertexBuffer, VertexNBuffer, VertexUVBuffer, VertexNUVBuffer
 from .buffers import TriangleBuffer, TriangleNBuffer, FlatTriangleBuffer
 from .buffers import FlatTriangleNBuffer, SmoothTriangleBuffer
-from .spectrum import RGBSpectrum, SampledSpectrum
+from .spectrum import RGBSpectrum, SampledSpectrum, Spectrum
 from .shader import Shader, BaseShader
 
 from .built_ins import * #solve this TODO

@@ -1,6 +1,8 @@
 import platform
 import inspect
 from .vector3 import Vector2, Vector3, Vector4
+from .vector3 import Vector2I, Vector3I, Vector4I
+from .spectrum import Spectrum, RGBSpectrum, SampledSpectrum
 from .util import float2hex
 
 def conv_int_to_float(cgen, reg, xmm):
@@ -25,6 +27,77 @@ def check_ptr_reg(cgen, ptr_reg):
         raise ValueError("Pointer register must be 64-bit!", ptr_reg)
     if not cgen.BIT64 and cgen.regs.is_reg64(ptr_reg):
         raise ValueError("Pointer register must be 32-bit!", ptr_reg)
+
+def _copy_values_avx(cgen, src_reg, dst_reg, n, src_path, dst_path):
+    def _load_xmms(offset, nregs):
+        code = ''
+        _xmm = ['ymm7', 'ymm6', 'ymm5', 'ymm4', 'ymm3', 'ymm2', 'ymm1', 'ymm0']
+        xmms = []
+        for i in range(nregs):
+            xmm = _xmm.pop()
+            code += "vmovaps %s, yword[%s + %s + %i] \n"  % (xmm, src_reg, src_path, offset)
+            xmms.append(xmm)
+            offset += 32
+        return code, xmms
+
+    def _store_xmms(xmms, offset):
+        code = ''
+        for xmm in xmms:
+            code += "vmovaps yword[%s + %s + %i], %s\n"  % (dst_reg, dst_path, offset, xmm)
+            offset += 32
+        return code
+
+    rounds = n // 8
+    nrounds = 0
+    code = ""
+    while rounds > 0:
+        nregs = 8 if rounds > 8 else rounds
+        code1, xmms= _load_xmms(nrounds * 32, nregs)
+        code2 = _store_xmms(xmms, nrounds * 32) 
+        code += code1 + code2
+        rounds -= 8
+        nrounds += 8
+    return code
+
+def _copy_values_sse(cgen, src_reg, dst_reg, n, src_path, dst_path):
+    def _load_xmms(offset, nregs):
+        code = ''
+        _xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
+        xmms = []
+        for i in range(nregs):
+            xmm = _xmm.pop()
+            code += "movaps %s, oword[%s + %s + %i] \n"  % (xmm, src_reg, src_path, offset)
+            xmms.append(xmm)
+            offset += 16
+        return code, xmms
+
+    def _store_xmms(xmms, offset):
+        code = ''
+        for xmm in xmms:
+            code += "movaps oword[%s + %s + %i], %s\n"  % (dst_reg, dst_path, offset, xmm)
+            offset += 16
+        return code
+
+    rounds = n // 4
+    nrounds = 0
+    code = ""
+    while rounds > 0:
+        nregs = 8 if rounds > 8 else rounds
+        code1, xmms= _load_xmms(nrounds * 16, nregs)
+        code2 = _store_xmms(xmms, nrounds * 16) 
+        code += code1 + code2
+        rounds -= 8
+        nrounds += 8
+    return code
+
+def copy_values(cgen, src_reg, dst_reg, n, src_path, dst_path):
+    #NOTE n must be divisible by 8
+    check_ptr_reg(cgen, src_reg)
+    check_ptr_reg(cgen, dst_reg)
+    if cgen.AVX:
+        return _copy_values_avx(cgen, src_reg, dst_reg, n, src_path, dst_path)
+    else:
+        return _copy_values_sse(cgen, src_reg, dst_reg, n, src_path, dst_path)
 
 class Argument:
     """
@@ -396,7 +469,7 @@ class _Vec234(Argument):
             code = "vmovaps %s, oword [%s + %s]\n" % (dest_reg, ptr_reg, path)
         else:
             code = "movaps %s, oword [%s + %s]\n" % (dest_reg, ptr_reg, path)
-        return code, dest_reg, type(self)
+        return code, dest_reg, cls
 
     @classmethod
     def store_attr(cls, cgen, path, ptr_reg, xmm):
@@ -668,19 +741,19 @@ class _Vec234I(Argument):
     pass
 
 class Vec2I(_Vec234I):
-    def __init__(self, name, value=Vector2(0, 0)):
+    def __init__(self, name, value=Vector2I(0, 0)):
         super(Vec2I, self).__init__(name)
-        assert Vector2 is type(value)
+        assert Vector2I is type(value)
         self._value = value
 
     @classmethod
     def set_value(cls, ds, value, path, idx_thread=None):
-        x, y = int(value.x), int(value.y)
+        assert Vector2I is type(value)
         if idx_thread is None:
             for d in ds:
-                d[path] = (x, y, 0, 0)
+                d[path] = value.to_ds()
         else:
-            ds[idx_thread][path] = (x, y, 0, 0)
+            ds[idx_thread][path] = value.to_ds()
 
     @classmethod
     def get_value(cls, ds, path, idx_thread=None):
@@ -688,10 +761,10 @@ class Vec2I(_Vec234I):
             val = ds[0][path]
         else:
             val = ds[idx_thread][path]
-        return Vector2(val[0], val[1])
+        return Vector2I(val[0], val[1])
 
     def _set_value(self, value):
-        assert Vector2 is type(value)
+        assert Vector2I is type(value)
         self._value = value
 
     def _get_value(self):
@@ -703,19 +776,19 @@ class Vec2I(_Vec234I):
         return 'int32 %s[4] = %i,%i,0,0\n' % (self.name, int(v.x), int(v.y))
 
 class Vec3I(_Vec234I):
-    def __init__(self, name, value=Vector3(0, 0, 0)):
+    def __init__(self, name, value=Vector3I(0, 0, 0)):
         super(Vec3I, self).__init__(name)
-        assert Vector3 is type(value)
+        assert Vector3I is type(value)
         self._value = value
 
     @classmethod
     def set_value(cls, ds, value, path, idx_thread=None):
-        x, y, z = int(value.x), int(value.y), int(value.z)
+        assert Vector3I is type(value)
         if idx_thread is None:
             for d in ds:
-                d[path] = (x, y, z, 0)
+                d[path] = value.to_ds()
         else:
-            ds[idx_thread][path] = (x, y, z, 0)
+            ds[idx_thread][path] = value.to_ds()
 
     @classmethod
     def get_value(cls, ds, path, idx_thread=None):
@@ -723,10 +796,10 @@ class Vec3I(_Vec234I):
             val = ds[0][path]
         else:
             val = ds[idx_thread][path]
-        return Vector3(val[0], val[1], val[2])
+        return Vector3I(val[0], val[1], val[2])
 
     def _set_value(self, value):
-        assert Vector3 is type(value)
+        assert Vector3I is type(value)
         self._value = value
 
     def _get_value(self):
@@ -738,19 +811,19 @@ class Vec3I(_Vec234I):
         return 'int32 %s[4] = %i,%i,%i,0\n' % (self.name, int(v.x), int(v.y), int(v.z))
 
 class Vec4I(_Vec234I):
-    def __init__(self, name, value=Vector4(0, 0, 0, 0)):
+    def __init__(self, name, value=Vector4I(0, 0, 0, 0)):
         super(Vec3I, self).__init__(name)
-        assert Vector4 is type(value)
+        assert Vector4I is type(value)
         self._value = value
 
     @classmethod
     def set_value(cls, ds, value, path, idx_thread=None):
-        x, y, z, w = int(value.x), int(value.y), int(value.z), int(value.w)
+        assert Vector4I is type(value)
         if idx_thread is None:
             for d in ds:
-                d[path] = (x, y, z, w)
+                d[path] = value.to_ds()
         else:
-            ds[idx_thread][path] = (x, y, z, w)
+            ds[idx_thread][path] = value.to_ds()
 
     @classmethod
     def get_value(cls, ds, path, idx_thread=None):
@@ -758,10 +831,10 @@ class Vec4I(_Vec234I):
             val = ds[0][path]
         else:
             val = ds[idx_thread][path]
-        return Vector4(val[0], val[1], val[2], val[3])
+        return Vector4I(val[0], val[1], val[2], val[3])
 
     def _set_value(self, value):
-        assert Vector4 is type(value)
+        assert Vector4I is type(value)
         self._value = value
 
     def _get_value(self):
@@ -944,6 +1017,147 @@ class Pointer(Argument):
         else:
             return ds[idx_thread][path]
 
+class RGBSpec(Argument):
+    def __init__(self, name, spectrum):
+        super(RGBSpec, self).__init__(name)
+        assert isinstance(spectrum, RGBSpectrum)
+        self._value = spectrum
+
+    def load_cmd(self, cgen, dest_reg=None):
+        if dest_reg is None:
+            if cgen.BIT64:
+                dest_reg = cgen.register(typ='general', bit=64)
+            else:
+                dest_reg = cgen.register(typ='general', bit=32)
+        check_ptr_reg(cgen, dest_reg)
+        code = "mov %s, %s \n" % (dest_reg, self.name)
+        return code, dest_reg, RGBSpec
+
+    @classmethod
+    def load_attr(cls, cgen, path, ptr_reg, dest_reg=None):
+        if dest_reg is None:
+            if cgen.BIT64:
+                dest_reg = cgen.register(typ='general', bit=64)
+            else:
+                dest_reg = cgen.register(typ='general', bit=32)
+        check_ptr_reg(cgen, ptr_reg)
+        check_ptr_reg(cgen, dest_reg)
+        if cgen.BIT64:
+            code = "lea %s, qword [%s + %s]\n" % (dest_reg, ptr_reg, path)
+        else:
+            code = "lea %s, dword [%s + %s]\n" % (dest_reg, ptr_reg, path)
+        return code, dest_reg, RGBSpec
+
+    def store_cmd(self, cgen, reg):
+        check_ptr_reg(cgen, reg)
+        code = ''
+        path = "Spectrum.values"
+        code1, src_reg, typ1 = Vec4.load_attr(cgen, path, reg)
+        code2, ptr_reg, typ2 = self.load_cmd(cgen)
+        code3 = Vec4.store_attr(cgen, path, ptr_reg, src_reg)
+        code = code1 + code2 + code3
+        cgen.release_reg(src_reg)
+        cgen.release_reg(ptr_reg)
+        return code
+
+    def _set_value(self, value):
+        assert isinstance(value, RGBSpectrum)
+        self._value = value
+
+    def _get_value(self):
+        return self._value
+    value = property(_get_value, _set_value)
+
+    def generate_data(self):
+        return 'Spectrum %s\n' % self.name
+
+    @classmethod
+    def set_value(cls, ds, value, path, idx_thread=None):
+        assert isinstance(value, RGBSpectrum)
+        if idx_thread is None:
+            for d in ds:
+                ds[path + ".values"] = value.to_ds()
+        else:
+            ds[idx_thread][path + ".values"] = value.to_ds()
+
+    @classmethod
+    def get_value(cls, ds, path, idx_thread=None):
+        if idx_thread is None:
+            val = ds[0][path + ".values"]
+        else:
+            val = ds[idx_thread][path + ".values"]
+        return RGBSpectrum(val[0], val[1], val[2])
+
+class SampledSpec(Argument):
+    def __init__(self, name, spectrum):
+        super(SampledSpec, self).__init__(name)
+        assert isinstance(spectrum, SampledSpectrum)
+        self._value = spectrum
+
+    def load_cmd(self, cgen, dest_reg=None):
+        if dest_reg is None:
+            if cgen.BIT64:
+                dest_reg = cgen.register(typ='general', bit=64)
+            else:
+                dest_reg = cgen.register(typ='general', bit=32)
+        check_ptr_reg(cgen, dest_reg)
+        code = "mov %s, %s \n" % (dest_reg, self.name)
+        return code, dest_reg, SampledSpec
+
+    @classmethod
+    def load_attr(cls, cgen, path, ptr_reg, dest_reg=None):
+        if dest_reg is None:
+            if cgen.BIT64:
+                dest_reg = cgen.register(typ='general', bit=64)
+            else:
+                dest_reg = cgen.register(typ='general', bit=32)
+        check_ptr_reg(cgen, ptr_reg)
+        check_ptr_reg(cgen, dest_reg)
+        if cgen.BIT64:
+            code = "lea %s, qword [%s + %s]\n" % (dest_reg, ptr_reg, path)
+        else:
+            code = "lea %s, dword [%s + %s]\n" % (dest_reg, ptr_reg, path)
+        return code, dest_reg, SampledSpec
+
+    def store_cmd(self, cgen, reg):
+        check_ptr_reg(cgen, reg)
+        code = ''
+        path = "Spectrum.values"
+        code1, dst_reg, typ1 = self.load_cmd(cgen)
+        n = len(self._value.samples)
+        code2 = copy_values(cgen, reg, dst_reg, n, path, path)
+        cgen.release_reg(dst_reg)
+        code = code1 + code2
+        return code
+
+    def _set_value(self, value):
+        assert isinstance(value, SampledSpectrum)
+        self._value = value
+
+    def _get_value(self):
+        return self._value
+    value = property(_get_value, _set_value)
+
+    def generate_data(self):
+        return 'Spectrum %s\n' % self.name
+
+    @classmethod
+    def set_value(cls, ds, value, path, idx_thread=None):
+        assert isinstance(value, SampledSpectrum)
+        if idx_thread is None:
+            for d in ds:
+                ds[path + ".values"] = value.to_ds()
+        else:
+            ds[idx_thread][path + ".values"] = value.to_ds()
+
+    @classmethod
+    def get_value(cls, ds, path, idx_thread=None):
+        if idx_thread is None:
+            val = ds[0][path + ".values"]
+        else:
+            val = ds[idx_thread][path + ".values"]
+        return SampledSpectrum(val)
+
 #TODO implement locking of map and list???-think
 class ArgumentList:
     def __init__(self, args=[]):
@@ -985,7 +1199,7 @@ class ArgumentMap:
         for a in self._args.items():
             yield a
 
-def arg_from_value(name, value, input_arg=False):
+def arg_from_value(name, value, input_arg=False, spectrum=None):
     """Create argument based on type of value."""
 
     if isinstance(value, int):
@@ -1010,6 +1224,10 @@ def arg_from_value(name, value, input_arg=False):
         arg = Vec3(name, value)
     elif isinstance(value, Vector4):
         arg = Vec4(name, value)
+    elif isinstance(value, RGBSpectrum):
+        arg = RGBSpec(name, value)
+    elif isinstance(value, SampledSpectrum):
+        arg = SampledSpec(name, value)
     elif isinstance(value, UserType):
         if input_arg:
             arg = StructPtr(name, value)
@@ -1017,7 +1235,7 @@ def arg_from_value(name, value, input_arg=False):
             arg = Struct(name, value)
     elif hasattr(type(value), 'user_type'):
         typ_name, fields = type(value).user_type()
-        usr_type = create_user_type(typ_name, fields)
+        usr_type = create_user_type(typ_name, fields, spectrum=spectrum)
         if input_arg:
             arg = StructPtr(name, usr_type)
         else:
@@ -1026,7 +1244,7 @@ def arg_from_value(name, value, input_arg=False):
         raise ValueError('Unknown value type', value)
     return arg
 
-def arg_from_type(name, typ, value=None, input_arg=False):
+def arg_from_type(name, typ, value=None, input_arg=False, spectrum=None):
     """Create argument of specified type."""
 
     if typ == Integer:
@@ -1045,48 +1263,63 @@ def arg_from_type(name, typ, value=None, input_arg=False):
         val = Vector4(0.0, 0.0, 0.0, 0.0) if value is None else value
         arg = Vec4(name, val)
     elif typ == Vec2I:
-        val = Vector2(0, 0) if value is None else value
+        val = Vector2I(0, 0) if value is None else value
         arg = Vec2I(name, val)
     elif typ == Vec3I:
-        val = Vector3(0, 0, 0) if value is None else value
+        val = Vector3I(0, 0, 0) if value is None else value
         arg = Vec3I(name, val)
     elif typ == Vec4I:
-        val = Vector4(0, 0, 0, 0) if value is None else value
+        val = Vector4I(0, 0, 0, 0) if value is None else value
         arg = Vec4I(name, val)
     elif typ == Pointer: #pointer in typ = UserType
-            arg = Pointer(name, typ=value)
+        arg = Pointer(name, typ=value)
+    elif typ == Spectrum:
+        if value is None and spectrum is None:
+            arg = RGBSpec(name, RGBSpectrum(0.0, 0.0, 0.0))
+        elif isinstance(value, (RGBSpectrum, SampledSpectrum)):
+            arg = RGBSpec(name, value)
+        elif spectrum is not None:
+            if isinstance(spectrum, RGBSpectrum):
+                arg = RGBSpec(name, spectrum.black())
+            elif isinstance(spectrum, SampledSpectrum):
+                arg = SampledSpec(name, spectrum.black())
+            else:
+                raise ValueError("Unknown spectrum type!", typ)
+        else:
+            raise ValueError("Cannot create desired spectrum!", typ)
     elif hasattr(typ, 'user_type'):
         typ_name, fields = typ.user_type()
-        usr_type = create_user_type(typ_name, fields)
+        usr_type = create_user_type(typ_name, fields, spectrum=spectrum)
         if input_arg:
             arg = StructPtr(name, usr_type)
         else:
             arg = Struct(name, usr_type)
     else:
+        print (name, typ, value, spectrum)
         raise ValueError("Unknown type of arugment", typ)
 
     return arg
 
-def create_argument(name, value=None, typ=None, input_arg=False):
+def create_argument(name, value=None, typ=None, input_arg=False, spectrum=None):
     """Factory for creating argument based on value or based on type."""
 
     if value is None and typ is None:
         raise ValueError("Argument could not be created because type and value is None.")
 
     if typ is not None:
-        return arg_from_type(name, typ, value, input_arg)
+        return arg_from_type(name, typ, value, input_arg, spectrum=spectrum)
 
-    return arg_from_value(name, value, input_arg)
+    return arg_from_value(name, value, input_arg, spectrum=spectrum)
 
 
 #a5 = create_user_type_(typ="point", fields=[('x', 55)])
-def create_user_type(typ, fields):
+def create_user_type(typ, fields, spectrum=None):
     usr_type = UserType(typ)
     for n, v in fields:
         if inspect.isclass(v):
-            arg = create_argument(n, typ=v)
+            arg = create_argument(n, typ=v, spectrum=spectrum)
         else:
-            arg = create_argument(n, value=v)
+            arg = create_argument(n, value=v, spectrum=spectrum)
         usr_type.add(arg)
     return usr_type
 

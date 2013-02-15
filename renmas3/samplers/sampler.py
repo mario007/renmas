@@ -7,7 +7,7 @@ class Sampler(BaseShader):
     """Base class for samplers."""
 
     def __init__(self, width, height, code, nsamples=1, pixel_size=1.0):
-        super(Sampler, self).__init__(code, None)
+        super(Sampler, self).__init__(code)
         self.width = width
         self.height = height
         self.pixel_size = pixel_size

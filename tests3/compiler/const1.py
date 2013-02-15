@@ -24,7 +24,7 @@ k = (-1.23, 1.44, 9, 7.7)
         props = {'a':111, 'b':250, 'c':4.4, 'd':1.1,
                 'e': Vector2(2.3, 6.0), 'f': Vector3(5.6, 3.3, 2.2),
                 'k': Vector4(4.4, 6.6, 2.2, 9.9)}
-        bs = BasicShader(code, None, props)
+        bs = BasicShader(code, props)
         runtime = Runtime()
         bs.prepare([runtime])
         #print (bs.shader._code)

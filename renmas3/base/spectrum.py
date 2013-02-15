@@ -100,7 +100,7 @@ class RGBSpectrum(Spectrum):
         code = """
         struct Spectrum
         float values[4]
-        end struct"
+        end struct
         """
         return code
 

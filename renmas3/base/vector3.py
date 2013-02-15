@@ -82,7 +82,7 @@ class Vector3:
         return (self.x * self.x) + (self.y * self.y) + (self.z * self.z) 
 
     def negated(self):
-        return self.scale(-1)
+        return self.scale(-1.0)
 
     def normalize(self):
         length = self.length()
@@ -140,3 +140,122 @@ class Vector4:
     def to_ds(self):
         return (float(self.x), float(self.y), float(self.z), float(self.w))
 
+class Vector2I:
+    __slots__ = ['x', 'y']
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def __str__(self):
+        return '(%s,%s)' % (self.x, self.y)
+
+    def __repr__(self):
+        return 'Vector2I(%s,%s)' % (self.x, self.y)
+
+    def __add__(self, vec):
+        return Vector2I(self.x + vec.x, self.y + vec.y)
+
+    def __sub__(self, vec):
+        return Vector2I(self.x - vec.x, self.y - vec.y)
+
+    def __eq__(self, vec):
+        return (self.x == vec.x) and (self.y == vec.y)
+
+    def __mul__(self, t):
+        return Vector2I(self.x * t, self.y * t)
+
+    def __rmul__(self, t):
+        return Vector2I(self.x * t, self.y * t)
+
+    def scale(self, t):
+        self.x = int(t) * self.x
+        self.y = int(t) * self.y
+        return self
+
+    def negated(self):
+        return self.scale(-1)
+
+    def to_ds(self):
+        return (int(self.x), int(self.y), 0, 0)
+
+class Vector3I:
+    __slots__ = ['x', 'y', 'z']
+    def __init__(self, x, y, z):
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def __str__(self):
+        return '(%s,%s,%s)' % (self.x, self.y, self.z)
+
+    def __repr__(self):
+        return 'Vector3I(%s,%s,%s)' % (self.x, self.y, self.z)
+
+    def __add__(self, vec):
+        return Vector3I(self.x + vec.x, self.y + vec.y, self.z + vec.z)
+
+    def __sub__(self, vec):
+        return Vector3I(self.x - vec.x, self.y - vec.y, self.z - vec.z)
+
+    def __eq__(self, vec):
+        return (self.x == vec.x) and (self.y == vec.y) and (self.z == vec.z)
+    
+    def __mul__(self, t):
+        return Vector3I(self.x * t, self.y * t, self.z * t)
+
+    def __rmul__(self, t):
+        return Vector3I(self.x * t, self.y * t, self.z * t)
+
+    def scale(self, t):
+        self.x = int(t) * self.x
+        self.y = int(t) * self.y
+        self.z = int(t) * self.z
+        return self
+
+    def negated(self):
+        return self.scale(-1)
+
+    def to_ds(self):
+        return (int(self.x), int(self.y), int(self.z), 0)
+
+class Vector4I:
+    __slots__ = ['x', 'y', 'z', 'w']
+    def __init__(self, x, y, z, w):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.w = w
+
+    def __str__(self):
+        return '(%s,%s,%s,%s)' % (self.x, self.y, self.z, self.w)
+
+    def __repr__(self):
+        return 'Vector4I(%s,%s,%s,%s)' % (self.x, self.y, self.z, self.w)
+
+    def __add__(self, vec):
+        return Vector4I(self.x + vec.x, self.y + vec.y, self.z + vec.z, self.w + vec.w)
+
+    def __sub__(self, vec):
+        return Vector4I(self.x - vec.x, self.y - vec.y, self.z - vec.z, self.w - vec.w)
+
+    def __eq__(self, vec):
+        return (self.x == vec.x) and (self.y == vec.y) and (self.z == vec.z) and (self.w == vec.w)
+
+    def __mul__(self, t):
+        return Vector4I(self.x * t, self.y * t, self.z * t, self.w * t)
+
+    def __rmul__(self, t):
+        return Vector4I(self.x * t, self.y * t, self.z * t, self.w * t)
+
+    def scale(self, t):
+        self.x = int(t) * self.x
+        self.y = int(t) * self.y
+        self.z = int(t) * self.z
+        self.w = int(t) * self.w
+        return self
+
+    def negated(self):
+        return self.scale(-1)
+
+    def to_ds(self):
+        return (int(self.x), int(self.y), int(self.z), int(self.w))

@@ -160,21 +160,9 @@ class BaseShader:
     for shaders. Derivied class must implement get_props, arg_map and arg_list
     methods."""
 
-    def __init__(self, code, py_code):
+    def __init__(self, code):
         self._code = code
-        self._py_code = py_code
-        self._py_func = None
-        if py_code is not None:
-            self._py_func = self._create_func(py_code)
         self._shader = None
-
-    def _create_func(self, code):
-        d = {}
-        exec(code, globals(), d)
-        if len(d) != 1:
-            raise ValueError("Only one key is expected in dict, function key!")
-        key, func = d.popitem()
-        return func
 
     @property
     def shader(self):
@@ -226,13 +214,6 @@ class BaseShader:
             raise ValueError('Shader is not yet prepared for execution.')
         self._shader.execute()
 
-    def execute_py(self, *args):
-        """Run execution of python shader."""
-        if self._py_func is None:
-            raise ValueError("Code for python shader is missing!")
-        #NOTE python shaders doesn't support multithreading for now
-        return self._py_func(self.get_props(1), *args)
-
     def standalone(self):
         """Return wethever this shader can be executed directly."""
         return True
@@ -254,40 +235,33 @@ class BaseShader:
         """Create argument list for calling arguments of shader."""
         raise NotImplementedError()
 
-    def __getstate__(self):
-        state = self.__dict__.copy()
-        del state['_py_func']
-        return state
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
-        if self._py_code is not None:
-            self._py_func = self._create_func(self._py_code)
-
 class BasicShader(BaseShader):
     """Implementation of simple generic shader that is used to preform intesive
     coputation."""
 
-    def __init__(self, code, py_code, props,
-                 input_args=None, standalone=True, method_name=None):
-        super(BasicShader, self).__init__(code, py_code)
+    def __init__(self, code, props,
+                 input_args=None, standalone=True, method_name=None,
+                 spectrum=None):
+        super(BasicShader, self).__init__(code)
 
         self.props = props
         self._standalone = standalone
         self._method_name = method_name
         self.input_args = input_args
+        self._spectrum = spectrum
 
     def arg_map(self):
         p = self.props
         if not isinstance(self.props, dict):
             p = self.props[0]
-        args = ArgumentMap(arg_from_value(key, value) for key, value in p.items())
+        args = ArgumentMap(arg_from_value(key, value, spectrum=self._spectrum)\
+                                          for key, value in p.items())
         return args
 
     def arg_list(self):
         if self.input_args is None:
             return ArgumentList()
-        args = ArgumentList(arg_from_value(name, value, True)
+        args = ArgumentList(arg_from_value(name, value, True, spectrum=self._spectrum)
                                     for name, value in self.input_args)
         return args
 

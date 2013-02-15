@@ -46,7 +46,7 @@ class Film(BaseShader):
 
     def __init__(self):
         code = self._shader_code()
-        super(Film, self).__init__(code, None)
+        super(Film, self).__init__(code)
         self._hdr_image = ImagePRGBA(10, 10)
         self._ldr_image = ImagePRGBA(10, 10)
         self._output_img = ImageBGRA(10, 10)
@@ -151,7 +151,7 @@ class Renderer:
         if self._project.integrators_code is None:
             raise ValueError("Integrator code is missing!")
         code = self._project.integrators_code
-        self._integrator = BasicShader(code, None, {})
+        self._integrator = BasicShader(code, {})
         sam_sh = self._project.sampler.shader
         cam_sh = self._project.camera.shader
         film_sh = self._film.shader

@@ -2,9 +2,10 @@ import platform
 import inspect
 import renmas3.switch as proc
 
+from .spectrum import Spectrum, RGBSpectrum, SampledSpectrum
 from .arg import create_argument, Struct, Integer, Float, Vec3, UserType, Attribute
 from .arg import Integer, Vec3I, Pointer, StructPtr, Name, Const, Subscript
-from .arg import Callable, create_user_type
+from .arg import Callable, create_user_type, RGBSpec, SampledSpec
 from .shader import Shader
 from .vector3 import Vector3
 from .instr import load_operand, load_func_args, store_func_args
@@ -93,6 +94,18 @@ class _Locals:
                 data += arg.generate_data()
         return data
 
+    def struct_defs(self):
+        structs = {}
+        for name, arg in self._used_args.items():
+            if isinstance(arg, Struct):
+                structs[arg.typ.typ] = arg
+
+        for arg_type, s in self._free_args.items():
+            for arg in s:
+                if isinstance(arg, Struct):
+                    structs[arg.typ.typ] = arg
+        return structs
+
     def add(self, name, arg):
         loc_arg = self.get_arg(name)
         if loc_arg is not None and type(loc_arg) == type(arg):
@@ -128,6 +141,12 @@ class CodeGenerator:
         self._asm_functions = {}
         self._saved_regs = set()
         self.regs = Registers()
+        #NOTE here we try to find spectrum so we can use that
+        # spectrum as factory for others
+        self._spec_arg = None
+        for name, arg in iter(self._args):
+            if isinstance(arg, (RGBSpec, SampledSpec)):
+                self._spec_arg = arg
 
     @property
     def AVX(self):
@@ -197,12 +216,33 @@ class CodeGenerator:
         if self._ret_type != typ:
             raise ValueError("Return Type mismatch ", self._ret_type, typ)
 
+    def _generate_struct_defs(self):
+        structs = {}
+        spec = None
+        for arg in self._input_args:
+            if isinstance(arg, Struct):
+                structs[arg.typ.typ] = arg
+            if isinstance(arg, Spec):
+                spec = arg
+
+        for name, arg in iter(self._args):
+            if isinstance(arg, Struct):
+                structs[arg.typ.typ] = arg
+            if isinstance(arg, (RGBSpec, SampledSpec)):
+                spec = arg
+
+        #TODO --- spectrum in local variable --- struct definition
+        structs.update(self._locals.struct_defs())
+        data = ''
+        if spec:
+            data += spec.value.asm_struct()
+        data += ''.join(arg.typ.generate_struct() for key, arg in structs.items())
+        return data
+
     def _generate_data_section(self):
         data = ''
         #TODO remove duplicates, struct inside sturct
-        # Only generate struct that are used in current program TODO
-        for typ_name, typ in _user_types.items():
-            data += typ.generate_struct()
+        data += self._generate_struct_defs()
 
         for arg in self._input_args:
             data += arg.generate_data()
@@ -211,8 +251,6 @@ class CodeGenerator:
             data += arg.generate_data()
 
         data += self._locals.generate_data()
-        #for arg in self._locals.values():
-        #    data += arg.generate_data()
 
         for arg in self._constants.values():
             data += arg.generate_data()
@@ -330,12 +368,22 @@ class CodeGenerator:
             else:
                 arg = create_argument(self._generate_name('local'), typ=type(arg2))
         else:
-            arg = create_argument(self._generate_name('local'), value=value, typ=typ)
+            if (typ is RGBSpec or typ is SampledSpec) and value is None:
+                arg = self._create_spec()
+            else:
+                arg = create_argument(self._generate_name('local'), value=value, typ=typ)
         if isinstance(arg, Struct): #automatic registration!!!! think TODO
             if arg.typ.typ not in _user_types:
                 raise ValueError("User type %s is not registerd." % arg.typ.typ)
 
         arg = self._locals.add(dest, arg)
+        return arg
+
+    def _create_spec(self):
+        if self._spec_arg is None:
+            return RGBSpec(self._generate_name('local'), RGBSpectrum(0.0, 0.0, 0.0))
+        s = self._spec_arg.value.black()
+        arg = type(self._spec_arg)(self._generate_name('local'), s)
         return arg
 
     def get_shader(self, name):

@@ -119,7 +119,7 @@ def test_isect(intersector, bbox, nrays=10):
     code = """
 ret = isect(ray, hit)
     """
-    bs = BasicShader(code, None, props)
+    bs = BasicShader(code, props)
     bs.prepare([runtime], [shader])
 
     hits = 0
@@ -155,7 +155,7 @@ def test_visibility(intersector, bbox, nrays=10):
     code = """
 ret = visible(p1, p2)
     """
-    bs = BasicShader(code, None, props)
+    bs = BasicShader(code, props)
     bs.prepare([runtime], [shader])
     for x in range(nrays):
         visible(bbox, bs, intersector)

@@ -39,7 +39,7 @@ ret = generate_sample(sample)
     """
     sample = Sample(0.0, 0.0, 0, 0, 1.0)
     props = {'sample': sample, 'ret': 0}
-    bas = BasicShader(code, None, props)
+    bas = BasicShader(code, props)
     bas.prepare([runtime], [sam.shader])
 
     while True:
@@ -66,7 +66,7 @@ while ret != 0:
     """
     sample = Sample(0.0, 0.0, 0, 0, 1.0)
     props = {'sample': sample, 'ret': 0, 'nsamples': 0}
-    bas = BasicShader(code, None, props)
+    bas = BasicShader(code, props)
     bas.prepare(runtimes, [sam.shader])
     
     start = time.clock()

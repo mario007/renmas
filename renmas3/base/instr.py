@@ -79,12 +79,12 @@ def store_operand(cgen, dest, reg, typ):
 
     if isinstance(dest, Name):
         if type(dst_arg) != typ:
-            raise ValueError("Type mismatch, cannot sotre operand", type(dst_arg), typ)
+            raise ValueError("Type mismatch, cannot store operand", type(dst_arg), typ)
         code += dst_arg.store_cmd(cgen, reg)
     elif isinstance(dest, Attribute):
         arg = dst_arg.get_argument('%s.%s' % (dest.name, dest.path))
         if type(arg) != typ:
-            raise ValueError("Type mismatch, cannot sotre operand", type(arg), typ)
+            raise ValueError("Type mismatch, cannot store operand", type(arg), typ)
         code += dst_arg.store_attr_cmd(cgen, dest.path, reg)
     else:
         raise ValueError("Unknown type of destination.", dest)

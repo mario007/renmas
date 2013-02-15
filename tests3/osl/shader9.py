@@ -6,19 +6,11 @@ code = """
 a = 555
 """
 
-py_code = """
-def py_code(props):
-    props['a'] = 555
-"""
-
 props = {'a':125}
-bs = BasicShader(code, py_code, props)
+bs = BasicShader(code, props)
 runtime = Runtime()
 bs.prepare([runtime])
 
 bs.execute()
 print(bs.shader.get_value('a'))
-
-bs.execute_py()
-print(props['a'])
 

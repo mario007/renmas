@@ -49,7 +49,7 @@ k = m1
         props = {'aa':333, 'a':111, 'b':250, 'c':4.4, 'd':1.1,
                 'e': Vector2(2.3, 6.0), 'f': Vector3(5.6, 3.3, 2.2),
                 'k': Vector4(4.4, 6.6, 2.2, 9.9)}
-        bs = BasicShader(code, None, props)
+        bs = BasicShader(code, props)
         runtime = Runtime()
         bs.prepare([runtime])
         #print (bs.shader._code)
@@ -100,7 +100,7 @@ p1.pp = (8,1,3,4)
 
         """
         props = {'p1': p1, 'idx': 44}
-        bs = BasicShader(code, None, props)
+        bs = BasicShader(code, props)
         runtime = Runtime()
         bs.prepare([runtime])
         #print (bs.shader._code)

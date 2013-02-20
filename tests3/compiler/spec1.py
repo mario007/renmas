@@ -67,10 +67,9 @@ spec2 = p
             self.assertAlmostEqual(val1.samples[i], val2.samples[i], places=5)
 
     def test_assign3(self):
-        #register_user_type(ShadePoint)
         code = """
 spec1 = sh.spectrum1
-
+sh.spectrum2 = spec2
         """
         rgb = RGBSpectrum(0.2, 0.3, 0.2)
         rgb2 = RGBSpectrum(0.1, 0.8, 0.9)
@@ -89,7 +88,40 @@ spec1 = sh.spectrum1
         self.assertAlmostEqual(val1.r, val2.r, places=5)
         self.assertAlmostEqual(val1.g, val2.g, places=5)
         self.assertAlmostEqual(val1.b, val2.b, places=5)
+        val1 = bs.shader.get_value('spec2')
+        val2 = bs.shader.get_value('sh.spectrum2')
+        self.assertAlmostEqual(val1.r, val2.r, places=5)
+        self.assertAlmostEqual(val1.g, val2.g, places=5)
+        self.assertAlmostEqual(val1.b, val2.b, places=5)
 
+    def test_assign4(self):
+        code = """
+spec1 = sh.spectrum1
+sh.spectrum2 = spec2
+        """
+
+        nsamples = 32
+        rgb = SampledSpectrum([0.1]*nsamples)
+        rgb2 = SampledSpectrum([0.2]*nsamples)
+        rgb3 = SampledSpectrum([0.3]*nsamples)
+        rgb4 = SampledSpectrum([0.4]*nsamples)
+
+        sh = ShadePoint(rgb3, rgb4)
+        props = {'spec1':rgb, 'spec2':rgb2, 'sh': sh}
+        bs = BasicShader(code, props, spectrum=rgb)
+        runtime = Runtime()
+        bs.prepare([runtime])
+        #print (bs.shader._code)
+
+        bs.execute()
+        val1 = bs.shader.get_value('spec1')
+        val2 = bs.shader.get_value('sh.spectrum1')
+        for i in range(nsamples):
+            self.assertAlmostEqual(val1.samples[i], val2.samples[i], places=5)
+        val1 = bs.shader.get_value('spec2')
+        val2 = bs.shader.get_value('sh.spectrum2')
+        for i in range(nsamples):
+            self.assertAlmostEqual(val1.samples[i], val2.samples[i], places=5)
 
 if __name__ == "__main__":
     unittest.main()

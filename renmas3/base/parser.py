@@ -117,7 +117,39 @@ def extract_operands(obj):
     o = operator(obj.op)
     return (op1, o, op2)
 
-def parse_arithmetic(bin_op):
+def parse_arithmetic(bin_op, operations):
+    left = bin_op.left
+    right = bin_op.right
+    op = bin_op.op
+    if not isinstance(left, ast.BinOp) and not isinstance(right, ast.BinOp):
+        op1, o, op2 = extract_operands(bin_op)
+        operations.append(Operation(left=op1, operator=o, right=op2))
+        return operations
+    
+    if isinstance(left, ast.BinOp):
+        parse_arithmetic(left, operations)
+        if isinstance(right, ast.BinOp):
+            parse_arithmetic(right, operations)
+            operations.append(Operation(left=EmptyOperand, operator=operator(op), right=EmptyOperand))
+        else:
+            op2 = extract_operand(right)
+            operations.append(Operation(left=EmptyOperand, operator=operator(op), right=op2))
+        return operations
+
+    if isinstance(right, ast.BinOp):
+        parse_arithmetic(right, operations)
+        if isinstance(left, ast.BinOp):
+            parse_arithmetic(left, operations)
+            operations.append(Operation(left=EmptyOperand, operator=operator(op), right=EmptyOperand))
+        else:
+            op2 = extract_operand(left)
+            operations.append(Operation(left=op2, operator=operator(op), right=EmptyOperand))
+        return operations
+
+
+    raise ValueError("Unsuported expression", left, right, op)
+
+def parse_arithmetic_old(bin_op):
     left = bin_op.left
     right = bin_op.right
     op = bin_op.op
@@ -232,7 +264,7 @@ class Parser:
                 raise ValueError("Unknown target", t)
 
     def _binary_operation(self, targets, obj, unary=None):
-        expr = parse_arithmetic(obj)
+        expr = parse_arithmetic(obj, [])
         for t in targets:
             if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
                 return StmAssign(make_name(t), Operations(expr), unary)

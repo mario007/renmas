@@ -148,6 +148,10 @@ class CodeGenerator:
             if isinstance(arg, (RGBSpec, SampledSpec)):
                 self._spec_arg = arg
 
+        # Local Spectrums for temporal calculations in expressions
+        self._tmp_specs = []
+        self._tmp_specs_used = []
+
     @property
     def AVX(self):
         return proc.AVX
@@ -222,7 +226,7 @@ class CodeGenerator:
         for arg in self._input_args:
             if isinstance(arg, Struct):
                 structs[arg.typ.typ] = arg
-            if isinstance(arg, Spec):
+            if isinstance(arg, (RGBSpec, SampledSpec)):
                 spec = arg
 
         for name, arg in iter(self._args):
@@ -243,6 +247,10 @@ class CodeGenerator:
         data = ''
         #TODO remove duplicates, struct inside sturct
         data += self._generate_struct_defs()
+
+        specs = self._tmp_specs + self._tmp_specs_used
+        for arg in specs:
+            data += arg.generate_data()
 
         for arg in self._input_args:
             data += arg.generate_data()
@@ -379,6 +387,19 @@ class CodeGenerator:
         arg = self._locals.add(dest, arg)
         return arg
 
+    def create_tmp_spec(self):
+        if self._tmp_specs:
+            arg = self._tmp_specs.pop()
+        else:
+            arg = self._create_spec()
+        self._tmp_specs_used.append(arg)
+        return arg
+
+    def _free_tmp_specs(self):
+        for arg in self._tmp_specs_used:
+            self._tmp_specs.append(arg)
+        self._tmp_specs_used = []
+
     def _create_spec(self):
         if self._spec_arg is None:
             return RGBSpec(self._generate_name('local'), RGBSpectrum(0.0, 0.0, 0.0))
@@ -443,6 +464,7 @@ class CodeGenerator:
         self._xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
         self._general = ['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
         self._general64 = ['rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax']
+        self._free_tmp_specs()
 
     def add_asm_function(self, label, code):
         #TODO --- code can also be callable

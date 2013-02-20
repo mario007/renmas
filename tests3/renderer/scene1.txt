@@ -20,4 +20,3 @@ name = Sphere 1
 radius = 1.0
 origin = 0, 0, 0
 End
-

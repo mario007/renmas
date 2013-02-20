@@ -430,7 +430,6 @@ class Float(Argument):
         if typ2 == Integer:
             xmm = cgen.register(typ="xmm")
             code += conv_int_to_float(cgen, reg2, xmm)
-            cgen.release_reg(xmm)
 
         code3, reg3, typ3 = Float.arith_cmd(cgen, xmm, reg1, Float, operator)
         return code + code3, reg3, typ3
@@ -518,7 +517,7 @@ class _Vec234(Argument):
         if typ2 == Integer and operator == '*':
             xmm = cgen.register(typ="xmm")
             code += conv_int_to_float(cgen, reg2, xmm)
-            cgen.release_reg(xmm)
+            typ2 = Float
 
         if typ2 == Float and operator == '*':
             if cgen.AVX: #vblends maybe is faster investigate TODO
@@ -535,7 +534,9 @@ class _Vec234(Argument):
         if not cls.supported(operator, typ2):
             raise ValueError('This type or arithmetic operation is not allowed', typ2, operator)
 
+        #NOTE FIXME -- memory leak of register cls._conv if argument is Integer
         code, xmm = cls._conv(cgen, reg2, typ2, operator)
+
         ops_avx = {'+': 'vaddps', '-': 'vsubps', '*': 'vmulps', '/': 'vdivps'}
         ops = {'+': 'addps', '-': 'subps', '*': 'mulps', '/': 'divps'}
         if cgen.AVX:
@@ -941,7 +942,11 @@ class Struct(Argument):
         code1, src_reg, type1 = self.load_cmd(cgen)
 
         asm_path = "%s.%s" %(self.typ.typ, path)
-        code2 = arg.store_attr(cgen, asm_path, src_reg, reg)
+        if isinstance(arg, SampledSpec):
+            n = len(arg.value.samples)
+            code2 = arg.store_attr(cgen, asm_path, src_reg, reg, n)
+        else:
+            code2 = arg.store_attr(cgen, asm_path, src_reg, reg)
         cgen.release_reg(src_reg)
         return code1 + code2
 
@@ -1050,7 +1055,6 @@ class RGBSpec(Argument):
 
     def store_cmd(self, cgen, reg):
         check_ptr_reg(cgen, reg)
-        code = ''
         path = "Spectrum.values"
         code1, src_reg, typ1 = Vec4.load_attr(cgen, path, reg)
         code2, ptr_reg, typ2 = self.load_cmd(cgen)
@@ -1059,6 +1063,18 @@ class RGBSpec(Argument):
         cgen.release_reg(src_reg)
         cgen.release_reg(ptr_reg)
         return code
+
+    @classmethod
+    def store_attr(cls, cgen, path, ptr_reg, reg):
+        check_ptr_reg(cgen, ptr_reg)
+        check_ptr_reg(cgen, reg)
+
+        path1 = "Spectrum.values"
+        code1, src_reg, typ1 = Vec4.load_attr(cgen, path1, reg)
+        path2 = path + ".values"
+        code2 = Vec4.store_attr(cgen, path2, ptr_reg, src_reg)
+        cgen.release_reg(src_reg)
+        return code1 + code2
 
     def _set_value(self, value):
         assert isinstance(value, RGBSpectrum)
@@ -1087,6 +1103,74 @@ class RGBSpec(Argument):
         else:
             val = ds[idx_thread][path + ".values"]
         return RGBSpectrum(val[0], val[1], val[2])
+
+    @classmethod
+    def supported(cls, operator, typ):
+        if operator == '*':
+            if typ == Integer or typ == Float or typ == cls:
+                return True
+        if operator not in ('+', '-', '/', '*'):
+            return False
+        if typ != RGBSpec:
+            return False
+        return True
+
+    @classmethod
+    def _conv(cls, cgen, reg2, typ2, operator):
+        code = ''
+        xmm = reg2
+        if typ2 == Integer and operator == '*':
+            xmm = cgen.register(typ="xmm")
+            code += conv_int_to_float(cgen, reg2, xmm)
+            typ2 = Float
+
+        if typ2 == Float and operator == '*':
+            if cgen.AVX: #vblends maybe is faster investigate TODO
+                code += "vshufps %s, %s, %s, 0x00\n" % (xmm, xmm, xmm)
+                #TODO ymm registar not just xmm for SampledSpec
+            else:
+                code += "shufps %s, %s, 0x00\n" % (xmm, xmm)
+        return code, xmm
+
+    @classmethod
+    def _arith_cmd(cls, cgen, reg1, reg2, typ2, operator, swap=False):
+        if not cls.supported(operator, typ2):
+            raise ValueError('This type or arithmetic operation is not allowed', typ2, operator)
+        check_ptr_reg(cgen, reg1)
+
+        path = "Spectrum.values"
+        code1, xmm1, dummy = Vec4.load_attr(cgen, path, reg1)
+        if typ2 == Integer or typ2 == Float:
+            #NOTE FIXME memory leak if argument is Integer
+            code2, xmm2 = cls._conv(cgen, reg2, typ2, operator)
+        else:
+            code2, xmm2, dummy = Vec4.load_attr(cgen, path, reg2)
+
+        ops_avx = {'+': 'vaddps', '-': 'vsubps', '*': 'vmulps', '/': 'vdivps'}
+        ops = {'+': 'addps', '-': 'subps', '*': 'mulps', '/': 'divps'}
+        if swap:
+            xmm1, xmm2 = xmm2, xmm1
+        if cgen.AVX:
+            code3 = "%s %s, %s, %s \n" % (ops_avx[operator], xmm1, xmm1, xmm2)
+        else:
+            code3 = "%s %s, %s \n" % (ops[operator], xmm1, xmm2)
+        cgen.release_reg(xmm1)
+        if typ2 == cls:
+            cgen.release_reg(xmm2)
+
+        tmp_arg = cgen.create_tmp_spec()
+        code4, reg3, RGBSpec = tmp_arg.load_cmd(cgen)
+        code5 = Vec4.store_attr(cgen, path, reg3, xmm1)
+        code = code1 + code2 + code3 + code4 + code5
+        return code, reg3, RGBSpec
+
+    @classmethod
+    def arith_cmd(cls, cgen, reg1, reg2, typ2, operator):
+        return cls._arith_cmd(cgen, reg1, reg2, typ2, operator, False)
+
+    @classmethod
+    def rev_arith_cmd(cls, cgen, reg1, reg2, typ2, operator):
+        return cls._arith_cmd(cgen, reg1, reg2, typ2, operator, True)
 
 class SampledSpec(Argument):
     def __init__(self, name, spectrum):
@@ -1121,13 +1205,22 @@ class SampledSpec(Argument):
 
     def store_cmd(self, cgen, reg):
         check_ptr_reg(cgen, reg)
-        code = ''
         path = "Spectrum.values"
         code1, dst_reg, typ1 = self.load_cmd(cgen)
         n = len(self._value.samples)
         code2 = copy_values(cgen, reg, dst_reg, n, path, path)
         cgen.release_reg(dst_reg)
         code = code1 + code2
+        return code
+
+    @classmethod
+    def store_attr(cls, cgen, path, ptr_reg, reg, n):
+        check_ptr_reg(cgen, ptr_reg)
+        check_ptr_reg(cgen, reg)
+
+        src_path = "Spectrum.values"
+        dst_path = path + ".values"
+        code = copy_values(cgen, reg, ptr_reg, n, src_path, dst_path)
         return code
 
     def _set_value(self, value):
@@ -1157,6 +1250,17 @@ class SampledSpec(Argument):
         else:
             val = ds[idx_thread][path + ".values"]
         return SampledSpectrum(val)
+
+    @classmethod
+    def supported(cls, operator, typ):
+        if operator == '*':
+            if typ == Integer or typ == Float or typ == cls:
+                return True
+        if operator not in ('+', '-', '/', '*'):
+            return False
+        if typ != SampledSpec:
+            return False
+        return True
 
 #TODO implement locking of map and list???-think
 class ArgumentList:

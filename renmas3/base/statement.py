@@ -1,7 +1,7 @@
 import platform
 from .arg import Integer, Float, Vec3, Vec2, Vec4, Struct, Attribute, Operation
 from .arg import Operations, Callable, Name, Subscript, Const, EmptyOperand
-from .arg import conv_int_to_float
+from .arg import conv_int_to_float, SampledSpec
 from .cgen import register_function
 
 from .instr import load_operand, store_operand

@@ -274,10 +274,7 @@ class CodeGenerator:
 
         self._constants = {}
         self._ret_type = None
-        code = ''
-        for s in self._statements:
-            self.clear_regs()
-            code += s.asm_code(self)
+        code = ''.join(self.inst_code(s) for s in self._statements)
         data = self._generate_data_section() + '\n'
         data = "\n#DATA \n" + data + "#CODE \n"
         glo = ''
@@ -288,6 +285,11 @@ class CodeGenerator:
             return data + code + 'ret\n'
         else:
             return data + code + '#END \n'
+
+    def inst_code(self, stm):
+        self.clear_regs()
+        self._free_tmp_specs()
+        return stm.asm_code(self)
 
     def create_shader(self):
         code = self.generate_code()
@@ -407,6 +409,11 @@ class CodeGenerator:
         arg = type(self._spec_arg)(self._generate_name('local'), s)
         return arg
 
+    def nsamples(self):
+        if self._spec_arg is None:
+            raise ValueError("SampledSpec argument is missing! Color manager!")
+        return len(self._spec_arg.value.samples)
+
     def get_shader(self, name):
         for shader in self._shaders:
             if name == shader.name:
@@ -464,7 +471,6 @@ class CodeGenerator:
         self._xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
         self._general = ['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
         self._general64 = ['rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax']
-        self._free_tmp_specs()
 
     def add_asm_function(self, label, code):
         #TODO --- code can also be callable

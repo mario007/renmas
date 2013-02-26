@@ -28,76 +28,131 @@ def check_ptr_reg(cgen, ptr_reg):
     if not cgen.BIT64 and cgen.regs.is_reg64(ptr_reg):
         raise ValueError("Pointer register must be 32-bit!", ptr_reg)
 
-def _copy_values_avx(cgen, src_reg, dst_reg, n, src_path, dst_path):
-    def _load_xmms(offset, nregs):
+def _load_xmms(cgen, offset, nregs, reg, path, ignore=[]):
+    if cgen.AVX:
         code = ''
         _xmm = ['ymm7', 'ymm6', 'ymm5', 'ymm4', 'ymm3', 'ymm2', 'ymm1', 'ymm0']
+        for r in ignore:
+            _xmm.remove(r)
         xmms = []
         for i in range(nregs):
             xmm = _xmm.pop()
-            code += "vmovaps %s, yword[%s + %s + %i] \n"  % (xmm, src_reg, src_path, offset)
+            code += "vmovaps %s, yword[%s + %s + %i] \n"  % (xmm, reg, path, offset)
             xmms.append(xmm)
             offset += 32
         return code, xmms
-
-    def _store_xmms(xmms, offset):
-        code = ''
-        for xmm in xmms:
-            code += "vmovaps yword[%s + %s + %i], %s\n"  % (dst_reg, dst_path, offset, xmm)
-            offset += 32
-        return code
-
-    rounds = n // 8
-    nrounds = 0
-    code = ""
-    while rounds > 0:
-        nregs = 8 if rounds > 8 else rounds
-        code1, xmms= _load_xmms(nrounds * 32, nregs)
-        code2 = _store_xmms(xmms, nrounds * 32) 
-        code += code1 + code2
-        rounds -= 8
-        nrounds += 8
-    return code
-
-def _copy_values_sse(cgen, src_reg, dst_reg, n, src_path, dst_path):
-    def _load_xmms(offset, nregs):
+    else:
         code = ''
         _xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
+        for r in ignore:
+            _xmm.remove(r)
         xmms = []
         for i in range(nregs):
             xmm = _xmm.pop()
-            code += "movaps %s, oword[%s + %s + %i] \n"  % (xmm, src_reg, src_path, offset)
+            code += "movaps %s, oword[%s + %s + %i] \n"  % (xmm, reg, path, offset)
             xmms.append(xmm)
             offset += 16
         return code, xmms
 
-    def _store_xmms(xmms, offset):
+def _store_xmms(cgen, xmms, offset, reg, path):
+    if cgen.AVX:
         code = ''
         for xmm in xmms:
-            code += "movaps oword[%s + %s + %i], %s\n"  % (dst_reg, dst_path, offset, xmm)
+            code += "vmovaps yword[%s + %s + %i], %s\n"  % (reg, path, offset, xmm)
+            offset += 32
+        return code
+    else:
+        code = ''
+        for xmm in xmms:
+            code += "movaps oword[%s + %s + %i], %s\n"  % (reg, path, offset, xmm)
             offset += 16
         return code
 
-    rounds = n // 4
-    nrounds = 0
-    code = ""
-    while rounds > 0:
-        nregs = 8 if rounds > 8 else rounds
-        code1, xmms= _load_xmms(nrounds * 16, nregs)
-        code2 = _store_xmms(xmms, nrounds * 16) 
-        code += code1 + code2
-        rounds -= 8
-        nrounds += 8
-    return code
+def _arithmetic(cgen, xmms, offset, reg, path, operator):
+    if cgen.AVX:
+        ops = {'+': 'vaddps', '-': 'vsubps', '*': 'vmulps', '/': 'vdivps'}
+        code = ''
+        for xmm in xmms:
+            code += "%s %s, yword[%s + %s + %i]\n"  % (ops[operator], xmm, reg, path, offset)
+            offset += 32
+        return code
+    else:
+        ops = {'+': 'addps', '-': 'subps', '*': 'mulps', '/': 'divps'}
+        code = ''
+        for xmm in xmms:
+            code += "%s %s, oword[%s + %s + %i]\n"  % (ops[operator], xmm, reg, path, offset)
+            offset += 16 
+        return code
 
 def copy_values(cgen, src_reg, dst_reg, n, src_path, dst_path):
     #NOTE n must be divisible by 8
-    check_ptr_reg(cgen, src_reg)
-    check_ptr_reg(cgen, dst_reg)
+
     if cgen.AVX:
-        return _copy_values_avx(cgen, src_reg, dst_reg, n, src_path, dst_path)
+        rounds, WIDTH = n // 8, 32 
     else:
-        return _copy_values_sse(cgen, src_reg, dst_reg, n, src_path, dst_path)
+        rounds, WIDTH = n // 4, 16  
+    nrounds = 0
+    code = ""
+    path = "Spectrum.values"
+    while rounds > 0:
+        nregs = 8 if rounds > 8 else rounds
+        code1, xmms= _load_xmms(cgen, nrounds * WIDTH, nregs, src_reg, src_path)
+        code2 = _store_xmms(cgen, xmms, nrounds * WIDTH, dst_reg, dst_path) 
+        code += code1 + code2
+        rounds -= 8
+        nrounds += 8
+    return code
+
+def arith_sampled(cgen, src1, src2, dst, n, operator):
+
+    if cgen.AVX:
+        rounds, WIDTH = n // 8, 32 
+    else:
+        rounds, WIDTH = n // 4, 16  
+    nrounds = 0
+    code = ""
+    path = "Spectrum.values"
+    while rounds > 0:
+        nregs = 8 if rounds > 8 else rounds
+        code1, xmms= _load_xmms(cgen, nrounds * WIDTH, nregs, src1, path)
+        code2 = _arithmetic(cgen, xmms, nrounds * WIDTH, src2, path, operator)
+        code3 = _store_xmms(cgen, xmms, nrounds * WIDTH, dst, path) 
+        code += code1 + code2 + code3
+        rounds -= 8
+        nrounds += 8
+    return code
+
+def arith_sampled_mult(cgen, src, dst, xmm, n): # '*' implied
+    def _arithmetic(xmms, src_xmm):
+        code = ''
+        if cgen.AVX:
+            for xmm in xmms:
+                code += "vmulps %s, %s, %s\n" % (xmm, xmm, src_xmm)
+            return code
+        else:
+            for xmm in xmms:
+                code += "mulps %s, %s\n" % (xmm, src_xmm)
+            return code
+
+    if cgen.AVX:
+        rounds, WIDTH = n // 8, 32 
+    else:
+        rounds, WIDTH = n // 4, 16  
+    nrounds = 0
+    code = ""
+    path = "Spectrum.values"
+    if cgen.AVX:
+        xmm = "y" + xmm[1:]
+        code += "vperm2f128 %s, %s, %s, 0x00 \n" % (xmm, xmm, xmm)
+    while rounds > 0:
+        nregs = 7 if rounds > 7 else rounds
+        code1, xmms= _load_xmms(cgen, nrounds * WIDTH, nregs, src, path, [xmm])
+        code2 = _arithmetic(xmms, xmm)
+        code3 = _store_xmms(cgen, xmms, nrounds * WIDTH, dst, path) 
+        code += code1 + code2 + code3
+        rounds -= 7
+        nrounds += 7
+    return code
 
 class Argument:
     """
@@ -122,13 +177,11 @@ class Argument:
         """Generate code for local variable in #DATA section."""
         raise NotImplementedError()
 
-    @classmethod
-    def load_cmd(cls, cgen, name, reg=None, path=None, ptr_reg=None, offset=None):
+    def load_cmd(self, cgen, dest_reg=None):
         """Generate code that load number from memory location to register."""
         raise NotImplementedError()
 
-    @classmethod
-    def store_cmd(cls, cgen, reg, name, path=None, ptr_reg=None, offset=None):
+    def store_cmd(self, cgen, reg):
         """Generate code that store number from register to memory location."""
         raise NotImplementedError()
 
@@ -942,11 +995,7 @@ class Struct(Argument):
         code1, src_reg, type1 = self.load_cmd(cgen)
 
         asm_path = "%s.%s" %(self.typ.typ, path)
-        if isinstance(arg, SampledSpec):
-            n = len(arg.value.samples)
-            code2 = arg.store_attr(cgen, asm_path, src_reg, reg, n)
-        else:
-            code2 = arg.store_attr(cgen, asm_path, src_reg, reg)
+        code2 = arg.store_attr(cgen, asm_path, src_reg, reg)
         cgen.release_reg(src_reg)
         return code1 + code2
 
@@ -1127,7 +1176,6 @@ class RGBSpec(Argument):
         if typ2 == Float and operator == '*':
             if cgen.AVX: #vblends maybe is faster investigate TODO
                 code += "vshufps %s, %s, %s, 0x00\n" % (xmm, xmm, xmm)
-                #TODO ymm registar not just xmm for SampledSpec
             else:
                 code += "shufps %s, %s, 0x00\n" % (xmm, xmm)
         return code, xmm
@@ -1141,7 +1189,6 @@ class RGBSpec(Argument):
         path = "Spectrum.values"
         code1, xmm1, dummy = Vec4.load_attr(cgen, path, reg1)
         if typ2 == Integer or typ2 == Float:
-            #NOTE FIXME memory leak if argument is Integer
             code2, xmm2 = cls._conv(cgen, reg2, typ2, operator)
         else:
             code2, xmm2, dummy = Vec4.load_attr(cgen, path, reg2)
@@ -1154,14 +1201,21 @@ class RGBSpec(Argument):
             code3 = "%s %s, %s, %s \n" % (ops_avx[operator], xmm1, xmm1, xmm2)
         else:
             code3 = "%s %s, %s \n" % (ops[operator], xmm1, xmm2)
-        cgen.release_reg(xmm1)
-        if typ2 == cls:
-            cgen.release_reg(xmm2)
-
         tmp_arg = cgen.create_tmp_spec()
-        code4, reg3, RGBSpec = tmp_arg.load_cmd(cgen)
+        code4, reg3, typ3 = tmp_arg.load_cmd(cgen)
         code5 = Vec4.store_attr(cgen, path, reg3, xmm1)
         code = code1 + code2 + code3 + code4 + code5
+
+        #relase locally alocated registers
+        if swap:
+            cgen.release_reg(xmm2)
+            if typ2 == cls or reg2 != xmm1:
+                cgen.release_reg(xmm1)
+        else:
+            cgen.release_reg(xmm1)
+            if typ2 == cls or reg2 != xmm2:
+                cgen.release_reg(xmm2)
+
         return code, reg3, RGBSpec
 
     @classmethod
@@ -1214,12 +1268,13 @@ class SampledSpec(Argument):
         return code
 
     @classmethod
-    def store_attr(cls, cgen, path, ptr_reg, reg, n):
+    def store_attr(cls, cgen, path, ptr_reg, reg):
         check_ptr_reg(cgen, ptr_reg)
         check_ptr_reg(cgen, reg)
 
         src_path = "Spectrum.values"
         dst_path = path + ".values"
+        n = cgen.nsamples()
         code = copy_values(cgen, reg, ptr_reg, n, src_path, dst_path)
         return code
 
@@ -1261,6 +1316,50 @@ class SampledSpec(Argument):
         if typ != SampledSpec:
             return False
         return True
+
+    @classmethod
+    def _conv(cls, cgen, reg2, typ2, operator):
+        code = ''
+        xmm = reg2
+        if typ2 == Integer and operator == '*':
+            xmm = cgen.register(typ="xmm")
+            code += conv_int_to_float(cgen, reg2, xmm)
+            typ2 = Float
+
+        if typ2 == Float and operator == '*':
+            if cgen.AVX: #vblends maybe is faster investigate TODO
+                code += "vshufps %s, %s, %s, 0x00\n" % (xmm, xmm, xmm)
+                #TODO ymm registar not just xmm for SampledSpec
+            else:
+                code += "shufps %s, %s, 0x00\n" % (xmm, xmm)
+        return code, xmm
+
+    @classmethod
+    def arith_cmd(cls, cgen, reg1, reg2, typ2, operator):
+        if not cls.supported(operator, typ2):
+            raise ValueError('This type or arithmetic operation is not allowed', typ2, operator)
+        check_ptr_reg(cgen, reg1)
+
+        tmp_arg = cgen.create_tmp_spec()
+        n = len(tmp_arg.value.samples)
+        code, reg3, typ3 = tmp_arg.load_cmd(cgen)
+        if typ2 == Integer or typ2 == Float:
+            code2, xmm = cls._conv(cgen, reg2, typ2, operator)
+            code3 = arith_sampled_mult(cgen, reg1, reg3, xmm, n) # '*' implied
+            if xmm != reg2:
+                cgen.release_reg(xmm)
+            code = code + code2 + code3
+            return code, reg3, SampledSpec
+        else:
+            code2 = arith_sampled(cgen, reg1, reg2, reg3, n, operator)
+            return code + code2, reg3, SampledSpec
+
+    @classmethod
+    def rev_arith_cmd(cls, cgen, reg1, reg2, typ2, operator):
+        if typ2 == cls:
+            return SampledSpec.arith_cmd(cgen, reg2, reg1, typ2, operator)
+        #NOTE we can do this because for integer and float only '*' is defined
+        return SampledSpec.arith_cmd(cgen, reg1, reg2, typ2, operator)
 
 #TODO implement locking of map and list???-think
 class ArgumentList:

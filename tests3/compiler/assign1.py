@@ -84,7 +84,6 @@ k = m1
         register_user_type(Point)
         p1 = Point(33, 77, 99, 3.5, Vector3(2.2, 4.4, 7.7), 
                 Vector2(3.3, 5.5), Vector4(1.1, 2.2, 3.3, 4.4))
-
         code = """
 idx = p1.idx
 p1.x = 55
@@ -96,7 +95,6 @@ g = (4,5,6)
 p1.position = g
 p1.size = (6,7)
 p1.pp = (8,1,3,4)
-
 
         """
         props = {'p1': p1, 'idx': 44}

@@ -110,16 +110,23 @@ def process_operation(cgen, operation, stack=[]):
     else:
         raise ValueError("Operation is wrong!", operation)
 
+    xmms = []
+    #NOTE We save xmm registers because SampledSpec uses all xmm registers for arithmetic
+    if typ is SampledSpec or typ2 is SampledSpec:
+        xmms = [r for r, t in stack if cgen.is_xmm(r)]
+
+    sregs = cgen.save_regs(xmms)
     if typ.supported(operation.operator, typ2):
         code3, reg3, typ3 = typ.arith_cmd(cgen, reg, reg2, typ2, operation.operator)
     elif typ2.supported(operation.operator, typ):
         code3, reg3, typ3 = typ2.rev_arith_cmd(cgen, reg2, reg, typ, operation.operator)
     else:
         raise ValueError("Operation not suported", reg, typ, operation.operator, reg2, typ2)
+    lregs = cgen.load_regs(xmms)
 
     release_free_reg(reg3, reg, reg2)
     stack.append((reg3, typ3))
-    return code + code3, reg3, typ3
+    return code + sregs + code3 + lregs, reg3, typ3
 
 def process_expression(cgen, expr, unary=None):
     if not isinstance(expr, Operations):
@@ -283,17 +290,12 @@ class StmIf(Statement):
             code = generate_test(orelse_label, cgen, self.test)
         else:
             code = generate_test(if_label, cgen, self.test)
-
-        for i in self.body:
-            cgen.clear_regs()
-            code += i.asm_code(cgen)
+        code += ''.join(cgen.inst_code(i) for i in self.body)
 
         if self.orelse is not None:
             code += "jmp %s\n" % endif_label
             code += "%s:\n" % orelse_label
-            for i in self.orelse:
-                cgen.clear_regs()
-                code += i.asm_code(cgen)
+            code += ''.join(cgen.inst_code(i) for i in self.orelse)
             code += "%s:\n" % endif_label
         else:
             code += "%s:\n" % if_label
@@ -320,9 +322,7 @@ class StmWhile(Statement):
 
         code = "%s:\n" % begin_label
         code += generate_test(end_label, cgen, self.test)
-        for i in self.body:
-            cgen.clear_regs()
-            code += i.asm_code(cgen)
+        code += ''.join(cgen.inst_code(i) for i in self.body)
         code += "jmp %s\n" % begin_label
         code += "%s:\n" % end_label
         return code

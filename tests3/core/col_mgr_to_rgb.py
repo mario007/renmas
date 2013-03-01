@@ -2,7 +2,8 @@
 import unittest
 from random import random
 from tdasm import Runtime
-from renmas3.core import ColorManager
+from renmas3.base import ColorManager
+from renmas3.macros import create_assembler
 
 
 class SpectrumToRGBTest(unittest.TestCase):
@@ -31,7 +32,7 @@ class SpectrumToRGBTest(unittest.TestCase):
         mgr.to_RGB_asm([runtime])
         spec1 = mgr.create_spectrum((0.66,0.88, 0.11))
 
-        mc = mgr.assembler.assemble(self.asm_code1(mgr))
+        mc = create_assembler().assemble(self.asm_code1(mgr))
         ds = runtime.load("test", mc)
         ds["sp1.values"] = spec1.to_ds()
         runtime.run("test")
@@ -39,9 +40,9 @@ class SpectrumToRGBTest(unittest.TestCase):
         rgb = mgr.to_RGB(spec1)
         rgb2 = ds['rgb']
 
-        self.assertAlmostEqual(rgb[0], rgb2[0], 4)
-        self.assertAlmostEqual(rgb[1], rgb2[1], 4)
-        self.assertAlmostEqual(rgb[2], rgb2[2], 4)
+        self.assertAlmostEqual(rgb.r, rgb2[0], 4)
+        self.assertAlmostEqual(rgb.g, rgb2[1], 4)
+        self.assertAlmostEqual(rgb.b, rgb2[2], 4)
 
     def test_spectrum_to_rgb2(self):
         mgr = ColorManager()
@@ -50,7 +51,7 @@ class SpectrumToRGBTest(unittest.TestCase):
         mgr.to_RGB_asm([runtime])
         spec1 = mgr.create_spectrum((0.66,0.88, 0.11))
 
-        mc = mgr.assembler.assemble(self.asm_code1(mgr))
+        mc = create_assembler().assemble(self.asm_code1(mgr))
         ds = runtime.load("test", mc)
         ds["sp1.values"] = spec1.to_ds()
         runtime.run("test")
@@ -58,9 +59,9 @@ class SpectrumToRGBTest(unittest.TestCase):
         rgb = mgr.to_RGB(spec1)
         rgb2 = ds['rgb']
 
-        self.assertAlmostEqual(rgb[0], rgb2[0], 4)
-        self.assertAlmostEqual(rgb[1], rgb2[1], 4)
-        self.assertAlmostEqual(rgb[2], rgb2[2], 4)
+        self.assertAlmostEqual(rgb.r, rgb2[0], 4)
+        self.assertAlmostEqual(rgb.g, rgb2[1], 4)
+        self.assertAlmostEqual(rgb.b, rgb2[2], 4)
 
 
 if __name__ == "__main__":

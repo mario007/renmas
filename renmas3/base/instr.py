@@ -39,6 +39,12 @@ def load_struct_ptr(cgen, attr, reg=None):
         path = arg.typ.typ + "." + path
     return (code, reg, path)
 
+def extract_index(index):
+    if not isinstance(index, Const):
+        raise ValueError("Only constant index for now!")
+    if not isinstance(index.const, int):
+        raise ValueError("Index must be integer constant!")
+    return index.const
 
 def load_operand(cgen, op, dest_reg=None, ptr_reg=None):
     if isinstance(op, Const):
@@ -55,9 +61,10 @@ def load_operand(cgen, op, dest_reg=None, ptr_reg=None):
         return arg.load_attr_cmd(cgen, op.path, dest_reg, ptr_reg)
     elif isinstance(op, Subscript):
         if op.path is not None and isinstance(arg, Struct):
+            #NOTE this is note yet implemented!!!!!
             return arg.load_subscript(cgen, op.path, op.index, dest_reg, ptr_reg)
         elif op.path is None:
-            return arg.load_subscript(cgen, op.index, dest_reg)
+            return arg.load_subscript(cgen, extract_index(op.index), dest_reg)
         else:
             raise ValueError("Can't load operand!", op, arg)
     else:
@@ -86,6 +93,13 @@ def store_operand(cgen, dest, reg, typ):
         if type(arg) != typ:
             raise ValueError("Type mismatch, cannot store operand", type(arg), typ)
         code += dst_arg.store_attr_cmd(cgen, dest.path, reg)
+    elif isinstance(dest, Subscript):
+        if not arg.item_supported(typ):
+            raise ValueError("Argument doesn't support that item type!", arg, typ)
+        if dest.path is None:
+            code += arg.store_subscript(cgen, reg, typ, extract_index(dest.index))
+        else:
+            raise ValueError("Subscript attribut is not yet implemented!")
     else:
         raise ValueError("Unknown type of destination.", dest)
     return code

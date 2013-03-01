@@ -312,10 +312,8 @@ class CodeGenerator:
 
     def get_arg(self, src):
         arg = None
-        if isinstance(src, Attribute):
+        if isinstance(src, (Attribute, Name, Subscript)):
             name = src.name
-        elif isinstance(src, Name):
-            name = src.name 
         else:
             name = src
 
@@ -370,6 +368,10 @@ class CodeGenerator:
             if arg is not None:
                 return arg
             raise ValueError("Cannot create local argument for attribut!")
+        if isinstance(dest, Subscript):
+            if arg is not None:
+                return arg
+            raise ValueError("Cannot create local argument for subscript!")
 
         if isinstance(value, str): # a = b --- create argument a that have same type as b
             arg2 = self.get_arg(value)

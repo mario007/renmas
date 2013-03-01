@@ -17,6 +17,7 @@ from .spectrum import RGBSpectrum, SampledSpectrum, Spectrum
 from .shader import Shader, BaseShader
 
 from .built_ins import * #solve this TODO
+from .col_mgr import ColorManager
 
 from .load_image import load_image
 

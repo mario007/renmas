@@ -2,7 +2,8 @@
 import unittest
 from random import random
 from tdasm import Runtime
-from renmas3.core import ColorManager
+from renmas3.base import ColorManager
+from renmas3.macros import create_assembler
 
 
 class LumminanceTest(unittest.TestCase):
@@ -31,7 +32,7 @@ class LumminanceTest(unittest.TestCase):
         mgr.Y_asm([runtime])
         spec1 = mgr.create_spectrum((0.66,0.88, 0.11))
 
-        mc = mgr.assembler.assemble(self.asm_code1(mgr))
+        mc = create_assembler().assemble(self.asm_code1(mgr))
         ds = runtime.load("test", mc)
         ds["sp1.values"] = spec1.to_ds()
         runtime.run("test")
@@ -45,7 +46,7 @@ class LumminanceTest(unittest.TestCase):
         mgr.Y_asm([runtime])
         spec1 = mgr.create_spectrum((0.66,0.88, 0.11))
 
-        mc = mgr.assembler.assemble(self.asm_code1(mgr))
+        mc = create_assembler().assemble(self.asm_code1(mgr))
         #mc.print_machine_code()
         ds = runtime.load("test", mc)
         ds["sp1.values"] = spec1.to_ds()

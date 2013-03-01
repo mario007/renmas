@@ -78,8 +78,26 @@ def make_name(obj):
         return Attribute(name, path)
     elif isinstance(obj, ast.Name):
         return Name(obj.id)
+    elif isinstance(obj, ast.Subscript):
+        return extract_subscript(obj)
     else:
         raise ValueError("Unsuported source")
+
+def extract_subscript(obj):
+    if not isinstance(obj, ast.Subscript):
+        raise ValueError("Object is not subscript")
+    path = None
+    if isinstance(obj.value, ast.Name):
+        name = obj.value.id
+    elif isinstance(obj.value, ast.Attribute):
+        name, path = extract_path(obj.value)
+    else:
+        raise ValueError("Not suported name(attribute) in subscript!")
+    if isinstance(obj.slice.value, ast.Num):
+        index = Const(obj.slice.value.n)
+    else:
+        raise ValueError("Only constants for now in subscript TODO rest!")
+    return Subscript(name, index, path)
 
 def extract_operand(obj):
     if isinstance(obj, ast.UnaryOp):
@@ -101,6 +119,8 @@ def extract_operand(obj):
     elif isinstance(obj, ast.Attribute):
         src, src_path = extract_path(obj)
         return Attribute(src, src_path)
+    elif isinstance(obj, ast.Subscript):
+        return extract_subscript(obj)
     elif isinstance(obj, ast.Call):
         func = obj.func.id
         args = []
@@ -258,7 +278,7 @@ class Parser:
             op.const = unary_number(op.const, unary)
             unary = None
         for t in targets:
-            if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
+            if isinstance(t, (ast.Attribute, ast.Name, ast.Subscript)):
                 return StmAssign(make_name(t), op, unary)
             else:
                 raise ValueError("Unknown target", t)
@@ -266,7 +286,7 @@ class Parser:
     def _binary_operation(self, targets, obj, unary=None):
         expr = parse_arithmetic(obj, [])
         for t in targets:
-            if isinstance(t, ast.Attribute) or isinstance(t, ast.Name):
+            if isinstance(t, (ast.Attribute, ast.Name, ast.Subscript)):
                 return StmAssign(make_name(t), Operations(expr), unary)
             else:
                 raise ValueError("Unknown target", t)
@@ -287,7 +307,7 @@ class Parser:
         elif isinstance(assign.value, ast.Call):
             return self._simple_assigments(assign.targets, assign.value)
         elif isinstance(assign.value, ast.Subscript):
-            raise ValueError('Subscript assign', assign.value)
+            return self._simple_assigments(assign.targets, assign.value)
         elif isinstance(assign.value, ast.Tuple):
             return self._simple_assigments(assign.targets, assign.value)
         elif isinstance(assign.value, ast.List):

@@ -205,6 +205,10 @@ class Argument:
         """Return true if arithmetic with specified type is suppored."""
         raise NotImplementedError()
 
+    @classmethod
+    def item_supported(cls, typ):
+        return False
+
 class Integer(Argument):
 
     def __init__(self, name, value=0):
@@ -318,6 +322,46 @@ class Integer(Argument):
 
     @classmethod
     def _arith_div(cls, cgen, reg1, reg2, operator):
+        if cgen.BIT64:
+            return cls._arith_div64(cgen, reg1, reg2, operator)
+        else:
+            return cls._arith_div32(cgen, reg1, reg2, operator)
+
+
+    @classmethod
+    def _arith_div64(cls, cgen, reg1, reg2, operator):
+        epilog = """
+        push rax
+        push rdx
+        push rsi
+        """
+        line1 = "mov eax, %s\n" % reg1
+        line2 = "mov esi, %s\n" % reg2
+        line3 = "xor edx, edx\n"
+        line4 = "idiv esi\n"
+        line5 = "pop rsi\n"
+        if operator == '/':
+            line6 = "pop rdx\n"
+            line7 = "mov %s, eax\n" % reg1
+            if reg1 == 'eax':
+                line8 = "add rsp, 8\n"
+            else:
+                line8 = "pop rax\n"
+        else:
+            line6 = "mov %s, edx\n" % reg1
+            if reg1 == 'edx':
+                line7 = "add rsp, 8\n"
+            else:
+                line7 = "pop rdx\n"
+            if reg1 == 'eax':
+                line8 = "add rsp, 8\n"
+            else:
+                line8 = "pop rax\n"
+        code = epilog + line1 + line2 + line3 + line4 + line5 + line6 + line7 + line8
+        return code, reg1
+
+    @classmethod
+    def _arith_div32(cls, cgen, reg1, reg2, operator):
         epilog = """
         push eax
         push edx
@@ -534,11 +578,43 @@ class _Vec234(Argument):
             code = "movaps oword [%s + %s], %s\n" % (ptr_reg, path, xmm)
         return code
 
-    def load_subscript(self, cgen, index, dest_reg=None):
-        pass
+    def index_in_range(self, index):
+        raise NotImplementedError()
 
-    def store_subscript(self, cgen, index, src_reg):
-        pass
+    def load_subscript(self, cgen, index, dest_reg=None):
+        #NOTE Only consts for index TODO for name, attribute etc.
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='xmm')
+        if not cgen.regs.is_xmm(dest_reg):
+            raise ValueError("Destination register must be xmm register!", dest_reg)
+        if not self.index_in_range(index):
+            raise ValueError("Index is out of allowed range!", self, index)
+        offset = index * 4
+        if cgen.AVX:
+            code = "vmovss %s, dword [%s + %i] \n" % (dest_reg, self.name, offset)
+        else:
+            code = "movss %s, dword [%s + %i] \n" % (dest_reg, self.name, offset)
+        return code, dest_reg, Float
+
+    def store_subscript(self, cgen, reg, typ, index):
+        xmm = reg
+        code = ''
+        if typ == Integer:
+            xmm = cgen.register(typ="xmm")
+            code += conv_int_to_float(cgen, reg, xmm)
+
+        if not cgen.regs.is_xmm(xmm):
+            raise ValueError("xmm register is expected!", xmm)
+        if not self.index_in_range(index):
+            raise ValueError("Index is out of allowed range!", self, index)
+        offset = 4 * index
+        if cgen.AVX:
+            code += "vmovss dword [%s + %i], %s \n" % (self.name, offset, xmm)
+        else:
+            code += "movss dword [%s + %i], %s \n" % (self.name, offset, xmm)
+        if xmm != reg:
+            cgen.release_reg(xmm)
+        return code
 
     @classmethod
     def neg_cmd(cls, cgen, xmm):
@@ -611,6 +687,12 @@ class _Vec234(Argument):
 
         return code + code3, reg3, typ3
 
+    @classmethod
+    def item_supported(cls, typ):
+        if typ == Integer or typ == Float:
+            return True
+        return False
+
 class Vec2(_Vec234):
     def __init__(self, name, value=Vector2(0.0, 0.0)):
         super(Vec2, self).__init__(name)
@@ -666,6 +748,11 @@ class Vec2(_Vec234):
         fl = float2hex(float(const[1]))
         line2 = "mov dword [%s + %s + 4], %s ;float value = %f \n" % (ptr_reg, path, fl, const[1])
         return line1 + line2
+
+    def index_in_range(self, index):
+        if index != 0 and index != 1:
+            return False
+        return True
 
 class Vec3(_Vec234):
     def __init__(self, name, value=Vector3(0.0, 0.0, 0.0)):
@@ -726,6 +813,11 @@ class Vec3(_Vec234):
         fl = float2hex(float(const[2]))
         line3 = "mov dword [%s + %s + 8], %s ;float value = %f \n" % (ptr_reg, path, fl, const[2])
         return line1 + line2 + line3
+
+    def index_in_range(self, index):
+        if index >= 0 and index <= 2:
+            return True
+        return False
 
 class Vec4(_Vec234):
     def __init__(self, name, value=Vector4(0.0, 0.0, 0.0, 0.0)):
@@ -790,6 +882,11 @@ class Vec4(_Vec234):
         fl = float2hex(float(const[3]))
         line4 = "mov dword [%s + %s + 12], %s ;float value = %f \n" % (ptr_reg, path, fl, const[3])
         return line1 + line2 + line3 + line4
+
+    def index_in_range(self, index):
+        if index >= 0 and index <= 3:
+            return True
+        return False
 
 class _Vec234I(Argument):
     pass

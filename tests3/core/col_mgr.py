@@ -1,5 +1,5 @@
 import time
-from renmas3.core import ColorManager
+from renmas3.base import ColorManager
 
 start = time.clock()
 mgr = ColorManager()

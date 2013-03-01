@@ -19,7 +19,6 @@ class MacroCall:
         
         self._compiled_code = {} # compiled functions 
         self._funcs_to_load = [] # lazy loading of functions
-        self._color_mgr = None 
 
         self._runtimes = None
         self.assembler = create_assembler()
@@ -86,14 +85,8 @@ class MacroCall:
         elif func_name in self.functions:
             self._load_func(func_name)
             return 'call ' + func_name
-        elif func_name in ('XYZ_to_RGB', 'lumminance', 'spectrum_to_rgb'):
-            self._load_spectrum_func(func_name)
-            return 'call ' + func_name
         else:
             raise ValueError('Unknown function!!!')
-
-    def set_color_mgr(self, mgr):
-        self._color_mgr = mgr
 
     def set_runtimes(self, runtimes):
         self._runtimes = runtimes
@@ -117,17 +110,6 @@ class MacroCall:
         if func_name not in self._funcs_to_load:
             self._funcs_to_load.append(func_name)
     
-    def _load_spectrum_func(self, func_name):
-        if self._color_mgr is None:
-            raise ValueError('Color manager is not set!!!')
-        
-        if func_name == 'XYZ_to_RGB':
-            self._color_mgr.XYZ_to_RGB_asm(self._runtimes)
-        elif func_name == 'lumminance':
-            self._color_mgr.Y_asm(self._runtimes)
-        elif func_name == 'spectrum_to_rgb':
-            self._color_mgr.to_RGB_asm(self._runtimes)
-
     def _load_random(self):
         if 'random' not in self._compiled_code:
             self._compiled_code['random'] = self.functions['random']()

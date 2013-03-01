@@ -2,7 +2,8 @@
 import unittest
 from random import random
 from tdasm import Runtime
-from renmas3.core import ColorManager
+from renmas3.base import ColorManager
+from renmas3.macros import create_assembler
 
 class XYZ_TO_RGBTest(unittest.TestCase):
     def setUp(self):
@@ -26,7 +27,7 @@ class XYZ_TO_RGBTest(unittest.TestCase):
         runtime = Runtime()
 
         mgr.XYZ_to_RGB_asm([runtime])
-        mc = mgr.assembler.assemble(self.asm_code1())
+        mc = create_assembler().assemble(self.asm_code1())
         ds = runtime.load("test", mc)
 
         ds["XYZ"] = (0.69, 0.78, 0.88, 0.00)

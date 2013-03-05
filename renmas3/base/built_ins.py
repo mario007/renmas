@@ -2,7 +2,7 @@ import platform
 import renmas3.switch as proc
 
 from .arg import Integer, Float, Vec3, Struct, Attribute
-from .arg import conv_float_to_int
+from .arg import conv_float_to_int, conv_int_to_float
 
 from .instr import load_struct_ptr, load_operand
 from .cgen import register_function
@@ -28,6 +28,29 @@ def _int_function(cgen, args):
         raise ValueError("Unsuported argument type", args[0])
 
 register_function('int', _int_function, inline=True) 
+
+def _float_function(cgen, args):
+    if len(args) == 0:
+        xmm = cgen.register(typ='xmm')
+        if cgen.AVX:
+            code = "vpxor %s, %s, %s\n" % (xmm, xmm, xmm)
+        else:
+            code = "pxor %s, %s\n" % (xmm, xmm)
+        return code, xmm, Float
+    if len(args) != 1:
+        raise ValueError("Wrong number of arguments in int function", args)
+    code, reg, typ = load_operand(cgen, args[0])
+    if typ == Float:
+        return code, reg, typ
+    elif typ == Integer:
+        xmm = cgen.register(typ='xmm')
+        code += conv_int_to_float(cgen, reg, xmm)
+        cgen.release_reg(reg)
+        return code, xmm, Float 
+    else:
+        raise ValueError("Unsuported argument type", args[0])
+
+register_function('float', _float_function, inline=True) 
 
 def _luminance(cgen, args):
     if len(args) != 1:

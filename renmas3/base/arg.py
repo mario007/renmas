@@ -316,7 +316,7 @@ class Integer(Argument):
         ops = {'+': 'add', '-': 'sub', '*': 'imul'}
         if operator in ops:
             code = '%s %s, %s\n' % (ops[operator], reg1, reg2)
-        if operator == '%' or operator == '/': #TODO test 64-bit implementation is needed
+        if operator == '%' or operator == '/':
             code, reg1 = Integer._arith_div(cgen, reg1, reg2, operator)
         return code, reg1, Integer
 
@@ -568,9 +568,25 @@ class _Vec234(Argument):
         return code, dest_reg, cls
 
     @classmethod
+    def load_subscript_attr(cls, cgen, path, index, ptr_reg, dest_reg):
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='xmm')
+        if not cgen.regs.is_xmm(dest_reg):
+            raise ValueError("Destination register must be xmm register!", dest_reg)
+        if not cls.index_in_range(index):
+            raise ValueError("Index is out of allowed range!", cls, index)
+        check_ptr_reg(cgen, ptr_reg)
+        offset = index * 4
+        if cgen.AVX:
+            code = "vmovss %s, dword [%s + %s + %i]\n" % (dest_reg, ptr_reg, path, offset)
+        else:
+            code = "movss %s, dword [%s + %s + %i]\n" % (dest_reg, ptr_reg, path, offset)
+        return code, dest_reg, Float
+
+    @classmethod
     def store_attr(cls, cgen, path, ptr_reg, xmm):
         if not cgen.regs.is_xmm(xmm):
-            raise ValueError("xmm register is expected!", xmm)
+             raise ValueError("xmm register is expected!", xmm)
         check_ptr_reg(cgen, ptr_reg)
         if cgen.AVX:
             code = "vmovaps oword [%s + %s], %s\n" % (ptr_reg, path, xmm)
@@ -578,7 +594,30 @@ class _Vec234(Argument):
             code = "movaps oword [%s + %s], %s\n" % (ptr_reg, path, xmm)
         return code
 
-    def index_in_range(self, index):
+    @classmethod
+    def store_subscript_attr(cls, cgen, path, ptr_reg, reg, typ, index):
+        xmm = reg
+        code = ''
+        if typ == Integer:
+            xmm = cgen.register(typ="xmm")
+            code += conv_int_to_float(cgen, reg, xmm)
+        check_ptr_reg(cgen, ptr_reg)
+
+        if not cgen.regs.is_xmm(xmm):
+            raise ValueError("xmm register is expected!", xmm)
+        if not cls.index_in_range(index):
+            raise ValueError("Index is out of allowed range!", cls, index)
+        offset = index * 4
+        if cgen.AVX:
+            code += "vmovss dword [%s + %s + %i], %s \n" % (ptr_reg, path, offset, xmm)
+        else:
+            code += "movss dword [%s + %s + %i], %s \n" % (ptr_reg, path, offset, xmm)
+        if xmm != reg:
+            cgen.release_reg(xmm)
+        return code
+
+    @classmethod
+    def index_in_range(cls, index):
         raise NotImplementedError()
 
     def load_subscript(self, cgen, index, dest_reg=None):
@@ -663,7 +702,6 @@ class _Vec234(Argument):
         if not cls.supported(operator, typ2):
             raise ValueError('This type or arithmetic operation is not allowed', typ2, operator)
 
-        #NOTE FIXME -- memory leak of register cls._conv if argument is Integer
         code, xmm = cls._conv(cgen, reg2, typ2, operator)
 
         ops_avx = {'+': 'vaddps', '-': 'vsubps', '*': 'vmulps', '/': 'vdivps'}
@@ -749,7 +787,8 @@ class Vec2(_Vec234):
         line2 = "mov dword [%s + %s + 4], %s ;float value = %f \n" % (ptr_reg, path, fl, const[1])
         return line1 + line2
 
-    def index_in_range(self, index):
+    @classmethod
+    def index_in_range(cls, index):
         if index != 0 and index != 1:
             return False
         return True
@@ -814,10 +853,11 @@ class Vec3(_Vec234):
         line3 = "mov dword [%s + %s + 8], %s ;float value = %f \n" % (ptr_reg, path, fl, const[2])
         return line1 + line2 + line3
 
-    def index_in_range(self, index):
+    @classmethod
+    def index_in_range(cls, index):
         if index >= 0 and index <= 2:
             return True
-        return False
+        return True
 
 class Vec4(_Vec234):
     def __init__(self, name, value=Vector4(0.0, 0.0, 0.0, 0.0)):
@@ -883,10 +923,11 @@ class Vec4(_Vec234):
         line4 = "mov dword [%s + %s + 12], %s ;float value = %f \n" % (ptr_reg, path, fl, const[3])
         return line1 + line2 + line3 + line4
 
-    def index_in_range(self, index):
+    @classmethod
+    def index_in_range(cls, index):
         if index >= 0 and index <= 3:
             return True
-        return False
+        return True
 
 class _Vec234I(Argument):
     pass
@@ -1084,6 +1125,29 @@ class Struct(Argument):
             cgen.release_reg(src_reg)
 
         return code1 + code2, src_reg2, type2 
+
+    def load_attr_subscript_cmd(self, cgen, path, index, dest_reg=None, ptr_reg=None):
+        arg = self.get_argument('%s.%s' % (self.name, path))
+        if arg is None:
+            raise ValueError("Argument %s doesn't exist in structure %s" % (path, self.name))
+        code1, src_reg, type1 = self.load_cmd(cgen, ptr_reg)
+        asm_path = "%s.%s" %(self.typ.typ, path)
+        code2, src_reg2, type2 = arg.load_subscript_attr(cgen, asm_path, index, src_reg, dest_reg)
+        if ptr_reg is None:
+            cgen.release_reg(src_reg)
+
+        return code1 + code2, src_reg2, type2 
+
+    def store_attr_subscript_cmd(self, cgen, path, reg, typ, index):
+        arg = self.get_argument('%s.%s' % (self.name, path))
+        if arg is None:
+            raise ValueError("Argument %s doesn't exist in structure %s" % (path, self.name))
+        code1, src_reg, type1 = self.load_cmd(cgen)
+
+        asm_path = "%s.%s" %(self.typ.typ, path)
+        code2 = arg.store_subscript_attr(cgen, asm_path, src_reg, reg, typ, index)
+        cgen.release_reg(src_reg)
+        return code1 + code2
 
     def store_attr_cmd(self, cgen, path, reg):
         arg = self.get_argument('%s.%s' % (self.name, path))

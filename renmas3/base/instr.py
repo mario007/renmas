@@ -61,8 +61,8 @@ def load_operand(cgen, op, dest_reg=None, ptr_reg=None):
         return arg.load_attr_cmd(cgen, op.path, dest_reg, ptr_reg)
     elif isinstance(op, Subscript):
         if op.path is not None and isinstance(arg, Struct):
-            #NOTE this is note yet implemented!!!!!
-            return arg.load_subscript(cgen, op.path, op.index, dest_reg, ptr_reg)
+            return arg.load_attr_subscript_cmd(cgen, op.path,
+                    extract_index(op.index), dest_reg, ptr_reg)
         elif op.path is None:
             return arg.load_subscript(cgen, extract_index(op.index), dest_reg)
         else:
@@ -94,12 +94,13 @@ def store_operand(cgen, dest, reg, typ):
             raise ValueError("Type mismatch, cannot store operand", type(arg), typ)
         code += dst_arg.store_attr_cmd(cgen, dest.path, reg)
     elif isinstance(dest, Subscript):
-        if not arg.item_supported(typ):
-            raise ValueError("Argument doesn't support that item type!", arg, typ)
         if dest.path is None:
             code += arg.store_subscript(cgen, reg, typ, extract_index(dest.index))
         else:
-            raise ValueError("Subscript attribut is not yet implemented!")
+            arg = dst_arg.get_argument('%s.%s' % (dest.name, dest.path))
+            if not arg.item_supported(typ):
+                raise ValueError("Argument doesn't support that item type!", arg, typ)
+            code += dst_arg.store_attr_subscript_cmd(cgen, dest.path, reg, typ, extract_index(dest.index))
     else:
         raise ValueError("Unknown type of destination.", dest)
     return code

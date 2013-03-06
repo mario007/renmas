@@ -1,7 +1,7 @@
 import platform
 import renmas3.switch as proc
 
-from .arg import Integer, Float, Vec3, Struct, Attribute
+from .arg import Integer, Float, Vec3, Struct, Attribute, Vec2, Vec4
 from .arg import conv_float_to_int, conv_int_to_float
 
 from .instr import load_struct_ptr, load_operand
@@ -51,6 +51,81 @@ def _float_function(cgen, args):
         raise ValueError("Unsuported argument type", args[0])
 
 register_function('float', _float_function, inline=True) 
+
+def _combine_two_floats(cgen, arg1, arg2):
+    xmm1 = cgen.register(typ='xmm')
+    xmm2 = cgen.register(typ='xmm')
+    if cgen.AVX:
+        code0 = "vpxor %s, %s, %s\n" % (xmm2, xmm2, xmm2)
+        code0 += "vpxor %s, %s, %s\n" % (xmm1, xmm1, xmm1)
+    else:
+        code0 = "pxor %s, %s\n" % (xmm2, xmm2)
+        code0 += "pxor %s, %s\n" % (xmm1, xmm1)
+    code1, reg1, typ1 = load_operand(cgen, arg1, dest_reg=xmm1)
+    code2, reg2, typ2 = load_operand(cgen, arg2, dest_reg=xmm2)
+
+    if typ1 != Float or typ2 != Float:
+        raise ValueError("Arguments must be floats!", typ1, typ2)
+
+    if cgen.AVX:
+        code3 = "vpslldq %s, %s, 4\n" % (xmm2, xmm2)
+        code4 = "vorps %s, %s, %s\n" % (xmm1, xmm1, xmm2)
+    else:
+        code3 = "pslldq %s, 4\n" % xmm2
+        code4 = "orps %s, %s\n" % (xmm1, xmm2)
+    cgen.release_reg(xmm2)
+    code = code0 + code1 + code2 + code3 + code4
+    return code, xmm1
+
+def _add_float(cgen, xmm, arg, offset):
+    xmm2 = cgen.register(typ='xmm')
+    if cgen.AVX:
+        code = "vpxor %s, %s, %s\n" % (xmm2, xmm2, xmm2)
+    else:
+        code = "pxor %s, %s\n" % (xmm2, xmm2)
+    code1, reg1, typ1 = load_operand(cgen, arg, dest_reg=xmm2)
+    if typ1 != Float:
+        raise ValueError("Argument must be floats!", typ1)
+    if cgen.AVX:
+        code2 = "vpslldq %s, %s, %i\n" % (xmm2, xmm2, offset)
+        code3 = "vorps %s, %s, %s\n" % (xmm, xmm, xmm2)
+    else:
+        code2 = "pslldq %s, %i\n" % (xmm2, offset)
+        code3 = "orps %s, %s\n" % (xmm, xmm2)
+    cgen.release_reg(xmm2)
+    code = code + code1 + code2 + code3
+    return code, xmm
+
+
+def _float2_function(cgen, args):
+    if len(args) != 2:
+        raise ValueError("Wrong number of arguments in float2 function", args)
+
+    code, xmm = _combine_two_floats(cgen, args[0], args[1])
+    return code, xmm, Vec2 
+
+register_function('float2', _float2_function, inline=True) 
+
+def _float3_function(cgen, args):
+    if len(args) != 3:
+        raise ValueError("Wrong number of arguments in float3 function", args)
+
+    code1, xmm = _combine_two_floats(cgen, args[0], args[1])
+    code2, xmm = _add_float(cgen, xmm, args[2], 8)
+    return code1 + code2, xmm, Vec3 
+
+register_function('float3', _float3_function, inline=True) 
+
+def _float4_function(cgen, args):
+    if len(args) != 4:
+        raise ValueError("Wrong number of arguments in float3 function", args)
+
+    code1, xmm = _combine_two_floats(cgen, args[0], args[1])
+    code2, xmm = _add_float(cgen, xmm, args[2], 8)
+    code3, xmm = _add_float(cgen, xmm, args[3], 12)
+    return code1 + code2 + code3, xmm, Vec4 
+
+register_function('float4', _float4_function, inline=True) 
 
 def _luminance(cgen, args):
     if len(args) != 1:

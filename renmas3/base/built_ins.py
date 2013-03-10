@@ -1,7 +1,10 @@
 import platform
 import renmas3.switch as proc
 
-from .arg import Integer, Float, Vec3, Struct, Attribute, Vec2, Vec4
+from .arg import Attribute
+from .integer import Integer, Float
+from .vec234 import Vec2, Vec3, Vec4
+from .usr_type import Struct
 from .arg import conv_float_to_int, conv_int_to_float
 
 from .instr import load_struct_ptr, load_operand
@@ -200,10 +203,12 @@ def _normalize_function(cgen, args):
 
 register_function('normalize', _normalize_function, inline=True) 
 
-def _get_rgb(cgen, args):
+def _get_rgba(cgen, args):
     if len(args) != 3:
         raise ValueError("Wrong number of arguments in get_rgb fucntion", args)
     arg1 = cgen.get_arg(args[0])
+    if not isinstance(arg1, Struct):
+        raise ValueError("Image structure is expected.", arg1)
     if arg1.typ.typ != "ImagePRGBA":
         raise ValueError("Wrong image format", arg1.typ.typ)
     code1, reg1, typ1 = load_operand(cgen, args[1])
@@ -211,9 +216,7 @@ def _get_rgb(cgen, args):
     if typ1 != Integer or typ2 != Integer:
         raise ValueError("Argument for x and y must be integers", typ1, typ2)
 
-    src = Attribute(arg1.name, 'pitch')
-    reg3 = cgen.register(typ='general')
-    code3, dummy, dummy = load_operand(cgen, src, dest_reg=reg3)
+    code3, reg3, typ3 = load_operand(cgen, Attribute(arg1.name, 'pitch'))
     code4 = "imul %s, %s\n" % (reg2, reg3)
     code5 = "imul %s, %s, 16\n" % (reg1, reg1) 
     code6 = "add %s, %s\n" % (reg2, reg1)
@@ -221,47 +224,41 @@ def _get_rgb(cgen, args):
     cgen.release_reg(reg1)
     cgen.release_reg(reg3)
 
-    code7, reg4, path = load_struct_ptr(cgen, Attribute(arg1.name, 'pixels'))
-
-    bits = platform.architecture()[0]
-    if bits == '64bit':
-        reg5 = cgen.register(typ='general', bit=64)
-        code8 = "mov %s, qword [%s + %s]\n" % (reg5, reg4, path)
-        code9 = "add %s, %s\n" % (reg5, 'r' + reg2[1:]) #TODO better handle conversion of 32 and 64 registers
+    code7, reg4, typ4 = load_operand(cgen, Attribute(arg1.name, 'pixels'))
+    if cgen.BIT64:
+        code8 = "add %s, %s\n" % (reg4, 'r' + reg2[1:]) #TODO better handle conversion of 32 and 64 registers
     else:
-        reg5 = cgen.register(typ='general', bit=32)
-        code8 = "mov %s, dword [%s + %s]\n" % (reg5, reg4, path)
-        code9 = "add %s, %s\n" % (reg5, reg2)
+        code8 = "add %s, %s\n" % (reg4, reg2)
 
     xmm_reg = cgen.register(typ='xmm')
-    if proc.AVX:
-        code10 = "vmovaps %s, oword [%s]\n" % (xmm_reg, reg5)
+    if cgen.AVX:
+        code9 = "vmovaps %s, oword [%s]\n" % (xmm_reg, reg4)
     else:
-        code10 = "movaps %s, oword [%s]\n" % (xmm_reg, reg5)
+        code9 = "movaps %s, oword [%s]\n" % (xmm_reg, reg4)
 
     cgen.release_reg(reg2)
     cgen.release_reg(reg4)
-    cgen.release_reg(reg5)
 
-    code = code1 + code2 + code3 + code4 + code5 + code6 + code7 + code8 + code9 + code10
-    return code, xmm_reg, Vec3
+    code = code1 + code2 + code3 + code4 + code5 + code6 + code7 + code8 + code9
+    return code, xmm_reg, Vec4
 
-register_function('get_rgb', _get_rgb, inline=True) 
+register_function('get_rgba', _get_rgba, inline=True) 
 
-def _set_rgb(cgen, args):
+def _set_rgba(cgen, args):
     if len(args) != 4:
         raise ValueError("Wrong number of arguments in get_rgb fucntion", args)
     arg1 = cgen.get_arg(args[0])
+    if not isinstance(arg1, Struct):
+        raise ValueError("Image structure is expected.", arg1)
     if arg1.typ.typ != "ImagePRGBA":
         raise ValueError("Wrong image format", arg1.typ.typ)
+
     code1, reg1, typ1 = load_operand(cgen, args[1])
     code2, reg2, typ2 = load_operand(cgen, args[2])
     if typ1 != Integer or typ2 != Integer:
         raise ValueError("Argument for x and y must be integers", typ1, typ2)
 
-    src = Attribute(arg1.name, 'pitch')
-    reg3 = cgen.register(typ='general')
-    code3, dummy, dummy = load_operand(cgen, src, dest_reg=reg3)
+    code3, reg3, typ3 = load_operand(cgen, Attribute(arg1.name, 'pitch'))
     code4 = "imul %s, %s\n" % (reg2, reg3)
     code5 = "imul %s, %s, 16\n" % (reg1, reg1) 
     code6 = "add %s, %s\n" % (reg2, reg1)
@@ -269,36 +266,29 @@ def _set_rgb(cgen, args):
     cgen.release_reg(reg1)
     cgen.release_reg(reg3)
 
-    code7, reg4, path = load_struct_ptr(cgen, Attribute(arg1.name, 'pixels'))
-
-    bits = platform.architecture()[0]
-    if bits == '64bit':
-        reg5 = cgen.register(typ='general', bit=64)
-        code8 = "mov %s, qword [%s + %s]\n" % (reg5, reg4, path)
-        code9 = "add %s, %s\n" % (reg5, 'r' + reg2[1:]) #TODO better handle conversion of 32 and 64 registers
+    code7, reg4, typ4 = load_operand(cgen, Attribute(arg1.name, 'pixels'))
+    if cgen.BIT64:
+        code8 = "add %s, %s\n" % (reg4, 'r' + reg2[1:]) #TODO better handle conversion of 32 and 64 registers
     else:
-        reg5 = cgen.register(typ='general', bit=32)
-        code8 = "mov %s, dword [%s + %s]\n" % (reg5, reg4, path)
-        code9 = "add %s, %s\n" % (reg5, reg2)
+        code8 = "add %s, %s\n" % (reg4, reg2)
 
-    code10, xmm_reg, typ3 = load_operand(cgen, args[3])
-    if typ3 != Vec3:
-        raise ValueError("Operand is expected to be Vec3 type", typ3)
+    code9, xmm_reg, typ5 = load_operand(cgen, args[3])
+    if typ5 != Vec4:
+        raise ValueError("Operand is expected to be Vec4 type", typ5)
 
     if proc.AVX:
-        code11 = "vmovaps oword [%s], %s\n" % (reg5, xmm_reg)
+        code10 = "vmovaps oword [%s], %s\n" % (reg4, xmm_reg)
     else:
-        code11 = "movaps oword [%s], %s\n" % (reg5, xmm_reg)
+        code10 = "movaps oword [%s], %s\n" % (reg4, xmm_reg)
 
-    cgen.release_reg(reg2)
+    #cgen.release_reg(reg2)
     cgen.release_reg(reg4)
-    cgen.release_reg(reg5)
     cgen.release_reg(xmm_reg)
 
-    code = code1 + code2 + code3 + code4 + code5 + code6 + code7 + code8 + code9 + code10 + code11
-    return code, reg1, Integer
+    code = code1 + code2 + code3 + code4 + code5 + code6 + code7 + code8 + code9 + code10
+    return code, reg2, Integer
 
-register_function('set_rgb', _set_rgb, inline=True) 
+register_function('set_rgba', _set_rgba, inline=True) 
 
 def _pow(cgen, args):
     if len(args) != 2:

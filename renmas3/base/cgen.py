@@ -3,11 +3,12 @@ import inspect
 import renmas3.switch as proc
 
 from .spectrum import Spectrum, RGBSpectrum, SampledSpectrum
-from .arg import create_argument, Struct, Integer, Float, Vec3, UserType, Attribute
-from .arg import Integer, Vec3I, Pointer, StructPtr, Name, Const, Subscript
-from .arg import Callable, create_user_type, RGBSpec, SampledSpec
+from .arg import Attribute, Name, Const, Subscript, Callable
+from .integer import Integer
+from .usr_type import UserType, Struct
+from .spec import RGBSpec, SampledSpec
+from .arg_fac import create_argument, create_user_type
 from .shader import Shader
-from .vector3 import Vector3
 from .instr import load_operand, load_func_args, store_func_args
 
 _user_types = {}
@@ -128,7 +129,8 @@ class _Locals:
         return self._used_args[name]
 
 class CodeGenerator:
-    def __init__(self, name, args={}, input_args=[], shaders=[], func=False):
+    def __init__(self, name, args={}, input_args=[], shaders=[], func=False,
+            col_mgr=None):
         self._name = name
         self._args = args
         self._input_args =  input_args
@@ -151,6 +153,9 @@ class CodeGenerator:
         # Local Spectrums for temporal calculations in expressions
         self._tmp_specs = []
         self._tmp_specs_used = []
+
+        # color manager
+        self._col_mgr = col_mgr
 
     @property
     def AVX(self):
@@ -222,24 +227,18 @@ class CodeGenerator:
 
     def _generate_struct_defs(self):
         structs = {}
-        spec = None
         for arg in self._input_args:
             if isinstance(arg, Struct):
                 structs[arg.typ.typ] = arg
-            if isinstance(arg, (RGBSpec, SampledSpec)):
-                spec = arg
 
         for name, arg in iter(self._args):
             if isinstance(arg, Struct):
                 structs[arg.typ.typ] = arg
-            if isinstance(arg, (RGBSpec, SampledSpec)):
-                spec = arg
 
-        #TODO --- spectrum in local variable --- struct definition
         structs.update(self._locals.struct_defs())
         data = ''
-        if spec:
-            data += spec.value.asm_struct()
+        if self._col_mgr:
+            data += self._col_mgr.asm_struct()
         data += ''.join(arg.typ.generate_struct() for key, arg in structs.items())
         return data
 
@@ -405,16 +404,16 @@ class CodeGenerator:
         self._tmp_specs_used = []
 
     def _create_spec(self):
-        if self._spec_arg is None:
-            return RGBSpec(self._generate_name('local'), RGBSpectrum(0.0, 0.0, 0.0))
-        s = self._spec_arg.value.black()
-        arg = type(self._spec_arg)(self._generate_name('local'), s)
+        if self._col_mgr is None:
+            raise ValueError("Missing color manager! Spectrum cannot be created!")
+        spectrum = self._col_mgr.black()
+        arg = create_argument(self._generate_name('local'), value=spectrum)
         return arg
 
     def nsamples(self):
-        if self._spec_arg is None:
-            raise ValueError("SampledSpec argument is missing! Color manager!")
-        return len(self._spec_arg.value.samples)
+        if self._col_mgr is None:
+            raise ValueError("Missing color manager! Unknown number of samples!")
+        return self._col_mgr.nsamples
 
     def get_shader(self, name):
         for shader in self._shaders:

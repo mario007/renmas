@@ -421,8 +421,8 @@ class ColorManager:
 
     # Return code for assembly struct of spectrum
     #
-    def spectrum_struct(self):
-        code = "struct spectrum \n"
+    def asm_struct(self):
+        code = "struct Spectrum \n"
         if self._spectral:
             code += "float values[ %i ] \n" % self._nsamples
         else:

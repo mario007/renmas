@@ -3,7 +3,8 @@ import platform
 import x86
 from tdasm import Tdasm, Runtime
 
-from .arg import Integer, Pointer
+from .integer import Integer
+from .pointer import Pointer
 from .cgen import register_user_type
 
 def _conv_rgba_bgra_asm32():

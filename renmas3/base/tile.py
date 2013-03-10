@@ -1,5 +1,5 @@
 import math
-from .arg import Integer
+from .integer import Integer
 from .cgen import register_user_type
 
 class Tile2D:

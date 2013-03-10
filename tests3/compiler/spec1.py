@@ -5,6 +5,7 @@ from renmas3.base import BasicShader, Integer, Float, Vec3, Vec2, Vec4
 from renmas3.base import Vector2, Vector3, Vector4, Struct
 from renmas3.base import register_user_type, create_user_type
 from renmas3.base import RGBSpectrum, SampledSpectrum, Spectrum
+from renmas3.base import ColorManager
 
 class ShadePoint:
     def __init__(self, spectrum1, spectrum2):
@@ -31,7 +32,8 @@ spec2 = p
         rgb = RGBSpectrum(0.2, 0.3, 0.2)
         rgb2 = RGBSpectrum(0.1, 0.8, 0.9)
         props = {'spec1':rgb, 'spec2':rgb2}
-        bs = BasicShader(code, props)
+        col_mgr = ColorManager(spectral=False)
+        bs = BasicShader(code, props, col_mgr=col_mgr)
         runtime = Runtime()
         bs.prepare([runtime])
         #print (bs.shader._code)
@@ -53,9 +55,11 @@ spec2 = p
         nsamples = 32 
         rgb = SampledSpectrum([0.1]*nsamples)
         rgb2 = SampledSpectrum([0.2]*nsamples)
+        col_mgr = ColorManager(spectral=True)
+        col_mgr._nsamples = 32 #NOTE HACK - just for testing spectrum asm commands 
 
         props = {'spec1':rgb, 'spec2':rgb2}
-        bs = BasicShader(code, props)
+        bs = BasicShader(code, props, col_mgr=col_mgr)
         runtime = Runtime()
         bs.prepare([runtime])
         #print (bs.shader._code)
@@ -77,7 +81,8 @@ sh.spectrum2 = spec2
         rgb4 = RGBSpectrum(0.1, 0.2, 0.2)
         sh = ShadePoint(rgb3, rgb4)
         props = {'spec1':rgb, 'spec2':rgb2, 'sh': sh}
-        bs = BasicShader(code, props)
+        col_mgr = ColorManager(spectral=False)
+        bs = BasicShader(code, props, col_mgr=col_mgr)
         runtime = Runtime()
         bs.prepare([runtime])
         #print (bs.shader._code)
@@ -108,7 +113,9 @@ sh.spectrum2 = spec2
 
         sh = ShadePoint(rgb3, rgb4)
         props = {'spec1':rgb, 'spec2':rgb2, 'sh': sh}
-        bs = BasicShader(code, props, spectrum=rgb)
+        col_mgr = ColorManager(spectral=True)
+        col_mgr._nsamples = 32 #NOTE HACK - just for testing spectrum asm commands 
+        bs = BasicShader(code, props, col_mgr=col_mgr)
         runtime = Runtime()
         bs.prepare([runtime])
         #print (bs.shader._code)

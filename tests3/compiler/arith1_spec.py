@@ -4,6 +4,7 @@ from renmas3.base import BasicShader, Integer, Float, Vec3, Vec2, Vec4
 from renmas3.base import Vector2, Vector3, Vector4, Struct
 from renmas3.base import register_user_type, create_user_type
 from renmas3.base import RGBSpectrum, SampledSpectrum, Spectrum
+from renmas3.base import ColorManager
 
 class ArithSpec1Test(unittest.TestCase):
     def setUp(self):
@@ -23,7 +24,8 @@ spec5 = 8 * spec2
         rgb5 = RGBSpectrum(0.0, 0.0, 0.0)
         props = {'spec1':rgb, 'spec2':rgb2, 'spec3':rgb3, 'spec4':rgb4,
                 'spec5':rgb5}
-        bs = BasicShader(code, props)
+        col_mgr = ColorManager(spectral=False)
+        bs = BasicShader(code, props, col_mgr=col_mgr)
         runtime = Runtime()
         bs.prepare([runtime])
         #print (bs.shader._code)
@@ -57,7 +59,9 @@ spec5 = 2 * spec2
         rgb5 = SampledSpectrum([0.5]*nsamples)
 
         props = {'spec1':rgb, 'spec2':rgb2, 'spec3':rgb3, 'spec4':rgb4, 'spec5':rgb5}
-        bs = BasicShader(code, props, spectrum=rgb)
+        col_mgr = ColorManager(spectral=True)
+        col_mgr._nsamples = 32 #NOTE HACK - just for testing spectrum asm commands 
+        bs = BasicShader(code, props, col_mgr=col_mgr)
         runtime = Runtime()
         bs.prepare([runtime])
         #print (bs.shader._code)

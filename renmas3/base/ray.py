@@ -1,5 +1,5 @@
 
-from .arg import Vec3
+from .vec234 import Vec3
 from .cgen import register_user_type
 
 class Ray():

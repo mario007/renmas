@@ -2,7 +2,8 @@
 import inspect
 from .parser import Parser
 from .cgen import CodeGenerator
-from .arg import Argument, create_argument, ArgumentMap, ArgumentList
+from .arg import Argument, ArgumentMap, ArgumentList
+from .arg_fac import create_argument
 
 def _create_arg(a, input_arg=False):
     if isinstance(a, Argument):

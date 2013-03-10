@@ -1,7 +1,8 @@
 import x86
 from tdasm import Tdasm
-from .arg import Struct, create_argument, arg_from_value, arg_from_type
 from .arg import ArgumentMap, ArgumentList
+from .usr_type import Struct
+from .arg_fac import create_argument, arg_from_value, arg_from_type
 
 class Shader:
     def __init__(self, name, asm_code, args, input_args=None, shaders=None,
@@ -145,12 +146,13 @@ class Shader:
                 self._struct_args.update(arg.paths)
         self._runtimes = None
 
-def create_shader(name, source, args, input_args=[], shaders=[], func=False):
+def create_shader(name, source, args, input_args=[], shaders=[], func=False,
+                  col_mgr=None):
     from .parser import Parser
     from .cgen import CodeGenerator
 
     parser = Parser()
-    cgen = CodeGenerator(name, args, input_args, shaders, func)
+    cgen = CodeGenerator(name, args, input_args, shaders, func, col_mgr=col_mgr)
     parser.parse(source, cgen)
     shader = cgen.create_shader()
     return shader
@@ -180,9 +182,10 @@ class BaseShader:
         in_args = self.arg_list()
         name = self.method_name()
         func = not self.standalone()
+        col_mgr = self.col_mgr()
 
-        self._shader = create_shader(name, self._code, args,
-                                     input_args=in_args, shaders=shaders, func=func)
+        self._shader = create_shader(name, self._code, args, input_args=in_args,
+                                     shaders=shaders, func=func, col_mgr=col_mgr)
 
         self._shader.prepare(runtimes)
         self.update()
@@ -235,33 +238,43 @@ class BaseShader:
         """Create argument list for calling arguments of shader."""
         raise NotImplementedError()
 
+    def col_mgr(self):
+        """Return color manager."""
+        return None
+
 class BasicShader(BaseShader):
     """Implementation of simple generic shader that is used to preform intesive
     coputation."""
 
     def __init__(self, code, props,
                  input_args=None, standalone=True, method_name=None,
-                 spectrum=None):
+                 col_mgr=None):
         super(BasicShader, self).__init__(code)
 
         self.props = props
         self._standalone = standalone
         self._method_name = method_name
         self.input_args = input_args
-        self._spectrum = spectrum
+        self._col_mgr = col_mgr
 
     def arg_map(self):
         p = self.props
         if not isinstance(self.props, dict):
             p = self.props[0]
-        args = ArgumentMap(arg_from_value(key, value, spectrum=self._spectrum)\
+        spectrum = None
+        if self._col_mgr is not None:
+            spectrum = self._col_mgr.black()
+        args = ArgumentMap(arg_from_value(key, value, spectrum=spectrum)\
                                           for key, value in p.items())
         return args
 
     def arg_list(self):
         if self.input_args is None:
             return ArgumentList()
-        args = ArgumentList(arg_from_value(name, value, True, spectrum=self._spectrum)
+        spectrum = None
+        if self._col_mgr is not None:
+            spectrum = self._col_mgr.black()
+        args = ArgumentList(arg_from_value(name, value, True, spectrum=spectrum)
                                     for name, value in self.input_args)
         return args
 
@@ -282,3 +295,6 @@ class BasicShader(BaseShader):
     def standalone(self):
         return self._standalone
 
+    def col_mgr(self):
+        """Return color manager."""
+        return self._col_mgr

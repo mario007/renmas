@@ -1,7 +1,9 @@
 import platform
 import renmas3.switch as proc
-from .arg import  Integer, Float, Vec3, Struct, Attribute, StructPtr, Const, Name, Subscript
-from .arg import conv_int_to_float
+from .arg import Attribute, Const, Name, Subscript, conv_int_to_float
+from .integer import Integer, Float
+from .vec234 import Vec3
+from .usr_type import  Struct, StructPtr
 from .util import float2hex
 
 def load_struct_ptr(cgen, attr, reg=None):

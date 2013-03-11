@@ -14,8 +14,8 @@ class SpectrumToRGBTest(unittest.TestCase):
         code = """
         #DATA
         """
-        code += mgr.spectrum_struct() + """
-        spectrum sp1
+        code += mgr.spectrum_asm_struct() + """
+        Spectrum sp1
         float rgb[4]
         #CODE
         macro mov eax, sp1

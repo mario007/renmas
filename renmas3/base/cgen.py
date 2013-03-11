@@ -156,6 +156,7 @@ class CodeGenerator:
 
         # color manager
         self._col_mgr = col_mgr
+        self._color_functions = set()
 
     @property
     def AVX(self):
@@ -238,7 +239,7 @@ class CodeGenerator:
         structs.update(self._locals.struct_defs())
         data = ''
         if self._col_mgr:
-            data += self._col_mgr.asm_struct()
+            data += self._col_mgr.spectrum_asm_struct()
         data += ''.join(arg.typ.generate_struct() for key, arg in structs.items())
         return data
 
@@ -294,7 +295,8 @@ class CodeGenerator:
         code = self.generate_code()
         shader = Shader(self._name, code, self._args, self._input_args,
                 self._shaders, self._ret_type, self._func,
-                functions=self._asm_functions)
+                functions=self._asm_functions, col_mgr=self._col_mgr,
+                color_funcs=self._color_functions)
         return shader
 
     def create_const(self, value, typ=None):
@@ -476,6 +478,9 @@ class CodeGenerator:
     def add_asm_function(self, label, code):
         #TODO --- code can also be callable
         self._asm_functions[label] = code
+
+    def add_color_func(self, func_name):
+        self._color_functions.add(func_name)
 
     def save_regs(self, regs):
         return ''.join(self._save_reg(reg) for reg in regs)

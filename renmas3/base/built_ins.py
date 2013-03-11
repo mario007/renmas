@@ -7,8 +7,9 @@ from .vec234 import Vec2, Vec3, Vec4
 from .usr_type import Struct
 from .arg import conv_float_to_int, conv_int_to_float
 
-from .instr import load_struct_ptr, load_operand
+from .instr import load_operand
 from .cgen import register_function
+from .spec import RGBSpec, SampledSpec
 
 from ..asm import pow_ps, pow_ss
 
@@ -130,6 +131,28 @@ def _float4_function(cgen, args):
 
 register_function('float4', _float4_function, inline=True) 
 
+def _spectrum_to_rgb(cgen, args):
+    if len(args) != 1:
+        raise ValueError("Function accept just one arguement!", args)
+
+    cgen.clear_regs()
+    if cgen.BIT64:
+        reg = cgen.register(typ='general', bit=64, reg='rax')
+    else:
+        reg = cgen.register(typ='general', bit=32, reg='eax')
+
+    code1, reg1, typ1 = load_operand(cgen, args[0], dest_reg=reg)
+    if typ1 != RGBSpec and typ1 != SampledSpec:
+        raise ValueError("Spectrum argument is expected!", args[0])
+
+    cgen.add_color_func('spectrum_to_rgb')
+
+    code = code1 + "call spectrum_to_rgb\n"
+    return code, 'xmm0', Vec3
+
+
+register_function('spectrum_to_rgb', _spectrum_to_rgb, inline=False) 
+
 def _luminance(cgen, args):
     if len(args) != 1:
         raise ValueError("Wrong number of arguments in normalize fucntion", args)
@@ -140,7 +163,6 @@ def _luminance(cgen, args):
     arg = cgen.create_const((0.2126, 0.7152, 0.0722))
 
     tmp1 = cgen.register(typ='xmm')
-    tmp2 = cgen.register(typ='xmm')
 
     if cgen.AVX:
         line1 = "vmovaps %s, oword [%s]\n" % (tmp1, arg.name)
@@ -163,6 +185,31 @@ def _luminance(cgen, args):
     return code, reg1, Float
 
 register_function('luminance', _luminance, inline=True) 
+
+def _dot_function(cgen, args):
+    if len(args) != 2:
+        raise ValueError("Wrong number of arguments in dot fucntion", args)
+    code1, reg1, typ1 = load_operand(cgen, args[0])
+    code2, reg2, typ2 = load_operand(cgen, args[1])
+    if typ1 != Vec3 or typ2 != Vec3:
+        raise ValueError("Two Vec3 argument is expected to dot function", args)
+
+    if cgen.AVX:
+        line1 = "vdpps %s, %s, %s, 0x71 \n" % (reg1, reg1, reg2)
+        code = code1 + code2 + line1
+    elif proc.SSE41:
+        line1 = "dpps %s, %s, 0x71\n" % (reg1, reg2)
+        code = code1 + code2 + line1
+    else: #SSE2 implementation
+        line1 = "mulps %s, %s\n" % (reg1, reg2)
+        line2 = "movhlps %s, %s\n" % (reg2, reg1)
+        line3 = "addss %s, %s\n" % (reg1, reg2)
+        line4 = "pshufd %s, %s, 1\n" % (reg2, reg1)
+        line5 = "addss %s, %s\n" % (reg1, reg2)
+        code = code1 + code2 + line1 + line2 + line3 + line4 + line5
+    return code, reg1, Float
+
+register_function('dot', _dot_function, inline=True) 
 
 def _normalize_function(cgen, args):
     if len(args) != 1:

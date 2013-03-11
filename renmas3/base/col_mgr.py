@@ -243,10 +243,11 @@ class ColorManager:
         return RGBSpectrum(r, g, b)
 
     def to_RGB_asm(self, runtimes):
+        # in eax(rax) must be spectrum
         if self._spectral:
             self.XYZ_to_RGB_asm(runtimes)
-            ASM = " #DATA \n" + self.spectrum_struct() + """
-                spectrum __x, __y, __z, temp
+            ASM = " #DATA \n" + self.spectrum_asm_struct() + """
+                Spectrum __x, __y, __z, temp
                 float one_over_yint
                 float XYZ[4]
                 #CODE
@@ -294,10 +295,10 @@ class ColorManager:
                 ds["__z.values"] = self._cie_z.to_ds()
 
         else:
-            ASM = " #DATA \n" + self.spectrum_struct() + """
+            ASM = " #DATA \n" + self.spectrum_asm_struct() + """
                 #CODE
                 global spectrum_to_rgb:
-                macro eq128 xmm0 = eax.spectrum.values
+                macro eq128 xmm0 = eax.Spectrum.values
                 ret
             """
             mc = self._assembler.assemble(ASM, True)
@@ -339,11 +340,11 @@ class ColorManager:
         return y_sum / self.yint  
 
     def _Y_asm_rgb(self, runtimes):
-        ASM = " #DATA \n" + self.spectrum_struct() + """
+        ASM = " #DATA \n" + self.spectrum_asm_struct() + """
             float lumm[4] = 0.212671, 0.715160, 0.072169, 0.0
             #CODE
             global lumminance:
-            macro eq128 xmm0 = eax.spectrum.values
+            macro eq128 xmm0 = eax.Spectrum.values
             macro dot xmm0 = xmm0 * lumm {xmm6, xmm7}
             ret
         """
@@ -354,8 +355,8 @@ class ColorManager:
                 r.load(name, mc)
     
     def _Y_asm_spectrum(self, runtimes):
-        ASM = " #DATA \n" + self.spectrum_struct() + """
-            spectrum __y, temp
+        ASM = " #DATA \n" + self.spectrum_asm_struct() + """
+            Spectrum __y, temp
             float one_over_yint
             #CODE
             global lumminance:
@@ -421,7 +422,7 @@ class ColorManager:
 
     # Return code for assembly struct of spectrum
     #
-    def asm_struct(self):
+    def spectrum_asm_struct(self):
         code = "struct Spectrum \n"
         if self._spectral:
             code += "float values[ %i ] \n" % self._nsamples
@@ -472,3 +473,8 @@ class ColorManager:
         else:
             return RGBSpectrum(0.0, 0.0, 0.0)
 
+    def load_asm_function(self, func_name, runtimes):
+        if func_name == "spectrum_to_rgb":
+            self.to_RGB_asm(runtimes)
+        else:
+            raise ValueError("Cannot load asm function ", func_name)

@@ -6,7 +6,9 @@ from .arg_fac import create_argument, arg_from_value, arg_from_type
 
 class Shader:
     def __init__(self, name, asm_code, args, input_args=None, shaders=None,
-            ret_type=None, func=False, functions=None):
+            ret_type=None, func=False, functions=None, col_mgr=None,
+            color_funcs=set()):
+
         self._name = name
         self._code = asm_code
         self._args = args
@@ -36,6 +38,9 @@ class Shader:
         # that depends on how many different shapes we have
         self.loader = None
 
+        self.col_mgr = col_mgr
+        self._color_funcs = color_funcs
+
     @property
     def nthreads(self):
         if self._runtimes is None:
@@ -54,7 +59,16 @@ class Shader:
     def input_args(self):
         return self._input_args
 
+    def _load_color_funcs(self, runtimes):
+        for func_name in self._color_funcs:
+            if self.col_mgr is None:
+                raise ValueError("Color manager is not set for shader!")
+            self.col_mgr.load_asm_function(func_name, runtimes)
+
+
     def prepare(self, runtimes):
+        self._load_color_funcs(runtimes)
+
         if self.loader:
             self.loader(runtimes)
 

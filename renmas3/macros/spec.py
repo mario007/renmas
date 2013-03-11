@@ -56,10 +56,10 @@ class MacroSpectrum:
             else:
                 code = "vshufps xmm0, xmm0, xmm0, 0x00 \n"
                 code += "vshufps xmm1, xmm1, xmm1, 0x00 \n"
-                code += "vmovaps xmm2, oword[" + reg + " + spectrum.values] \n"
+                code += "vmovaps xmm2, oword[" + reg + " + Spectrum.values] \n"
                 code += "vmaxps xmm2, xmm2, xmm0 \n"
                 code += "vminps xmm2, xmm2, xmm1 \n"
-                code += "vmovaps oword[" + reg + " + spectrum.values], xmm2 \n"
+                code += "vmovaps oword[" + reg + " + Spectrum.values], xmm2 \n"
                 return code
         else:
             if sampled:
@@ -80,10 +80,10 @@ class MacroSpectrum:
             else:
                 code = "shufps xmm0, xmm0, 0x00 \n"
                 code += "shufps xmm1, xmm1, 0x00 \n"
-                code += "movaps xmm2, oword[" + reg + " + spectrum.values] \n"
+                code += "movaps xmm2, oword[" + reg + " + Spectrum.values] \n"
                 code += "maxps xmm2, xmm0 \n"
                 code += "minps xmm2, xmm1 \n"
-                code += "movaps oword[" + reg + " + spectrum.values], xmm2 \n"
+                code += "movaps oword[" + reg + " + Spectrum.values], xmm2 \n"
                 return code
 
     def _clamp_command(self, rounds):
@@ -118,7 +118,7 @@ class MacroSpectrum:
                 """
             return code
         else:
-            code = "vmovaps xmm0, oword[" + reg + " + spectrum.values] \n"
+            code = "vmovaps xmm0, oword[" + reg + " + Spectrum.values] \n"
             code += """vmovhlps xmm1, xmm1, xmm0
                     vshufps xmm2, xmm0, xmm0, 0x55 
                     vaddss xmm0, xmm0, xmm1 
@@ -146,7 +146,7 @@ class MacroSpectrum:
                 """
             return code
         else:
-            code = "movaps xmm0, oword[" + reg + " + spectrum.values] \n"
+            code = "movaps xmm0, oword[" + reg + " + Spectrum.values] \n"
             code += """movhlps xmm1, xmm0
                     movaps xmm2, xmm0
                     shufps xmm2, xmm2, 0x55 
@@ -193,8 +193,8 @@ class MacroSpectrum:
                     off += 224
             else:
                 code = "vshufps " + xmm + ", " + xmm + ", " + xmm + ", 0x00 \n" 
-                code += "vmulps " + xmm + ", " +  xmm + ", oword[" + r3 + " + spectrum.values]\n"  
-                code += "vmovaps oword[" + r1 + " + spectrum.values], " + xmm + "\n"
+                code += "vmulps " + xmm + ", " +  xmm + ", oword[" + r3 + " + Spectrum.values]\n"  
+                code += "vmovaps oword[" + r1 + " + Spectrum.values], " + xmm + "\n"
         else:
             if sampled:
                 off = 0
@@ -208,8 +208,8 @@ class MacroSpectrum:
                     off += 112
             else:
                 code = "shufps " + xmm + ", " + xmm + ", 0x00 \n"
-                code += "mulps " + xmm + ", oword[" + r3 + " + spectrum.values]\n"  
-                code += "movaps oword[" + r1 + " + spectrum.values], " + xmm + "\n"
+                code += "mulps " + xmm + ", oword[" + r3 + " + Spectrum.values]\n"  
+                code += "movaps oword[" + r1 + " + Spectrum.values], " + xmm + "\n"
         return code
 
     def _expand(self):
@@ -262,14 +262,14 @@ class MacroSpectrum:
                     n = n - 64 
                     off += 256 
             else:
-                code = "vmovaps xmm0, oword[" + r2 + " + spectrum.values] \n"
+                code = "vmovaps xmm0, oword[" + r2 + " + Spectrum.values] \n"
                 if not assign:
                     com = "vaddps "
                     if operator == "-": com = "vsubps "
                     if operator == "*": com = "vmulps "
                     if operator == "/": com = "vdivps "
-                    code += com + " xmm0, xmm0, oword[" + r3 + " + spectrum.values] \n"
-                code += "vmovaps oword[" + r1 + " + spectrum.values], xmm0 \n"
+                    code += com + " xmm0, xmm0, oword[" + r3 + " + Spectrum.values] \n"
+                code += "vmovaps oword[" + r1 + " + Spectrum.values], xmm0 \n"
         else:
             if sampled:
                 off = 0
@@ -283,14 +283,14 @@ class MacroSpectrum:
                     n = n - 32
                     off += 128 
             else:
-                code = "movaps xmm0, oword[" + r2 + " + spectrum.values] \n"
+                code = "movaps xmm0, oword[" + r2 + " + Spectrum.values] \n"
                 if not assign:
                     com = "addps "
                     if operator == "-": com = "subps "
                     if operator == "*": com = "mulps "
                     if operator == "/": com = "divps "
-                    code += com + " xmm0, oword[" + r3 + " + spectrum.values] \n"
-                code += "movaps oword[" + r1 + " + spectrum.values], xmm0 \n"
+                    code += com + " xmm0, oword[" + r3 + " + Spectrum.values] \n"
+                code += "movaps oword[" + r1 + " + Spectrum.values], xmm0 \n"
 
         return code
 
@@ -312,18 +312,18 @@ class MacroSpectrum:
                 ymm = "y" + xmm[1:]
                 code += "vperm2f128 " + ymm + ", " + ymm + ", " + ymm + ", 0x00 \n"
                 for r in range(rounds):
-                    code += "vmovaps yword [" + r1 + " + spectrum.values + "  + str(off) + "]," + ymm + "\n"  
+                    code += "vmovaps yword [" + r1 + " + Spectrum.values + "  + str(off) + "]," + ymm + "\n"  
                     off += 32 
             else:
                 rounds = n // 4
                 for r in range(rounds):
-                    code += "movaps oword [" + r1 + " + spectrum.values + "  + str(off) + "]," + xmm + "\n"  
+                    code += "movaps oword [" + r1 + " + Spectrum.values + "  + str(off) + "]," + xmm + "\n"  
                     off += 16 
         else:
             if proc.AVX:
-                code += "vmovaps oword [" + r1 + " + spectrum.values]," + xmm + "\n"  
+                code += "vmovaps oword [" + r1 + " + Spectrum.values]," + xmm + "\n"  
             else:
-                code += "movaps oword [" + r1 + " + spectrum.values]," + xmm + "\n"  
+                code += "movaps oword [" + r1 + " + Spectrum.values]," + xmm + "\n"  
         return code
 
 
@@ -341,9 +341,9 @@ class MacroSpectrum:
 
             for i in range(n):
                 if to_reg:
-                    code += mov + regs[i] + " ," + size + "[" + reg + " + spectrum.values +" + str(off) + "] \n"
+                    code += mov + regs[i] + " ," + size + "[" + reg + " + Spectrum.values +" + str(off) + "] \n"
                 else:
-                    code += mov + size + "[" + reg + " + spectrum.values + " + str(off) + "], " + regs[i] +" \n"
+                    code += mov + size + "[" + reg + " + Spectrum.values + " + str(off) + "], " + regs[i] +" \n"
 
                 if proc.AVX: off += 32 
                 else: off += 16 
@@ -363,9 +363,9 @@ class MacroSpectrum:
 
             for i in range(n):
                 if proc.AVX:
-                    code += com + regs[i] + "," + regs[i] + ", yword[" + reg + " + spectrum.values +" + str(off) + "]\n" 
+                    code += com + regs[i] + "," + regs[i] + ", yword[" + reg + " + Spectrum.values +" + str(off) + "]\n" 
                 else:
-                    code += com + regs[i] + ", oword[" + reg + " + spectrum.values +" + str(off) + "]\n" 
+                    code += com + regs[i] + ", oword[" + reg + " + Spectrum.values +" + str(off) + "]\n" 
                 if proc.AVX: off += 32 
                 else: off += 16 
         return code

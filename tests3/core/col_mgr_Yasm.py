@@ -6,7 +6,7 @@ from renmas3.base import ColorManager
 from renmas3.macros import create_assembler
 
 
-class LumminanceTest(unittest.TestCase):
+class LuminanceTest(unittest.TestCase):
     def setUp(self):
         pass
 
@@ -19,7 +19,7 @@ class LumminanceTest(unittest.TestCase):
         float Y
         #CODE
         macro mov eax, sp1
-        call lumminance
+        call luminance
         macro eq32 Y = xmm0 {xmm0}
         #END
         """

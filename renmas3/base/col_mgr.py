@@ -343,7 +343,7 @@ class ColorManager:
         ASM = " #DATA \n" + self.spectrum_asm_struct() + """
             float lumm[4] = 0.212671, 0.715160, 0.072169, 0.0
             #CODE
-            global lumminance:
+            global luminance:
             macro eq128 xmm0 = eax.Spectrum.values
             macro dot xmm0 = xmm0 * lumm {xmm6, xmm7}
             ret
@@ -359,7 +359,7 @@ class ColorManager:
             Spectrum __y, temp
             float one_over_yint
             #CODE
-            global lumminance:
+            global luminance:
             macro mov ebx, __y
             macro mov ecx, temp
             macro spectrum ecx = eax * ebx
@@ -476,5 +476,7 @@ class ColorManager:
     def load_asm_function(self, func_name, runtimes):
         if func_name == "spectrum_to_rgb":
             self.to_RGB_asm(runtimes)
+        elif func_name == "luminance":
+            self.Y_asm(runtimes)
         else:
             raise ValueError("Cannot load asm function ", func_name)

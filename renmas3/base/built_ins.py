@@ -156,9 +156,23 @@ register_function('spectrum_to_rgb', _spectrum_to_rgb, inline=False)
 def _luminance(cgen, args):
     if len(args) != 1:
         raise ValueError("Wrong number of arguments in normalize fucntion", args)
+
+    cgen.clear_regs()
+
+    s_arg = cgen.get_arg(args[0])
+    if isinstance(s_arg, RGBSpec) or isinstance(s_arg, SampledSpec):
+        if cgen.BIT64:
+            reg1 = cgen.register(typ='general', bit=64, reg='rax')
+        else:
+            reg1 = cgen.register(typ='general', bit=32, reg='eax')
+        code1, reg1, typ1 = load_operand(cgen, args[0], dest_reg=reg1)
+        cgen.add_color_func('luminance')
+        code = code1 + "call luminance\n"
+        return code, 'xmm0', Float
+
     code1, reg1, typ1 = load_operand(cgen, args[0])
-    if typ1 != Vec3:
-        raise ValueError("Type mismatch in normalize function", args[0])
+    if typ1 != Vec3 and typ1 != Vec4:
+        raise ValueError("Type mismatch in luminance function", typ1)
 
     arg = cgen.create_const((0.2126, 0.7152, 0.0722))
 
@@ -184,7 +198,7 @@ def _luminance(cgen, args):
     cgen.release_reg(tmp1)
     return code, reg1, Float
 
-register_function('luminance', _luminance, inline=True) 
+register_function('luminance', _luminance, inline=False) 
 
 def _dot_function(cgen, args):
     if len(args) != 2:
@@ -336,6 +350,52 @@ def _set_rgba(cgen, args):
     return code, reg2, Integer
 
 register_function('set_rgba', _set_rgba, inline=True) 
+
+def _set_sampled_spec(cgen, reg, xmm):
+    path = "Spectrum.values"
+    n = cgen.nsamples()
+    offset = 0
+    if cgen.AVX:
+        xmm = "y" + xmm[1:]
+        code = "vperm2f128 %s, %s, %s, 0x00 \n" % (xmm, xmm, xmm)
+        rounds = n // 8
+        for i in range(rounds):
+            code += "vmovaps yword[%s + %s + %i], %s\n"  % (reg, path, offset, xmm)
+            offset += 32
+    else:
+        rounds = n // 4
+        code = ''
+        for i in range(rounds):
+            code += "movaps oword[%s + %s + %i], %s\n"  % (reg, path, offset, xmm)
+            offset += 16 
+    return code
+
+def _spectrum(cgen, args):
+    cgen.clear_regs()
+    arg = cgen.create_tmp_spec()
+    code1, reg1, typ1 = arg.load_cmd(cgen)
+    if len(args) == 0:
+        return code1, reg1, typ1
+    if len(args) == 1:
+        code2, xmm, typ2 = load_operand(cgen, args[0])
+        if typ2 != Float:
+            raise ValueError("Only float for now in first argument of spectrum.")
+        if cgen.AVX:
+            code3 = "vshufps %s, %s, %s, 0x00\n" % (xmm, xmm, xmm)
+        else:
+            code3 = "shufps %s, %s, 0x00\n" % (xmm, xmm)
+        path = "Spectrum.values"
+        if isinstance(arg, RGBSpec):
+            code4 = Vec4.store_attr(cgen, path, reg1, xmm)
+        else:
+            code4 = _set_sampled_spec(cgen, reg1, xmm)
+        code = code1 + code2 + code3 + code4
+        return code, reg1, typ1
+
+    raise ValueError("Spectrum built in-- wrong number of arguments!")
+
+
+register_function('spectrum', _spectrum, inline=False) 
 
 def _pow(cgen, args):
     if len(args) != 2:

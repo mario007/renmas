@@ -3,7 +3,7 @@ import pickle
 import os.path
 from tdasm import Runtime
 from .parse_scene import parse_scene
-from ..base import arg_list, arg_map, Vec3
+from ..base import arg_list, arg_map, Vec3, Vec4, ColorManager, Spectrum
 from ..base import BaseShader, BasicShader, ImageRGBA, ImagePRGBA, ImageBGRA 
 from ..samplers import Sample
 from ..shapes import ShapeManager, LinearIsect
@@ -20,6 +20,7 @@ class Project:
         self.integrators_code = None
         self.nthreads = 1
         self.shapes = ShapeManager()
+        self.col_mgr = ColorManager(spectral=False)
 
     @staticmethod
     def load(fname):
@@ -53,8 +54,9 @@ class Film(BaseShader):
 
     def _shader_code(self):
         code = """
-#add_sample(sample, spectrum)
-set_rgb(hdr_image, sample.ix, sample.iy, spectrum)
+#add_sample(sample, rgb)
+v = float4(rgb[0], rgb[1], rgb[2], 0.99)
+set_rgba(hdr_image, sample.ix, sample.iy, v)
 
         """
         return code
@@ -74,7 +76,7 @@ set_rgb(hdr_image, sample.ix, sample.iy, spectrum)
         return args
 
     def arg_list(self):
-        return arg_list([('sample', Sample), ('spectrum', Vec3)])
+        return arg_list([('sample', Sample), ('rgb', Vec3)])
 
     def method_name(self):
         return 'add_sample'
@@ -151,7 +153,7 @@ class Renderer:
         if self._project.integrators_code is None:
             raise ValueError("Integrator code is missing!")
         code = self._project.integrators_code
-        self._integrator = BasicShader(code, {})
+        self._integrator = BasicShader(code, {}, col_mgr=self._project.col_mgr)
         sam_sh = self._project.sampler.shader
         cam_sh = self._project.camera.shader
         film_sh = self._film.shader

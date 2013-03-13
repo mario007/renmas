@@ -77,6 +77,11 @@ class Argument:
     def item_supported(cls, typ):
         return False
 
+    @classmethod
+    def register_type(cls):
+        """Return type of register where argument is loaded."""
+        raise NotImplementedError()
+
 
 #TODO implement locking of map and list???-think
 class ArgumentList:

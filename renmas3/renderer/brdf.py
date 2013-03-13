@@ -1,0 +1,55 @@
+from ..base import BaseShader, ArgumentMap, ArgumentList
+from ..base import Spectrum, Vec3, Float, Integer
+from ..shapes import HitPoint
+
+class ShadePoint():
+    __slots__ = ['light_spectrum', 'light_position', 'light_emission', 'wi', 'wo','pdf',
+            'material_spectrum', 'shape_pdf', 'shape_normal',
+            'shape_sample', 'specular', 'fliped']
+    def __init__(self):
+        self.light_spectrum = None
+        self.light_position = None
+        self.light_emission = None
+        self.wi = None
+        self.wo = None
+        self.pdf = None
+        self.material_spectrum = None
+        self.shape_pdf = None
+        self.shape_normal = None
+        self.shape_sample = None
+        self.specular = None
+        self.fliped = None
+
+    @classmethod
+    def user_type(cls):
+        typ_name = "Shadepoint"
+        fields = [('light_spectrum', Spectrum), ('light_position', Vec3), ('light_emission', Float),
+                ('wi', Vec3), ('wo', Vec3), ('pdf', Float),
+                ('material_spectrum', Spectrum), ('shape_pdf', Float), ('shape_normal', Vec3),
+                ('shape_sample', Vec3), ('specular', Integer), ('fliped', Integer)]
+        return (typ_name, fields)
+
+class XXX(BaseShader):
+    def __init__(self, code, col_mgr, props):
+        super(XXX, self).__init__(code)
+        self._col_mgr = col_mgr
+        self.props = props
+
+    def standalone(self):
+        return False
+
+    def col_mgr(self):
+        return self._col_mgr
+
+    def get_props(self, nthreads):
+        return self.props
+
+    def arg_map(self):
+        spectrum = self._col_mgr.black()
+        args = ArgumentMap(arg_from_value(key, value, spectrum=spectrum)\
+                                          for key, value in self.props.items())
+        return args
+
+    def arg_list(self):
+        spectrum = self._col_mgr.black()
+        return arg_list([('hitpoint', HitPoint), ('shadepoint', Vec3)], spectrum=spectrum)

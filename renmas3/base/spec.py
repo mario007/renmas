@@ -138,10 +138,7 @@ class RGBSpec(Argument):
 
     def load_cmd(self, cgen, dest_reg=None):
         if dest_reg is None:
-            if cgen.BIT64:
-                dest_reg = cgen.register(typ='general', bit=64)
-            else:
-                dest_reg = cgen.register(typ='general', bit=32)
+            dest_reg = cgen.register(typ='pointer')
         check_ptr_reg(cgen, dest_reg)
         code = "mov %s, %s \n" % (dest_reg, self.name)
         return code, dest_reg, RGBSpec
@@ -149,10 +146,7 @@ class RGBSpec(Argument):
     @classmethod
     def load_attr(cls, cgen, path, ptr_reg, dest_reg=None):
         if dest_reg is None:
-            if cgen.BIT64:
-                dest_reg = cgen.register(typ='general', bit=64)
-            else:
-                dest_reg = cgen.register(typ='general', bit=32)
+            dest_reg = cgen.register(typ='pointer')
         check_ptr_reg(cgen, ptr_reg)
         check_ptr_reg(cgen, dest_reg)
         if cgen.BIT64:
@@ -285,6 +279,10 @@ class RGBSpec(Argument):
     def rev_arith_cmd(cls, cgen, reg1, reg2, typ2, operator):
         return cls._arith_cmd(cgen, reg1, reg2, typ2, operator, True)
 
+    @classmethod
+    def register_type(cls):
+        return 'pointer'
+
 class SampledSpec(Argument):
     def __init__(self, name, spectrum):
         super(SampledSpec, self).__init__(name)
@@ -293,10 +291,7 @@ class SampledSpec(Argument):
 
     def load_cmd(self, cgen, dest_reg=None):
         if dest_reg is None:
-            if cgen.BIT64:
-                dest_reg = cgen.register(typ='general', bit=64)
-            else:
-                dest_reg = cgen.register(typ='general', bit=32)
+            dest_reg = cgen.register(typ='pointer')
         check_ptr_reg(cgen, dest_reg)
         code = "mov %s, %s \n" % (dest_reg, self.name)
         return code, dest_reg, SampledSpec
@@ -304,10 +299,7 @@ class SampledSpec(Argument):
     @classmethod
     def load_attr(cls, cgen, path, ptr_reg, dest_reg=None):
         if dest_reg is None:
-            if cgen.BIT64:
-                dest_reg = cgen.register(typ='general', bit=64)
-            else:
-                dest_reg = cgen.register(typ='general', bit=32)
+            dest_reg = cgen.register(typ='pointer')
         check_ptr_reg(cgen, ptr_reg)
         check_ptr_reg(cgen, dest_reg)
         if cgen.BIT64:
@@ -420,3 +412,6 @@ class SampledSpec(Argument):
         #NOTE we can do this because for integer and float only '*' is defined
         return SampledSpec.arith_cmd(cgen, reg1, reg2, typ2, operator)
 
+    @classmethod
+    def register_type(cls):
+        return 'pointer'

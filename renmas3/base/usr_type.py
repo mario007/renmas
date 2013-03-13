@@ -70,10 +70,7 @@ class Struct(Argument):
 
     def load_cmd(self, cgen, dest_reg=None):
         if dest_reg is None:
-            if cgen.BIT64:
-                dest_reg = cgen.register(typ='general', bit=64)
-            else:
-                dest_reg = cgen.register(typ='general', bit=32)
+            dest_reg = cgen.register(typ='pointer')
         check_ptr_reg(cgen, dest_reg)
         code = "mov %s, %s \n" % (dest_reg, self.name)
         return code, dest_reg, Struct
@@ -137,6 +134,10 @@ class Struct(Argument):
         cgen.release_reg(src_reg)
         return code1 + code2
 
+    @classmethod
+    def register_type(cls):
+        return 'pointer'
+
 class StructPtr(Struct):
     def generate_data(self):
         bits = platform.architecture()[0]
@@ -147,13 +148,18 @@ class StructPtr(Struct):
 
     def load_cmd(self, cgen, dest_reg=None):
         if dest_reg is None:
-            if cgen.BIT64:
-                dest_reg = cgen.register(typ='general', bit=64)
-            else:
-                dest_reg = cgen.register(typ='general', bit=32)
+            dest_reg = cgen.register(typ='pointer')
         check_ptr_reg(cgen, dest_reg)
         if cgen.BIT64:
             code = "mov %s, qword [%s] \n" % (dest_reg, self.name)
         else:
             code = "mov %s, dword [%s] \n" % (dest_reg, self.name)
         return code, dest_reg, StructPtr
+
+    def store_cmd(self, cgen, reg):
+        check_ptr_reg(cgen, reg)
+        if cgen.BIT64:
+            code = "mov qword [%s], %s \n" % (self.name, reg)
+        else:
+            code = "mov dword [%s], %s \n" % (self.name, reg)
+        return code

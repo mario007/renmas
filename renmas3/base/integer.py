@@ -185,6 +185,10 @@ class Integer(Argument):
         code = epilog + line1 + line2 + line3 + line4 + line5 + line6 + line7 + line8
         return code, reg1
 
+    @classmethod
+    def register_type(cls):
+        return 'general'
+
 class Float(Argument):
 
     def __init__(self, name, value=0.0):
@@ -324,3 +328,6 @@ class Float(Argument):
         code3, reg3, typ3 = Float.arith_cmd(cgen, xmm, reg1, Float, operator)
         return code + code3, reg3, typ3
 
+    @classmethod
+    def register_type(cls):
+        return 'xmm'

@@ -430,6 +430,9 @@ class CodeGenerator:
 
     def register(self, typ=None, bit=32, reg=None):
         assert typ is not None or reg is not None
+        if typ == 'pointer':
+            typ = 'general'
+            bit = 64 if self.BIT64 else 32
         if reg is not None and reg in self._xmm:
             self._xmm.remove(reg)
             return reg

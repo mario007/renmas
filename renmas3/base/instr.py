@@ -1,45 +1,7 @@
-import platform
-import renmas3.switch as proc
 from .arg import Attribute, Const, Name, Subscript, conv_int_to_float
 from .integer import Integer, Float
-from .vec234 import Vec3
 from .usr_type import  Struct, StructPtr
-from .util import float2hex
-
-def load_struct_ptr(cgen, attr, reg=None):
-    bits = platform.architecture()[0]
-    if isinstance(attr, Name):
-        name = attr.name
-        path = None
-    elif isinstance(attr, Attribute):
-        name = attr.name
-        path = attr.path
-    else:
-        raise ValueError("Unsuported operand type for loading struct pointer.", attr)
-
-    arg = cgen.get_arg(name) # arg is Struct
-    if not isinstance(arg, Struct) and not isinstance(arg, StructPtr):
-        raise ValueError("Struct or StructPtr is expected and not ", arg)
-    if bits == '64bit':
-        reg = cgen.register(typ='general', bit=64) if reg is None else reg
-        if not cgen.regs.is_reg64(reg):
-            raise ValueError("64-bit general register is expected!", reg)
-        if isinstance(arg, StructPtr):
-            code = "mov %s, qword [%s] \n" % (reg, arg.name)
-        else:
-            code = "mov %s, %s \n" % (reg, arg.name)
-    else:
-        reg = cgen.register(typ='general', bit=32) if reg is None else reg
-        if not cgen.regs.is_reg32(reg):
-            raise ValueError("32-bit general register is expected!", reg)
-        if isinstance(arg, StructPtr):
-            code = "mov %s, dword [%s] \n" % (reg, arg.name)
-        else:
-            code = "mov %s, %s \n" % (reg, arg.name)
-    
-    if path is not None:
-        path = arg.typ.typ + "." + path
-    return (code, reg, path)
+from .spec import RGBSpec, SampledSpec
 
 def extract_index(index):
     if not isinstance(index, Const):
@@ -112,71 +74,62 @@ def load_func_args(cgen, operands, in_args):
         raise ValueError("Argument length mismatch", operands, in_args)
 
     cgen.clear_regs()
-    bits = platform.architecture()[0]
     xmm = ['xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
     general = ['esi', 'edx', 'ecx', 'ebx', 'eax']
-    ptr_reg = 'rbp' if bits == '64bit' else 'ebp'
+    ptr_reg = 'rbp' if cgen.BIT64 else 'ebp'
     reg2 = 'edi'
     tmp_xmm = 'xmm7'
     cgen.register(reg=ptr_reg)
     cgen.register(reg=reg2)
 
     code = ''
+    #TODO -- test implict conversion from int to float
     for operand, arg in zip(operands, in_args):
-        if type(arg) is Integer:
+        if type(arg) is Struct:
+            raise ValueError("StructPtr is expected not Struct as argument!", arg)
+        if arg.register_type() == 'pointer':
             reg = general.pop()
-            cgen.register(reg=reg)
-            co, reg, typ = load_operand(cgen, operand, dest_reg=reg, ptr_reg=ptr_reg)
-            code += co
-            if typ != Integer:
-                raise ValueError("Type mismatch when passing parameter to function", type(arg), typ)
-        elif type(arg) is Float or type(arg) is Vec3:
-            reg = xmm.pop()
-            co, reg, typ = load_operand(cgen, operand, dest_reg=reg, ptr_reg=ptr_reg)
-            code += co
-            if typ != type(arg):
-                raise ValueError("Type mismatch when passing parameter to function", type(arg), typ)
-        elif type(arg) is StructPtr:
-            reg = general.pop()
-            if bits == '64bit':
+            if cgen.BIT64:
                 reg = 'r' + reg[1:]
-            arg2 = cgen.get_arg(operand)
-            if isinstance(arg2, Struct):
-                if arg.typ.typ != arg2.typ.typ:
-                    raise ValueError("Wrong structure type in function argument!", arg.typ.typ, arg2.typ.typ)
-                co, dummy, dummy = load_struct_ptr(cgen, operand, reg)
-                code += co
-            else:
-                raise ValueError("User type argument is expected.", arg2)
+        elif arg.register_type() == 'xmm':
+            reg = xmm.pop()
+        elif arg.register_type() == 'general':
+            reg = general.pop()
         else:
-            raise ValueError("Unsuported argument type!", operand, type(arg))
+            raise ValueError("Unsuported register type! ", arg.register_type())
+
+        cgen.register(reg=reg)
+        co, reg, typ = load_operand(cgen, operand, dest_reg=reg, ptr_reg=ptr_reg)
+        code += co
+        if not isinstance(arg, typ):
+            raise ValueError("Type mismatch when passing parameter to function", type(arg), typ)
+
+        arg2 = cgen.get_arg(operand)
+        if isinstance(arg2, Struct):
+            if arg.typ.typ != arg2.typ.typ:
+                raise ValueError("Wrong structure type in function argument!", arg.typ.typ, arg2.typ.typ)
     return code
 
 def store_func_args(cgen, args):
+    #NOTE store_cmd will not work if some allocation of register is needed!!!!
+    # be careful and implement better(safe) solution from this problem
+    # maybe argument needs extra method stor_cmd_arg?
     xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
     general = ['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
     code = ''
-    bits = platform.architecture()[0]
-    for a in args:
-        if isinstance(a, Integer):
-            code += "mov dword [%s], %s \n" % (a.name, general.pop())
-        elif isinstance(a, Float):
-            if cgen.AVX:
-                code += "vmovss dword [%s], %s \n" % (a.name, xmm.pop())
-            else:
-                code += "movss dword [%s], %s \n" % (a.name, xmm.pop())
-        elif isinstance(a, Vec3):
-            if cgen.AVX:
-                code += "vmovaps oword [%s], %s \n" % (a.name, xmm.pop())
-            else:
-                code += "movaps oword [%s], %s \n" % (a.name, xmm.pop())
-        elif isinstance(a, StructPtr):
-            if bits == '64bit':
-                reg = general.pop()
+    for arg in args:
+        if arg.register_type() == 'pointer':
+            reg = general.pop()
+            if cgen.BIT64:
                 reg = 'r' + reg[1:]
-                code += "mov qword [%s], %s \n" % (a.name, reg)
-            else:
-                code += "mov dword [%s], %s \n" % (a.name, general.pop())
+        elif arg.register_type() == 'xmm':
+            reg = xmm.pop()
+        elif arg.register_type() == 'general':
+            reg = general.pop()
         else:
-            raise ValueError('Unknown argument', a, a.name)
+            raise ValueError("Unsuported register type! ", arg.register_type())
+        
+        if isinstance(arg, (RGBSpec, SampledSpec)):
+            raise ValueError("Spectrum as argument are not yet implemented!")
+        code += arg.store_cmd(cgen, reg)
     return code

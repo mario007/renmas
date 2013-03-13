@@ -205,6 +205,10 @@ class _Vec234(Argument):
             return True
         return False
 
+    @classmethod
+    def register_type(cls):
+        return 'xmm'
+
 class Vec2(_Vec234):
     def __init__(self, name, value=Vector2(0.0, 0.0)):
         super(Vec2, self).__init__(name)
@@ -405,6 +409,10 @@ class Vec4(_Vec234):
 
 class _Vec234I(Argument):
     pass
+
+    @classmethod
+    def register_type(cls):
+        return 'xmm'
 
 class Vec2I(_Vec234I):
     def __init__(self, name, value=Vector2I(0, 0)):

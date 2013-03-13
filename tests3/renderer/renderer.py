@@ -10,8 +10,9 @@ ray = Ray()
 hitpoint = Hitpoint()
 ret = 1
 nsamples = 0
-color = (0.3, 0.0, 0.0)
-color2 = (0.0, 0.3, 0.0)
+color = spectrum(0.6)
+color2 = spectrum(0.2)
+
 
 while ret != 0:
     ret = generate_sample(sample)
@@ -21,9 +22,11 @@ while ret != 0:
     nsamples = nsamples + 1
     hit = isect(ray, hitpoint)
     if hit:
-        add_sample(sample, color)
+        v = spectrum_to_rgb(color)
+        add_sample(sample, v)
     else:
-        add_sample(sample, color2)
+        v = spectrum_to_rgb(color2)
+        add_sample(sample, v)
 """
 
 ren = Renderer()

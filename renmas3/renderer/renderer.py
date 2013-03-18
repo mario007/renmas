@@ -8,6 +8,8 @@ from ..base import BaseShader, BasicShader, ImageRGBA, ImagePRGBA, ImageBGRA
 from ..samplers import Sample
 from ..shapes import ShapeManager, LinearIsect
 
+from .light import LightManager
+from .mat import MaterialManager
 
 class Project:
     """This class is responsible holding all data object that will
@@ -21,6 +23,8 @@ class Project:
         self.nthreads = 1
         self.shapes = ShapeManager()
         self.col_mgr = ColorManager(spectral=False)
+        self.lgt_mgr = LightManager()
+        self.mat_mgr = MaterialManager()
 
     @staticmethod
     def load(fname):
@@ -41,6 +45,16 @@ class Project:
         Dumps description of whole scene in ascii text file.
         """
         pass
+
+    def set_material(self, shape_name, material_name):
+        shape = self.shapes.shape(shape_name)
+        if shape is None:
+            return #TODO Do something
+        idx = self.mat_mgr.index(material_name)
+        if idx is None:
+            return #TODO Do something
+        shape.material_idx = idx
+        self.shapes.update(shape)
 
 class Film(BaseShader):
     """Shader that used store samples in image."""
@@ -117,6 +131,17 @@ class Renderer:
         self._project = Project.load(fname)
         self._ready = False
 
+    def prepare_lights(self, runtimes):
+        #TODO -- if there are not lights? Currently error will ocur!!!!
+        # pointers array will be zero
+        return self._project.lgt_mgr.prepare_illuminate('light_illuminate', runtimes)
+
+    def prepare_materials(self, runtimes):
+        #TODO -- if there are not lights? Currently error will ocur!!!!
+        # pointers array will be zero
+        return self._project.mat_mgr.prepare_brdfs('brdf', runtimes)
+
+
     def prepare(self):
         """Prepare renderer for rendering. Compile all shaders. Build
         acceleration structures."""
@@ -159,7 +184,12 @@ class Renderer:
         film_sh = self._film.shader
 
         isect_sh = self._isect_shader(runtimes)
-        self._integrator.prepare(runtimes, [sam_sh, cam_sh, film_sh, isect_sh])
+
+        lgt_sh = self.prepare_lights(runtimes)
+        mat_sh = self.prepare_materials(runtimes)
+
+        self._integrator.prepare(runtimes, [sam_sh, cam_sh, film_sh, isect_sh,
+            lgt_sh, mat_sh])
 
     def _isect_shader(self, runtimes):
         if self._intersector is None:

@@ -1,8 +1,13 @@
 
-from renmas3.base import Vector3
-from renmas3.samplers import RegularSampler
-from renmas3.cameras import create_perspective_camera
-from renmas3.shapes import Sphere
+from ..base import Vector3
+from ..samplers import RegularSampler
+from ..cameras import create_perspective_camera
+from ..shapes import Sphere
+
+from .light import Light
+from .lights import create_point_illuminate
+from .mat import Material
+from .materials import create_lambertian_brdf
 
 def _parse_line(line):
     keyword, vals = line.split('=')
@@ -79,6 +84,49 @@ def _parse_shape(fobj, project):
         project.shapes.add(name, sphere)
     else:
         raise ValueError("Unsuported type of shape!", typ)
+    if 'material' in values:
+        mat_name = values['material'][0].strip()
+        project.set_material(name, mat_name)
+
+def _gen_name(obj, prefix):
+    return prefix + str(id(obj))
+
+def _parse_light(fobj, project):
+    values = _extract_values(fobj)
+    #NOTE keywords are expected to be in lower case!!! Improve this
+    if 'type' not in values:
+        raise ValueError("Type attribut is missing")
+    typ = values['type'][0].strip().lower()
+    if typ == 'pointlight':
+        o = values['position']
+        position = Vector3(float(o[0]), float(o[1]), float(o[2]))
+        i = values['intesity']
+        if len(i) == 3: #assume RGB TODO spectrums
+            r, g, b = float(i[0]), float(i[1]), float(i[2])
+        else:
+            raise ValueError("Spectrum values not yet implemented")
+        intesity = project.col_mgr.create_spectrum((r, g, b), illum=True)
+        sh = create_point_illuminate(project.col_mgr, position, intesity)
+        light = Light(illuminate=sh)
+        project.lgt_mgr.add(_gen_name(light, 'light'), light)
+    else:
+        raise ValueError("Unsuported type of light!", typ)
+
+def _parse_material(fobj, project):
+    values = _extract_values(fobj)
+    #NOTE keywords are expected to be in lower case!!! Improve this
+    typ = values['type'][0].strip().lower()
+    if typ == 'lambertian':
+        i = values['diffuse']
+        if len(i) == 3: #assume RGB TODO spectrums
+            r, g, b = float(i[0]), float(i[1]), float(i[2])
+        else:
+            raise ValueError("Spectrum values not yet implemented")
+        diffuse = project.col_mgr.create_spectrum((r, g, b))
+        name = values['name'][0].strip()
+        sh = create_lambertian_brdf(project.col_mgr, diffuse)
+        mat = Material(brdf=sh)
+        project.mat_mgr.add(name, mat)
 
 def parse_scene(fobj, project):
     for line in fobj:
@@ -91,6 +139,10 @@ def parse_scene(fobj, project):
             _parse_camera(fobj, project)
         elif line.lower() == "shape":
             _parse_shape(fobj, project)
+        elif line.lower() == "light":
+            _parse_light(fobj, project)
+        elif line.lower() == "material":
+            _parse_material(fobj, project)
         else:
             raise ValueError("Unknown keyword in scene file!", line)
 

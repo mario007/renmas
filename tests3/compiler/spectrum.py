@@ -14,7 +14,7 @@ class SpectrumTest(unittest.TestCase):
     def test_spec1(self):
 
         code = """
-spec = spectrum(0.3)
+spec = spectrum(0.1)
         """
         rgb = RGBSpectrum(0.0, 0.0, 0.0)
         props = {'spec': rgb}
@@ -27,9 +27,9 @@ spec = spectrum(0.3)
         bs.execute()
 
         val = bs.shader.get_value('spec')
-        self.assertAlmostEqual(val.r, 0.3, 4)
-        self.assertAlmostEqual(val.g, 0.3, 4)
-        self.assertAlmostEqual(val.b, 0.3, 4)
+        self.assertAlmostEqual(val.r, 0.1, 4)
+        self.assertAlmostEqual(val.g, 0.1, 4)
+        self.assertAlmostEqual(val.b, 0.1, 4)
 
     def test_spec2(self):
 

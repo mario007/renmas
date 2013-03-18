@@ -28,11 +28,13 @@ class ColorManager:
         self._spectrum_region = (400, 700)
         self._nsamples = 32
         
-        self._assembler = create_assembler()
-        self._macro_spectrum = MacroSpectrum(self)
-        self._assembler.register_macro('spectrum', self._macro_spectrum.macro_spectrum)
-
         self._create_spectrums()
+
+    def create_assembler(self):
+        assembler = create_assembler()
+        macro_spectrum = MacroSpectrum(self)
+        assembler.register_macro('spectrum', macro_spectrum.macro_spectrum)
+        return assembler
 
     @property
     def spectral(self):
@@ -282,7 +284,7 @@ class ColorManager:
                 ret
             """
             descs = []
-            mc = self._assembler.assemble(ASM, True)
+            mc = self.create_assembler().assemble(ASM, True)
             #mc.print_machine_code()
             name = "spectrum_to_rgb" + str(id(self))
             for r in runtimes:
@@ -301,7 +303,7 @@ class ColorManager:
                 macro eq128 xmm0 = eax.Spectrum.values
                 ret
             """
-            mc = self._assembler.assemble(ASM, True)
+            mc = self.create_assembler().assemble(ASM, True)
             #mc.print_machine_code()
             name = "spectrum_to_rgb" + str(id(self))
             for r in runtimes:
@@ -348,7 +350,7 @@ class ColorManager:
             macro dot xmm0 = xmm0 * lumm {xmm6, xmm7}
             ret
         """
-        mc = self._assembler.assemble(ASM, True)
+        mc = self.create_assembler().assemble(ASM, True)
         name = "Y_lumm" + str(id(self))
         for r in runtimes:
             if not r.global_exists('lumminance'):
@@ -368,7 +370,7 @@ class ColorManager:
             ret
 
         """
-        mc = self._assembler.assemble(ASM, True)
+        mc = self.create_assembler().assemble(ASM, True)
         name = "Y_lumm" + str(id(self))
         dsecs = []
         for r in runtimes:
@@ -408,7 +410,7 @@ class ColorManager:
             macro eq128 xmm0 = xmm5 + xmm3
             ret
         """
-        mc = self._assembler.assemble(ASM, True)
+        mc = self.create_assembler().assemble(ASM, True)
         name = "XYZ_to_RGB" + str(id(self))
         for r in runtimes:
             if not r.global_exists('XYZ_to_RGB'):

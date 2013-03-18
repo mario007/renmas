@@ -105,7 +105,7 @@ def load_func_args(cgen, operands, in_args):
             raise ValueError("Type mismatch when passing parameter to function", type(arg), typ)
 
         arg2 = cgen.get_arg(operand)
-        if isinstance(arg2, Struct):
+        if isinstance(arg2, Struct) and isinstance(arg, Struct):
             if arg.typ.typ != arg2.typ.typ:
                 raise ValueError("Wrong structure type in function argument!", arg.typ.typ, arg2.typ.typ)
     return code

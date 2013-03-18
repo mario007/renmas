@@ -8,10 +8,11 @@ INTEGRATORS_CODE = """
 sample = Sample()
 ray = Ray()
 hitpoint = Hitpoint()
+shadepoint = Shadepoint()
 ret = 1
 nsamples = 0
 color = spectrum(0.6)
-color2 = spectrum(0.2)
+color2 = spectrum(0.0)
 
 
 while ret != 0:
@@ -22,7 +23,10 @@ while ret != 0:
     nsamples = nsamples + 1
     hit = isect(ray, hitpoint)
     if hit:
-        v = spectrum_to_rgb(color)
+        light_illuminate(hitpoint, shadepoint, 0)
+        brdf(hitpoint, shadepoint, hitpoint.material_idx)
+        col = dot(hitpoint.normal, shadepoint.wi) * shadepoint.material_spectrum
+        v = spectrum_to_rgb(col)
         add_sample(sample, v)
     else:
         v = spectrum_to_rgb(color2)
@@ -41,7 +45,7 @@ start = time.clock()
 ren.render()
 print(time.clock() - start)
 
-#ren.save_project('scene1.proj')
+ren.save_project('scene1.proj')
 
 img = ren._film._hdr_image
 width, height = img.size()

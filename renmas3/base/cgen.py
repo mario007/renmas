@@ -18,24 +18,16 @@ def register_function(name, func, inline=False):
     _built_in_functions[name] = (func, inline)
 
 def register_user_type(typ):
-    if isinstance(typ, UserType):
-        if typ.typ in _user_types:
-            pass #TODO -- check if two types are compatabile
-        else:
-            _user_types[typ.typ] = typ
-        return
-
     if not inspect.isclass(typ):
         raise ValueError("Type is not class", typ)
     if not hasattr(typ, 'user_type'):
         raise ValueError("Class does not have user_type metod defined", typ)
-
     typ_name, fields = typ.user_type()
-    usr_type = create_user_type(typ_name, fields)
-    if usr_type.typ in _user_types:
-        pass #TODO -- check if two types are compatabile
+    if typ_name not in _user_types:
+        _user_types[typ_name] = typ
     else:
-        _user_types[usr_type.typ] = usr_type
+        if typ is not _user_types[typ_name]:
+            raise ValueError("Same type different class error!", typ, _user_types[typ_name])
 
 class Registers:
     def __init__(self):
@@ -143,12 +135,6 @@ class CodeGenerator:
         self._asm_functions = {}
         self._saved_regs = set()
         self.regs = Registers()
-        #NOTE here we try to find spectrum so we can use that
-        # spectrum as factory for others
-        self._spec_arg = None
-        for name, arg in iter(self._args):
-            if isinstance(arg, (RGBSpec, SampledSpec)):
-                self._spec_arg = arg
 
         # Local Spectrums for temporal calculations in expressions
         self._tmp_specs = []
@@ -156,6 +142,7 @@ class CodeGenerator:
 
         # color manager
         self._col_mgr = col_mgr
+        self._black_spectrum = col_mgr.black() if col_mgr else None
         self._color_functions = set()
 
     @property
@@ -300,10 +287,11 @@ class CodeGenerator:
         return shader
 
     def create_const(self, value, typ=None):
-        if value in self._constants:
-            return self._constants[value]
-        arg = create_argument(self._generate_name('const'), value=value, typ=typ)
-        self._constants[value] = arg
+        arg = create_argument(self._generate_name('const'), value=value,
+                              typ=typ, spectrum=self._black_spectrum)
+        if (type(arg), value) in self._constants:
+            return self._constants[(type(arg), value)]
+        self._constants[(type(arg), value)] = arg
         return arg
 
     def _generate_name(self, prefix=''):
@@ -344,10 +332,12 @@ class CodeGenerator:
                 return arg
                 #raise ValueError("Type mismatch", arg.typ.typ, obj.name)
         if obj.name not in _user_types:
-            raise ValueError("Unregistered type %s is not registerd." % obj.name)
+            raise ValueError("Type %s is not registerd." % obj.name)
 
         if arg is None:
-            arg = Struct(self._generate_name('local'), _user_types[obj.name])
+            typ = _user_types[obj.name]
+            arg = create_argument(self._generate_name('local'), typ=typ,
+                                  spectrum=self._black_spectrum)
 
         if self._is_fixed_name(arg.name):
             return arg
@@ -377,15 +367,18 @@ class CodeGenerator:
         if isinstance(value, str): # a = b --- create argument a that have same type as b
             arg2 = self.get_arg(value)
             if isinstance(arg2, Struct):
-                arg = create_argument(self._generate_name('local'), value=arg2.typ)
+                arg = create_argument(self._generate_name('local'),
+                                      value=arg2.typ, spectrum=self._black_spectrum)
             else:
-                arg = create_argument(self._generate_name('local'), typ=type(arg2))
+                arg = create_argument(self._generate_name('local'),
+                                      typ=type(arg2), spectrum=self._black_spectrum)
         else:
             if (typ is RGBSpec or typ is SampledSpec) and value is None:
                 arg = self._create_spec()
             else:
-                arg = create_argument(self._generate_name('local'), value=value, typ=typ)
-        if isinstance(arg, Struct): #automatic registration!!!! think TODO
+                arg = create_argument(self._generate_name('local'), value=value,
+                                      typ=typ, spectrum=self._black_spectrum)
+        if isinstance(arg, Struct):
             if arg.typ.typ not in _user_types:
                 raise ValueError("User type %s is not registerd." % arg.typ.typ)
 

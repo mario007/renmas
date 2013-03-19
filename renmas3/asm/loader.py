@@ -2,14 +2,16 @@ from tdasm import Tdasm, Runtime
 
 from .powps import pow_ps_asm
 from .powss import pow_ss_asm
+from .logps import log_ps_asm
+from .logss import log_ss_asm
 
 _asm_functions = {}
 _asm_functions['pow_ps'] = pow_ps_asm 
 _asm_functions['pow_ss'] = pow_ss_asm
+_asm_functions['log_ps'] = log_ps_asm 
+_asm_functions['log_ss'] = log_ss_asm
 
 _compiled_funs ={}
-
-# load_asm_function(sin, fast_sin_bbfdsf, runtimes)
 
 def load_asm_function(name, label, runtimes, AVX=False, BIT64=False):
 

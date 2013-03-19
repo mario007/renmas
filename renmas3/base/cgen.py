@@ -132,7 +132,7 @@ class CodeGenerator:
         self._ret_type = None
         self._constants = {}
         self._counter = 0
-        self._asm_functions = {}
+        self._asm_functions = set()
         self._saved_regs = set()
         self.regs = Registers()
 
@@ -471,9 +471,9 @@ class CodeGenerator:
         self._general = ['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
         self._general64 = ['rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax']
 
-    def add_asm_function(self, label, code):
-        #TODO --- code can also be callable
-        self._asm_functions[label] = code
+    def add_asm_function(self, func_name, label):
+        f = (func_name, label, self.AVX, self.BIT64)
+        self._asm_functions.add(f)
 
     def add_color_func(self, func_name):
         self._color_functions.add(func_name)

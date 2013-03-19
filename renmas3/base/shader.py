@@ -1,12 +1,13 @@
 import x86
 from tdasm import Tdasm
+from ..asm import load_asm_function
 from .arg import ArgumentMap, ArgumentList
 from .usr_type import Struct
 from .arg_fac import create_argument, arg_from_value, arg_from_type
 
 class Shader:
     def __init__(self, name, asm_code, args, input_args=None, shaders=None,
-            ret_type=None, func=False, functions=None, col_mgr=None,
+            ret_type=None, func=False, functions=set(), col_mgr=None,
             color_funcs=set()):
 
         self._name = name
@@ -21,10 +22,8 @@ class Shader:
             self._shaders = []
 
         self._functions = functions
-        if self._functions is None:
-            self._functions = []
-
         self._ret_type = ret_type
+
         self._ds = []
         self._struct_args = {}
         self._func = func 
@@ -79,15 +78,9 @@ class Shader:
         asm = Tdasm()
         name = 'shader' + str(id(self))
 
-        for r in runtimes:
-            for label, code in self._functions.items():
-                if not r.global_exists(label):
-                    if label in self._mc_cache:
-                        r.load(label, self._mc_cache[label])
-                    else:
-                        mc = asm.assemble(code, True)
-                        self._mc_cache[label] = mc
-                        r.load(label, mc)
+        for fun in self._functions:
+            fun_name, fun_label, avx, bit = fun
+            load_asm_function(fun_name, fun_label, runtimes, avx, bit)
 
         ds = []
         for r in runtimes:

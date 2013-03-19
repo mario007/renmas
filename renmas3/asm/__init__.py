@@ -1,4 +1,3 @@
 
-from .powps import pow_ps
-from .powss import pow_ss
+from .loader import load_asm_function
 

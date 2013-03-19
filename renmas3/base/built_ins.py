@@ -11,8 +11,6 @@ from .instr import load_operand
 from .cgen import register_function
 from .spec import RGBSpec, SampledSpec
 
-from ..asm import pow_ps, pow_ss
-
 def _int_function(cgen, args):
     if len(args) == 0:
         reg = cgen.register(typ='general')
@@ -397,6 +395,12 @@ def _spectrum(cgen, args):
 
 register_function('spectrum', _spectrum, inline=False) 
 
+def _label_sufix(AVX=False, BIT64=False):
+    avx = 'avx' if AVX else 'sse'
+    bit = '64' if BIT64 else '32' 
+    suffix = '%s_%s' % (avx, bit)
+    return suffix
+
 def _pow(cgen, args):
     if len(args) != 2:
         raise ValueError("Wrong number of arguments in pow fucntion", args)
@@ -413,15 +417,40 @@ def _pow(cgen, args):
         raise ValueError("Type mismatch", typ1, typ2)
 
     if typ1 == Float:
-        cgen.add_asm_function('fast_pow_ss', pow_ss())
-        code3 = code1 + code2 + "call fast_pow_ss\n"
-        return code3, 'xmm0', Float
-    elif typ1 == Vec3:
-        cgen.add_asm_function('fast_pow_ps', pow_ps())
-        code3 = code1 + code2 + "call fast_pow_ps\n"
-        return code3, 'xmm0', Vec3
+        label = 'fast_pow_ss_' + _label_sufix(cgen.AVX, cgen.BIT64) + '_yxa8mm3epu'
+        cgen.add_asm_function('pow_ss', label)
+    elif typ1 == Vec2 or typ1 == Vec3 or typ1 == Vec4:
+        label = 'fast_pow_ps_' + _label_sufix(cgen.AVX, cgen.BIT64) + '_pxp3axmuj'
+        cgen.add_asm_function('pow_ps', label)
     else:
         raise ValueError("Unsuported type for pow", typ1)
+    code3 = 'call %s\n' % label
+    code3 = code1 + code2 + code3
+    return code3, 'xmm0', typ1
 
 register_function('pow', _pow, inline=False) 
+
+def _log(cgen, args):
+    if len(args) != 1:
+        raise ValueError("Wrong number of arguments in pow fucntion", args)
+
+    #NOTE here we dont use load_func_args function because pow can accept
+    # different type parameters Float, Vector3, ...
+    cgen.clear_regs()
+    xmm1 = cgen.register(reg='xmm0')
+    code1, reg1, typ1 = load_operand(cgen, args[0], dest_reg=xmm1)
+
+    if typ1 == Float:
+        label = 'fast_log_ss_' + _label_sufix(cgen.AVX, cgen.BIT64) + '_yxa8mm3epu'
+        cgen.add_asm_function('log_ss', label)
+    elif typ1 == Vec2 or typ1 == Vec3 or typ1 == Vec4:
+        label = 'fast_log_ps_' + _label_sufix(cgen.AVX, cgen.BIT64) + '_pxp3axmuj'
+        cgen.add_asm_function('log_ps', label)
+    else:
+        raise ValueError("Unsuported type for pow", typ1)
+    code2 = 'call %s\n' % label
+    code3 = code1 + code2
+    return code3, 'xmm0', typ1
+
+register_function('log', _log, inline=False) 
 

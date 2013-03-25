@@ -29,7 +29,7 @@ class SpectrumToRGBTest(unittest.TestCase):
         mgr = ColorManager(False)
         runtime = Runtime()
 
-        mgr.to_RGB_asm([runtime])
+        mgr.to_RGB_asm([runtime], 'spectrum_to_rgb')
         spec1 = mgr.create_spectrum((0.66,0.88, 0.11))
 
         mc = create_assembler().assemble(self.asm_code1(mgr))
@@ -48,7 +48,7 @@ class SpectrumToRGBTest(unittest.TestCase):
         mgr = ColorManager()
         runtime = Runtime()
 
-        mgr.to_RGB_asm([runtime])
+        mgr.to_RGB_asm([runtime], 'spectrum_to_rgb')
         spec1 = mgr.create_spectrum((0.66,0.88, 0.11))
 
         mc = create_assembler().assemble(self.asm_code1(mgr))

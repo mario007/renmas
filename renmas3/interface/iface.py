@@ -1,8 +1,39 @@
 
 from ..base import ImagePRGBA, ImageRGBA, ImageBGRA
 from ..utils import blt_rgba, blt_prgba_to_bgra
+from ..renderer import Renderer
 
 _objects = {}
+
+class IRenderer:
+    def __init__(self, ren):
+        self.ren = ren
+
+    def parse_scene_file(self, args):
+        fname = args
+        self.ren.parse_scene_file(fname)
+        return ''
+
+    def open_project(self, args):
+        fname = args
+        self.ren.open_project(fname)
+        return ''
+
+    def save_project(self, args):
+        fname = args
+        self.ren.save_project(fname)
+        return ''
+
+    def render(self, args):
+        ret = self.ren.render()
+        return str(ret)
+
+    def output_image(self, args):
+        img = self.ren.output_image()
+        width, height = img.size()
+        ptr, pitch = img.address_info()
+        ret = "%s,%s,%s,%s" % (str(width), str(height), str(ptr), str(pitch))
+        return ret
 
 def create_image(args):
     pix_format, width, height = args.split(',')
@@ -36,13 +67,29 @@ def conv_to_bgra(args):
     _objects[str(id(new_img))] = new_img
     return str(id(new_img))
 
-def exec_method(id_obj, name, args):
-    pass
+def create_renderer(args):
+    ren = Renderer()
+    iren = IRenderer(ren)
+    _objects[str(id(iren))] = iren
+    return str(id(iren))
 
-#func must return string
+#NOTE func must return string
+def exec_method(id_obj, name, args):
+    if id_obj not in _objects:
+        raise ValueError("Object doesn't exist in objects!")
+    obj = _objects[id_obj]
+    method = getattr(obj, name)
+    return method(args)
+
+_functions = {}
+_functions['conv_to_bgra'] = conv_to_bgra
+_functions['create_image'] = create_image
+_functions['create_renderer'] = create_renderer
+
+#NOTE func must return string
 def exec_func(name, args):
-    if name in globals():
-        func = globals()[name]
+    if name in _functions:
+        func = _functions[name]
         return func(args)
     else:
         return str(None)

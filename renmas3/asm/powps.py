@@ -1,7 +1,3 @@
-import platform
-
-import renmas3.switch as proc
-from tdasm import Tdasm
 
 def pow_ps_asm(label, AVX=False, BIT64=True):
 

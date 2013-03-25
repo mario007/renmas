@@ -26,7 +26,7 @@ class XYZ_TO_RGBTest(unittest.TestCase):
         mgr = ColorManager(False)
         runtime = Runtime()
 
-        mgr.XYZ_to_RGB_asm([runtime])
+        mgr.XYZ_to_RGB_asm([runtime], 'XYZ_to_RGB')
         mc = create_assembler().assemble(self.asm_code1())
         ds = runtime.load("test", mc)
 

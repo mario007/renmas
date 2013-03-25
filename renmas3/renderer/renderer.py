@@ -7,6 +7,7 @@ from ..base import arg_list, arg_map, Vec3, Vec4, ColorManager, Spectrum
 from ..base import BaseShader, BasicShader, ImageRGBA, ImagePRGBA, ImageBGRA 
 from ..samplers import Sample
 from ..shapes import ShapeManager, LinearIsect
+from ..utils import blt_prgba_to_bgra
 
 from .light import LightManager
 from .mat import MaterialManager
@@ -98,6 +99,12 @@ set_rgba(hdr_image, sample.ix, sample.iy, v)
     def standalone(self):
         return False
 
+    def clear(self):
+        """Populate buffers with zeroes."""
+        self._hdr_image.clear()
+        self._ldr_image.clear()
+        self._output_img.clear()
+
 class Renderer:
     """Main class that is used for holding all the parts together that
     are required for rendering of image."""
@@ -112,7 +119,7 @@ class Renderer:
 
     def set_resolution(self, width, height):
         """Set resolution of output image. """
-        pass
+        self._ready = False
 
 
     def save_project(self, fname):
@@ -218,4 +225,10 @@ class Renderer:
         #TODO -- tone mapping
 
         return not self._project.sampler.has_more_samples(self._pass)
+
+    def output_image(self):
+        img = self._film._hdr_image
+        img2 = self._film._output_img
+        blt_prgba_to_bgra(img, img2)
+        return self._film._output_img
 

@@ -29,7 +29,7 @@ class LuminanceTest(unittest.TestCase):
         mgr = ColorManager(False)
         runtime = Runtime()
 
-        mgr.Y_asm([runtime])
+        mgr.Y_asm([runtime], 'luminance')
         spec1 = mgr.create_spectrum((0.66,0.88, 0.11))
 
         mc = create_assembler().assemble(self.asm_code1(mgr))
@@ -43,7 +43,7 @@ class LuminanceTest(unittest.TestCase):
         mgr = ColorManager()
         runtime = Runtime()
 
-        mgr.Y_asm([runtime])
+        mgr.Y_asm([runtime], 'luminance')
         spec1 = mgr.create_spectrum((0.66,0.88, 0.11))
 
         mc = create_assembler().assemble(self.asm_code1(mgr))

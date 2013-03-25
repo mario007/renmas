@@ -46,12 +46,6 @@ ren.render()
 print(time.clock() - start)
 
 ren.save_project('scene1.proj')
-
-img = ren._film._hdr_image
-width, height = img.size()
-img2 = ImageBGRA(width, height)
-
-blt_prgba_to_bgra(img, img2)
-
+img2 = ren.output_image()
 show_image_in_window(img2)
 

@@ -475,8 +475,8 @@ class CodeGenerator:
         f = (func_name, label, self.AVX, self.BIT64)
         self._asm_functions.add(f)
 
-    def add_color_func(self, func_name):
-        self._color_functions.add(func_name)
+    def add_color_func(self, func_name, label):
+        self._color_functions.add((func_name, label))
 
     def save_regs(self, regs):
         return ''.join(self._save_reg(reg) for reg in regs)

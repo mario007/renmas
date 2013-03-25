@@ -113,6 +113,10 @@ class Image:
     def address_info(self):
         return (self._pixels.ptr(), self.pitch)
 
+    def clear(self):
+        """Fill image with zeroes."""
+        self._pixels.fill()
+
     def __repr__(self):
         adr = self._pixels.ptr()
         return '<Image object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \

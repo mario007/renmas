@@ -54,6 +54,31 @@ extern "C" __declspec(dllexport) long __cdecl ExecuteFunction(const char *name, 
 
 }
 
+extern "C" __declspec(dllexport) long __cdecl ExecuteObjFunction(const char *id_obj, const char *name, const char *args, wchar_t **value)
+{
+	PyObject *result = PyObject_CallMethod(iface, "exec_method", "sss", id_obj, name, args);
+	static wchar_t *text = NULL;
+	if (text != NULL)
+	{
+		PyMem_Free(text);
+		text = NULL;
+	}
+
+	if (result != NULL) 
+	{
+		text = PyUnicode_AsWideCharString(result, NULL);
+		*value = (wchar_t *) text;
+		Py_DECREF(result);
+		return 0;
+	}
+	else
+	{
+		PyErr_Print();
+		return -1;
+	}
+
+}
+
 extern "C" __declspec(dllexport) long __cdecl GetProperty(const char *id_obj, const char *name, const char *type, wchar_t **value)
 {
 	PyObject *result = PyObject_CallMethod(iface, "get_prop", "sss", id_obj, name, type);

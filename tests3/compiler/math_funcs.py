@@ -1,5 +1,7 @@
-
+import math
 import unittest
+from random import random
+
 from tdasm import Runtime
 from renmas3.base import BasicShader, Integer, Float, Vec3, Vec2, Vec4
 from renmas3.base import Vector2, Vector3, Vector4, Struct
@@ -39,10 +41,14 @@ ret4 = pow((1.9, 1.15, 2.11, 2.22), (1.77, 2.21, 2.5, 2.71))
         self.assertAlmostEqual(val.z, pow(2.11, 2.5), places=3)
         self.assertAlmostEqual(val.w, pow(2.22, 2.71), places=3)
 
-    def test_log(self):
-        code = """
-ret = log(1.4)
-        """
+    def math_fun_test(self, fun, py_fun):
+        num = random()
+        nums = (random(), random())
+
+        line1 = "ret = %s(%f)\n" % (fun, num)
+        line2 = "ret2 = %s((%f, %f))\n" % (fun, nums[0], nums[1])
+        code = line1 + line2
+
         props = {'ret':1.1, 'ret2':Vector2(2.2, 4), 'ret3':Vector3(5,6,7),
                 'ret4':Vector4(11,1,1,1)}
         bs = BasicShader(code, props)
@@ -51,10 +57,18 @@ ret = log(1.4)
         #print (bs.shader._code)
 
         bs.execute()
+
         val = bs.shader.get_value('ret')
-        print (val)
-        import math
-        print (math.log(1.4))
+        self.assertAlmostEqual(val, py_fun(num), places=3)
+        val = bs.shader.get_value('ret2')
+        self.assertAlmostEqual(val.x, py_fun(nums[0]), places=3)
+        self.assertAlmostEqual(val.y, py_fun(nums[1]), places=3)
+
+    def test_log(self):
+        self.math_fun_test('log', math.log)
+
+    def test_exp(self):
+        self.math_fun_test('exp', math.exp)
 
 if __name__ == "__main__":
     unittest.main()

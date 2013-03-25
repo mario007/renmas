@@ -25,6 +25,9 @@ namespace PyWrapper
         private static extern int ExecuteFunction(string name, string args, ref IntPtr value);
 
         [System.Runtime.InteropServices.DllImport("PyAPI.dll")]
+        private static extern int ExecuteObjFunction(string id_obj, string name, string args, ref IntPtr value);
+
+        [System.Runtime.InteropServices.DllImport("PyAPI.dll")]
         private static extern int GetProperty(string id, string name, string type, ref IntPtr value);
 
         [System.Runtime.InteropServices.DllImport("PyAPI.dll")]
@@ -35,6 +38,17 @@ namespace PyWrapper
             int ret = Init();
             if (ret != 0) 
                 throw new Exception("Python virtual machine cannot be initialized.");
+        }
+
+        public static string ExectueObjMethod(string id_obj, string name, string args)
+        {
+            // TODO Add support to extract StackTrace and put that message for exception
+            IntPtr ptr = IntPtr.Zero;
+            int ret = ExecuteObjFunction(id_obj, name, args, ref ptr);
+            if (ret == -1)
+                throw new Exception("Cannot exectue method, some exception ocured!");
+            string s = Marshal.PtrToStringUni(ptr);
+            return s;
         }
         public static string ExecuteMethod(string name, string args)
         {
@@ -99,12 +113,12 @@ namespace PyWrapper
             get { return this._id; }
         }
 
-        public int get_int(string name)
+        protected int get_int(string name)
         {
             return int.Parse(PyUtils.GetProp(this._id, name, "int"));
         }
 
-        public IntPtr get_pointer(string name)
+        protected IntPtr get_pointer(string name)
         {
             long adr = long.Parse(PyUtils.GetProp(this._id, name, "int"));
             return new IntPtr(adr);

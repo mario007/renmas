@@ -59,10 +59,10 @@ class Shader:
         return self._input_args
 
     def _load_color_funcs(self, runtimes):
-        for func_name in self._color_funcs:
+        for func in self._color_funcs:
             if self.col_mgr is None:
                 raise ValueError("Color manager is not set for shader!")
-            self.col_mgr.load_asm_function(func_name, runtimes)
+            self.col_mgr.load_asm_function(func, runtimes)
 
 
     def prepare(self, runtimes):

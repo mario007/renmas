@@ -244,16 +244,19 @@ class ColorManager:
         r, g, b = self.XYZ_to_RGB(X, Y, Z)
         return RGBSpectrum(r, g, b)
 
-    def to_RGB_asm(self, runtimes):
+    def to_RGB_asm(self, runtimes, label):
+        global_label = 'global %s:\n' % label
         # in eax(rax) must be spectrum
         if self._spectral:
-            self.XYZ_to_RGB_asm(runtimes)
+            label_xyz = 'xyz_to_rgb_ya3p9gfm4'
+            self.XYZ_to_RGB_asm(runtimes, label_xyz)
             ASM = " #DATA \n" + self.spectrum_asm_struct() + """
                 Spectrum __x, __y, __z, temp
                 float one_over_yint
                 float XYZ[4]
                 #CODE
-                global spectrum_to_rgb:
+            """
+            ASM += global_label + """
                 macro mov ebx, __x
                 macro mov ecx, temp
                 macro spectrum ecx = eax * ebx
@@ -280,7 +283,8 @@ class ColorManager:
                 ASM += "movss dword [XYZ + 8], xmm0 \n"
             ASM += """
                 macro eq128 xmm0 = XYZ 
-                call XYZ_to_RGB
+            """
+            ASM += "call " + label_xyz + """
                 ret
             """
             descs = []
@@ -288,7 +292,7 @@ class ColorManager:
             #mc.print_machine_code()
             name = "spectrum_to_rgb" + str(id(self))
             for r in runtimes:
-                if not r.global_exists('spectrum_to_rgb'):
+                if not r.global_exists(label):
                     descs.append(r.load(name, mc))
             for ds in descs:
                 ds["one_over_yint"] = 1.0 / self.yint
@@ -299,7 +303,8 @@ class ColorManager:
         else:
             ASM = " #DATA \n" + self.spectrum_asm_struct() + """
                 #CODE
-                global spectrum_to_rgb:
+            """
+            ASM += global_label + """
                 macro eq128 xmm0 = eax.Spectrum.values
                 ret
             """
@@ -307,7 +312,7 @@ class ColorManager:
             #mc.print_machine_code()
             name = "spectrum_to_rgb" + str(id(self))
             for r in runtimes:
-                if not r.global_exists('spectrum_to_rgb'):
+                if not r.global_exists(label):
                     r.load(name, mc)
 
     # Convert spectrum to X,Y,Z components
@@ -341,11 +346,14 @@ class ColorManager:
         y_sum = sum(y.samples)
         return y_sum / self.yint  
 
-    def _Y_asm_rgb(self, runtimes):
+    def _Y_asm_rgb(self, runtimes, label):
+        global_label = 'global %s:\n' % label
+
         ASM = " #DATA \n" + self.spectrum_asm_struct() + """
             float lumm[4] = 0.212671, 0.715160, 0.072169, 0.0
             #CODE
-            global luminance:
+        """
+        ASM += global_label + """
             macro eq128 xmm0 = eax.Spectrum.values
             macro dot xmm0 = xmm0 * lumm {xmm6, xmm7}
             ret
@@ -353,15 +361,18 @@ class ColorManager:
         mc = self.create_assembler().assemble(ASM, True)
         name = "Y_lumm" + str(id(self))
         for r in runtimes:
-            if not r.global_exists('lumminance'):
+            if not r.global_exists(label):
                 r.load(name, mc)
     
-    def _Y_asm_spectrum(self, runtimes):
+    def _Y_asm_spectrum(self, runtimes, label):
+
+        global_label = 'global %s:\n' % label
         ASM = " #DATA \n" + self.spectrum_asm_struct() + """
             Spectrum __y, temp
             float one_over_yint
             #CODE
-            global luminance:
+        """
+        ASM += global_label + """
             macro mov ebx, __y
             macro mov ecx, temp
             macro spectrum ecx = eax * ebx
@@ -374,17 +385,17 @@ class ColorManager:
         name = "Y_lumm" + str(id(self))
         dsecs = []
         for r in runtimes:
-            if not r.global_exists('lumminance'):
+            if not r.global_exists(label):
                 dsecs.append(r.load(name, mc))
         for ds in dsecs:
             ds["one_over_yint"] = 1.0 / self.yint
             ds["__y.values"] = self._cie_y.to_ds()
 
-    def Y_asm(self, runtimes):
+    def Y_asm(self, runtimes, label):
         if self._spectral:
-            self._Y_asm_spectrum(runtimes)
+            self._Y_asm_spectrum(runtimes, label)
         else:
-            self._Y_asm_rgb(runtimes)
+            self._Y_asm_rgb(runtimes, label)
 
     def XYZ_to_RGB(self, X, Y, Z):
         r = 3.240479 * X - 1.537150 * Y - 0.498535 * Z
@@ -392,14 +403,16 @@ class ColorManager:
         b = 0.055648 * X - 0.204043 * Y + 1.057311 * Z
         return (r, g, b)
 
-    def XYZ_to_RGB_asm(self, runtimes):
+    def XYZ_to_RGB_asm(self, runtimes, label):
+        global_label = 'global %s:\n' % label
         ASM = """
             #DATA
             float coff1[4] = 3.240479, -0.969256, 0.055648, 0.0
             float coff2[4] = -1.537150, 1.875991, -0.204043, 0.0
             float coff3[4] = -0.498535, 0.041556, 1.057311, 0.0
             #CODE
-            global XYZ_to_RGB:
+        """
+        ASM += global_label + """
             macro broadcast xmm1 = xmm0[0]
             macro eq128 xmm1 = xmm1 * coff1
             macro broadcast xmm2 = xmm0[1]
@@ -413,7 +426,7 @@ class ColorManager:
         mc = self.create_assembler().assemble(ASM, True)
         name = "XYZ_to_RGB" + str(id(self))
         for r in runtimes:
-            if not r.global_exists('XYZ_to_RGB'):
+            if not r.global_exists(label):
                 ds = r.load(name, mc)
 
     def RGB_to_XYZ(self, r, g, b):
@@ -475,10 +488,12 @@ class ColorManager:
         else:
             return RGBSpectrum(0.0, 0.0, 0.0)
 
-    def load_asm_function(self, func_name, runtimes):
+    def load_asm_function(self, func, runtimes):
+
+        func_name, label = func
         if func_name == "spectrum_to_rgb":
-            self.to_RGB_asm(runtimes)
+            self.to_RGB_asm(runtimes, label)
         elif func_name == "luminance":
-            self.Y_asm(runtimes)
+            self.Y_asm(runtimes, label)
         else:
             raise ValueError("Cannot load asm function ", func_name)

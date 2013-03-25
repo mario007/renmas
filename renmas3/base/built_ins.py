@@ -143,9 +143,11 @@ def _spectrum_to_rgb(cgen, args):
     if typ1 != RGBSpec and typ1 != SampledSpec:
         raise ValueError("Spectrum argument is expected!", args[0])
 
-    cgen.add_color_func('spectrum_to_rgb')
+    label = 'spectrum_to_rgb_yxmpa1y5z0p'
+    cgen.add_color_func('spectrum_to_rgb', label)
+    call = 'call %s\n' % label
 
-    code = code1 + "call spectrum_to_rgb\n"
+    code = code1 +  call
     return code, 'xmm0', Vec3
 
 
@@ -164,8 +166,10 @@ def _luminance(cgen, args):
         else:
             reg1 = cgen.register(typ='general', bit=32, reg='eax')
         code1, reg1, typ1 = load_operand(cgen, args[0], dest_reg=reg1)
-        cgen.add_color_func('luminance')
-        code = code1 + "call luminance\n"
+        label = 'luminance_yxmpa1y5z0p'
+        cgen.add_color_func('luminance', label)
+        call = 'call %s\n' % label
+        code = code1 + call
         return code, 'xmm0', Float
 
     code1, reg1, typ1 = load_operand(cgen, args[0])
@@ -430,27 +434,59 @@ def _pow(cgen, args):
 
 register_function('pow', _pow, inline=False) 
 
-def _log(cgen, args):
+def _math_fun(cgen, args, fun_ss, fun_ps):
     if len(args) != 1:
         raise ValueError("Wrong number of arguments in pow fucntion", args)
 
-    #NOTE here we dont use load_func_args function because pow can accept
-    # different type parameters Float, Vector3, ...
     cgen.clear_regs()
     xmm1 = cgen.register(reg='xmm0')
     code1, reg1, typ1 = load_operand(cgen, args[0], dest_reg=xmm1)
 
     if typ1 == Float:
-        label = 'fast_log_ss_' + _label_sufix(cgen.AVX, cgen.BIT64) + '_yxa8mm3epu'
-        cgen.add_asm_function('log_ss', label)
+        label = fun_ss + '_' + _label_sufix(cgen.AVX, cgen.BIT64) + '_yxa8mm3epu'
+        cgen.add_asm_function(fun_ss, label)
     elif typ1 == Vec2 or typ1 == Vec3 or typ1 == Vec4:
-        label = 'fast_log_ps_' + _label_sufix(cgen.AVX, cgen.BIT64) + '_pxp3axmuj'
-        cgen.add_asm_function('log_ps', label)
+        label = fun_ps + '_' + _label_sufix(cgen.AVX, cgen.BIT64) + '_pxp3axmuj'
+        cgen.add_asm_function(fun_ps, label)
     else:
-        raise ValueError("Unsuported type for pow", typ1)
+        raise ValueError("Unsuported type for math function", typ1)
     code2 = 'call %s\n' % label
     code3 = code1 + code2
     return code3, 'xmm0', typ1
 
+def _log(cgen, args):
+    #TODO log_ss has bug in assembler, probably some instruction is wrong encoded
+    # test movd instruction!!!
+    return _math_fun(cgen, args, 'log_ps', 'log_ps')
+
 register_function('log', _log, inline=False) 
+
+def _exp(cgen, args):
+    return _math_fun(cgen, args, 'exp_ss', 'exp_ps')
+
+register_function('exp', _exp, inline=False)
+
+def _random_funcs(cgen, args, rnd_fun, ret_type):
+    if len(args) != 0:
+        raise ValueError("Wrong number of arguments in random fucntion", args)
+    label = 'random_' + _label_sufix(cgen.AVX, cgen.BIT64) + '_yxa8mm3epu'
+    cgen.add_asm_function('random', label)
+    code = 'call %s\n' % label
+    return code, 'xmm0', ret_type
+
+def _random(cgen, args):
+    return _random_funcs(cgen, args, 'random', Float)
+register_function('random', _random, inline=False) 
+
+def _random2(cgen, args):
+    return _random_funcs(cgen, args, 'random2', Vec2)
+register_function('random2', _random2, inline=False) 
+
+def _random3(cgen, args):
+    return _random_funcs(cgen, args, 'random3', Vec3)
+register_function('random3', _random3, inline=False) 
+
+def _random4(cgen, args):
+    return _random_funcs(cgen, args, 'random4', Vec4)
+register_function('random4', _random4, inline=False) 
 

@@ -1,7 +1,4 @@
 
-import renmas3.switch as proc
-from tdasm import Tdasm
-
 def log_ps_asm(label, AVX=False, BIT64=True):
 
     global_label = "global %s:\n" % label

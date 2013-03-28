@@ -1,6 +1,6 @@
 
 from ..base import Vector3
-from ..samplers import RegularSampler
+from ..samplers import RegularSampler, RandomSampler
 from ..cameras import create_perspective_camera
 from ..shapes import Sphere
 
@@ -40,9 +40,19 @@ def _parse_options(fobj, project):
     if typ == 'regular':
         if 'pixel_size' in values:
             pixel_size = float(values['pixel_size'][0])
-            sampler = RegularSampler(width, height, pixel_size)
+            sampler = RegularSampler(width, height, pixel_size=pixel_size)
         else:
             sampler = RegularSampler(width, height)
+        project.sampler = sampler
+    elif typ == 'random':
+        nsamples = 1
+        if 'nsamples' in values:
+            nsamples = int(values['nsamples'][0])
+        if 'pixel_size' in values:
+            pixel_size = float(values['pixel_size'][0])
+            sampler = RandomSampler(width, height, nsamples=nsamples, pixel_size=pixel_size)
+        else:
+            sampler = RandomSampler(width, height, nsamples=nsamples)
         project.sampler = sampler
 
     if 'nthreads' in values:
@@ -125,7 +135,7 @@ def _parse_material(fobj, project):
         diffuse = project.col_mgr.create_spectrum((r, g, b))
         name = values['name'][0].strip()
         sh = create_lambertian_brdf(project.col_mgr, diffuse)
-        mat = Material(brdf=sh)
+        mat = Material(bsdf=sh)
         project.mat_mgr.add(name, mat)
 
 def parse_scene(fobj, project):

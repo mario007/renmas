@@ -8,6 +8,7 @@ from ..base import BaseShader, BasicShader, ImageRGBA, ImagePRGBA, ImageBGRA
 from ..samplers import Sample
 from ..shapes import ShapeManager, LinearIsect
 from ..utils import blt_prgba_to_bgra
+from ..integrators import get_integrator_code
 
 from .light import LightManager
 from .mat import MaterialManager
@@ -69,9 +70,26 @@ class Film(BaseShader):
 
     def _shader_code(self):
         code = """
-#add_sample(sample, rgb)
-v = float4(rgb[0], rgb[1], rgb[2], 0.99)
-set_rgba(hdr_image, sample.ix, sample.iy, v)
+
+x = sample.ix
+y = sample.iy
+rgba = get_rgba(hdr_image, x, y)
+
+acum_weight = rgba[3]
+rgba = rgba * acum_weight
+
+flt_weight = 0.99 # box filter
+rgb = rgb * flt_weight
+
+new_col = float4(rgb[0], rgb[1], rgb[2], 1.0)
+new_col = new_col + rgba
+
+acum_weight = acum_weight + flt_weight
+
+new_col = new_col * (1.0 / acum_weight)
+new_col[3] = acum_weight
+
+set_rgba(hdr_image, x, y, new_col)
 
         """
         return code
@@ -81,6 +99,7 @@ set_rgba(hdr_image, sample.ix, sample.iy, v)
         self._hdr_image = ImagePRGBA(width, height)
         self._ldr_image = ImagePRGBA(width, height)
         self._output_img = ImageBGRA(width, height)
+        self.clear()
 
     def get_props(self, nthreads):
         props = {'hdr_image': self._hdr_image}
@@ -139,14 +158,10 @@ class Renderer:
         self._ready = False
 
     def prepare_lights(self, runtimes):
-        #TODO -- if there are not lights? Currently error will ocur!!!!
-        # pointers array will be zero
-        return self._project.lgt_mgr.prepare_illuminate('light_illuminate', runtimes)
+        return self._project.lgt_mgr.prepare_illuminate('light_radiance', runtimes)
 
     def prepare_materials(self, runtimes):
-        #TODO -- if there are not lights? Currently error will ocur!!!!
-        # pointers array will be zero
-        return self._project.mat_mgr.prepare_brdfs('brdf', runtimes)
+        return self._project.mat_mgr.prepare_bsdf('bsdf', runtimes)
 
 
     def prepare(self):
@@ -182,27 +197,42 @@ class Renderer:
     def _prepare_integrator(self, runtimes):
         """Compile shader who is holding rendering algorithm."""
 
+        code = get_integrator_code('raycast')
+        self._project.integrators_code = code
         if self._project.integrators_code is None:
-            raise ValueError("Integrator code is missing!")
+            code = get_integrator_code('simple2D')
+            self._project.integrators_code = code
         code = self._project.integrators_code
+
         self._integrator = BasicShader(code, {}, col_mgr=self._project.col_mgr)
         sam_sh = self._project.sampler.shader
         cam_sh = self._project.camera.shader
         film_sh = self._film.shader
 
         isect_sh = self._isect_shader(runtimes)
+        visible_sh = self._visible_shader(runtimes)
 
         lgt_sh = self.prepare_lights(runtimes)
         mat_sh = self.prepare_materials(runtimes)
 
+        nlight_sh = self._project.lgt_mgr.nlights_shader('number_of_lights', runtimes)
+
         self._integrator.prepare(runtimes, [sam_sh, cam_sh, film_sh, isect_sh,
-            lgt_sh, mat_sh])
+            lgt_sh, mat_sh, nlight_sh, visible_sh])
 
     def _isect_shader(self, runtimes):
         if self._intersector is None:
             self._intersector = LinearIsect(self._project.shapes)
 
         shader = self._intersector.isect_shader(runtimes)
+        shader.prepare(runtimes)
+        return shader
+
+    def _visible_shader(self, runtimes):
+        if self._intersector is None:
+            self._intersector = LinearIsect(self._project.shapes)
+
+        shader = self._intersector.visible_shader(runtimes)
         shader.prepare(runtimes)
         return shader
 

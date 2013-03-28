@@ -1,5 +1,5 @@
 
-from .brdf import BrdfBase 
+from .surface import SurfaceShader
 
 def create_point_illuminate(col_mgr, position, intesity):
         code = """
@@ -11,6 +11,6 @@ shadepoint.wi = normalize(wi)
 
         """
         props = {'position': position, 'intesity': intesity}
-        bs = BrdfBase(code, props, col_mgr=col_mgr)
+        bs = SurfaceShader(code, props, col_mgr=col_mgr)
         return bs
 

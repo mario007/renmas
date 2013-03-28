@@ -17,7 +17,7 @@ from .buffers import VertexBuffer, VertexNBuffer, VertexUVBuffer, VertexNUVBuffe
 from .buffers import TriangleBuffer, TriangleNBuffer, FlatTriangleBuffer
 from .buffers import FlatTriangleNBuffer, SmoothTriangleBuffer
 from .spectrum import RGBSpectrum, SampledSpectrum, Spectrum
-from .shader import Shader, BaseShader
+from .shader import Shader, BaseShader, create_shader_function
 
 from .built_ins import * #solve this TODO
 from .col_mgr import ColorManager

@@ -1,4 +1,5 @@
 
+from ..base import create_shader_function
 from .mat import func_pointers_shader
 
 class Light:
@@ -44,4 +45,10 @@ class LightManager:
         shader = func_pointers_shader(label, runtimes,
                  self._lights, lambda light, run: light.prepare_illuminate(run))
         return shader
+
+    def nlights_shader(self, label, runtimes):
+        code = "return %i\n" % len(self._lights)
+        bs = create_shader_function(label, code, [])
+        bs.prepare(runtimes)
+        return bs.shader
 

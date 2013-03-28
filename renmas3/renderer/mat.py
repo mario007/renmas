@@ -2,7 +2,7 @@ import platform
 import collections
 from ..base import Spectrum, Vec3, Float, Integer, arg_list, arg_map, Shader
 from ..shapes import HitPoint
-from .brdf import ShadePoint
+from .surface import ShadePoint
 
 def func_pointers_shader(label, runtimes, objs, prepare):
     pointers = collections.defaultdict(list)
@@ -43,17 +43,15 @@ def func_pointers_shader(label, runtimes, objs, prepare):
     return shader
 
 class Material:
-    def __init__(self, brdf=None, btdf=None, bsdf=None, is_dielectric=False):
-        self.brdf = brdf
-        self.btdf = btdf
+    def __init__(self, bsdf=None, is_dielectric=False):
         self.bsdf = bsdf
         self.is_dielectric = is_dielectric
 
-    def prepare_brdf(self, runtimes):
-        self.brdf.prepare(runtimes)
-        name = self.brdf.method_name()
-        brdf_ptrs = [r.address_label(name) for r in runtimes]
-        return brdf_ptrs
+    def prepare_bsdf(self, runtimes):
+        self.bsdf.prepare(runtimes)
+        name = self.bsdf.method_name()
+        bsdf_ptrs = [r.address_label(name) for r in runtimes]
+        return bsdf_ptrs
 
 class MaterialManager:
     def __init__(self):
@@ -77,8 +75,8 @@ class MaterialManager:
         m = self._materials_d[name]
         return self._materials.index(m)
 
-    def prepare_brdfs(self, label, runtimes):
+    def prepare_bsdf(self, label, runtimes):
         shader = func_pointers_shader(label, runtimes,
-                 self._materials, lambda m, run: m.prepare_brdf(run))
+                 self._materials, lambda m, run: m.prepare_bsdf(run))
         return shader
 

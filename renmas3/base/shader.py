@@ -305,3 +305,9 @@ class BasicShader(BaseShader):
     def col_mgr(self):
         """Return color manager."""
         return self._col_mgr
+
+def create_shader_function(name, code, args):
+    props = {}
+    bs = BasicShader(code, props, input_args=args, standalone=False, method_name=name)
+    return bs
+

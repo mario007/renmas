@@ -53,9 +53,9 @@ def store_operand(cgen, dest, reg, typ):
             raise ValueError("Type mismatch, cannot store operand", type(dst_arg), typ)
         code += dst_arg.store_cmd(cgen, reg)
     elif isinstance(dest, Attribute):
-        arg = dst_arg.get_argument('%s.%s' % (dest.name, dest.path))
+        arg = dst_arg.get_argument('%s.%s' % (dst_arg.name, dest.path))
         if type(arg) != typ:
-            raise ValueError("Type mismatch, cannot store operand", type(arg), typ)
+            raise ValueError("Type mismatch, cannot store atribut operand", type(arg), typ)
         code += dst_arg.store_attr_cmd(cgen, dest.path, reg)
     elif isinstance(dest, Subscript):
         if dest.path is None:

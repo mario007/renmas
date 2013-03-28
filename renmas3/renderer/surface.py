@@ -31,9 +31,9 @@ class ShadePoint():
 
 register_user_type(ShadePoint)
 
-class BrdfBase(BaseShader):
+class SurfaceShader(BaseShader):
     def __init__(self, code, props, col_mgr):
-        super(BrdfBase, self).__init__(code)
+        super(SurfaceShader, self).__init__(code)
         self._col_mgr = col_mgr
         self.props = props
 

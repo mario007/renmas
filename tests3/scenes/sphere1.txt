@@ -1,7 +1,8 @@
 
 Options
-sampler_type = regular
+sampler_type = random
 pixel_size = 1.0
+nsamples = 1
 width = 400
 height = 400
 nthreads = 1
@@ -24,12 +25,6 @@ Light
 type = PointLight
 position = 10, 10, 10
 intesity = 0.3, 0.3, 0.3
-End
-
-Material
-name = blue
-type = Lambertian
-diffuse = 0.6, 0.6, 0.0
 End
 
 Material

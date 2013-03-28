@@ -490,3 +490,13 @@ def _random4(cgen, args):
     return _random_funcs(cgen, args, 'random4', Vec4)
 register_function('random4', _random4, inline=False) 
 
+def _sample_hemisphere(cgen, args):
+    if len(args) != 0:
+        raise ValueError("Wrong number of arguments in sample hemisphere fucntion", args)
+    label = 'sample_hemisphere_' + _label_sufix(cgen.AVX, cgen.BIT64) + '_yxa8mm3epu'
+    cgen.add_asm_function('sample_hemisphere', label)
+    code = 'call %s\n' % label
+    return code, 'xmm0', Vec3
+
+register_function('sample_hemisphere', _sample_hemisphere, inline=False)
+

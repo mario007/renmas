@@ -1,4 +1,5 @@
 import math
+from random import random
 from tdasm import Runtime
 from ..base import arg_map, arg_list, Float, Integer, BaseShader, Tile2D
 from .sample import Sample
@@ -124,6 +125,54 @@ return 1
         #y = (self._cury - self.height * 0.5 + 0.5)
         x = self.pixel_size * (self._curx - self.width * 0.5 + 0.5)
         y = self.pixel_size * (self._cury - self.height * 0.5 + 0.5)
+        sample = Sample(x, y, self._curx, self._cury, 1.0)
+
+        self._curx += 1
+        if self._curx == self._endx:
+            self._curx = self._tile.x
+            self._cury += 1
+        return sample
+
+
+class RandomSampler(Sampler):
+    def __init__(self, width, height, nsamples=1, pixel_size=1.0):
+        code = self.shader_code()
+        super(RandomSampler, self).__init__(width, height,
+                                             code, nsamples, pixel_size)
+
+    def shader_code(self):
+        code = """
+if cury == endy:
+    return 0
+
+tmp = curx - width * 0.5
+tmp2 = cury - height * 0.5
+rnd = random2()
+
+sample.x = pixel_size * (tmp + rnd[0])
+sample.y = pixel_size * (tmp2 + rnd[1])
+sample.ix = curx
+sample.iy = cury
+sample.weight = 1.0
+
+curx = curx + 1
+if curx == endx:
+    curx = tile.x
+    cury = cury + 1
+return 1
+
+        """
+        return code
+
+    def generate_sample(self):
+
+        if self._cury == self._endy:
+            return None
+
+        #x = (self._curx - self.width * 0.5 + 0.5)
+        #y = (self._cury - self.height * 0.5 + 0.5)
+        x = self.pixel_size * (self._curx - self.width * 0.5 + random())
+        y = self.pixel_size * (self._cury - self.height * 0.5 + random())
         sample = Sample(x, y, self._curx, self._cury, 1.0)
 
         self._curx += 1

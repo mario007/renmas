@@ -1,12 +1,12 @@
 
-from .brdf import BrdfBase 
+from .surface import SurfaceShader
 
 def create_lambertian_brdf(col_mgr, diffuse):
     code = """
 shadepoint.material_spectrum = diffuse
     """
     props = {'diffuse': diffuse}
-    bs = BrdfBase(code, props, col_mgr=col_mgr)
+    bs = SurfaceShader(code, props, col_mgr=col_mgr)
     return bs
 
 def create_lambertian_pdf():

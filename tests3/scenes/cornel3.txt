@@ -1,0 +1,341 @@
+#######################################################################################
+##                                                                                   ##
+## This scene defines the standard "Cornell Box"...  with a few caveats.             ##
+## Caveats:                                                                          ##
+##     1) The light color is defined in arbitrary RGB units rather than              ##
+##        the physically measured spectrum described on the Cornell Box page         ##
+##        (http://www.graphics.cornell.edu/online/box/data.html)                     ##
+##     2) The light is defined as a point (instead of a quad with points             ##
+##        of (343,548.7,227), (343,548.7,332), (213,548.7,332) and (213,548.7,227)   ##
+##        and a surface normal of (0,-1,0))                                          ##
+##     3) Materials are defined with RGB approximations to their spectral            ##
+##        reflectance, not the 4 nm sampled spectra on the web page.                 ##
+##                                                                                   ##
+## Chris Wyman (1/9/2007)                                                            ##
+#######################################################################################
+
+Options
+sampler_type = regular
+pixel_size = 1.0
+nsamples = 2
+width = 512
+height = 512
+nthreads = 2
+End
+
+Camera
+type = perspective
+eye = 2.78, 2.73, -8.00
+lookat = 2.78, 2.73, -7.99
+distance = 700
+End
+
+Light
+type = PointLight
+position = 2.78, 5.20, 2.795
+intesity = 1, 0.85, 0.43
+#intesity = 0.25, 0.21, 0.10
+End
+
+Material
+name = red 
+type = Lambertian
+diffuse = 0.63, 0.06, 0.04
+End
+
+Material
+name = green
+type = Lambertian
+diffuse = 0.15, 0.48, 0.09
+End
+
+Material
+name = blue
+type = Lambertian
+diffuse = 0.0, 0.0, 0.6
+End
+
+Material
+name = white
+type = Lambertian
+diffuse = 0.76, 0.75, 0.5
+End
+
+## FLOOR
+Shape
+type = Triangle
+name = floor_1
+p0 = 5.56, 0, 0
+p1 = 0, 0, 0
+p2 = 0, 0, 5.592
+material = white
+End
+
+Shape
+type = Triangle
+name = floor_2
+p0 = 5.56, 0, 0
+p1 = 0, 0, 5.592
+p2 = 5.56, 0, 5.592
+material = white
+End
+
+## CEILING
+Shape
+type = Triangle
+name = ceiling_1
+p0 = 5.56, 5.488, 0
+p1 = 5.56, 5.488, 5.592
+p2 = 0, 5.488, 5.592
+material = white
+End
+
+Shape
+type = Triangle
+name = ceiling_2
+p0 = 5.56, 5.488, 0
+p1 = 0, 5.488, 5.592
+p2 = 0, 5.488, 0
+material = white
+End
+
+## BACK WALL
+Shape
+type = Triangle
+name = back_1
+p0 = 5.56, 0, 5.592
+p1 = 0, 0, 5.592
+p2 = 0, 5.488, 5.592
+material = white
+End
+
+Shape
+type = Triangle
+name = back_2
+p0 = 5.56, 0, 5.592
+p1 = 0, 5.488, 5.592
+p2 = 5.56, 5.488, 5.592
+material = white
+End
+
+## LEFT WALL
+Shape
+type = Triangle
+name = left_1
+p0 = 5.56, 0, 0
+p1 = 5.56, 0, 5.592
+p2 = 5.56, 5.488, 5.592
+material = red
+End
+
+Shape
+type = Triangle
+name = left_2
+p0 = 5.56, 0, 0
+p1 = 5.56, 5.488, 5.592
+p2 = 5.56, 5.488, 0
+material = red
+End
+
+## RIGHT WALL
+Shape
+type = Triangle
+name = right_1
+p0 = 0, 0, 5.592
+p1 = 0, 0, 0
+p2 = 0, 5.488, 0
+material = green
+End
+
+Shape
+type = Triangle
+name = right_2
+p0 = 0, 0, 5.592
+p1 = 0, 5.488, 0
+p2 = 0, 5.488, 5.592
+material = green
+End
+
+## Small cube
+Shape
+type = Triangle
+name = small_1
+p0 = 1.30, 1.65, 0.65
+p1 = 0.82, 1.65, 2.25
+p2 = 2.40, 1.65, 2.72
+material = white
+End
+
+Shape
+type = Triangle
+name = small_2
+p0 = 1.30, 1.65, 0.65
+p1 = 2.40, 1.65, 2.72
+p2 = 2.90, 1.65, 1.14
+material = white
+End
+
+Shape
+type = Triangle
+name = small_3
+p0 = 2.90, 0, 1.14
+p1 = 2.90, 1.65, 1.14
+p2 = 2.40, 1.65, 2.72
+material = white
+End
+
+Shape
+type = Triangle
+name = small_4
+p0 = 2.90, 0, 1.14
+p1 = 2.40, 1.65, 2.72
+p2 = 2.40, 0, 2.72
+material = white
+End
+
+Shape
+type = Triangle
+name = small_5
+p0 = 1.30, 0, 0.65
+p1 = 1.30, 1.65, 0.65
+p2 = 2.90, 1.65, 1.14
+material = white
+End
+
+Shape
+type = Triangle
+name = small_6
+p0 = 1.30, 0, 0.65
+p1 = 2.90, 1.65, 1.14
+p2 = 2.90, 0, 1.14
+material = white
+End
+
+Shape
+type = Triangle
+name = small_7
+p0 = 0.82, 0, 2.25
+p1 = 0.82, 1.65, 2.25
+p2 = 1.30, 1.65, 0.65
+material = white
+End
+
+Shape
+type = Triangle
+name = small_8
+p0 = 0.82, 0, 2.25
+p1 = 1.30, 1.65, 0.65
+p2 = 1.30, 0, 0.65
+material = white
+End
+
+Shape
+type = Triangle
+name = small_9
+p0 = 2.40, 0, 2.72
+p1 = 2.40, 1.65, 2.72
+p2 = 0.82, 1.65, 2.25
+material = white
+End
+
+Shape
+type = Triangle
+name = small_10
+p0 = 2.40, 0, 2.72
+p1 = 0.82, 1.65, 2.25
+p2 = 0.82, 0,  2.25
+material = white
+End
+
+## Big cube
+Shape
+type = Triangle
+name = big_1
+p0 = 4.23, 3.30, 2.47
+p1 = 2.65, 3.30, 2.96
+p2 = 3.14, 3.30, 4.56
+material = white
+End
+
+Shape
+type = Triangle
+name = big_2
+p0 = 4.23, 3.30, 2.47
+p1 = 3.14, 3.30, 4.56
+p2 = 4.72, 3.30, 4.06
+material = white
+End
+
+Shape
+type = Triangle
+name = big_3
+p0 = 4.23, 0, 2.47
+p1 = 4.23, 3.30, 2.47
+p2 = 4.72, 3.30, 4.06
+material = white
+End
+
+Shape
+type = Triangle
+name = big_4
+p0 = 4.23, 0, 2.47
+p1 = 4.72, 3.30, 4.06
+p2 = 4.72, 0, 4.06
+material = white
+End
+
+Shape
+type = Triangle
+name = big_5
+p0 = 4.72, 0, 4.06
+p1 = 4.72, 3.30, 4.06
+p2 = 3.14, 3.30, 4.56
+material = white
+End
+
+Shape
+type = Triangle
+name = big_6
+p0 = 4.72, 0, 4.06
+p1 = 3.14, 3.30, 4.56
+p2 = 3.14, 0, 4.56
+material = white
+End
+
+Shape
+type = Triangle
+name = big_7
+p0 = 3.14, 0, 4.56
+p1 = 3.14, 3.30, 4.56
+p2 = 2.65, 3.30, 2.96
+material = white
+End
+
+Shape
+type = Triangle
+name = big_8
+p0 = 3.14, 0, 4.56
+p1 = 2.65, 3.30, 2.96
+p2 = 2.65, 0, 2.96
+material = white
+End
+
+Shape
+type = Triangle
+name = big_9
+p0 = 2.65, 0, 2.96
+p1 = 2.65, 3.30, 2.96
+p2 = 4.23, 3.30, 2.47
+material = white
+End
+
+Shape
+type = Triangle
+name = big_10
+p0 = 2.65, 0, 2.96
+p1 = 4.23, 3.30, 2.47
+p2 = 4.23, 0, 2.47
+material = white
+End
+
+

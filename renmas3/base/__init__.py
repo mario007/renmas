@@ -23,4 +23,5 @@ from .built_ins import * #solve this TODO
 from .col_mgr import ColorManager
 
 from .load_image import load_image
+from .save_image import save_image
 

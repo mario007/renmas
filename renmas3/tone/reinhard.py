@@ -8,7 +8,7 @@ from .tone_map import ToneMapping
 from .props import ImageProps, calc_img_props, calc_img_props_py
 
 import renmas3.switch as proc
-from renmas3.core import ImageBGRA, ImageFloatRGBA
+from renmas3.base import ImageBGRA, ImagePRGBA
 from renmas3.macros import MacroCall, create_assembler
 
 class ReinhardOperator(ToneMapping):
@@ -39,7 +39,7 @@ class ReinhardOperator(ToneMapping):
     saturation = property(_get_saturation, _set_saturation)
 
     def tone_map(self, hdr_image, ldr_image):
-        assert isinstance(hdr_image, ImageFloatRGBA)
+        assert isinstance(hdr_image, ImagePRGBA)
         assert isinstance(ldr_image, ImageBGRA)
         #self.tone_map_py(hdr_image, ldr_image)
         self.tone_map_asm(hdr_image, ldr_image)

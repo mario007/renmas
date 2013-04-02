@@ -500,3 +500,42 @@ def _sample_hemisphere(cgen, args):
 
 register_function('sample_hemisphere', _sample_hemisphere, inline=False)
 
+def _cross_function(cgen, args):
+    if len(args) != 2:
+        raise ValueError("Wrong number of arguments in dot fucntion", args)
+    code1, xmm1, typ1 = load_operand(cgen, args[0])
+    code2, xmm2, typ2 = load_operand(cgen, args[1])
+    if typ1 != Vec3 or typ2 != Vec3:
+        raise ValueError("Two Vec3 argument is expected to cross function", args)
+
+    tmp1 = cgen.register(typ='xmm')
+    tmp2 = cgen.register(typ='xmm')
+    if cgen.AVX:
+        l1 = "vmovaps %s, %s\n" % (tmp1, xmm1)
+        l2 = "vmovaps %s, %s\n" % (tmp2, xmm2)
+        l3 = "vshufps %s, %s, %s, 0xC9\n" % (xmm1, xmm1, xmm1)
+        l4 = "vshufps %s, %s, %s, 0xD2\n" % (xmm2, xmm2, xmm2)
+        l5 = "vmulps %s, %s, %s\n" % (xmm1, xmm1, xmm2)
+        l6 = "vshufps %s, %s, %s, 0xD2\n" % (tmp1, tmp1, tmp1)
+        l7 = "vshufps %s, %s, %s, 0xC9\n" % (tmp2, tmp2, tmp2)
+        l8 = "vmulps %s, %s, %s\n" % (tmp1, tmp1, tmp2)
+        l9 = "vsubps %s, %s, %s\n" % (xmm1, xmm1, tmp1)
+    else:
+        l1 = "movaps %s, %s\n" % (tmp1, xmm1)
+        l2 = "movaps %s, %s\n" % (tmp2, xmm2)
+        l3 = "shufps %s, %s, 0xC9\n" % (xmm1, xmm1)
+        l4 = "shufps %s, %s, 0xD2\n" % (xmm2, xmm2)
+        l5 = "mulps %s, %s\n" % (xmm1, xmm2)
+        l6 = "shufps %s, %s, 0xD2\n" % (tmp1, tmp1)
+        l7 = "shufps %s, %s, 0xC9\n" % (tmp2, tmp2)
+        l8 = "mulps %s, %s\n" % (tmp1, tmp2)
+        l9 = "subps %s, %s\n" % (xmm1, tmp1)
+
+    cgen.release_reg(xmm2)
+    cgen.release_reg(tmp1)
+    cgen.release_reg(tmp2)
+    code = code1 + code2 + l1 + l2 + l3 + l4 + l5 + l6 + l7 + l8 + l9
+    return code, xmm1, Vec3
+
+register_function('cross', _cross_function, inline=True)
+

@@ -43,8 +43,10 @@ def func_pointers_shader(label, runtimes, objs, prepare):
     return shader
 
 class Material:
-    def __init__(self, bsdf=None, is_dielectric=False):
+    def __init__(self, bsdf=None, sample=None, pdf=None, is_dielectric=False):
         self.bsdf = bsdf
+        self.sample = sample
+        self.pdf = pdf
         self.is_dielectric = is_dielectric
 
     def prepare_bsdf(self, runtimes):
@@ -52,6 +54,23 @@ class Material:
         name = self.bsdf.method_name()
         bsdf_ptrs = [r.address_label(name) for r in runtimes]
         return bsdf_ptrs
+
+    def prepare_sample(self, runtimes):
+        if self.sample is None:
+            raise ValueError("Create default(lambertian) sample if it is not specified")
+        self.sample.prepare(runtimes)
+        name = self.sample.method_name()
+        sample_ptrs = [r.address_label(name) for r in runtimes]
+        return sample_ptrs
+
+    def prepare_pdf(self, runtimes):
+        if self.pdf is None:
+            raise ValueError("Create default(lambertian) pdf if it is not specified")
+        self.pdf.prepare(runtimes)
+        name = self.pdf.method_name()
+        pdf_ptrs = [r.address_label(name) for r in runtimes]
+        return pdf_ptrs
+
 
 class MaterialManager:
     def __init__(self):
@@ -78,5 +97,15 @@ class MaterialManager:
     def prepare_bsdf(self, label, runtimes):
         shader = func_pointers_shader(label, runtimes,
                  self._materials, lambda m, run: m.prepare_bsdf(run))
+        return shader
+
+    def prepare_sample(self, label, runtimes):
+        shader = func_pointers_shader(label, runtimes,
+                 self._materials, lambda m, run: m.prepare_sample(run))
+        return shader
+
+    def prepare_pdf(self, label, runtimes):
+        shader = func_pointers_shader(label, runtimes,
+                 self._materials, lambda m, run: m.prepare_pdf(run))
         return shader
 

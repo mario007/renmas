@@ -5,7 +5,7 @@ from ..shapes import HitPoint
 class ShadePoint():
     __slots__ = ['light_intensity', 'light_position', 'light_emission', 'wi', 'wo','pdf',
             'material_spectrum', 'shape_pdf', 'shape_normal',
-            'shape_sample', 'specular', 'fliped']
+            'shape_sample', 'reflection_type']
     def __init__(self):
         self.light_intensity = None
         self.light_position = None
@@ -17,8 +17,7 @@ class ShadePoint():
         self.shape_pdf = None
         self.shape_normal = None
         self.shape_sample = None
-        self.specular = None
-        self.fliped = None
+        self.reflection_type = None
 
     @classmethod
     def user_type(cls):
@@ -26,7 +25,7 @@ class ShadePoint():
         fields = [('light_intensity', Spectrum), ('light_position', Vec3), ('light_emission', Spectrum),
                 ('wi', Vec3), ('wo', Vec3), ('pdf', Float),
                 ('material_spectrum', Spectrum), ('shape_pdf', Float), ('shape_normal', Vec3),
-                ('shape_sample', Vec3), ('specular', Integer), ('fliped', Integer)]
+                ('shape_sample', Vec3), ('reflection_type', Integer)]
         return (typ_name, fields)
 
 register_user_type(ShadePoint)

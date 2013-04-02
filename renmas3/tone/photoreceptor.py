@@ -8,7 +8,7 @@ from .tone_map import ToneMapping
 from .props import ImageProps, calc_img_props, calc_img_props_py
 
 import renmas3.switch as proc
-from renmas3.core import ImageBGRA, ImageFloatRGBA
+from renmas3.base import ImageBGRA, ImageFloatRGBA
 from renmas3.macros import MacroCall, create_assembler
 
 class PhotoreceptorOperator(ToneMapping):

@@ -379,7 +379,7 @@ class Triangle(Shape):
 
         macro broadcast xmm0 = xmm0[0]
         macro eq128 xmm3 = eax.Ray.dir * xmm0 + eax.Ray.origin
-        macro eq32 xmm5 = edx.Triangle.material_idx
+        macro eq32 xmm5 = ebx.Triangle.material_idx
 
         macro eq32 edx.Hitpoint.t = xmm0 {xmm3}
         macro eq32 edx.Hitpoint.material_idx = xmm5 {xmm5}

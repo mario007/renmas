@@ -181,7 +181,7 @@ class LinearIsect(Intersector):
         return ASM 
 
     # rax - pointer to ray
-    # rbx - pointer to shadepoint 
+    # rbx - pointer to hitpoint
     def _generate_code_section64(self, runtimes, label, visibility):
         ASM = "#CODE \n"
         ASM += "global " + label + ":\n"

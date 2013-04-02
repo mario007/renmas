@@ -1,0 +1,142 @@
+
+Options
+sampler_type = regular
+pixel_size = 0.5
+nsamples = 1
+width = 600
+height = 600
+nthreads = 1
+End
+
+Camera
+type = perspective
+eye = 27.6, 27.4, -80.0 
+lookat = 27.6, 27.4, 0.0
+distance = 400
+End
+
+Light
+type = PointLight
+position = 26, 50.8, 22
+intesity = 0.9, 0.9, 0.9
+End
+
+Material
+name = red 
+type = Lambertian
+diffuse = 0.6, 0.0, 0.0
+End
+
+Material
+name = green
+type = Lambertian
+diffuse = 0.0, 0.6, 0.0
+End
+
+Material
+name = blue
+type = Lambertian
+diffuse = 0.0, 0.0, 0.6
+End
+
+Material
+name = white
+type = Lambertian
+diffuse = 0.5, 0.5, 0.5
+End
+
+## FLOOR
+Shape
+type = Triangle
+name = floor_1
+p0 = 0, 0, 0
+p1 = 0, 0, 55.92
+p2 = 55.28, 0, 0
+material = white
+End
+
+Shape
+type = Triangle
+name = floor_2
+p0 = 55.28, 0, 0
+p1 = 0, 0, 55.92 
+p2 = 55.28, 0, 55.92
+material = white
+End
+
+## BACK WALL
+Shape
+type = Triangle
+name = back_1
+p0 = 0, 0, 55.92
+p1 = 0, 54.48, 55.92
+p2 = 55.28, 54.88, 55.92
+material = green
+End
+
+Shape
+type = Triangle
+name = back_2
+p0 = 0, 0, 55.92
+p1 = 55.28, 54.88, 55.92
+p2 = 55.28, 0, 55.92
+material = green
+End
+
+## RIGHT WALL
+Shape
+type = Triangle
+name = right_1
+p0 = 0, 0, 0
+p1 = 0, 54.88, 0
+p2 = 0, 0, 55.92
+material = blue
+End
+
+Shape
+type = Triangle
+name = right_2
+p0 = 0, 54.88, 0
+p1 = 0, 54.88, 55.92
+p2 = 0, 0, 55.92
+material = blue
+End
+
+## LEFT WALL
+Shape
+type = Triangle
+name = left_1
+p0 = 55.28, 0, 0
+p1 = 55.28, 54.88, 55.92
+p2 = 55.28, 54.88, 0
+material = red 
+End
+
+Shape
+type = Triangle
+name = left_2
+p0 = 55.28, 0, 0
+p1 = 55.28, 0, 55.92
+p2 = 55.28, 54.88, 55.92
+material = red 
+End
+
+## TOP
+Shape
+type = Triangle
+name = top_1
+p0 = 0, 54.88, 0
+p1 = 55.28, 54.88, 55.92
+p2 = 0, 54.88, 55.92
+material = white
+End
+
+Shape
+type = Triangle
+name = top_2
+p0 = 0, 54.88, 0
+p1 = 55.28, 54.88, 0
+p2 = 55.28, 54.88, 55.92
+material = white
+End
+

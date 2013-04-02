@@ -2,12 +2,13 @@
 from ..base import Vector3
 from ..samplers import RegularSampler, RandomSampler
 from ..cameras import create_perspective_camera
-from ..shapes import Sphere
+from ..shapes import Sphere, Triangle
 
 from .light import Light
 from .lights import create_point_illuminate
 from .mat import Material
-from .materials import create_lambertian_brdf
+from .materials import create_lambertian_brdf, create_lambertian_sample
+from .materials import create_lambertian_pdf
 
 def _parse_line(line):
     keyword, vals = line.split('=')
@@ -92,6 +93,15 @@ def _parse_shape(fobj, project):
         origin = Vector3(float(o[0]), float(o[1]), float(o[2]))
         sphere = Sphere(origin, radius)
         project.shapes.add(name, sphere)
+    elif typ == 'triangle':
+        p0 = values['p0']
+        p0 = Vector3(float(p0[0]), float(p0[1]), float(p0[2]))
+        p1 = values['p1']
+        p1 = Vector3(float(p1[0]), float(p1[1]), float(p1[2]))
+        p2 = values['p2']
+        p2 = Vector3(float(p2[0]), float(p2[1]), float(p2[2]))
+        tri = Triangle(p0, p1, p2)
+        project.shapes.add(name, tri)
     else:
         raise ValueError("Unsuported type of shape!", typ)
     if 'material' in values:
@@ -135,7 +145,9 @@ def _parse_material(fobj, project):
         diffuse = project.col_mgr.create_spectrum((r, g, b))
         name = values['name'][0].strip()
         sh = create_lambertian_brdf(project.col_mgr, diffuse)
-        mat = Material(bsdf=sh)
+        sample = create_lambertian_sample(project.col_mgr)
+        pdf = create_lambertian_pdf(project.col_mgr)
+        mat = Material(bsdf=sh, sample=sample, pdf=pdf)
         project.mat_mgr.add(name, mat)
 
 def parse_scene(fobj, project):

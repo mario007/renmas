@@ -12,6 +12,7 @@ from ..integrators import get_integrator_code
 
 from .light import LightManager
 from .mat import MaterialManager
+from ..tone import ReinhardOperator
 
 class Project:
     """This class is responsible holding all data object that will
@@ -163,6 +164,11 @@ class Renderer:
     def prepare_materials(self, runtimes):
         return self._project.mat_mgr.prepare_bsdf('bsdf', runtimes)
 
+    def prepare_materials_samples(self, runtimes):
+        return self._project.mat_mgr.prepare_sample('sample_bsdf', runtimes)
+
+    def prepare_materials_pdf(self, runtimes):
+        return self._project.mat_mgr.prepare_pdf('pdf_bsdf', runtimes)
 
     def prepare(self):
         """Prepare renderer for rendering. Compile all shaders. Build
@@ -197,7 +203,8 @@ class Renderer:
     def _prepare_integrator(self, runtimes):
         """Compile shader who is holding rendering algorithm."""
 
-        code = get_integrator_code('raycast')
+        #code = get_integrator_code('raycast')
+        code = get_integrator_code('pathtracer')
         self._project.integrators_code = code
         if self._project.integrators_code is None:
             code = get_integrator_code('simple2D')
@@ -214,11 +221,13 @@ class Renderer:
 
         lgt_sh = self.prepare_lights(runtimes)
         mat_sh = self.prepare_materials(runtimes)
+        sam_mat_sh = self.prepare_materials_samples(runtimes)
+        pdf_sh = self.prepare_materials_pdf(runtimes)
 
         nlight_sh = self._project.lgt_mgr.nlights_shader('number_of_lights', runtimes)
 
         self._integrator.prepare(runtimes, [sam_sh, cam_sh, film_sh, isect_sh,
-            lgt_sh, mat_sh, nlight_sh, visible_sh])
+            lgt_sh, mat_sh, nlight_sh, visible_sh, sam_mat_sh, pdf_sh])
 
     def _isect_shader(self, runtimes):
         if self._intersector is None:
@@ -259,6 +268,8 @@ class Renderer:
     def output_image(self):
         img = self._film._hdr_image
         img2 = self._film._output_img
-        blt_prgba_to_bgra(img, img2)
+        reinhard = ReinhardOperator()
+        reinhard.tone_map(img, img2)
+        #blt_prgba_to_bgra(img, img2)
         return self._film._output_img
 

@@ -1,7 +1,8 @@
-
+import math
 from .surface import SurfaceShader
 
 def create_lambertian_brdf(col_mgr, diffuse):
+    diffuse = diffuse * (1.0 / math.pi) 
     code = """
 shadepoint.material_spectrum = diffuse
     """

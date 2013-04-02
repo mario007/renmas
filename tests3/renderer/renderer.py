@@ -25,4 +25,4 @@ ren.save_project('scene1.proj')
 img2 = ren.output_image()
 show_image_in_window(img2)
 
-save_image('picture.tga', img2)
+#save_image('picture.tga', img2)

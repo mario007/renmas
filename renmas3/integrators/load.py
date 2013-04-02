@@ -81,7 +81,7 @@ background = (0.1, 0.5, 0.1)
 background = (0.0, 0.0, 0.0)
 
 nlights = number_of_lights()
-max_depth = 3
+max_depth = 10
 treshold = 0.01 
 
 ret = 1
@@ -126,7 +126,11 @@ while ret != 0:
             sample_bsdf(hitpoint, shadepoint, hitpoint.material_idx)
             pdf_bsdf(hitpoint, shadepoint, hitpoint.material_idx)
             bsdf(hitpoint, shadepoint, hitpoint.material_idx)
-            path = path * shadepoint.material_spectrum * (1.0 / shadepoint.pdf)
+            ndotwi = dot(hitpoint.normal, shadepoint.wi)
+            if ndotwi < 0.0:
+                ndotwi = ndotwi * -1.0
+            pdf = ndotwi / shadepoint.pdf
+            path = path * shadepoint.material_spectrum * pdf
 
             ray.origin = hitpoint.hit
             ray.dir = shadepoint.wi

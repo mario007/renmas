@@ -23,6 +23,7 @@
             </MenuItem>
             <MenuItem Header="Render">
                 <MenuItem Header="Start Rendering" Click="MenuItem_start_rendering"></MenuItem>
+                <MenuItem Header="Stop Rendering" Click="MenuItem_stop_rendering"></MenuItem>
             </MenuItem>
         </Menu>
     </Grid>

@@ -88,11 +88,8 @@ _functions['create_renderer'] = create_renderer
 
 #NOTE func must return string
 def exec_func(name, args):
-    if name in _functions:
-        func = _functions[name]
-        return func(args)
-    else:
-        return str(None)
+    func = _functions[name]
+    return func(args)
 
 def _obj_to_string(obj, typ):
     if typ == 'float':

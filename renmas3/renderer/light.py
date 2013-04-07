@@ -1,21 +1,59 @@
 
 from ..base import create_shader_function
 from .mat import func_pointers_shader
+from .surface import SurfaceShader
+
+class AreaLight:
+    def __init__(self, shape, material, col_mgr):
+        self.shape = shape
+        self.material = material
+        self.col_mgr = col_mgr
+
+    def prepare_illuminate(self, runtimes):
+        #shader to caculate random point on shape
+        code, props = self.shape.light_sample()
+        sample_sh = SurfaceShader(code, props, col_mgr=self.col_mgr)
+        sample_sh.prepare(runtimes)
+
+        if self.material.emission is None:
+            raise ValueError("Area light: Material doesn't have emission shader!")
+
+        self.material.emission.prepare(runtimes)
+
+        sample_name = sample_sh.method_name()
+        emission_name = self.material.emission.method_name()
+
+        line1 = "%s(hitpoint, shadepoint)\n" % sample_name
+        line2 = "%s(hitpoint, shadepoint)\n" % emission_name 
+        code = line1 + line2 + """
+wi = shadepoint.shape_sample - hitpoint.hit
+len_squared = wi[0] * wi[0] + wi[1] * wi[1] + wi[2] * wi[2]
+wi = normalize(wi)
+
+shp_normal = shadepoint.shape_normal * -1.0
+cos_light = dot(shp_normal, wi)
+if cos_light < 0.0:
+    cos_light = 0.0
+
+weight = cos_light / (shadepoint.shape_pdf * len_squared)
+shadepoint.light_intensity = shadepoint.material_emission * weight
+shadepoint.light_position = shadepoint.shape_sample
+shadepoint.wi = wi
+        """
+
+        illuminate = SurfaceShader(code, props={}, col_mgr=self.col_mgr)
+        illuminate.prepare(runtimes, [sample_sh.shader, self.material.emission.shader])
+        name = illuminate.method_name()
+        ptrs = [r.address_label(name) for r in runtimes]
+        return ptrs
 
 class Light:
-    def __init__(self, illuminate=None, emit=None):
+    def __init__(self, illuminate):
         self.illuminate = illuminate
-        self.emit = emit
 
     def prepare_illuminate(self, runtimes):
         self.illuminate.prepare(runtimes)
         name = self.illuminate.method_name()
-        ptrs = [r.address_label(name) for r in runtimes]
-        return ptrs
-
-    def prepare_emit(self, runtimes):
-        self.emit.prepare(runtimes)
-        name = self.emit.method_name()
         ptrs = [r.address_label(name) for r in runtimes]
         return ptrs
 
@@ -27,13 +65,18 @@ class LightManager:
     def add(self, name, light):
         if name in self._lights_d:
             raise ValueError("Light with that name allready exist!")
-        if not isinstance(light, Light):
+        if not isinstance(light, (Light, AreaLight)):
             raise ValueError("Type error. Light is expected!", light)
         self._lights.append(light)
         self._lights_d[name] = light
 
     def remove(self, name):
-        pass
+        if name not in self._lights_d:
+            raise ValueError("Light doesn't exist!")
+
+        light = self._lights_d[name]
+        del self._lights_d[name]
+        self._lights.remove(light)
 
     def light_idx(self, name):
         if name not in self._lights_d:
@@ -52,3 +95,8 @@ class LightManager:
         bs.prepare(runtimes)
         return bs.shader
 
+    def get_area_light(self, shape):
+        for name, light in self._lights_d.items():
+            if isinstance(light, AreaLight) and shape is light.shape:
+                return name 
+        return None

@@ -49,7 +49,7 @@ def _arithmetic(cgen, xmms, offset, reg, path, operator):
         ops = {'+': 'vaddps', '-': 'vsubps', '*': 'vmulps', '/': 'vdivps'}
         code = ''
         for xmm in xmms:
-            code += "%s %s, yword[%s + %s + %i]\n"  % (ops[operator], xmm, reg, path, offset)
+            code += "%s %s, %s, yword[%s + %s + %i]\n"  % (ops[operator], xmm, xmm, reg, path, offset)
             offset += 32
         return code
     else:

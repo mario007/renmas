@@ -48,11 +48,14 @@ while ret != 0:
         break
     hit = isect(ray, hitpoint)
     if hit:
+        shadepoint.wo = ray.dir * -1.0
+        ndotwo = dot(hitpoint.normal, shadepoint.wo)
+
         idx = 0
         acum_col = spectrum(0.0)
+        emission(hitpoint, shadepoint, hitpoint.material_idx)
+        acum_col = acum_col + shadepoint.material_emission
         while idx < nlights:
-            shadepoint.wo = ray.dir * -1.0
-            ndotwo = dot(hitpoint.normal, shadepoint.wo)
             if ndotwo > 0.0:
                 light_radiance(hitpoint, shadepoint, idx)
                 ndotwi = dot(hitpoint.normal, shadepoint.wi)
@@ -78,7 +81,7 @@ ray = Ray()
 hitpoint = Hitpoint()
 shadepoint = Shadepoint()
 background = (0.1, 0.5, 0.1)
-background = (0.0, 0.0, 0.0)
+#background = (0.0, 0.0, 0.0)
 
 nlights = number_of_lights()
 max_depth = 10
@@ -101,6 +104,14 @@ while ret != 0:
 
             shadepoint.wo = ray.dir * -1.0
             ndotwo = dot(hitpoint.normal, shadepoint.wo)
+
+            emission(hitpoint, shadepoint, hitpoint.material_idx)
+            mat_em = shadepoint.material_emission
+            lum_em = luminance(mat_em)
+            if lum_em > 0.001: # we directly hit light
+                if cur_depth == 1:
+                    acum_col = acum_col + mat_em
+                break
 
             #direct lighting
             idx = 0

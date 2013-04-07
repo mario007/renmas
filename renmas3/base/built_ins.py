@@ -159,6 +159,7 @@ def _luminance(cgen, args):
 
     cgen.clear_regs()
 
+    #TODO FIXME get_arg return struct if argument is attribute
     s_arg = cgen.get_arg(args[0])
     if isinstance(s_arg, RGBSpec) or isinstance(s_arg, SampledSpec):
         if cgen.BIT64:

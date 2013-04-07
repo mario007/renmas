@@ -6,16 +6,13 @@ from .shape import Shape
 
 class Rectangle(Shape):
     __slots__ = ['point', 'edge_a', 'edge_b', 'normal' ,'material_idx',
-            'inv_area', 'edge_a_squared', 'edge_b_squared']
+            'edge_a_squared', 'edge_b_squared']
 
     def __init__(self, point, edge_a, edge_b, normal, material_idx=0):
         self.point = point
         self.edge_a = edge_a
         self.edge_b = edge_b
         self.material_idx = material_idx
-
-        area = edge_a.length() * edge_b.length()
-        self.inv_area = 1.0 / area
 
         self.normal = normal.normalize()
         self.edge_a_squared = edge_a.length_squared()
@@ -240,4 +237,20 @@ class Rectangle(Shape):
         ds[name + '.edge_a_squared'] = rectangle.edge_a_squared
         ds[name + '.edge_b_squared'] = rectangle.edge_b_squared
         ds[name + '.material_idx'] = rectangle.material_idx
+
+    def light_sample(self):
+        area = self.edge_a.length() * self.edge_b.length()
+        inv_area = 1.0 / area
+
+        code = """
+rnd = random2()
+shadepoint.shape_pdf = inv_area
+shadepoint.shape_normal = normal
+shadepoint.shape_sample = point + edge_a * rnd[0] + edge_b * rnd[1]
+        """
+
+        props = {'inv_area': inv_area, 'normal': self.normal, 'point': self.point,
+                'edge_a': self.edge_a, 'edge_b': self.edge_b}
+
+        return code, props
 

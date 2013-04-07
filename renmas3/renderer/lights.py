@@ -8,7 +8,6 @@ wi = position - hitpoint.hit
 shadepoint.light_intensity = intesity
 shadepoint.light_position = position
 shadepoint.wi = normalize(wi)
-shadepoint.pdf = 1.0
         """
         props = {'position': position, 'intesity': intesity}
         bs = SurfaceShader(code, props, col_mgr=col_mgr)

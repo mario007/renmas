@@ -48,6 +48,20 @@ extern "C" __declspec(dllexport) long __cdecl ExecuteFunction(const char *name, 
 	}
 	else
 	{
+	
+
+	PyObject* excType, *excValue, *excTraceback;
+    PyErr_Fetch(&excType, &excValue, &excTraceback);
+    PyErr_NormalizeException(&excType, &excValue, &excTraceback);
+
+	PyObject *mod = PyImport_ImportModule("traceback");
+	PyObject *list = PyObject_CallMethod(mod, "format_exception", "OOO", excType, excValue, excTraceback);
+	PyObject *separator = PyUnicode_FromString("\n");
+	PyObject *exc_info = PyUnicode_Join(separator, list);
+
+	text = PyUnicode_AsWideCharString(exc_info, NULL);
+	*value = (wchar_t *) text;
+
 		PyErr_Print();
 		return -1;
 	}
@@ -73,6 +87,18 @@ extern "C" __declspec(dllexport) long __cdecl ExecuteObjFunction(const char *id_
 	}
 	else
 	{
+		PyObject* excType, *excValue, *excTraceback;
+    PyErr_Fetch(&excType, &excValue, &excTraceback);
+    PyErr_NormalizeException(&excType, &excValue, &excTraceback);
+
+	PyObject *mod = PyImport_ImportModule("traceback");
+	PyObject *list = PyObject_CallMethod(mod, "format_exception", "OOO", excType, excValue, excTraceback);
+	PyObject *separator = PyUnicode_FromString("\n");
+	PyObject *exc_info = PyUnicode_Join(separator, list);
+
+	text = PyUnicode_AsWideCharString(exc_info, NULL);
+	*value = (wchar_t *) text;
+
 		PyErr_Print();
 		return -1;
 	}
@@ -125,14 +151,20 @@ int main(int argc, char *argv[])
   int result = Init();
   printf("Rezultat je %i\n", result);
   wchar_t *value;
-  long ret = ExecuteFunction("create_image", "RGBA,100,200", &value);
-  char id_obj[32];
+  long ret = ExecuteFunction("create_renderer1", "", &value);
+  printf("%i", ret);
+
+  char id_obj[16000];
   sprintf(id_obj, "%ls", value);
+
+  ret = ExecuteObjFunction(id_obj, "parse_scene_file", "F:/GitRenmas/renmas/tests3/scenes/sphere1.txt", &value);
+  //ret = ExecuteObjFunction(id_obj, "parse_scene_file", "F:/GitRenmas/renmas/tests3/scenes/cornel4.txt", &value);
+
+  ret = ExecuteObjFunction(id_obj, "render", "", &value);
+  //ret = ExecuteObjFunction(id_obj, "render", "", &value);
   
-  ret = GetProperty(id_obj, "height", "int", &value); 
-  printf("Rezultat je %ls  %i\n", value, ret);
-
-  ret = FreeObject(id_obj);
-  printf("Uspjesno izbrisan objekt %i\n", ret);
-
+  char rezultat[32];
+  sprintf(rezultat, "%ls", value);
+  printf("rezultat %s", rezultat);
+  printf("%i", ret);
 }

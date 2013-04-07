@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Permissions;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -12,6 +13,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 
 namespace RenmasWPF3
 {
@@ -22,6 +24,7 @@ namespace RenmasWPF3
     {
         PyWrapper.Renmas renmas;
         ImageViewer img_viewer;
+        bool stop_rendering = false;
 
         public MainWindow()
         {
@@ -96,9 +99,44 @@ namespace RenmasWPF3
 
         private void MenuItem_start_rendering(object sender, RoutedEventArgs e)
         {
-            this.renmas.render();
-            BitmapSource bs = this.renmas.output_image();
-            this.img_viewer.set_target(bs);
+            this.stop_rendering = false;
+            bool finished = false;
+
+            while (true)
+            {
+                finished = this.renmas.render();
+
+                this.renmas.render();
+                BitmapSource bs = this.renmas.output_image();
+                this.img_viewer.set_target(bs);
+
+                if (finished) break;
+                if (this.stop_rendering) break;
+                
+                this.DoEvents();
+
+            }
+        }
+
+        private void MenuItem_stop_rendering(object sender, RoutedEventArgs e)
+        {
+            this.stop_rendering = true;
+        }
+
+        [SecurityPermissionAttribute(SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
+        public void DoEvents()
+        {
+            DispatcherFrame frame = new DispatcherFrame();
+            Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background,
+                new DispatcherOperationCallback(ExitFrame), frame);
+            Dispatcher.PushFrame(frame);
+        }
+
+        public object ExitFrame(object f)
+        {
+            ((DispatcherFrame)f).Continue = false;
+
+            return null;
         }
     }
 }

@@ -3,13 +3,13 @@ from ..base import Spectrum, Vec3, Float, Integer, arg_list, arg_from_value
 from ..shapes import HitPoint
 
 class ShadePoint():
-    __slots__ = ['light_intensity', 'light_position', 'light_emission', 'wi', 'wo','pdf',
+    __slots__ = ['light_intensity', 'light_position', 'material_emission', 'wi', 'wo','pdf',
             'material_spectrum', 'shape_pdf', 'shape_normal',
             'shape_sample', 'reflection_type']
     def __init__(self):
         self.light_intensity = None
         self.light_position = None
-        self.light_emission = None
+        self.material_emission = None
         self.wi = None
         self.wo = None
         self.pdf = None
@@ -22,7 +22,7 @@ class ShadePoint():
     @classmethod
     def user_type(cls):
         typ_name = "Shadepoint"
-        fields = [('light_intensity', Spectrum), ('light_position', Vec3), ('light_emission', Spectrum),
+        fields = [('light_intensity', Spectrum), ('light_position', Vec3), ('material_emission', Spectrum),
                 ('wi', Vec3), ('wo', Vec3), ('pdf', Float),
                 ('material_spectrum', Spectrum), ('shape_pdf', Float), ('shape_normal', Vec3),
                 ('shape_sample', Vec3), ('reflection_type', Integer)]

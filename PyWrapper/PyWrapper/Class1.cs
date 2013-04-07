@@ -46,7 +46,10 @@ namespace PyWrapper
             IntPtr ptr = IntPtr.Zero;
             int ret = ExecuteObjFunction(id_obj, name, args, ref ptr);
             if (ret == -1)
-                throw new Exception("Cannot exectue method, some exception ocured!");
+            {
+                string exc_txt = Marshal.PtrToStringUni(ptr);
+                throw new Exception(exc_txt);
+            }
             string s = Marshal.PtrToStringUni(ptr);
             return s;
         }

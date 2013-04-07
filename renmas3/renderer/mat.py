@@ -2,7 +2,7 @@ import platform
 import collections
 from ..base import Spectrum, Vec3, Float, Integer, arg_list, arg_map, Shader
 from ..shapes import HitPoint
-from .surface import ShadePoint
+from .surface import ShadePoint, SurfaceShader
 
 def func_pointers_shader(label, runtimes, objs, prepare):
     pointers = collections.defaultdict(list)
@@ -43,10 +43,11 @@ def func_pointers_shader(label, runtimes, objs, prepare):
     return shader
 
 class Material:
-    def __init__(self, bsdf=None, sample=None, pdf=None, is_dielectric=False):
+    def __init__(self, bsdf=None, sample=None, pdf=None, emission=None, is_dielectric=False):
         self.bsdf = bsdf
         self.sample = sample
         self.pdf = pdf
+        self.emission = emission
         self.is_dielectric = is_dielectric
 
     def prepare_bsdf(self, runtimes):
@@ -71,11 +72,23 @@ class Material:
         pdf_ptrs = [r.address_label(name) for r in runtimes]
         return pdf_ptrs
 
+    def prepare_emission(self, runtimes, col_mgr):
+        emission = self.emission
+        if emission is None:
+            code = """
+shadepoint.material_emission = spectrum(0.0)
+            """
+            emission = SurfaceShader(code, props={}, col_mgr=col_mgr)
+        emission.prepare(runtimes)
+        name = emission.method_name()
+        emission_ptrs = [r.address_label(name) for r in runtimes]
+        return emission_ptrs
 
 class MaterialManager:
     def __init__(self):
         self._materials = []
         self._materials_d = {}
+        self._idx = {}
 
     def add(self, name, material):
         if name in self._materials_d:
@@ -84,6 +97,19 @@ class MaterialManager:
             raise ValueError("Type error. Material is expected!", material)
         self._materials.append(material)
         self._materials_d[name] = material
+
+        idx = self._materials.index(material)
+        self._idx[idx] = (name, material)
+
+    def is_emissive(self, idx):
+        m = self._idx[idx][1]
+        return m.emission is not None 
+
+    def name(self, idx):
+        return self._idx[idx][0]
+
+    def material(self, idx):
+        return self._idx[idx][1]
 
     def remove(self, name):
         pass
@@ -109,3 +135,7 @@ class MaterialManager:
                  self._materials, lambda m, run: m.prepare_pdf(run))
         return shader
 
+    def prepare_emission(self, label, runtimes, col_mgr):
+        shader = func_pointers_shader(label, runtimes,
+                 self._materials, lambda m, run: m.prepare_emission(run, col_mgr))
+        return shader

@@ -33,3 +33,10 @@ shadepoint.pdf = dot(hitpoint.normal, shadepoint.wi) * 0.318309886
     bs = SurfaceShader(code, props, col_mgr=col_mgr)
     return bs
 
+def create_lambertian_emission(col_mgr, emission_spectrum):
+    code = """
+shadepoint.material_emission = emission_spectrum
+    """
+    props = {'emission_spectrum': emission_spectrum}
+    bs = SurfaceShader(code, props, col_mgr=col_mgr)
+    return bs

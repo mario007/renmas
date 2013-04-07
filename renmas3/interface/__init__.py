@@ -1,2 +1,2 @@
 
-from .iface import create_renderer
+from .iface import exec_func, exec_method

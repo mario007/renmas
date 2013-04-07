@@ -94,7 +94,6 @@ class Shader:
         if ds:
             self._ds = ds
 
-
     def execute(self, nthreads=1):
         #FIXME fix this correctly
         if len(self._runtimes) == 1:
@@ -177,6 +176,9 @@ class BaseShader:
     def shader(self):
         """Return underlaying shader. It can return None if shader is not\
                 yet created."""
+        #TODO -- think -- if sheader is None create shader without prepare!
+        #Note -- because shader accepts list of shader in prepare!!!!!!!
+        # And thease shader can be None!
         return self._shader
 
     def prepare(self, runtimes, shaders=[]):
@@ -191,8 +193,9 @@ class BaseShader:
         func = not self.standalone()
         col_mgr = self.col_mgr()
 
-        self._shader = create_shader(name, self._code, args, input_args=in_args,
-                                     shaders=shaders, func=func, col_mgr=col_mgr)
+        if self._shader is None:
+            self._shader = create_shader(name, self._code, args, input_args=in_args,
+                                         shaders=shaders, func=func, col_mgr=col_mgr)
 
         self._shader.prepare(runtimes)
         self.update()

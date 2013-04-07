@@ -2,13 +2,13 @@
 from ..base import Vector3
 from ..samplers import RegularSampler, RandomSampler
 from ..cameras import create_perspective_camera
-from ..shapes import Sphere, Triangle
+from ..shapes import Sphere, Triangle, Rectangle
 
 from .light import Light
 from .lights import create_point_illuminate
 from .mat import Material
 from .materials import create_lambertian_brdf, create_lambertian_sample
-from .materials import create_lambertian_pdf
+from .materials import create_lambertian_pdf, create_lambertian_emission
 
 def _parse_line(line):
     keyword, vals = line.split('=')
@@ -102,6 +102,17 @@ def _parse_shape(fobj, project):
         p2 = Vector3(float(p2[0]), float(p2[1]), float(p2[2]))
         tri = Triangle(p0, p1, p2)
         project.shapes.add(name, tri)
+    elif typ == 'rectangle':
+        p = values['p']
+        p = Vector3(float(p[0]), float(p[1]), float(p[2]))
+        e1 = values['edge_a']
+        e1 = Vector3(float(e1[0]), float(e1[1]), float(e1[2]))
+        e2 = values['edge_b']
+        e2 = Vector3(float(e2[0]), float(e2[1]), float(e2[2]))
+        n = values['normal']
+        n = Vector3(float(n[0]), float(n[1]), float(n[2]))
+        rect = Rectangle(p, e1, e2, normal=n)
+        project.shapes.add(name, rect)
     else:
         raise ValueError("Unsuported type of shape!", typ)
     if 'material' in values:
@@ -147,7 +158,18 @@ def _parse_material(fobj, project):
         sh = create_lambertian_brdf(project.col_mgr, diffuse)
         sample = create_lambertian_sample(project.col_mgr)
         pdf = create_lambertian_pdf(project.col_mgr)
-        mat = Material(bsdf=sh, sample=sample, pdf=pdf)
+
+        em_sh = None
+        if 'emission' in values:
+            i = values['emission']
+            if len(i) == 3: #assume RGB TODO spectrums
+                r, g, b = float(i[0]), float(i[1]), float(i[2])
+            else:
+                raise ValueError("Spectrum values not yet implemented")
+            emission = project.col_mgr.create_spectrum((r, g, b))
+            em_sh = create_lambertian_emission(project.col_mgr, emission)
+
+        mat = Material(bsdf=sh, sample=sample, pdf=pdf, emission=em_sh)
         project.mat_mgr.add(name, mat)
 
 def parse_scene(fobj, project):

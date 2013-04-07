@@ -10,7 +10,7 @@ from ..shapes import ShapeManager, LinearIsect
 from ..utils import blt_prgba_to_bgra
 from ..integrators import get_integrator_code
 
-from .light import LightManager
+from .light import LightManager, AreaLight
 from .mat import MaterialManager
 from ..tone import ReinhardOperator
 
@@ -74,6 +74,7 @@ class Film(BaseShader):
 
 x = sample.ix
 y = sample.iy
+y = hdr_image.height - y - 1
 rgba = get_rgba(hdr_image, x, y)
 
 acum_weight = rgba[3]
@@ -158,6 +159,20 @@ class Renderer:
         self._project = Project.load(fname)
         self._ready = False
 
+    def create_area_lights(self):
+        for shp in self._project.shapes:
+            idx = shp.material_idx
+            lgt_name = self._project.lgt_mgr.get_area_light(shp)
+            if self._project.mat_mgr.is_emissive(idx):
+                if lgt_name is None:
+                    mat = self._project.mat_mgr.material(idx)
+                    alight = AreaLight(shp, mat, col_mgr=self._project.col_mgr)
+                    name = 'area' + str(id(alight))
+                    self._project.lgt_mgr.add(name, alight)
+            else:
+                if lgt_name is not None:
+                    self._project.lgt_mgr.remove(lgt_name)
+
     def prepare_lights(self, runtimes):
         return self._project.lgt_mgr.prepare_illuminate('light_radiance', runtimes)
 
@@ -169,6 +184,9 @@ class Renderer:
 
     def prepare_materials_pdf(self, runtimes):
         return self._project.mat_mgr.prepare_pdf('pdf_bsdf', runtimes)
+
+    def prepare_materials_emission(self, runtimes):
+        return self._project.mat_mgr.prepare_emission('emission', runtimes, self._project.col_mgr)
 
     def prepare(self):
         """Prepare renderer for rendering. Compile all shaders. Build
@@ -185,6 +203,7 @@ class Renderer:
             raise ValueError("Camera is not defined!")
         self._project.camera.prepare(self._runtimes)
 
+        self.create_area_lights() #CREATE AREA lights if needed
         self._film.prepare(self._runtimes)
 
         width = self._project.sampler.width
@@ -223,11 +242,12 @@ class Renderer:
         mat_sh = self.prepare_materials(runtimes)
         sam_mat_sh = self.prepare_materials_samples(runtimes)
         pdf_sh = self.prepare_materials_pdf(runtimes)
+        em_sh = self.prepare_materials_emission(runtimes)
 
         nlight_sh = self._project.lgt_mgr.nlights_shader('number_of_lights', runtimes)
 
         self._integrator.prepare(runtimes, [sam_sh, cam_sh, film_sh, isect_sh,
-            lgt_sh, mat_sh, nlight_sh, visible_sh, sam_mat_sh, pdf_sh])
+            lgt_sh, mat_sh, nlight_sh, visible_sh, sam_mat_sh, pdf_sh, em_sh])
 
     def _isect_shader(self, runtimes):
         if self._intersector is None:

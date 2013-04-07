@@ -16,10 +16,10 @@
 
 Options
 sampler_type = random
-pixel_size = 1.0
-nsamples = 16
-width = 512
-height = 512
+pixel_size = 0.5
+nsamples = 3 
+width = 1024
+height = 1024
 nthreads = 4
 End
 
@@ -27,16 +27,16 @@ Camera
 type = perspective
 eye = 0.278, 0.273, -0.800
 lookat = 0.278, 0.273, -0.799
-distance = 700
+distance = 740
 End
 
-Light
-type = PointLight
-position = 0.278, 0.500, 0.2795
+#Light
+#type = PointLight
+#position = 0.278, 0.500, 0.2795
 #intesity = 1, 0.85, 0.43
 #intesity = 0.25, 0.21, 0.10
-intesity = 4, 3.25, 1.63
-End
+#intesity = 4, 3.25, 1.63
+#End
 
 Material
 name = red 
@@ -60,6 +60,14 @@ Material
 name = white
 type = Lambertian
 diffuse = 0.76, 0.75, 0.5
+End
+
+Material
+name = white_emitter
+type = Lambertian
+diffuse = 0.76, 0.75, 0.5
+emission = 0.76, 0.75, 0.5
+#emission = 9.76, 9.75, 9.5
 End
 
 ## FLOOR
@@ -340,4 +348,17 @@ material = white
 End
 
 
+##     2) The light is defined as a point (instead of a quad with points             ##
+##        of (343,548.7,227), (343,548.7,332), (213,548.7,332) and (213,548.7,227)   ##
+##        and a surface normal of (0,-1,0))                                          ##
+
+Shape
+type = Rectangle
+name = light_rect
+p = 0.343, 0.5487, 0.227
+edge_a = 0.0, 0.0, 0.105
+edge_b = -0.13, 0.0, 0.0
+normal = 0.0, -1.0, 0.0
+material = white_emitter
+End
 

@@ -2,14 +2,11 @@
 import renmas3
 import renmas3.interface
 
-id_ren = renmas3.interface.create_renderer("")
+fname = '../scenes/cornel4.txt'
+fname = '../scenes/sphere1.txt'
+id_ren = renmas3.interface.exec_func('create_renderer', '')
+renmas3.interface.exec_method(id_ren, 'parse_scene_file', fname)
+renmas3.interface.exec_method(id_ren, 'render', '')
+print(renmas3.interface.exec_method(id_ren, 'output_image', ''))
 
-#renmas3.interface.import_scene(args)
-fname = '../renderer/scene1.proj'
-fname = "F:\\GitRenmas\\renmas\\tests3\\renderer\\scene1.proj"
-args = id_ren + "," + fname
-renmas3.interface.open_project(args)
-renmas3.interface.render(id_ren)
 
-output = renmas3.interface.output_image(id_ren)
-print(output)

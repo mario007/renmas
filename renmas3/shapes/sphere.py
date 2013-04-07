@@ -1,10 +1,10 @@
 import math
 
-import renmas3.switch as proc
 from ..base import Ray
 from ..macros import create_assembler
 from .hit import HitPoint
 from .shape import Shape
+from .bbox import BBox
 
 class Sphere(Shape):
     __slots__ = ['origin', 'radius', 'material_idx']

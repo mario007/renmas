@@ -23,7 +23,7 @@ while ret != 0:
     hit = isect(ray, hitpoint)
     if hit:
         bsdf(hitpoint, shadepoint, hitpoint.material_idx)
-        col = spectrum_to_rgb(shadepoint.material_spectrum)
+        col = spectrum_to_rgb(shadepoint.material_reflectance)
         add_sample(sample, col)
     else:
         add_sample(sample, background)
@@ -63,7 +63,7 @@ while ret != 0:
                     vis = visible(hitpoint.hit, shadepoint.light_position)
                     if vis:
                         bsdf(hitpoint, shadepoint, hitpoint.material_idx)
-                        col = ndotwi * shadepoint.material_spectrum * shadepoint.light_intensity
+                        col = ndotwi * shadepoint.material_reflectance * shadepoint.light_intensity
                         acum_col = acum_col + col
             idx = idx + 1
 
@@ -123,7 +123,7 @@ while ret != 0:
                         vis = visible(hitpoint.hit, shadepoint.light_position)
                         if vis:
                             bsdf(hitpoint, shadepoint, hitpoint.material_idx)
-                            col = ndotwi * shadepoint.material_spectrum * shadepoint.light_intensity
+                            col = ndotwi * shadepoint.material_reflectance * shadepoint.light_intensity
                             col = col * path
                             acum_col = acum_col + col
                 idx = idx + 1
@@ -141,7 +141,7 @@ while ret != 0:
             if ndotwi < 0.0:
                 ndotwi = ndotwi * -1.0
             pdf = ndotwi / shadepoint.pdf
-            path = path * shadepoint.material_spectrum * pdf
+            path = path * shadepoint.material_reflectance * pdf
 
             ray.origin = hitpoint.hit
             ray.dir = shadepoint.wi

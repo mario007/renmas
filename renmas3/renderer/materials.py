@@ -4,7 +4,7 @@ from .surface import SurfaceShader
 def create_lambertian_brdf(col_mgr, diffuse):
     diffuse = diffuse * (1.0 / math.pi) 
     code = """
-shadepoint.material_spectrum = diffuse
+shadepoint.material_reflectance = diffuse
     """
     props = {'diffuse': diffuse}
     bs = SurfaceShader(code, props, col_mgr=col_mgr)

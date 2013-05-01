@@ -4,7 +4,7 @@ from ..shapes import HitPoint
 
 class ShadePoint():
     __slots__ = ['light_intensity', 'light_position', 'material_emission', 'wi', 'wo','pdf',
-            'material_spectrum', 'shape_pdf', 'shape_normal',
+            'material_reflectance', 'shape_pdf', 'shape_normal',
             'shape_sample', 'reflection_type']
     def __init__(self):
         self.light_intensity = None
@@ -13,7 +13,7 @@ class ShadePoint():
         self.wi = None
         self.wo = None
         self.pdf = None
-        self.material_spectrum = None
+        self.material_reflectance = None
         self.shape_pdf = None
         self.shape_normal = None
         self.shape_sample = None
@@ -24,7 +24,7 @@ class ShadePoint():
         typ_name = "Shadepoint"
         fields = [('light_intensity', Spectrum), ('light_position', Vec3), ('material_emission', Spectrum),
                 ('wi', Vec3), ('wo', Vec3), ('pdf', Float),
-                ('material_spectrum', Spectrum), ('shape_pdf', Float), ('shape_normal', Vec3),
+                ('material_reflectance', Spectrum), ('shape_pdf', Float), ('shape_normal', Vec3),
                 ('shape_sample', Vec3), ('reflection_type', Integer)]
         return (typ_name, fields)
 

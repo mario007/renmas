@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Security.Permissions;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -29,12 +31,19 @@ namespace RenmasWPF3
         public MainWindow()
         {
             InitializeComponent();
+            Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
             renmas = PyWrapper.Renmas.create();
             img_viewer = new ImageViewer();
 
             Grid.SetColumn(img_viewer, 0);
             Grid.SetRow(img_viewer, 1);
             this.mw_grid.Children.Add(img_viewer);
+
+            //Options op = new Options(renmas);
+            ToneMappingEditor op = new ToneMappingEditor(renmas);
+            Grid.SetColumn(op, 1);
+            Grid.SetRow(op, 1);
+            this.mw_grid.Children.Add(op);
         }
 
         private void MenuItem_Exit(object sender, RoutedEventArgs e)
@@ -94,7 +103,7 @@ namespace RenmasWPF3
 
         private void MenuItem_new_project(object sender, RoutedEventArgs e)
         {
-
+            this.build_editor(PyWrapper.PropType.Options);
         }
 
         private void MenuItem_start_rendering(object sender, RoutedEventArgs e)
@@ -105,8 +114,6 @@ namespace RenmasWPF3
             while (true)
             {
                 finished = this.renmas.render();
-
-                this.renmas.render();
                 BitmapSource bs = this.renmas.output_image();
                 this.img_viewer.set_target(bs);
 
@@ -137,6 +144,22 @@ namespace RenmasWPF3
             ((DispatcherFrame)f).Continue = false;
 
             return null;
+        }
+
+        public void build_editor(PyWrapper.PropType type)
+        {
+            List<PyWrapper.PropDesc> descs = this.renmas.get_props_descs(type);
+
+            // 1. renmas.get_props(Type, active_light or active_material)
+            // 2. 
+
+            //active light  -- group
+            //active material  -- group
+
+            // list_of_props_descriptors = this.renmas.get_props(prop_type, group)
+            // prop_desc {prop_type, name}
+
+            // IntProperty(this.renmas.ID, name, prop_type, group)
         }
     }
 }

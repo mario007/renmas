@@ -2,13 +2,14 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Renmas" Height="350" Width="525">
-    <Grid Name="mw_grid">
+    <Grid Name="mw_grid" RenderTransformOrigin="0.696,0.506">
         <Grid.RowDefinitions>
             <RowDefinition Height="25" />
             <RowDefinition />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition />
+            <ColumnDefinition Width="150" />
         </Grid.ColumnDefinitions>
         <Menu Grid.Row="0" HorizontalAlignment="Stretch" VerticalAlignment="Top" Background="White" BorderBrush="Black">
             <MenuItem Header="_File">

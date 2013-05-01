@@ -17,7 +17,7 @@
 Options
 sampler_type = random
 pixel_size = 0.5
-nsamples = 3 
+nsamples = 4 
 width = 1024
 height = 1024
 nthreads = 4

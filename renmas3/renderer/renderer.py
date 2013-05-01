@@ -3,8 +3,10 @@ import pickle
 import os.path
 from tdasm import Runtime
 from .parse_scene import parse_scene
+from ..base import Vector2, Vector3, Vector4
 from ..base import arg_list, arg_map, Vec3, Vec4, ColorManager, Spectrum
 from ..base import BaseShader, BasicShader, ImageRGBA, ImagePRGBA, ImageBGRA 
+from ..base import FileLoader
 from ..samplers import Sample
 from ..shapes import ShapeManager, LinearIsect
 from ..utils import blt_prgba_to_bgra
@@ -12,7 +14,7 @@ from ..integrators import get_integrator_code
 
 from .light import LightManager, AreaLight
 from .mat import MaterialManager
-from ..tone import ReinhardOperator
+from ..tone import Tmo
 
 class Project:
     """This class is responsible holding all data object that will
@@ -28,6 +30,7 @@ class Project:
         self.col_mgr = ColorManager(spectral=False)
         self.lgt_mgr = LightManager()
         self.mat_mgr = MaterialManager()
+        self.tmo = None
 
     @staticmethod
     def load(fname):
@@ -126,6 +129,27 @@ set_rgba(hdr_image, x, y, new_col)
         self._ldr_image.clear()
         self._output_img.clear()
 
+def create_props(text):
+    props = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if line == "" or line[0] == '#': #skip blank lines and comments
+            continue
+        words = line.split(' ')
+        name = words[1]
+        if words[0] == 'int':
+            value = int(words[2])
+        elif words[0] == 'float':
+            value = float(words[2])
+        elif words[0] == 'vector3':
+            value = Vector3(float(words[2]), float(words[3]), float(words[4]))
+        else:
+            raise ValueError('Unknown property type ', words[0])
+        if name in props:
+            raise ValueError('Property allready exist!')
+        props[name] = value
+    return props
+
 class Renderer:
     """Main class that is used for holding all the parts together that
     are required for rendering of image."""
@@ -137,6 +161,29 @@ class Renderer:
         self._pass = 0
         self._film = Film()
         self._intersector = None
+        path = os.path.dirname(os.path.dirname(__file__))
+        self._tmo_loader = FileLoader([os.path.join(path, 'tmo_shaders')])
+
+        self._active_tmo = 'exp_tmo'
+        self._create_tmo()
+
+    def _create_tmo(self):
+        current_tmo = self._active_tmo
+        contents = self._tmo_loader.load(current_tmo, 'props.txt')
+        if contents is None: #file props.txt is not found not found
+            props = {}
+        else:
+            props = create_props(contents)
+        contents = self._tmo_loader.load(current_tmo, 'tmo.py')
+        if contents is None:
+            raise ValueError('Tmo shader code doesnt exist!', current_tmo)
+        self._project.tmo = Tmo(contents, props)
+
+    def tone_map(self):
+        """Preform tone mapping"""
+        if self._project.tmo is None:
+            self._create_tmo()
+        self._project.tmo.tone_map(self._film._hdr_image, self._film._ldr_image)
 
     def set_resolution(self, width, height):
         """Set resolution of output image. """
@@ -286,10 +333,7 @@ class Renderer:
         return not self._project.sampler.has_more_samples(self._pass)
 
     def output_image(self):
-        img = self._film._hdr_image
-        img2 = self._film._output_img
-        reinhard = ReinhardOperator()
-        reinhard.tone_map(img, img2)
-        #blt_prgba_to_bgra(img, img2)
+        self.tone_map()
+        blt_prgba_to_bgra(self._film._ldr_image, self._film._output_img)
         return self._film._output_img
 

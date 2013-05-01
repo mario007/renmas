@@ -1,0 +1,6 @@
+
+
+float q 5.0
+float k 1.0
+float gamma 2.2
+

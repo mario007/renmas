@@ -6,3 +6,5 @@ from .tone_shader import TmoShader
 #from .photoreceptor import PhotoreceptorOperator
 from .reinhard import ReinhardOperator
 
+from .tone_map import Tmo
+

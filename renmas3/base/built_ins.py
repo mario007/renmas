@@ -540,3 +540,41 @@ def _cross_function(cgen, args):
 
 register_function('cross', _cross_function, inline=True)
 
+def _min_max(cgen, args, inst='max'):
+    if len(args) != 2:
+        raise ValueError("Wrong number of arguments in min max fucntion", args)
+    code1, xmm1, typ1 = load_operand(cgen, args[0])
+    code2, xmm2, typ2 = load_operand(cgen, args[1])
+
+    if typ1 != typ2:
+        raise ValueError("Arguments must be of the same type in min max function!",
+                typ1, typ2)
+
+    if typ1 == Float:
+        if cgen.AVX:
+            l1 = 'v%sss %s, %s, %s\n' % (inst, xmm1, xmm1, xmm2)
+        else:
+            l1 = '%sss %s, %s\n' % (inst, xmm1, xmm2)
+    elif typ1 == Vec2 or typ1 == Vec3 or typ1 == Vec4:
+        if cgen.AVX:
+            l1 = 'v%sps %s, %s, %s\n' % (inst, xmm1, xmm1, xmm2)
+        else:
+            l1 = '%sps %s, %s\n' % (inst, xmm1, xmm2)
+    else:
+        raise ValueError("Unsuported type of argument in min max function!", typ1)
+
+    cgen.release_reg(xmm2)
+
+    code = code1 + code2 + l1
+    return code, xmm1, typ1
+
+def _max(cgen, args):
+    return _min_max(cgen, args, 'max')
+
+register_function('max', _max, inline=True)
+
+def _min(cgen, args):
+    return _min_max(cgen, args, 'min')
+
+register_function('min', _min, inline=True)
+

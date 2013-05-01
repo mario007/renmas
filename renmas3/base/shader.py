@@ -1,3 +1,4 @@
+import inspect
 import x86
 from tdasm import Tdasm
 from ..asm import load_asm_function
@@ -210,6 +211,8 @@ class BaseShader:
         props = self.get_props(self._shader.nthreads)
         if isinstance(props, dict):
             for key, value in props.items():
+                if inspect.isclass(value):
+                    continue
                 for idx in range(self._shader.nthreads):
                     self._shader.set_value(key, value, idx_thread=idx)
         else: #update every thread with own properties
@@ -217,6 +220,8 @@ class BaseShader:
                 raise ValueError("Wrong number of public properties(multithreading)!")
             for idx, prop in enumerate(props):
                 for key, value in prop.items():
+                    if inspect.isclass(value):
+                        continue
                     self._shader.set_value(key, value, idx_thread=idx)
 
     def execute(self):
@@ -274,9 +279,14 @@ class BasicShader(BaseShader):
         spectrum = None
         if self._col_mgr is not None:
             spectrum = self._col_mgr.black()
-        args = ArgumentMap(arg_from_value(key, value, spectrum=spectrum)\
-                                          for key, value in p.items())
-        return args
+        args = []
+        for key, value in p.items():
+            if inspect.isclass(value):
+                arg = arg_from_type(key, typ=value, spectrum=spectrum)
+            else:
+                arg = arg_from_value(key, value, spectrum=spectrum)
+            args.append(arg)
+        return ArgumentMap(args)
 
     def arg_list(self):
         if self.input_args is None:
@@ -284,9 +294,14 @@ class BasicShader(BaseShader):
         spectrum = None
         if self._col_mgr is not None:
             spectrum = self._col_mgr.black()
-        args = ArgumentList(arg_from_value(name, value, True, spectrum=spectrum)
-                                    for name, value in self.input_args)
-        return args
+        args = []
+        for name, value in self.input_args:
+            if inspect.isclass(value):
+                arg = arg_from_type(name, typ=value, input_arg=True, spectrum=spectrum)
+            else:
+                arg = arg_from_value(name, value, True, spectrum=spectrum)
+            args.append(arg)
+        return ArgumentList(args)
 
     def method_name(self):
         if self._method_name is None:

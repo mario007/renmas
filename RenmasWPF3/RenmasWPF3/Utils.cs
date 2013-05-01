@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 
 namespace RenmasWPF3
@@ -30,6 +31,29 @@ namespace RenmasWPF3
             using (FileStream file = File.OpenWrite(filename))
             {
                 encoder.Save(file);
+            }
+        }
+
+        public static UserControl build_editor(PyWrapper.RenmasProperty property)
+        {
+            Type t = property.GetType();
+            if (t == typeof(PyWrapper.IntProperty))
+            {
+                IntEditor ed = new IntEditor();
+                ed.set_target((PyWrapper.IntProperty)property);
+                return ed;
+            }
+            else if (t == typeof(PyWrapper.FloatProperty))
+            {
+                FloatEditor ed = new FloatEditor();
+                ed.set_target((PyWrapper.FloatProperty)property);
+                return ed;
+            }
+            else
+            {
+                //TODO -- better message
+                string msg = "Unknown type";
+                throw new Exception(msg);
             }
         }
     }

@@ -10,4 +10,5 @@ from .mgr import ShapeManager
 from .linear import LinearIsect
 from .load_meshes import load_meshes
 from .bbox import BBox, random_in_bbox
+from .flat_mesh import FlatMesh
 

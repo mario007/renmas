@@ -104,8 +104,6 @@ def test_mesh_isect(mesh, nrays=1):
         compare_tuple(hit1, hit3)
 
         if mesh.has_uv():
-            print(hp1.u, hp2.u, ds["hp1.u"])
-            print(hp1.v, hp2.v, ds["hp1.v"])
             compare_floats(hp1.u, hp2.u)
             compare_floats(hp1.v, hp2.v)
             compare_floats(hp1.u, ds["hp1.u"]) 
@@ -145,13 +143,13 @@ def test_mesh_isect_b(mesh, nrays=1):
 
 
 #fname = 'G:/Ply_files/cube.ply'
-#fname = 'G:/Ply_files/dragon_vrip_res4.ply'
-#fname = 'G:/Ply_files/dragon_vrip.ply'
+#fname = 'F:/Ply_files/dragon_vrip_res4.ply'
+#fname = 'F:/Ply_files/dragon_vrip.ply'
 #fname = 'G:/Ply_files/xyzrgb_dragon.ply'
 #fname = 'G:/Ply_files/lucy.ply'
-#fname = 'G:/Ply_files/Horse2K.ply'
-#fname = 'G:/Ply_files/Horse97K.ply'
-fname = 'G:/ray_tracing_scenes/cube/cube.obj'
+#fname = 'F:/Ply_files/Horse2K.ply'
+#fname = 'F:/Ply_files/Horse97K.ply'
+fname = 'F:/ray_tracing_scenes/cube/cube.obj'
 
 start_time = time.clock()
 meshes = load_meshes_from_file(fname)

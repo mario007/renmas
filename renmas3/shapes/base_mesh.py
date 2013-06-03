@@ -116,8 +116,8 @@ class BaseMesh(Shape):
             uv0 = self.get_uv(v0)
             uv1 = self.get_uv(v1)
             uv2 = self.get_uv(v2)
-            u = (uv0[0] * (1.0 - beta - gamma) + beta * uv1[0] + gamma * uv2[0]) * 0.33333
-            v = (uv0[1] * (1.0 - beta - gamma) + beta * uv1[1] + gamma * uv2[1]) * 0.33333
+            u = uv0[0] * (1.0 - beta - gamma) + beta * uv1[0] + gamma * uv2[0]
+            v = uv0[1] * (1.0 - beta - gamma) + beta * uv1[1] + gamma * uv2[1]
 
         return HitPoint(t, hit_point, normal, self.material_idx, u=u, v=v)
 

@@ -162,8 +162,8 @@ class Triangle(Shape):
         
         if self.has_uv: # we must also calculate texture coordinates
             alpha = 1.0 - beta - gamma
-            u = (alpha * self.tu0 + beta * self.tu1 + gamma * self.tu2) * 0.33333
-            v = (alpha * self.tv0 + beta * self.tv1 + gamma * self.tv2) * 0.33333
+            u = alpha * self.tu0 + beta * self.tu1 + gamma * self.tu2
+            v = alpha * self.tv0 + beta * self.tv1 + gamma * self.tv2
         else:
             u = 0.0
             v = 0.0

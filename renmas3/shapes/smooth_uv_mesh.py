@@ -172,7 +172,6 @@ class SmoothUVMesh(BaseMesh):
         uint32 isect_ocur 
 
         float one = 1.0
-        float one_over_three[4] = 0.33333, 0.33333, 0.33333, 0.33333
         float _n0[4]
         float _n1[4]
         float _n2[4]
@@ -296,7 +295,150 @@ class SmoothUVMesh(BaseMesh):
         macro broadcast xmm5 = xmm5[0]
         macro eq128 xmm5 = xmm5 * _uv2
         macro eq128 xmm3 = xmm3 + xmm4 + xmm5
-        macro eq128 xmm3 = xmm3 * one_over_three
+        macro broadcast xmm4 = xmm3[1]
+
+        _end_intersections:
+        ret
+        """
+        return code
+    @classmethod
+    def isect_triangles_asm_64(cls, label, ray_isect_label):
+        code = """
+            #DATA
+        """
+        code += Ray.asm_struct()
+        code += cls.asm_struct()
+        epsilon = "float epsilon = %f\n" % cls.epsilon()
+        code += epsilon + """
+        uint32 num_triangles
+        uint64 ptr_triangles, ptr_ray, ptr_flat_mesh, ptr_min_dist
+        uint32 isect_ocur 
+
+        float one = 1.0
+        float _n0[4]
+        float _n1[4]
+        float _n2[4]
+        float _uv0[4]
+        float _uv1[4]
+        float _uv2[4]
+        float _beta, _gamma
+        #CODE
+        """
+        code += " global " + label + ":\n" + """
+        mov qword [ptr_ray], rax
+        mov qword [ptr_flat_mesh], rbx 
+        mov qword [ptr_min_dist], rcx
+        mov dword [isect_ocur], 0
+
+        mov esi, dword [rdx] ; number of triangles to process
+        mov dword [num_triangles], esi
+        add rdx, 4 ;address of idx triangle array
+        mov qword [ptr_triangles], rdx
+
+        _triangle_loop:
+        mov rax, qword [ptr_ray]
+        mov rbx, qword [ptr_flat_mesh]
+        
+        mov rbp, qword [ptr_triangles]
+        mov edx, dword [rbp]
+
+        imul edx, dword [rbx + SmoothUVMesh.triangle_size]
+        add rdx, qword [rbx + SmoothUVMesh.triangle_buffer_ptr]
+        
+        mov esi, dword [rdx]
+        mov edi, dword [rdx + 4]
+        mov ebp, dword [rdx + 8]
+
+        imul esi, dword [rbx + SmoothUVMesh.vertex_size]
+        add rsi, qword [rbx + SmoothUVMesh.vertex_buffer_ptr]
+
+        imul edi, dword [rbx + SmoothUVMesh.vertex_size]
+        add rdi, qword [rbx + SmoothUVMesh.vertex_buffer_ptr]
+
+        imul ebp, dword [rbx + SmoothUVMesh.vertex_size]
+        add rbp, qword [rbx + SmoothUVMesh.vertex_buffer_ptr]
+
+        ;eax - ray, ebx - Flat Mesh, esi - p0, edi - p1, ebp - p2
+        macro eq128 xmm3 = eax.Ray.origin
+        macro eq128 xmm4 = eax.Ray.dir
+        macro eq128 xmm5 = rsi
+        macro eq128 xmm6 = rdi
+        macro eq128 xmm7 = rbp
+        ;call ray_triangle_function
+        """
+        code += "call " + ray_isect_label + """
+        cmp eax, 0
+        je _next_triangle
+        mov rcx, qword [ptr_min_dist]
+        macro if xmm0 > rcx goto _next_triangle
+
+        ; intersection ocur, t = xmm0
+        mov dword [isect_ocur], 1
+
+        ; update distance
+        macro eq32 ecx = xmm0 {xmm7}
+
+        ; save for calculation of normal and uv
+        macro eq32 _beta = xmm1 {xmm7}
+        macro eq32 _gamma = xmm2 {xmm7}
+        add rsi, 16
+        add rdi, 16
+        add rbp, 16
+        macro eq128 xmm0 = rsi
+        macro eq128 xmm1 = rdi
+        macro eq128 xmm2 = rbp
+        macro eq128 _n0 = xmm0 {xmm7}
+        macro eq128 _n1 = xmm1 {xmm7}
+        macro eq128 _n2 = xmm2 {xmm7}
+        add rsi, 16
+        add rdi, 16
+        add rbp, 16
+        macro eq128 xmm0 = rsi
+        macro eq128 xmm1 = rdi
+        macro eq128 xmm2 = rbp
+        macro eq128 _uv0 = xmm0 {xmm7}
+        macro eq128 _uv1 = xmm1 {xmm7}
+        macro eq128 _uv2 = xmm2 {xmm7}
+
+        _next_triangle:
+        add qword [ptr_triangles], 4
+        sub dword [num_triangles], 1  
+        jnz _triangle_loop
+        
+        ;result
+        mov eax, dword [isect_ocur]
+        cmp eax, 0
+        je _end_intersections
+
+        mov rdx, qword [ptr_ray]
+        mov rcx, qword [ptr_min_dist]
+        macro eq32 xmm0 = rcx
+        macro broadcast xmm0 = xmm0[0]
+        macro eq128 xmm1 = xmm0 * edx.Ray.dir + edx.Ray.origin
+
+        ;calculation of normal and uv
+        macro eq32 xmm2 = one - _beta - _gamma
+        macro broadcast xmm2 = xmm2[0]
+        macro eq128 xmm2 = xmm2 * _n0
+        macro eq32 xmm3 = _beta
+        macro broadcast xmm3 = xmm3[0]
+        macro eq128 xmm3 = xmm3 * _n1
+        macro eq32 xmm4 = _gamma
+        macro broadcast xmm4 = xmm4[0]
+        macro eq128 xmm4 = xmm4 * _n2
+        macro eq128 xmm2 = xmm2 + xmm3 + xmm4
+        macro normalization xmm2 {xmm6, xmm7} 
+
+        macro eq32 xmm3 = one - _beta - _gamma
+        macro broadcast xmm3 = xmm3[0]
+        macro eq128 xmm3 = xmm3 * _uv0
+        macro eq32 xmm4 = _beta
+        macro broadcast xmm4 = xmm4[0]
+        macro eq128 xmm4 = xmm4 * _uv1
+        macro eq32 xmm5 = _gamma
+        macro broadcast xmm5 = xmm5[0]
+        macro eq128 xmm5 = xmm5 * _uv2
+        macro eq128 xmm3 = xmm3 + xmm4 + xmm5
         macro broadcast xmm4 = xmm3[1]
 
         _end_intersections:
@@ -433,7 +575,7 @@ class SmoothUVMesh(BaseMesh):
         imul edi, dword [rbx + SmoothUVMesh.vertex_size]
         add rdi, qword [rbx + SmoothUVMesh.vertex_buffer_ptr]
 
-        imul ebp, dword [rbx + SmootUVhMesh.vertex_size]
+        imul ebp, dword [rbx + SmoothUVMesh.vertex_size]
         add rbp, qword [rbx + SmoothUVMesh.vertex_buffer_ptr]
 
         ;rax - ray, ebx - Flat Mesh, rsi - p0, rdi - p1, rbp - p2

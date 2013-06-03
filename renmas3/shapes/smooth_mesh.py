@@ -1,16 +1,16 @@
 
 import platform
 from ..base import Ray, Vector3
-from ..base import VertexBuffer, TriangleBuffer
+from ..base import VertexNBuffer, TriangleBuffer
 from .base_mesh import BaseMesh
 from .grid_mesh import GridMesh
 from .bbox import BBox
 
-class FlatMesh(BaseMesh):
+class SmoothMesh(BaseMesh):
     def __init__(self, vb, tb, material_idx=0):
-        super(FlatMesh, self).__init__()
+        super(SmoothMesh, self).__init__()
 
-        if not isinstance(vb, VertexBuffer):
+        if not isinstance(vb, VertexNBuffer):
             raise ValueError("Wrong vertex buffer", vb)
         if not isinstance(tb, TriangleBuffer):
             raise ValueError("Wrong triangle buffer", tb)
@@ -37,13 +37,16 @@ class FlatMesh(BaseMesh):
 
     @classmethod
     def has_normals(cls):
-        return False
+        return True
 
     def get_indices(self, idx):
         return self._tb.get(idx)
 
     def get_point(self, idx):
-        return self._vb.get(idx)
+        return self._vb.get(idx)[0]
+    
+    def get_normal(self, idx):
+        return self._vb.get(idx)[1]
 
     def isect(self, ray, min_dist=999999.0): #ray direction must be normalized
         return self._grid.isect(ray, min_dist)
@@ -109,14 +112,14 @@ class FlatMesh(BaseMesh):
 
     @classmethod
     def asm_struct_name(cls):
-        return "FlatMesh"
+        return "SmoothMesh"
 
     @classmethod
     def asm_struct(cls):
         bits = platform.architecture()[0]
         if bits == '64bit':
             code = """
-                struct FlatMesh
+                struct SmoothMesh
                 uint64 vertex_buffer_ptr
                 uint32 vertex_size
                 uint64 triangle_buffer_ptr
@@ -134,7 +137,7 @@ class FlatMesh(BaseMesh):
             """
         else:
             code = """
-                struct FlatMesh
+                struct SmoothMesh
                 uint32 vertex_buffer_ptr
                 uint32 vertex_size
                 uint32 triangle_buffer_ptr
@@ -165,9 +168,11 @@ class FlatMesh(BaseMesh):
         uint32 ptr_triangles, ptr_ray, ptr_flat_mesh, ptr_min_dist
         uint32 isect_ocur 
 
-        float _p0[4]
-        float _p1[4]
-        float _p2[4]
+        float one = 1.0
+        float _n0[4]
+        float _n1[4]
+        float _n2[4]
+        float _beta, _gamma
         #CODE
         """
         code += " global " + label + ":\n" + """
@@ -187,21 +192,21 @@ class FlatMesh(BaseMesh):
         
         mov ebp, dword [ptr_triangles]
         mov edx, dword [ebp]
-        imul edx, dword [ebx + FlatMesh.triangle_size]
-        add edx, dword [ebx + FlatMesh.triangle_buffer_ptr]
+        imul edx, dword [ebx + SmoothMesh.triangle_size]
+        add edx, dword [ebx + SmoothMesh.triangle_buffer_ptr]
         
         mov esi, dword [edx]
         mov edi, dword [edx + 4]
         mov ebp, dword [edx + 8]
 
-        imul esi, dword [ebx + FlatMesh.vertex_size]
-        add esi, dword [ebx + FlatMesh.vertex_buffer_ptr]
+        imul esi, dword [ebx + SmoothMesh.vertex_size]
+        add esi, dword [ebx + SmoothMesh.vertex_buffer_ptr]
 
-        imul edi, dword [ebx + FlatMesh.vertex_size]
-        add edi, dword [ebx + FlatMesh.vertex_buffer_ptr]
+        imul edi, dword [ebx + SmoothMesh.vertex_size]
+        add edi, dword [ebx + SmoothMesh.vertex_buffer_ptr]
 
-        imul ebp, dword [ebx + FlatMesh.vertex_size]
-        add ebp, dword [ebx + FlatMesh.vertex_buffer_ptr]
+        imul ebp, dword [ebx + SmoothMesh.vertex_size]
+        add ebp, dword [ebx + SmoothMesh.vertex_buffer_ptr]
 
         ;eax - ray, ebx - Flat Mesh, esi - p0, edi - p1, ebp - p2
         macro eq128 xmm3 = eax.Ray.origin
@@ -224,12 +229,17 @@ class FlatMesh(BaseMesh):
         macro eq32 ecx = xmm0 {xmm7}
 
         ; save for calculation of normal
+        macro eq32 _beta = xmm1 {xmm7}
+        macro eq32 _gamma = xmm2 {xmm7}
+        add esi, 16
+        add edi, 16
+        add ebp, 16
         macro eq128 xmm0 = esi
         macro eq128 xmm1 = edi
         macro eq128 xmm2 = ebp
-        macro eq128 _p0 = xmm0 {xmm7}
-        macro eq128 _p1 = xmm1 {xmm7}
-        macro eq128 _p2 = xmm2 {xmm7}
+        macro eq128 _n0 = xmm0 {xmm7}
+        macro eq128 _n1 = xmm1 {xmm7}
+        macro eq128 _n2 = xmm2 {xmm7}
 
         _next_triangle:
         add dword [ptr_triangles], 4
@@ -248,10 +258,17 @@ class FlatMesh(BaseMesh):
         macro eq128 xmm1 = xmm0 * edx.Ray.dir + edx.Ray.origin
 
         ;calculation of normal
-        macro eq128 xmm2 = _p1 - _p0 {xmm7}
-        macro eq128 xmm3 = _p2 - _p0 {xmm7}
-        macro cross xmm2 x xmm3 {xmm5, xmm6}
-        macro normalization xmm2 {xmm5, xmm6}
+        macro eq32 xmm2 = one - _beta - _gamma
+        macro broadcast xmm2 = xmm2[0]
+        macro eq128 xmm2 = xmm2 * _n0
+        macro eq32 xmm3 = _beta
+        macro broadcast xmm3 = xmm3[0]
+        macro eq128 xmm3 = xmm3 * _n1
+        macro eq32 xmm4 = _gamma
+        macro broadcast xmm4 = xmm4[0]
+        macro eq128 xmm4 = xmm4 * _n2
+        macro eq128 xmm2 = xmm2 + xmm3 + xmm4
+        macro normalization xmm2 {xmm6, xmm7} 
 
         _end_intersections:
         ret
@@ -271,9 +288,11 @@ class FlatMesh(BaseMesh):
         uint64 ptr_triangles, ptr_ray, ptr_flat_mesh, ptr_min_dist
         uint32 isect_ocur 
 
-        float _p0[4]
-        float _p1[4]
-        float _p2[4]
+        float one = 1.0
+        float _n0[4]
+        float _n1[4]
+        float _n2[4]
+        float _beta, _gamma
         #CODE
         """
         code += " global " + label + ":\n" + """
@@ -294,21 +313,21 @@ class FlatMesh(BaseMesh):
         mov rbp, qword [ptr_triangles]
         mov edx, dword [rbp]
 
-        imul edx, dword [rbx + FlatMesh.triangle_size]
-        add rdx, qword [rbx + FlatMesh.triangle_buffer_ptr]
+        imul edx, dword [rbx + SmoothMesh.triangle_size]
+        add rdx, qword [rbx + SmoothMesh.triangle_buffer_ptr]
         
         mov esi, dword [rdx]
         mov edi, dword [rdx + 4]
         mov ebp, dword [rdx + 8]
 
-        imul esi, dword [rbx + FlatMesh.vertex_size]
-        add rsi, qword [rbx + FlatMesh.vertex_buffer_ptr]
+        imul esi, dword [rbx + SmoothMesh.vertex_size]
+        add rsi, qword [rbx + SmoothMesh.vertex_buffer_ptr]
 
-        imul edi, dword [rbx + FlatMesh.vertex_size]
-        add rdi, qword [rbx + FlatMesh.vertex_buffer_ptr]
+        imul edi, dword [rbx + SmoothMesh.vertex_size]
+        add rdi, qword [rbx + SmoothMesh.vertex_buffer_ptr]
 
-        imul ebp, dword [rbx + FlatMesh.vertex_size]
-        add rbp, qword [rbx + FlatMesh.vertex_buffer_ptr]
+        imul ebp, dword [rbx + SmoothMesh.vertex_size]
+        add rbp, qword [rbx + SmoothMesh.vertex_buffer_ptr]
 
         ;eax - ray, ebx - Flat Mesh, esi - p0, edi - p1, ebp - p2
         macro eq128 xmm3 = eax.Ray.origin
@@ -331,12 +350,17 @@ class FlatMesh(BaseMesh):
         macro eq32 ecx = xmm0 {xmm7}
 
         ; save for calculation of normal
+        macro eq32 _beta = xmm1 {xmm7}
+        macro eq32 _gamma = xmm2 {xmm7}
+        add rsi, 16
+        add rdi, 16
+        add rbp, 16
         macro eq128 xmm0 = rsi
         macro eq128 xmm1 = rdi
         macro eq128 xmm2 = rbp
-        macro eq128 _p0 = xmm0 {xmm7}
-        macro eq128 _p1 = xmm1 {xmm7}
-        macro eq128 _p2 = xmm2 {xmm7}
+        macro eq128 _n0 = xmm0 {xmm7}
+        macro eq128 _n1 = xmm1 {xmm7}
+        macro eq128 _n2 = xmm2 {xmm7}
 
         _next_triangle:
         add qword [ptr_triangles], 4
@@ -355,10 +379,17 @@ class FlatMesh(BaseMesh):
         macro eq128 xmm1 = xmm0 * edx.Ray.dir + edx.Ray.origin
 
         ;calculation of normal
-        macro eq128 xmm2 = _p1 - _p0 {xmm7}
-        macro eq128 xmm3 = _p2 - _p0 {xmm7}
-        macro cross xmm2 x xmm3 {xmm5, xmm6}
-        macro normalization xmm2 {xmm5, xmm6}
+        macro eq32 xmm2 = one - _beta - _gamma
+        macro broadcast xmm2 = xmm2[0]
+        macro eq128 xmm2 = xmm2 * _n0
+        macro eq32 xmm3 = _beta
+        macro broadcast xmm3 = xmm3[0]
+        macro eq128 xmm3 = xmm3 * _n1
+        macro eq32 xmm4 = _gamma
+        macro broadcast xmm4 = xmm4[0]
+        macro eq128 xmm4 = xmm4 * _n2
+        macro eq128 xmm2 = xmm2 + xmm3 + xmm4
+        macro normalization xmm2 {xmm6, xmm7} 
 
         _end_intersections:
         ret
@@ -396,21 +427,21 @@ class FlatMesh(BaseMesh):
         
         mov ebp, dword [ptr_triangles]
         mov edx, dword [ebp]
-        imul edx, dword [ebx + FlatMesh.triangle_size]
-        add edx, dword [ebx + FlatMesh.triangle_buffer_ptr]
+        imul edx, dword [ebx + SmoothMesh.triangle_size]
+        add edx, dword [ebx + SmoothMesh.triangle_buffer_ptr]
         
         mov esi, dword [edx]
         mov edi, dword [edx + 4]
         mov ebp, dword [edx + 8]
 
-        imul esi, dword [ebx + FlatMesh.vertex_size]
-        add esi, dword [ebx + FlatMesh.vertex_buffer_ptr]
+        imul esi, dword [ebx + SmoothMesh.vertex_size]
+        add esi, dword [ebx + SmoothMesh.vertex_buffer_ptr]
 
-        imul edi, dword [ebx + FlatMesh.vertex_size]
-        add edi, dword [ebx + FlatMesh.vertex_buffer_ptr]
+        imul edi, dword [ebx + SmoothMesh.vertex_size]
+        add edi, dword [ebx + SmoothMesh.vertex_buffer_ptr]
 
-        imul ebp, dword [ebx + FlatMesh.vertex_size]
-        add ebp, dword [ebx + FlatMesh.vertex_buffer_ptr]
+        imul ebp, dword [ebx + SmoothMesh.vertex_size]
+        add ebp, dword [ebx + SmoothMesh.vertex_buffer_ptr]
 
         ;eax - ray, ebx - Flat Mesh, esi - p0, edi - p1, ebp - p2
         macro eq128 xmm3 = eax.Ray.origin
@@ -481,21 +512,21 @@ class FlatMesh(BaseMesh):
         
         mov rbp, qword [ptr_triangles]
         mov edx, dword [rbp]
-        imul edx, dword [rbx + FlatMesh.triangle_size]
-        add rdx, qword [rbx + FlatMesh.triangle_buffer_ptr]
+        imul edx, dword [rbx + SmoothMesh.triangle_size]
+        add rdx, qword [rbx + SmoothMesh.triangle_buffer_ptr]
         
         mov esi, dword [rdx]
         mov edi, dword [rdx + 4]
         mov ebp, dword [rdx + 8]
 
-        imul esi, dword [rbx + FlatMesh.vertex_size]
-        add rsi, qword [rbx + FlatMesh.vertex_buffer_ptr]
+        imul esi, dword [rbx + SmoothMesh.vertex_size]
+        add rsi, qword [rbx + SmoothMesh.vertex_buffer_ptr]
 
-        imul edi, dword [rbx + FlatMesh.vertex_size]
-        add rdi, qword [rbx + FlatMesh.vertex_buffer_ptr]
+        imul edi, dword [rbx + SmoothMesh.vertex_size]
+        add rdi, qword [rbx + SmoothMesh.vertex_buffer_ptr]
 
-        imul ebp, dword [rbx + FlatMesh.vertex_size]
-        add rbp, qword [rbx + FlatMesh.vertex_buffer_ptr]
+        imul ebp, dword [rbx + SmoothMesh.vertex_size]
+        add rbp, qword [rbx + SmoothMesh.vertex_buffer_ptr]
 
         ;rax - ray, ebx - Flat Mesh, rsi - p0, rdi - p1, rbp - p2
         macro eq128 xmm3 = eax.Ray.origin

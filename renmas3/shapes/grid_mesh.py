@@ -1,10 +1,14 @@
 
 import math
+import time
+import platform
 from array import array
 import x86
-from ..base import Vector3
+from ..base import Vector3, Ray
 from .bbox import BBox
 import renmas3.switch as proc
+from .hit import HitPoint
+from ..macros import create_assembler, MacroCall
 
 def clamp(x, minimum, maximum):
     return max(minimum, min(maximum, x))
@@ -16,7 +20,11 @@ class GridMesh:
 
     def setup(self, mesh):
         self.mesh = mesh
+
+        start_time = time.clock()
         self.bbox = bbox = mesh.bbox()
+        self.bbox_time = time.clock() - start_time
+
         ntriangles = mesh.ntriangles() #get number of triangles
         wx = bbox.x1 - bbox.x0
         wy = bbox.y1 - bbox.y0
@@ -25,22 +33,23 @@ class GridMesh:
         multiplier = 1.3 # about 8 times more cells than objects if multiplier is 2 TODO test this!
         s = math.pow(wx * wy * wz / float(ntriangles), 0.333333)
 
+        MAX_WIDTH = 192
         self.nx = nx = int(multiplier * wx / s + 1)
-        #if nx > 256: self.nx = nx = 256 
-        if nx > 192: self.nx = nx = 192 
+        if nx > MAX_WIDTH: self.nx = nx = MAX_WIDTH
         self.ny = ny = int(multiplier * wy / s + 1)
-        if ny > 192: self.ny = ny = 192 
-        #if ny > 256: self.ny = ny = 256 
+        if ny > MAX_WIDTH: self.ny = ny = MAX_WIDTH
         self.nz = nz = int(multiplier * wz / s + 1)
-        #if nz > 256: self.nz = nz = 256 
-        if nz > 192: self.nz = nz = 192 
+        if nz > MAX_WIDTH: self.nz = nz = MAX_WIDTH
         num_cells = int(nx * ny * nz)
 
+        start_time = time.clock()
         cells = [] # we need to initialize empty lists
         #for c in range(num_cells):
         #    cells.append([])
         for c in range(num_cells):
             cells.append(array("I"))
+        end_time = time.clock()
+        self.create_empty_arrays_time = end_time - start_time
         
         # this is requierd for creation of array buffer
         max_len = 0 # max length in one cell
@@ -55,6 +64,7 @@ class GridMesh:
         nzwz = float(nz) / wz
         nxny = nx * ny
          
+        start_time = time.clock()
         for idx_triangle in range(ntriangles):
             ob_min, ob_max = mesh.bbox_triangle(idx_triangle)
 
@@ -121,12 +131,774 @@ class GridMesh:
             #            if duzina == 1: num_arrays += 1
             #            if duzina > max_len: max_len = duzina
 
+        end_time = time.clock()
+        self.calc_cells_time = end_time - start_time
+
         self.max_length_in_cell = max_len
         self.num_objects = num_objects
         self.num_arrays = num_arrays
 
-        #self._create_grid(cells) 
-        print (cells)
+        start_time = time.clock()
+        self._create_grid(cells) 
+        end_time = time.clock()
+        self.fill_grid_time = end_time - start_time
+
+        self._show_info()
 
         #self._compare_cells(cells, self.asm_cells, self.lin_array)
         cells = None #we hope that garbage collector will release memory 
+
+    def _create_grid(self, cells):
+        # we must alocate memory for 3d grid and array
+        nx = self.nx
+        ny = self.ny
+        nz = self.nz
+        num_cells = int(nx * ny * nz)
+        self.asm_cells = x86.MemData(num_cells*4)
+        self.asm_cells.fill() #fill array(3d grid) with zero
+
+        #NOTE we start of index[1] that why extra four bytes
+        self.lin_array = x86.MemData(self.num_arrays * 4 + self.num_objects * 4 + 4)
+        x86.SetUInt32(self.lin_array.ptr(), 0, 0)
+        offset = 4 # offset is in bytes
+
+        addr_cells = self.asm_cells.ptr()
+        addr_arr = self.lin_array.ptr()
+        for k in range(nz):
+            for j in range(ny):
+                for i in range(nx):
+                    idx = i + nx * j + nx * ny * k
+                    cell = cells[idx]
+                    if len(cell) != 0:
+                        adr = addr_cells + idx * 4
+                        x86.SetUInt32(adr, offset, 0)
+
+                        adr = addr_arr + offset
+                        num = len(cell)
+                        x86.SetUInt32(adr, num, 0)
+                        offset += 4
+
+                        x86.SetUInt32(adr+4, tuple(cell), 0)
+                        offset = offset + len(cell) * 4
+
+    def _compare_cells(self, cells, grid3d, arr):
+        nx = self.nx
+        ny = self.ny
+        nz = self.nz
+        for k in range(nz):
+            for j in range(ny):
+                for i in range(nx):
+                    idx = i + nx * j + nx * ny * k
+                    cell = cells[idx]
+                    addr = grid3d.ptr() + idx * 4
+                    idx_in_array = x86.GetUInt32(addr, 0, 0) 
+                    if idx_in_array != 0:
+                        addr = arr.ptr() + idx_in_array
+                        ntri = x86.GetUInt32(addr, 0, 0)
+                        triangles = x86.GetUInt32(addr+4, 0, ntri)
+                        for c_idx in range(len(cell)):
+                            if cell[c_idx] != triangles[c_idx]:
+                                raise ValueError("Error in Grid array!!!")
+
+    def _show_info(self):
+        print("Dimensions nx=", self.nx, " ny=", self.ny, "nz=", self.nz)
+        print("Max length in cell = " , self.max_length_in_cell)
+        print("Number of objects in Grid = ", self.num_objects)
+        print("Number of requierd arrays = ", self.num_arrays)
+
+        # we must alocate memory 3d grid and arrays
+        print("Memory required for grid = ", self.nx * self.ny * self.nz * 4, " bytes")
+        print("Memory required for array =", self.num_arrays*4 + self.num_objects*4 + 4, " bytes")
+
+        # time statistics
+        print("Time required to calculate bbox of mesh = %f seconds" % self.bbox_time)
+        print("Time to create empty arrays for cells = %f seconds" % self.create_empty_arrays_time)
+        print("Time required to calculate cells = %f seconds" % self.calc_cells_time)
+        print("Time required to fill grid and array = %f seconds" % self.fill_grid_time)
+        total = self.bbox_time + self.create_empty_arrays_time + self.calc_cells_time + self.fill_grid_time
+        print("Total time to prepare grid for mesh = %f seconds" % total)
+
+    def isect(self, ray, min_dist = 999999.0):
+        ox = ray.origin.x
+        oy = ray.origin.y
+        oz = ray.origin.z
+        dx = ray.dir.x
+        dy = ray.dir.y
+        dz = ray.dir.z
+
+        x0 = self.bbox.x0
+        y0 = self.bbox.y0
+        z0 = self.bbox.z0
+        x1 = self.bbox.x1
+        y1 = self.bbox.y1
+        z1 = self.bbox.z1
+
+        if dx == 0.0: dx = 0.00001
+        a = 1.0 / dx
+        if a >= 0:
+            tx_min = (x0 - ox) * a
+            tx_max = (x1 - ox) * a
+        else:
+            tx_min = (x1 - ox) * a
+            tx_max = (x0 - ox) * a
+        
+        if dy == 0.0: dy = 0.00001
+        b = 1.0 / dy
+        if b >= 0:
+            ty_min = (y0 - oy) * b
+            ty_max = (y1 - oy) * b
+        else:
+            ty_min = (y1 - oy) * b
+            ty_max = (y0 - oy) * b
+
+        if dz == 0.0: dz = 0.00001
+        c = 1.0 / dz
+        if c >= 0:
+            tz_min = (z0 - oz) * c
+            tz_max = (z1 - oz) * c
+        else:
+            tz_min = (z1 - oz) * c
+            tz_max = (z0 - oz) * c 
+
+        if tx_min > ty_min: t0 = tx_min
+        else: t0 = ty_min
+
+        if tz_min > t0: t0 = tz_min
+
+        if tx_max < ty_max: t1 = tx_max
+        else: t1 = ty_max
+
+        if tz_max < t1: t1 = tz_max
+
+        if t0 > t1:
+            return False #no intersection ocur
+
+        if self.bbox.inside(ray.origin):
+            ix = int(clamp((ox - x0) * self.nx / (x1 - x0), 0, self.nx - 1))
+            iy = int(clamp((oy - y0) * self.ny / (y1 - y0), 0, self.ny - 1))
+            iz = int(clamp((oz - z0) * self.nz / (z1 - z0), 0, self.nz - 1))
+        else:
+            p = ray.origin + ray.dir * t0 
+            ix = int(clamp((p.x - x0) * self.nx / (x1 - x0), 0, self.nx - 1))
+            iy = int(clamp((p.y - y0) * self.ny / (y1 - y0), 0, self.ny - 1))
+            iz = int(clamp((p.z - z0) * self.nz / (z1 - z0), 0, self.nz - 1))
+
+        dtx = (tx_max - tx_min) / self.nx
+        dty = (ty_max - ty_min) / self.ny
+        dtz = (tz_max - tz_min) / self.nz
+
+        if dx > 0.0:
+            tx_next = tx_min + (ix + 1) * dtx
+            ix_step = 1
+            ix_stop = self.nx
+        else:
+            tx_next = tx_min + (self.nx - ix) * dtx
+            ix_step = -1
+            ix_stop = -1
+        if dx == 0.0:
+            tx_next = 9999999.9999
+            ix_step = -1
+            ix_stop = -1
+
+        if dy > 0.0:
+            ty_next = ty_min + (iy + 1) * dty
+            iy_step = 1
+            iy_stop = self.ny
+        else:
+            ty_next = ty_min + (self.ny - iy) * dty
+            iy_step = -1
+            iy_stop = -1
+        if dy == 0.0:
+            ty_next = 9999999.9999
+            iy_step = -1
+            iy_stop = -1
+
+        if dz > 0.0:
+            tz_next = tz_min + (iz + 1) * dtz
+            iz_step = 1
+            iz_stop = self.nz
+        else:
+            tz_next = tz_min + (self.nz - iz) * dtz
+            iz_step = -1
+            iz_stop = -1
+        if dz == 0.0:
+            tz_next = 9999999.9999
+            iz_step = -1
+            iz_stop = -1
+
+        while True:
+            idx = ix + self.nx * iy + self.nx * self.ny * iz
+            addr = self.asm_cells.ptr() + idx * 4
+            idx_in_array = x86.GetUInt32(addr, 0, 0) 
+            if idx_in_array != 0:
+                addr = self.lin_array.ptr() + idx_in_array
+                ntri = x86.GetUInt32(addr, 0, 0)
+                triangles = x86.GetUInt32(addr+4, 0, ntri)
+            else:
+                triangles = []
+
+            if tx_next < ty_next and tx_next < tz_next:
+                if len(triangles) > 0:
+                    hp = self.mesh.isect_triangles(ray, triangles, min_dist)
+                else:
+                    hp = False 
+                if hp and hp.t < tx_next:
+                    return hp
+
+                tx_next += dtx
+                ix += ix_step
+                if ix == ix_stop: return False 
+                
+            else:
+                if ty_next < tz_next:
+                    if len(triangles) > 0:
+                        hp = self.mesh.isect_triangles(ray, triangles, min_dist)
+                    else:
+                        hp = False 
+                    if hp and hp.t < ty_next:
+                        return hp
+
+                    ty_next += dty
+                    iy += iy_step
+                    if iy == iy_stop: return False 
+                else:
+                    if len(triangles) > 0:
+                        hp = self.mesh.isect_triangles(ray, triangles, min_dist)
+                    else:
+                        hp = False 
+                    if hp and hp.t < tz_next:
+                        return hp
+
+                    tz_next += dtz
+                    iz += iz_step
+                    if iz == iz_stop: return False 
+        return False 
+
+    # eax = pointer to ray structure
+    # ebx = pointer to mesh structure
+    # ecx = pointer to minimum distance
+    # edx = pointer to hitpoint
+    @classmethod
+    def isect_asm(cls, runtimes, label, name_struct, cls_struct, label_ray_triangles, visibility=False, uv=False):
+        bits = platform.architecture()[0]
+        bit64 = True if bits == "64bit" else False
+        code = """
+            #DATA
+        """
+        code += Ray.asm_struct()
+        code += HitPoint.asm_struct()
+        code += cls_struct
+        if bit64:
+            code += "uint64 hp_ptr, ray_ptr, mesh_ptr, min_dist_ptr, grid_ptr, arr_ptr\n"
+        else:
+            code += "uint32 hp_ptr, ray_ptr, mesh_ptr, min_dist_ptr, grid_ptr, arr_ptr\n"
+        code += """
+        float one[4] = 1.0, 1.0, 1.0, 0.0
+        float zero[4] = 0.0, 0.0, 0.0, 0.0
+        uint32 ones = 0xFFFFFFFF
+        int32 ixyz[4]
+        float dtxyz[4]
+        int32 ix_step, iy_step, iz_step
+        int32 ix_stop, iy_stop, iz_stop
+        float tx_next, ty_next, tz_next
+        float khuge = 999999.999
+        float minimum_distance = 999999.0
+        int32 n[4]
+        uint32 mat_idx
+        float flt_max[4] = 999999999.0, 999999999.0, 999999999.0, 0.0
+        float flt_min[4] = -999999999.0, -999999999.0, -999999999.0, 0.0
+        uint32 temp_avx
+        #CODE
+        """
+        if bit64:
+            code += " global " + label + ":\n" + """
+                mov qword [hp_ptr], rdx
+                mov qword [ray_ptr], rax
+                mov qword [mesh_ptr], rbx
+                mov qword [min_dist_ptr], rcx
+                mov ebp, dword [khuge]
+                mov dword [minimum_distance], ebp
+            """
+            code += "mov rbp, qword [rbx + %s.grid_ptr]\n" % name_struct
+            code += "mov qword [grid_ptr], rbp\n"
+            code += "mov rbp, qword [rbx + %s.array_ptr]\n" % name_struct
+            code += "mov qword [arr_ptr], rbp\n"
+            code += "mov ebp, dword [rbx + %s.material_idx]\n" % name_struct
+            code += "mov dword [mat_idx], ebp\n"
+        else:
+            code += " global " + label + ":\n" + """
+                mov dword [hp_ptr], edx
+                mov dword [ray_ptr], eax
+                mov dword [mesh_ptr], ebx
+                mov dword [min_dist_ptr], ecx
+                mov ebp, dword [khuge]
+                mov dword [minimum_distance], ebp
+            """
+            code += "mov ebp, dword [ebx + %s.grid_ptr]\n" % name_struct
+            code += "mov dword [grid_ptr], ebp\n"
+            code += "mov ebp, dword [ebx + %s.array_ptr]\n" % name_struct
+            code += "mov dword [arr_ptr], ebp\n"
+            code += "mov ebp, dword [ebx + %s.material_idx]\n" % name_struct
+            code += "mov dword [mat_idx], ebp\n"
+
+        #TODO --- think if ray direction has zero component -- put some epsilon or better!!!
+        code += """
+            macro eq128 xmm0 = one / eax.Ray.dir
+        """
+        code += "macro eq128 xmm1 = ebx.%s.bbox_min\n" % name_struct
+        code += "macro eq128 xmm2 = ebx.%s.bbox_max\n" % name_struct
+        code += """
+
+            macro eq128 xmm1 = xmm1 - eax.Ray.origin
+            macro eq128 xmm1 = xmm1 * xmm0
+
+            macro eq128 xmm2 = xmm2 - eax.Ray.origin
+            macro eq128 xmm2 = xmm2 * xmm0
+
+            ;filter NaN
+            macro eq128 xmm7 = flt_max
+            macro eq128 xmm6 = xmm1
+            macro call minps xmm6, xmm7
+            macro eq128 xmm4 = xmm2
+            macro call minps xmm4, xmm7
+            macro call maxps xmm4, xmm6
+
+            macro eq128 xmm7 = flt_min
+            macro eq128 xmm6 = xmm1
+            macro call maxps xmm6, xmm7
+            macro eq128 xmm3 = xmm2
+            macro call maxps xmm3, xmm7
+            macro call minps xmm3, xmm6
+
+
+            ;macro eq128 xmm3 = xmm1
+            ;macro eq128 xmm4 = xmm2
+
+            ; tx_min, ty_min, tz_min
+            ;macro call minps xmm3, xmm2
+            ; tx_max, ty_max, tz_max
+            ;macro call maxps xmm4, xmm1
+
+            macro broadcast xmm5 = xmm3[1]
+            macro call maxss xmm5, xmm3
+            macro broadcast xmm6 = xmm3[2]
+            ;t0
+            macro call maxss xmm6, xmm5
+
+            macro broadcast xmm5 = xmm4[1]
+            macro call minss xmm5, xmm4
+            macro broadcast xmm7 = xmm4[2]
+            ;t1
+            macro call minss xmm7, xmm5
+            
+            macro if xmm7 > xmm6 goto next_section
+            mov eax, 0 ;no intersection ocur
+            ret
+            
+            ;now we must check this if self.bbox.inside(ray.origin) 
+            next_section:
+            macro eq128 xmm0 = eax.Ray.origin
+            macro eq128 xmm2 = xmm0
+        """
+        code += "macro eq128 xmm1 = ebx.%s.bbox_max\n" % name_struct
+        code += """
+            ; le - less or equal (xmm0 <= xmm1)
+            macro call cmpps xmm0, xmm1, 2
+        """
+        code += "macro eq128 xmm5 = ebx.%s.bbox_min\n" % name_struct
+        code += """
+            macro call cmpps xmm5, xmm2, 2 
+            macro call andps xmm0, xmm5
+            macro broadcast xmm1 = xmm0[1]
+            macro broadcast xmm2 = xmm0[2]
+            macro call andps xmm0, xmm1
+            macro call andps xmm0, xmm2
+        """
+        if proc.AVX:
+            code += "macro eq32 temp_avx = xmm0 {xmm0} \n"
+            code += "mov ecx, dword [temp_avx] \n"
+        else:
+            #code += "movd ecx, xmm0 \n"
+
+            code += "macro eq32 temp_avx = xmm0 {xmm0} \n"
+            code += "mov ecx, dword [temp_avx] \n"
+        code += """
+            cmp ecx, dword [ones]
+            je point_inside ; point is inside bbox
+
+            macro broadcast xmm6 = xmm6[0]
+            macro eq128 xmm0 = eax.Ray.dir * xmm6 + eax.Ray.origin
+            jmp next_section2
+
+            point_inside:
+            macro eq128 xmm0 = eax.Ray.origin
+
+            next_section2:
+        """
+        code +=  "macro eq128 xmm0 = xmm0 - ebx.%s.bbox_min\n" % name_struct
+        code +=  "macro eq128 xmm0 = xmm0 * ebx.%s.nbox_width\n" % name_struct
+        code +=  "macro eq128 xmm2 = ebx.%s.n_1\n" % name_struct
+        code += """
+            macro call zero xmm1
+            macro call minps xmm0, xmm2
+            macro call maxps xmm0, xmm1
+            ; ix, iy, iz
+        """
+        if proc.AVX:
+            code += """
+            vcvttps2dq xmm1, xmm0
+            vcvtdq2ps xmm0, xmm1
+            """
+        else:
+            code += """
+            cvttps2dq xmm1, xmm0
+            cvtdq2ps xmm0, xmm1
+            """
+        code += """
+            macro eq128 ixyz = xmm1 {xmm7}
+            macro eq128 xmm5 = xmm4
+            macro eq128 xmm5 = xmm5 - xmm3
+        """
+        code += "macro eq128 xmm5 = xmm5 * ebx.%s.one_overn\n" % name_struct 
+        code += """
+            ; xmm5 = dtx, dty, dtz
+            macro eq128 dtxyz = xmm5 {xmm7}
+
+            ;tx_next = tx_min + (ix + 1) * dtx
+            ;tx_next = tx_min + (self.nx - ix) * dtx
+            macro eq128 xmm6 = one
+            macro eq128 xmm6 = xmm6 + xmm0
+            macro eq128 xmm6 = xmm6 * xmm5
+            macro eq128 xmm6 = xmm6 + xmm3
+        """
+        code += "macro eq128 xmm7 = ebx.%s.grid_size\n" % name_struct 
+        code += """
+            macro eq128 n = xmm7 {xmm0}
+            macro eq128 xmm2 = xmm7
+            macro call int_to_float xmm7, xmm7
+            macro eq128 xmm7 = xmm7 - xmm0
+            macro eq128 xmm7 = xmm7 * xmm5
+            macro eq128 xmm7 = xmm7 + xmm3
+
+            macro eq128 xmm0 = eax.Ray.dir
+        """
+        if proc.AVX:
+            code += "vcomiss xmm0, dword [zero]\n" 
+        else:
+            code += "comiss xmm0, dword [zero]\n" 
+        code += """
+            jz _equal1
+            jnc _greater1
+
+            mov dword [ix_step], -1
+            mov dword [ix_stop], -1
+            macro eq32 tx_next = xmm7 {xmm0}
+
+            jmp _next_dx
+
+            _greater1:
+            mov dword [ix_step], 1
+            macro eq32 ix_stop = xmm2 {xmm0}
+            macro eq32 tx_next = xmm6 {xmm0}
+            jmp _next_dx
+
+            _equal1:
+            mov ebp, dword [khuge]
+            mov dword [ix_step], -1
+            mov dword [ix_stop], -1
+            mov dword [tx_next], ebp 
+
+            _next_dx:
+            macro broadcast xmm1 = xmm0[1]
+        """
+        if proc.AVX:
+            code += "vcomiss xmm1, dword [zero]\n" 
+        else:
+            code += "comiss xmm1, dword [zero]\n" 
+        code += """
+            jz _equal2
+            jnc _greater2
+
+            mov dword [iy_step], -1
+            mov dword [iy_stop], -1
+            macro broadcast xmm5 = xmm7[1]
+            macro eq32 ty_next = xmm5 {xmm0}
+
+            jmp _next_dx2
+
+            _greater2:
+            mov dword [iy_step], 1
+            macro broadcast xmm4 = xmm2[1]
+            macro eq32 iy_stop = xmm4 {xmm0}
+            macro broadcast xmm5 = xmm6[1]
+            macro eq32 ty_next = xmm5 {xmm0}
+            jmp _next_dx2
+
+            _equal2:
+            mov ebp, dword [khuge]
+            mov dword [iy_step], -1
+            mov dword [iy_stop], -1
+            mov dword [ty_next], ebp 
+
+            _next_dx2:
+            macro broadcast xmm1 = xmm0[2]
+        """
+        if proc.AVX:
+            code += "vcomiss xmm1, dword [zero]\n" 
+        else:
+            code += "comiss xmm1, dword [zero]\n" 
+        code += """
+            jz _equal3
+            jnc _greater3
+
+            mov dword [iz_step], -1
+            mov dword [iz_stop], -1
+            macro broadcast xmm5 = xmm7[2]
+            macro eq32 tz_next = xmm5 {xmm0}
+
+            jmp _next_dx3
+
+            _greater3:
+            mov dword [iz_step], 1
+            macro broadcast xmm4 = xmm2[2]
+            macro eq32 iz_stop = xmm4 {xmm0}
+            macro broadcast xmm5 = xmm6[2]
+            macro eq32 tz_next = xmm5 {xmm0}
+            jmp _next_dx3
+
+            _equal3:
+            mov ebp, dword [khuge]
+            mov dword [iz_step], -1
+            mov dword [iz_stop], -1
+            mov dword [tz_next], ebp 
+
+            _next_dx3:
+
+            _traverse:
+            mov ebp, dword [khuge]
+            mov dword [minimum_distance], ebp
+
+            ;cell = self.cells[ix + self.nx * iy + self.nx * self.ny * iz]
+            mov eax, dword [n] ;self.nx
+            mov ebx, dword [n+4] ;self.ny
+            imul ebx, dword [ixyz+8]
+            imul ebx, eax
+            imul eax, dword [ixyz+4]
+            add eax, ebx
+            add eax, dword [ixyz] ; in eax we have index
+            imul eax, eax, 4 ; offset in bytes
+
+            ;if tx_next < ty_next and tx_next < tz_next:
+            macro eq32 xmm0 = tx_next
+            macro if xmm0 > ty_next goto _next_part
+            macro if xmm0 > tz_next goto _next_part
+        """
+        if bit64:
+            code += """
+            mov rbp, qword [grid_ptr]
+            add rbp, rax ;address + offset in bytes
+            mov eax, dword [rbp]
+            cmp eax, 0 ;empty cell
+            je _next_calc
+
+            ; call ray triangles intersection method rax = ray, rbx = mesh, rcx = ptr_min_dist, rdx = addr in array
+            mov rdx, qword [arr_ptr]
+            add rdx, rax
+            mov rax, qword [ray_ptr]
+            mov rbx, qword [mesh_ptr]
+            macro mov ecx, minimum_distance
+            """
+        else:
+            code += """
+            mov ebp, dword [grid_ptr]
+            add ebp, eax ;address + offset in bytes
+            mov eax, dword [ebp]
+            cmp eax, 0 ;empty cell
+            je _next_calc
+
+            ; call ray triangles intersection method eax = ray, ebx = mesh, ecx = ptr_min_dist, edx = addr in array
+            mov edx, dword [arr_ptr]
+            add edx, eax
+            mov eax, dword [ray_ptr]
+            mov ebx, dword [mesh_ptr]
+            mov ecx, minimum_distance
+            """
+        code += "call " + label_ray_triangles + "\n" + """
+            ;if hp and hp.t < tx_next: return hp
+            cmp eax, 0
+            je _next_calc
+            macro if xmm0 < tx_next goto _return_hp
+
+            _next_calc:
+            macro eq32 xmm0 = dtxyz + tx_next
+            macro eq32 tx_next = xmm0 {xmm7}
+            mov eax, dword [ix_step]
+            mov ebx, dword [ix_stop]
+            mov ecx, dword [ixyz]
+            add ecx, eax
+            mov dword [ixyz], ecx
+            cmp ecx, ebx
+            jne _traverse
+            mov eax, 0
+            ret
+
+            _next_part:
+            ;if ty_next < tz_next:
+            macro eq32 xmm0 = ty_next
+            macro if xmm0 > tz_next goto _next_part2
+        """
+        if bit64:
+            code += """
+            mov rbp, qword [grid_ptr]
+            add rbp, rax ;address + offset in bytes
+            mov eax, dword [rbp]
+            cmp eax, 0 ;empty cell
+            je _next_calc2
+
+            ; call ray triangles intersection method rax = ray, rbx = mesh, rcx = ptr_min_dist, rdx = addr in array
+            mov rdx, qword [arr_ptr]
+            add rdx, rax
+            mov rax, qword [ray_ptr]
+            mov rbx, qword [mesh_ptr]
+            macro mov ecx, minimum_distance
+            """
+        else:
+            code += """
+            mov ebp, dword [grid_ptr]
+            add ebp, eax ;address + offset in bytes
+            mov eax, dword [ebp]
+            cmp eax, 0 ;empty cell
+            je _next_calc2
+
+            ; call ray triangles intersection method eax = ray, ebx = mesh, ecx = ptr_min_dist, edx = addr in array
+            mov edx, dword [arr_ptr]
+            add edx, eax
+            mov eax, dword [ray_ptr]
+            mov ebx, dword [mesh_ptr]
+            mov ecx, minimum_distance
+            """
+        code += "call " + label_ray_triangles + "\n" + """
+            ;if hp and hp.t < ty_next: return hp
+            cmp eax, 0
+            je _next_calc2
+            macro if xmm0 < ty_next goto _return_hp
+
+            _next_calc2:
+            macro eq128 xmm0 = dtxyz
+            macro broadcast xmm0 = xmm0[1]
+            macro eq32 xmm0 = xmm0 + ty_next
+            macro eq32 ty_next = xmm0 {xmm7}
+            mov eax, dword [iy_step]
+            mov ebx, dword [iy_stop]
+            mov ecx, dword [ixyz+4]
+            add ecx, eax
+            mov dword [ixyz+4], ecx
+            cmp ecx, ebx
+            jne _traverse
+            mov eax, 0
+            ret
+
+            _next_part2:
+        """
+        if bit64:
+            code += """
+            mov rbp, qword [grid_ptr]
+            add rbp, rax ;address + offset in bytes
+            mov eax, dword [rbp]
+            cmp eax, 0 ;empty cell
+            je _next_calc3
+
+            ; call ray triangles intersection method eax = ray, ebx = mesh, ecx = ptr_min_dist, edx = addr in array
+            mov rdx, qword [arr_ptr]
+            add rdx, rax
+            mov rax, qword [ray_ptr]
+            mov rbx, qword [mesh_ptr]
+            macro mov ecx, minimum_distance
+            """
+        else:
+            code += """
+            mov ebp, dword [grid_ptr]
+            add ebp, eax ;address + offset in bytes
+            mov eax, dword [ebp]
+            cmp eax, 0 ;empty cell
+            je _next_calc3
+
+            ; call ray triangles intersection method eax = ray, ebx = mesh, ecx = ptr_min_dist, edx = addr in array
+            mov edx, dword [arr_ptr]
+            add edx, eax
+            mov eax, dword [ray_ptr]
+            mov ebx, dword [mesh_ptr]
+            mov ecx, minimum_distance
+            """
+        code += "call " + label_ray_triangles + "\n" + """
+            ;if hp and hp.t < tz_next: return hp
+            cmp eax, 0
+            je _next_calc3
+            macro if xmm0 < tz_next goto _return_hp
+
+            _next_calc3:
+            macro eq128 xmm0 = dtxyz
+            macro broadcast xmm0 = xmm0[2]
+            macro eq32 xmm0 = xmm0 + tz_next
+            macro eq32 tz_next = xmm0 {xmm7}
+            mov eax, dword [iz_step]
+            mov ebx, dword [iz_stop]
+            mov ecx, dword [ixyz+8]
+            add ecx, eax
+            mov dword [ixyz+8], ecx
+            cmp ecx, ebx
+            jne _traverse
+            mov eax, 0
+            ret
+
+            _return_hp:
+        """
+        if bit64:
+            code += """
+            mov rbp, qword [min_dist_ptr]
+            macro if xmm0 > rbp goto _end_isect
+            """
+        else:
+            code += """
+            mov ebp, dword [min_dist_ptr]
+            macro if xmm0 > ebp goto _end_isect
+            """
+        if not visibility:
+            if bit64:
+                code += """
+                mov rdx, qword [hp_ptr]
+                """
+            else:
+                code += """
+                mov edx, dword [hp_ptr]
+                """
+            code += """
+            macro eq32 edx.Hitpoint.t = xmm0 {xmm7}
+            macro eq128 edx.Hitpoint.hit = xmm1 {xmm7}
+            macro eq128 edx.Hitpoint.normal = xmm2 {xmm7}
+            macro eq32 edx.Hitpoint.material_idx = mat_idx {xmm7}
+            """
+            if uv:
+                code += """
+                macro eq32 edx.Hitpoint.u = xmm3 {xmm7}
+                macro eq32 edx.Hitpoint.v = xmm4 {xmm7}
+                """
+        code += """
+            mov eax, 1
+            ret
+
+            _end_isect:
+            mov eax, 0
+            ret 
+            
+        """
+        assembler = create_assembler()
+        macro_call = MacroCall()
+        assembler.register_macro('call', macro_call.macro_call)
+        mc = assembler.assemble(code, True)
+        #mc.print_machine_code()
+        name = "ray_mesh_isect" + str(id(name_struct))
+        for r in runtimes:
+            if not r.global_exists(label):
+                r.load(name, mc)
+

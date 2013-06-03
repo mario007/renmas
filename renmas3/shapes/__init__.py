@@ -11,4 +11,5 @@ from .linear import LinearIsect
 from .load_meshes import load_meshes
 from .bbox import BBox, random_in_bbox
 from .flat_mesh import FlatMesh
+from .utils import create_mesh, fetch_triangle, load_meshes_from_file
 

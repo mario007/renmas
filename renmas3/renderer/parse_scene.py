@@ -1,8 +1,8 @@
-
+import os.path
 from ..base import Vector3
 from ..samplers import RegularSampler, RandomSampler
 from ..cameras import create_perspective_camera
-from ..shapes import Sphere, Triangle, Rectangle
+from ..shapes import Sphere, Triangle, Rectangle, load_meshes_from_file
 
 from .light import Light
 from .lights import create_point_illuminate
@@ -86,7 +86,10 @@ def _parse_shape(fobj, project):
     if 'type' not in values:
         raise ValueError("Type attribut is missing")
     typ = values['type'][0].strip().lower()
-    name = values['name'][0].strip()
+    if 'name' in values:
+        name = values['name'][0].strip()
+    else:
+        name = None
     if typ == 'sphere':
         radius = float(values['radius'][0])
         o = values['origin']
@@ -113,9 +116,18 @@ def _parse_shape(fobj, project):
         n = Vector3(float(n[0]), float(n[1]), float(n[2]))
         rect = Rectangle(p, e1, e2, normal=n)
         project.shapes.add(name, rect)
+    elif typ == 'mesh':
+        directory = os.path.dirname(os.path.abspath(fobj.name))
+        fname = values['fname'][0].strip()
+        filename = os.path.join(directory, fname)
+        meshes = load_meshes_from_file(filename)
+        mat_name = values['material'][0].strip()
+        for name, mesh in meshes.items():
+            project.shapes.add(name, mesh)
+            project.set_material(name, mat_name)
     else:
         raise ValueError("Unsuported type of shape!", typ)
-    if 'material' in values:
+    if 'material' in values and name is not None:
         mat_name = values['material'][0].strip()
         project.set_material(name, mat_name)
 

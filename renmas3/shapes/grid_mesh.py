@@ -143,7 +143,7 @@ class GridMesh:
         end_time = time.clock()
         self.fill_grid_time = end_time - start_time
 
-        self._show_info()
+        #self._show_info()
 
         #self._compare_cells(cells, self.asm_cells, self.lin_array)
         cells = None #we hope that garbage collector will release memory 

@@ -1,0 +1,36 @@
+
+Options
+sampler_type = random
+pixel_size = 0.2
+nsamples = 10 
+width = 400
+height = 400
+nthreads = 1
+End
+
+Camera
+type = perspective
+eye = 10.0, 10.0, 10.0
+lookat = 0.0, 0.0, 0.0
+distance = 400
+End
+
+Light
+type = PointLight
+position = 10.0, 10.0, 10.0
+intesity = 1.0, 1.0, 1.0
+End
+
+Material
+name = red 
+type = Lambertian
+diffuse = 0.63, 0.06, 0.04
+diffuse = 0.03, 0.66, 0.74
+End
+
+Shape
+type = Mesh
+fname = cube.obj
+material = red
+End
+

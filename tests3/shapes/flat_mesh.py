@@ -149,7 +149,8 @@ def test_mesh_isect_b(mesh, nrays=1):
 #fname = 'G:/Ply_files/lucy.ply'
 #fname = 'F:/Ply_files/Horse2K.ply'
 #fname = 'F:/Ply_files/Horse97K.ply'
-fname = 'F:/ray_tracing_scenes/cube/cube.obj'
+#fname = 'F:/ray_tracing_scenes/cube/cube.obj'
+fname = 'F:/ray_tracing_scenes/cube/cube_uv.obj'
 
 start_time = time.clock()
 meshes = load_meshes_from_file(fname)

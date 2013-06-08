@@ -1,12 +1,13 @@
 
 import os.path
 from renmas3.base import VertexBuffer, TriangleBuffer, Vector3
-from renmas3.base import VertexNBuffer, VertexNUVBuffer
+from renmas3.base import VertexNBuffer, VertexNUVBuffer, VertexUVBuffer
 from .triangle import Triangle
 from .load_meshes import load_meshes
 from .flat_mesh import FlatMesh
 from .smooth_mesh import SmoothMesh
 from .smooth_uv_mesh import SmoothUVMesh
+from .flat_uv_mesh import FlatUVMesh
 
 def create_mesh(desc, performanse=True):
     vb = desc.vb
@@ -17,8 +18,9 @@ def create_mesh(desc, performanse=True):
         mesh = SmoothMesh(vb, tb)
     elif isinstance(vb, VertexNUVBuffer) and isinstance(tb, TriangleBuffer):
         mesh = SmoothUVMesh(vb, tb)
+    elif isinstance(vb, VertexUVBuffer) and isinstance(tb, TriangleBuffer):
+        mesh = FlatUVMesh(vb, tb)
     else:
-        print (vb, tb)
         raise ValueError("Buffer combination is not yet supported!")
     return mesh
 

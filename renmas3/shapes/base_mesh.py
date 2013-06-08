@@ -219,3 +219,6 @@ class BaseMesh(Shape):
     def isect_triangles_asm_b_64(cls, label, ray_isect_label):
         raise NotImplementedError()
 
+    def __getstate__(self):
+        return {}
+

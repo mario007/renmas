@@ -1,5 +1,5 @@
 import os.path
-from ..base import Vector3
+from ..base import Vector3, Spectrum
 from ..samplers import RegularSampler, RandomSampler
 from ..cameras import create_perspective_camera
 from ..shapes import Sphere, Triangle, Rectangle, load_meshes_from_file
@@ -158,6 +158,31 @@ def _parse_light(fobj, project):
 def _parse_material(fobj, project):
     values = _extract_values(fobj)
     #NOTE keywords are expected to be in lower case!!! Improve this
+    name = values['name'][0].strip()
+    typ = values['type'][0].strip().lower()
+    props = project.create_props(typ)
+    for key, value in values.items():
+        if key == 'name' or key == 'type':
+            continue
+        if key not in props:
+            raise ValueError('Property %s not in props of material' % key)
+
+        if isinstance(props[key], int):
+            props[key] = int(values[key][0])
+        elif isinstance(props[key], float):
+            props[key] = float(values[key][0])
+        elif isinstance(props[key], Spectrum):
+            #assume RGB spectrum TODO xyz, sampled etc...
+            r, g, b = float(values[key][0]), float(values[key][1]), float(values[key][2])
+            props[key] =  project.col_mgr.create_spectrum((r, g, b))
+
+    mat = project.create_material(name, typ, props)
+    project.mat_mgr.add(name, mat)
+
+def _parse_material1(fobj, project):
+    values = _extract_values(fobj)
+    #NOTE keywords are expected to be in lower case!!! Improve this
+    name = values['name'][0].strip()
     typ = values['type'][0].strip().lower()
     if typ == 'lambertian':
         i = values['diffuse']
@@ -166,7 +191,6 @@ def _parse_material(fobj, project):
         else:
             raise ValueError("Spectrum values not yet implemented")
         diffuse = project.col_mgr.create_spectrum((r, g, b))
-        name = values['name'][0].strip()
         sh = create_lambertian_brdf(project.col_mgr, diffuse)
         sample = create_lambertian_sample(project.col_mgr)
         pdf = create_lambertian_pdf(project.col_mgr)
@@ -180,6 +204,8 @@ def _parse_material(fobj, project):
                 raise ValueError("Spectrum values not yet implemented")
             emission = project.col_mgr.create_spectrum((r, g, b))
             em_sh = create_lambertian_emission(project.col_mgr, emission)
+
+        new_mat = project.create_material(name, typ)
 
         mat = Material(bsdf=sh, sample=sample, pdf=pdf, emission=em_sh)
         project.mat_mgr.add(name, mat)

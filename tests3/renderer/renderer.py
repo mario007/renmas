@@ -9,8 +9,9 @@ ren = Renderer()
 #ren.parse_scene_file('../scenes/cornel1.txt')
 #ren.parse_scene_file('../scenes/cornel2.txt')
 #ren.parse_scene_file('../scenes/cornel3.txt')
-#ren.parse_scene_file('../scenes/cornel4.txt')
-ren.parse_scene_file('../scenes/cube.txt')
+ren.parse_scene_file('../scenes/cornel4.txt')
+#ren.parse_scene_file('../scenes/cube.txt')
+#ren.parse_scene_file('../scenes/dragon.txt')
 
 #ren.open_project('scene1.proj')
 

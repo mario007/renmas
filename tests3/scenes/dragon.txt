@@ -1,17 +1,17 @@
 
 Options
 sampler_type = random
-pixel_size = 0.2
-nsamples = 1
-width = 400
-height = 400
-nthreads = 1
+pixel_size = 0.1
+nsamples = 8
+width = 600
+height = 600
+nthreads = 2
 End
 
 Camera
 type = perspective
-eye = 10.0, 10.0, 10.0
-lookat = 0.0, 0.0, 0.0
+eye = 1.0, 1.0, 1.0
+lookat = 0.0, 0.1, 0.0
 distance = 400
 End
 
@@ -25,12 +25,12 @@ Material
 name = red 
 type = Lambertian
 diffuse = 0.63, 0.06, 0.04
-diffuse = 0.03, 0.06, 0.74
 End
 
 Shape
 type = Mesh
-fname = cube.obj
+fname = dragon_vrip_res4.ply
+fname = dragon_vrip.ply
 material = red
 End
 

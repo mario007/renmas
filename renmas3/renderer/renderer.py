@@ -4,7 +4,7 @@ import os.path
 from tdasm import Runtime
 from .parse_scene import parse_scene
 from ..base import Vector2, Vector3, Vector4
-from ..base import arg_list, arg_map, Vec3, Vec4, ColorManager, Spectrum
+from ..base import arg_list, arg_map, Vec3, Vec4, ColorManager, Spectrum, RGBSpectrum
 from ..base import BaseShader, BasicShader, ImageRGBA, ImagePRGBA, ImageBGRA 
 from ..base import FileLoader
 from ..samplers import Sample
@@ -13,7 +13,9 @@ from ..utils import blt_prgba_to_bgra
 from ..integrators import get_integrator_code
 
 from .light import LightManager, AreaLight
-from .mat import MaterialManager
+from .mat import MaterialManager, Material
+from .surface import SurfaceShader
+from .materials import create_lambertian_pdf, create_lambertian_sample
 from ..tone import Tmo
 
 class Project:
@@ -30,6 +32,10 @@ class Project:
         self.col_mgr = ColorManager(spectral=False)
         self.lgt_mgr = LightManager()
         self.mat_mgr = MaterialManager()
+
+        path = os.path.dirname(os.path.dirname(__file__))
+        self.mat_loader = FileLoader([os.path.join(path, 'mat_shaders')])
+
         self.tmo = None
 
     @staticmethod
@@ -51,6 +57,45 @@ class Project:
         Dumps description of whole scene in ascii text file.
         """
         pass
+
+    def create_props(self, mat_type):
+        if self.mat_loader is None:
+            raise ValueError("Material loader is not initialized!")
+        contents = self.mat_loader.load(mat_type, 'props.txt')
+        if contents is None: #file props.txt is not found not found
+            props = {}
+        else:
+            props = create_props(contents, col_mgr=self.col_mgr)
+        return props
+
+    def create_material(self, name, mat_type, props):
+        if self.mat_loader is None:
+            raise ValueError("Material loader is not initialized!")
+        contents = self.mat_loader.load(mat_type, 'bsdf.py')
+        if contents is None:
+            raise ValueError("Material %s shader for %s must have bsdf.py!!!" % (name, mat_type))
+        bsdf = SurfaceShader(contents, props, col_mgr=self.col_mgr)
+
+        contents = self.mat_loader.load(mat_type, 'pdf.py')
+        if contents is None: #default pdf if pdf.py for shader is missing
+            pdf = create_lambertian_pdf(self.col_mgr)
+        else:
+            pdf = SurfaceShader(contents, props, col_mgr=self.col_mgr)
+
+        contents = self.mat_loader.load(mat_type, 'sample.py')
+        if contents is None: #default sample is sample.py is missing
+            sample = create_lambertian_sample(self.col_mgr)
+        else:
+            sample = SurfaceShader(contents, props, col_mgr=self.col_mgr)
+
+        contents = self.mat_loader.load(mat_type, 'emission.py')
+        if contents is None:
+            em_sh = None
+        else:
+            em_sh = SurfaceShader(contents, props, col_mgr=self.col_mgr)
+
+        mat = Material(bsdf=bsdf, sample=sample, pdf=pdf, emission=em_sh)
+        return mat
 
     def set_material(self, shape_name, material_name):
         shape = self.shapes.shape(shape_name)
@@ -77,7 +122,7 @@ class Film(BaseShader):
 
 x = sample.ix
 y = sample.iy
-y = hdr_image.height - y - 1
+#y = hdr_image.height - y - 1
 rgba = get_rgba(hdr_image, x, y)
 
 acum_weight = rgba[3]
@@ -129,7 +174,7 @@ set_rgba(hdr_image, x, y, new_col)
         self._ldr_image.clear()
         self._output_img.clear()
 
-def create_props(text):
+def create_props(text, col_mgr=None):
     props = {}
     for line in text.splitlines():
         line = line.strip()
@@ -143,6 +188,12 @@ def create_props(text):
             value = float(words[2])
         elif words[0] == 'vector3':
             value = Vector3(float(words[2]), float(words[3]), float(words[4]))
+        elif words[0] == 'rgb':
+            if col_mgr is None:
+                value = RGBSpectrum(float(words[2]), float(words[3]), float(words[4]))
+            else:
+                vals = (float(words[2]), float(words[3]), float(words[4]))
+                value = col_mgr.create_spectrum(vals)
         else:
             raise ValueError('Unknown property type ', words[0])
         if name in props:
@@ -335,5 +386,6 @@ class Renderer:
     def output_image(self):
         self.tone_map()
         blt_prgba_to_bgra(self._film._ldr_image, self._film._output_img)
+        #blt_prgba_to_bgra(self._film._hdr_image, self._film._output_img)
         return self._film._output_img
 

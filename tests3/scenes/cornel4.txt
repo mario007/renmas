@@ -64,7 +64,7 @@ End
 
 Material
 name = white_emitter
-type = Lambertian
+type = lambertian_emiter
 diffuse = 0.76, 0.75, 0.5
 emission = 0.76, 0.75, 0.5
 #emission = 9.76, 9.75, 9.5

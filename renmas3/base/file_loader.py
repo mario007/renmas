@@ -9,9 +9,9 @@ class FileLoader:
 
 
     def load(self, dirname, filename):
-        """filename is just name of the file not full abolute file name.
+        """filename is just name of the file not full absolute file name.
         Loader will try to find that file in all registerd 
-        directories and if it findes one it will load file and return contents
+        directories and if it finds one it will load file and return contents
         of the file otherwise None is returned.
         """
         for d in self._dirs:

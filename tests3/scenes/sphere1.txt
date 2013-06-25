@@ -18,7 +18,7 @@ End
 Light
 type = PointLight
 position = 10, 10, 10
-intesity = 0.3, 0.3, 0.3
+intesity = 20.3, 20.3, 20.3
 End
 
 Light
@@ -30,7 +30,7 @@ End
 Material
 name = red 
 type = Lambertian
-diffuse = 0.6, 0.0, 0.0
+diffuse = 1.0, 1.0, 1.0
 End
 
 Shape

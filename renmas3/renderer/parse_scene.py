@@ -9,6 +9,7 @@ from .lights import create_point_illuminate
 from .mat import Material
 from .materials import create_lambertian_brdf, create_lambertian_sample
 from .materials import create_lambertian_pdf, create_lambertian_emission
+from .parse_matlib import parse_matlib
 
 def _parse_line(line):
     keyword, vals = line.split('=')
@@ -120,11 +121,14 @@ def _parse_shape(fobj, project):
         directory = os.path.dirname(os.path.abspath(fobj.name))
         fname = values['fname'][0].strip()
         filename = os.path.join(directory, fname)
-        meshes = load_meshes_from_file(filename)
-        mat_name = values['material'][0].strip()
+
+        meshes = load_meshes_from_file(filename, project=project, material_loader=lambda mlib_fobj: parse_matlib(mlib_fobj, project))
         for name, mesh in meshes.items():
             project.shapes.add(name, mesh)
-            project.set_material(name, mat_name)
+            if 'material' in values:
+                mat_name = values['material'][0].strip()
+                project.set_material(name, mat_name)
+        return
     else:
         raise ValueError("Unsuported type of shape!", typ)
     if 'material' in values and name is not None:

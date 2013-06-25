@@ -114,6 +114,9 @@ class MaterialManager:
     def remove(self, name):
         pass
 
+    def has_material(self, name):
+        return name in self._materials_d
+
     def index(self, name):
         if name not in self._materials_d:
             raise ValueError("Material doesn't exist!")

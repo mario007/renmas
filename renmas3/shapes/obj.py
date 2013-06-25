@@ -76,8 +76,9 @@ class Obj:
         self._current_groups = ["default"]
         self._new_groups = True
         self._current_material = "default"
+        self._mtllib = None
 
-    def load(self, fname):
+    def load(self, fname, material_loader=None):
         if not os.path.isfile(fname): return None #file doesn't exists
 
         self._set_defaults()
@@ -100,6 +101,15 @@ class Obj:
                 self._usemtl(words)
             elif words[0] == 'f': #index in previos arrays
                 self._face(words)
+            elif words[0] == 'mtllib':
+                self._mtllib = words[1]
+                if material_loader is not None:
+                    name = words[1].strip()
+                    full_path = os.path.join(os.path.dirname(fname), name)
+                    mlib_fobj = open(full_path, "r")
+                    material_loader(mlib_fobj)
+                    mlib_fobj.close()
+
         
         self._vertices.clear()
         self._normals.clear()

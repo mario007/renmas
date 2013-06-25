@@ -58,17 +58,20 @@ def fetch_triangle(mesh, index):
     #tri = Triangle(p0, p1, p2, mesh.material_idx, n0=n0, n1=n1, n2=n2)
     return tri
 
-def load_meshes_from_file(filename, performanse=True):
+def load_meshes_from_file(filename, performanse=True, project=None, material_loader=None):
     if not os.path.isfile(filename):
         raise ValueError("File %s doesn't exist!" % filename)
 
     meshes = {}
-    mdescs = load_meshes(filename)
+    mdescs = load_meshes(filename, material_loader)
     for desc in mdescs:
         mesh = create_mesh(desc, performanse)
         if desc.name is None:
             meshes['mesh' + str(id(mesh))] = mesh
         else:
             meshes[desc.name] = mesh
+        if project and project.mat_mgr.has_material(desc.mat_name):
+            mesh.material_idx = project.mat_mgr.index(desc.mat_name)
+
     return meshes
 

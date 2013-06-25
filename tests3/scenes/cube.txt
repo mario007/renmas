@@ -17,20 +17,20 @@ End
 
 Light
 type = PointLight
-position = 10.0, 10.0, 10.0
-intesity = 1.0, 1.0, 1.0
+position = 8.0, 2.0, 9.0
+intesity = 22.0, 22.0, 22.0
 End
 
 Material
 name = red 
 type = Lambertian
 diffuse = 0.63, 0.06, 0.04
-diffuse = 0.03, 0.06, 0.74
+diffuse = 1.0, 1.0, 1.0
 End
 
 Shape
 type = Mesh
 fname = cube.obj
-material = red
+#material = red
 End
 

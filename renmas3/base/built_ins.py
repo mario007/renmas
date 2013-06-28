@@ -467,6 +467,16 @@ def _exp(cgen, args):
 
 register_function('exp', _exp, inline=False)
 
+def _sin(cgen, args):
+    return _math_fun(cgen, args, 'sin_ss', 'sin_ps')
+
+register_function('sin', _sin, inline=False)
+
+def _cos(cgen, args):
+    return _math_fun(cgen, args, 'cos_ss', 'cos_ps')
+
+register_function('cos', _cos, inline=False)
+
 def _random_funcs(cgen, args, rnd_fun, ret_type):
     if len(args) != 0:
         raise ValueError("Wrong number of arguments in random fucntion", args)
@@ -577,4 +587,29 @@ def _min(cgen, args):
     return _min_max(cgen, args, 'min')
 
 register_function('min', _min, inline=True)
+
+def _sqrt(cgen, args):
+    if len(args) != 1:
+        raise ValueError("Wrong number of arguments in sqrt fucntion", args)
+
+    code1, xmm1, typ1 = load_operand(cgen, args[0])
+
+    #TODO --- typ1 == Integer
+    if typ1 == Float:
+        if cgen.AVX:
+            l1 = 'vsqrtss %s, %s, %s\n' % (xmm1, xmm1, xmm1)
+        else:
+            l1 = 'sqrtss %s, %s\n' % (xmm1, xmm1)
+    elif typ1 == Vec2 or typ1 == Vec3 or typ1 == Vec4:
+        if cgen.AVX:
+            l1 = 'vsqrtps %s, %s, %s\n' % (xmm1, xmm1, xmm1)
+        else:
+            l1 = 'sqrtps %s, %s\n' % (xmm1, xmm1)
+    else:
+        raise ValueError("Unsuported type of argument in min max function!", typ1)
+
+    code = code1 + l1
+    return code, xmm1, typ1
+
+register_function('sqrt', _sqrt, inline=True)
 

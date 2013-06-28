@@ -70,6 +70,15 @@ ret4 = pow((1.9, 1.15, 2.11, 2.22), (1.77, 2.21, 2.5, 2.71))
     def test_exp(self):
         self.math_fun_test('exp', math.exp)
 
+    def test_sin(self):
+        self.math_fun_test('sin', math.sin)
+
+    def test_cos(self):
+        self.math_fun_test('cos', math.cos)
+
+    def test_sqrt(self):
+        self.math_fun_test('sqrt', math.sqrt)
+
 if __name__ == "__main__":
     unittest.main()
 

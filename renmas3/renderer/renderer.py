@@ -122,7 +122,7 @@ class Film(BaseShader):
 
 x = sample.ix
 y = sample.iy
-#y = hdr_image.height - y - 1
+y = hdr_image.height - y - 1
 rgba = get_rgba(hdr_image, x, y)
 
 acum_weight = rgba[3]
@@ -292,7 +292,7 @@ class Renderer:
         if self._project is None:
             raise ValueError("Project is not created!")
         nthreads = self._project.nthreads
-        self._runtimes = [Runtime() for n in range(nthreads)]
+        self._runtimes = [Runtime(code=4, data=4) for n in range(nthreads)]
 
         if self._project.sampler is None:
             raise ValueError("Sampler is not defined!")

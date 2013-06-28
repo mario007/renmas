@@ -17,23 +17,29 @@ def _create_spectrum(vals, project):
     r, g, b = float(vals[0]), float(vals[1]), float(vals[2])
     return project.col_mgr.create_spectrum((r, g, b))
 
+def _zero_spectrum(vals):
+    r, g, b = float(vals[0]), float(vals[1]), float(vals[2])
+    return r == 0.0 and g == 0.0 and b == 0.0
+
 def _create_material(name, values, project):
-    Ka = Kd = Ks = Ns = illum = d = Tr = Tf = None
+    Ka = Kd = Ks = Ke = Ns = illum = d = Tr = Tf = None
     map_Ka = map_Kd = map_Ks = map_d = None
 
-    if 'Ka' in values:
+    if 'Ka' in values and not _zero_spectrum(values['Ka']):
         Ka = _create_spectrum(values['Ka'], project)
-    if 'Kd' in values:
+    if 'Kd' in values and not _zero_spectrum(values['Kd']):
         Kd = _create_spectrum(values['Kd'], project)
-    if 'Ks' in values:
+    if 'Ks' in values and not _zero_spectrum(values['Ks']):
         Ks = _create_spectrum(values['Ks'], project)
+    if 'Ke' in values and not _zero_spectrum(values['Ke']):
+        Ke = _create_spectrum(values['Ke'], project)
     if 'Ns' in values:
         Ns = float(values['Ns'][0])
     if 'd' in values:
         d = float(values['d'][0])
     if 'Tr' in values:
         Tr = float(values['Tr'][0])
-    if 'Tf' in values:
+    if 'Tf' in values and not _zero_spectrum(values['Tf']):
         Tf = _create_spectrum(values['Tf'], project)
     if 'illum' in values:
         illum = int(values['illum'][0])
@@ -47,8 +53,15 @@ def _create_material(name, values, project):
         map_d = values['map_d'][0].strip()
 
     props = {}
-    #just basic lambertian for now
-    if Kd is not None:
+    #just basic lambertian and anisotropic ward
+    if Kd is not None and Ks is not None and Ns is not None:
+        props['diffuse'] = Kd
+        props['specular'] = Ks
+        props['exponent'] = Ns
+        mat = project.create_material(name, 'phong', props)
+        project.mat_mgr.add(name, mat)
+
+    elif Kd is not None:
         props['diffuse'] = Kd
         mat = project.create_material(name, 'lambertian', props)
         project.mat_mgr.add(name, mat)

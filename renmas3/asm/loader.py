@@ -8,6 +8,10 @@ from .logps import log_ps_asm
 from .logss import log_ss_asm
 from .expps import exp_ps_asm
 from .expss import exp_ss_asm
+from .sinps import sin_ps_asm
+from .sinss import sin_ss_asm
+from .cosps import cos_ps_asm
+from .cosss import cos_ss_asm
 from .sincosps import sincos_ps_asm
 from .random_float import random_float
 from .hemisphere import sample_hemisphere_asm
@@ -19,6 +23,10 @@ _asm_functions['log_ps'] = log_ps_asm
 _asm_functions['log_ss'] = log_ss_asm
 _asm_functions['exp_ps'] = exp_ps_asm
 _asm_functions['exp_ss'] = exp_ss_asm
+_asm_functions['sin_ps'] = sin_ps_asm
+_asm_functions['sin_ss'] = sin_ss_asm
+_asm_functions['cos_ps'] = cos_ps_asm
+_asm_functions['cos_ss'] = cos_ss_asm
 _asm_functions['random'] = random_float
 _asm_functions['sincos_ps'] = sincos_ps_asm
 _asm_functions['sample_hemisphere'] = sample_hemisphere_asm

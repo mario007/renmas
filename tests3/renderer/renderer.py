@@ -14,6 +14,7 @@ ren = Renderer()
 #ren.parse_scene_file('../scenes/dragon.txt')
 
 ren.parse_scene_file('F:/ray_tracing_scenes/mitsuba_material/scene.txt')
+#ren.parse_scene_file('F:/ray_tracing_scenes/san-miguel/scene.txt')
 #ren.open_project('scene1.proj')
 
 ren.prepare()
@@ -28,4 +29,4 @@ ren.save_project('scene1.proj')
 img2 = ren.output_image()
 show_image_in_window(img2)
 
-#save_image('picture.tga', img2)
+save_image('picture.png', img2)

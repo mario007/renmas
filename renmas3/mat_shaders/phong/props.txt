@@ -1,0 +1,5 @@
+
+rgb diffuse 0.5 0.0 0.0
+rgb specular 0.5 0.0 0.0
+float exponent 1.0
+

@@ -17,7 +17,7 @@
 Options
 sampler_type = random
 pixel_size = 0.5
-nsamples = 4 
+nsamples = 4
 width = 1024
 height = 1024
 nthreads = 8
@@ -60,6 +60,12 @@ Material
 name = white
 type = Lambertian
 diffuse = 0.76, 0.75, 0.5
+End
+
+Material
+name = simple_glass
+type = glass
+ior = 1.5
 End
 
 Material
@@ -165,186 +171,12 @@ p2 = 0, 0.5488, 0.5592
 material = green
 End
 
-## Small cube
 Shape
-type = Triangle
-name = small_1
-p0 = 0.130, 0.165, 0.065
-p1 = 0.082, 0.165, 0.225
-p2 = 0.240, 0.165, 0.272
-material = white
-End
-
-Shape
-type = Triangle
-name = small_2
-p0 = 0.130, 0.165, 0.065
-p1 = 0.240, 0.165, 0.272
-p2 = 0.290, 0.165, 0.114
-material = white
-End
-
-Shape
-type = Triangle
-name = small_3
-p0 = 0.290, 0, 0.114
-p1 = 0.290, 0.165, 0.114
-p2 = 0.240, 0.165, 0.272
-material = white
-End
-
-Shape
-type = Triangle
-name = small_4
-p0 = 0.290, 0, 0.114
-p1 = 0.240, 0.165, 0.272
-p2 = 0.240, 0, 0.272
-material = white
-End
-
-Shape
-type = Triangle
-name = small_5
-p0 = 0.130, 0, 0.065
-p1 = 0.130, 0.165, 0.065
-p2 = 0.290, 0.165, 0.114
-material = white
-End
-
-Shape
-type = Triangle
-name = small_6
-p0 = 0.130, 0, 0.065
-p1 = 0.290, 0.165, 0.114
-p2 = 0.290, 0, 0.114
-material = white
-End
-
-Shape
-type = Triangle
-name = small_7
-p0 = 0.082, 0, 0.225
-p1 = 0.082, 0.165, 0.225
-p2 = 0.130, 0.165, 0.065
-material = white
-End
-
-Shape
-type = Triangle
-name = small_8
-p0 = 0.082, 0, 0.225
-p1 = 0.130, 0.165, 0.065
-p2 = 0.130, 0, 0.065
-material = white
-End
-
-Shape
-type = Triangle
-name = small_9
-p0 = 0.240, 0, 0.272
-p1 = 0.240, 0.165, 0.272
-p2 = 0.082, 0.165, 0.225
-material = white
-End
-
-Shape
-type = Triangle
-name = small_10
-p0 = 0.240, 0, 0.272
-p1 = 0.082, 0.165, 0.225
-p2 = 0.082, 0,  0.225
-material = white
-End
-
-## Big cube
-Shape
-type = Triangle
-name = big_1
-p0 = 0.423, 0.330, 0.247
-p1 = 0.265, 0.330, 0.296
-p2 = 0.314, 0.330, 0.456
-material = white
-End
-
-Shape
-type = Triangle
-name = big_2
-p0 = 0.423, 0.330, 0.247
-p1 = 0.314, 0.330, 0.456
-p2 = 0.472, 0.330, 0.406
-material = white
-End
-
-Shape
-type = Triangle
-name = big_3
-p0 = 0.423, 0, 0.247
-p1 = 0.423, 0.330, 0.247
-p2 = 0.472, 0.330, 0.406
-material = white
-End
-
-Shape
-type = Triangle
-name = big_4
-p0 = 0.423, 0, 0.247
-p1 = 0.472, 0.330, 0.406
-p2 = 0.472, 0, 0.406
-material = white
-End
-
-Shape
-type = Triangle
-name = big_5
-p0 = 0.472, 0, 0.406
-p1 = 0.472, 0.330, 0.406
-p2 = 0.314, 0.330, 0.456
-material = white
-End
-
-Shape
-type = Triangle
-name = big_6
-p0 = 0.472, 0, 0.406
-p1 = 0.314, 0.330, 0.456
-p2 = 0.314, 0, 0.456
-material = white
-End
-
-Shape
-type = Triangle
-name = big_7
-p0 = 0.314, 0, 0.456
-p1 = 0.314, 0.330, 0.456
-p2 = 0.265, 0.330, 0.296
-material = white
-End
-
-Shape
-type = Triangle
-name = big_8
-p0 = 0.314, 0, 0.456
-p1 = 0.265, 0.330, 0.296
-p2 = 0.265, 0, 0.296
-material = white
-End
-
-Shape
-type = Triangle
-name = big_9
-p0 = 0.265, 0, 0.296
-p1 = 0.265, 0.330, 0.296
-p2 = 0.423, 0.330, 0.247
-material = white
-End
-
-Shape
-type = Triangle
-name = big_10
-p0 = 0.265, 0, 0.296
-p1 = 0.423, 0.330, 0.247
-p2 = 0.423, 0, 0.247
-material = white
+type = Sphere
+name = Sphere 1
+radius = 0.08
+origin = 0.2, 0.1, 0.3
+material = simple_glass
 End
 
 

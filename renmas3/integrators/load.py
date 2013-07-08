@@ -109,8 +109,10 @@ while ret != 0:
             mat_em = shadepoint.material_emission
             lum_em = luminance(mat_em)
             if lum_em > 0.001: # we directly hit light
-                if cur_depth == 1:
-                    acum_col = acum_col + mat_em
+                mat_em = mat_em * path
+                acum_col = acum_col + mat_em
+                #if cur_depth == 1:
+                #    acum_col = acum_col + mat_em
                 break
 
             #direct lighting
@@ -135,8 +137,8 @@ while ret != 0:
                 break
             
             sample_bsdf(hitpoint, shadepoint, hitpoint.material_idx)
-            pdf_bsdf(hitpoint, shadepoint, hitpoint.material_idx)
             bsdf(hitpoint, shadepoint, hitpoint.material_idx)
+            pdf_bsdf(hitpoint, shadepoint, hitpoint.material_idx)
             ndotwi = dot(hitpoint.normal, shadepoint.wi)
             if ndotwi < 0.0:
                 ndotwi = ndotwi * -1.0

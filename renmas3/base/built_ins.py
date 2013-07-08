@@ -153,6 +153,36 @@ def _spectrum_to_rgb(cgen, args):
 
 register_function('spectrum_to_rgb', _spectrum_to_rgb, inline=False) 
 
+def _rgb_to_spectrum(cgen, args):
+    if len(args) != 1:
+        raise ValueError("Function accept just one arguement!", args)
+
+    cgen.clear_regs()
+    if cgen.BIT64:
+        reg = cgen.register(typ='general', bit=64, reg='rax')
+    else:
+        reg = cgen.register(typ='general', bit=32, reg='eax')
+    arg = cgen.create_tmp_spec()
+    code1, reg1, typ1 = arg.load_cmd(cgen, dest_reg=reg)
+
+    xmm = cgen.register(typ='xmm', reg='xmm0')
+    code2, reg2, typ2 = load_operand(cgen, args[0], dest_reg=xmm)
+
+    if typ2 != Vec3 and typ2 != Vec4:
+        raise ValueError("Vector3 or Vector4 argument is expected!", args[0])
+
+    label = 'rgb_to_spectrum_yxmpa1y5z0p'
+    cgen.add_color_func('rgb_to_spectrum', label)
+    call = 'call %s\n' % label
+
+    cgen.release_reg(xmm)
+
+    code = code1 + code2 + call
+    return code, reg, typ1 
+
+register_function('rgb_to_spectrum', _rgb_to_spectrum, inline=False) 
+
+
 def _luminance(cgen, args):
     if len(args) != 1:
         raise ValueError("Wrong number of arguments in normalize fucntion", args)
@@ -273,7 +303,7 @@ def _get_rgba(cgen, args):
     arg1 = cgen.get_arg(args[0])
     if not isinstance(arg1, Struct):
         raise ValueError("Image structure is expected.", arg1)
-    if arg1.typ.typ != "ImagePRGBA":
+    if arg1.typ.typ != "ImagePRGBA" and arg1.typ.typ != 'ImageRGBA':
         raise ValueError("Wrong image format", arg1.typ.typ)
     code1, reg1, typ1 = load_operand(cgen, args[1])
     code2, reg2, typ2 = load_operand(cgen, args[2])
@@ -282,7 +312,10 @@ def _get_rgba(cgen, args):
 
     code3, reg3, typ3 = load_operand(cgen, Attribute(arg1.name, 'pitch'))
     code4 = "imul %s, %s\n" % (reg2, reg3)
-    code5 = "imul %s, %s, 16\n" % (reg1, reg1) 
+    if arg1.typ.typ == "ImagePRGBA":
+        code5 = "imul %s, %s, 16\n" % (reg1, reg1) 
+    else:
+        code5 = "imul %s, %s, 4\n" % (reg1, reg1) 
     code6 = "add %s, %s\n" % (reg2, reg1)
 
     cgen.release_reg(reg1)
@@ -295,10 +328,30 @@ def _get_rgba(cgen, args):
         code8 = "add %s, %s\n" % (reg4, reg2)
 
     xmm_reg = cgen.register(typ='xmm')
-    if cgen.AVX:
-        code9 = "vmovaps %s, oword [%s]\n" % (xmm_reg, reg4)
+    if arg1.typ.typ == "ImagePRGBA":
+        if cgen.AVX:
+            code9 = "vmovaps %s, oword [%s]\n" % (xmm_reg, reg4)
+        else:
+            code9 = "movaps %s, oword [%s]\n" % (xmm_reg, reg4)
     else:
-        code9 = "movaps %s, oword [%s]\n" % (xmm_reg, reg4)
+        arg = cgen.create_const((0.0039, 0.0039, 0.0039, 0.0039))
+        xmm_reg2 = cgen.register(typ='xmm')
+        if cgen.AVX:
+            code9 = "vmovss %s, dword [%s]\n" % (xmm_reg, reg4)
+            code9 += "vpxor %s, %s, %s\n" % (xmm_reg2, xmm_reg2, xmm_reg2)
+            code9 += "vpunpcklbw %s, %s, %s\n" % (xmm_reg, xmm_reg, xmm_reg2)
+            code9 += "vpunpcklwd %s, %s, %s\n" % (xmm_reg, xmm_reg, xmm_reg2)
+            code9 += "vcvtdq2ps %s, %s\n" % (xmm_reg, xmm_reg)
+            code9 += "vmulps %s, %s, oword [%s]\n" % (xmm_reg, xmm_reg, arg.name)
+        else:
+            code9 = "movss %s, dword [%s]\n" % (xmm_reg, reg4)
+            code9 += "pxor %s, %s\n" % (xmm_reg2, xmm_reg2)
+            code9 += "punpcklbw %s, %s\n" % (xmm_reg, xmm_reg2)
+            code9 += "punpcklwd %s, %s\n" % (xmm_reg, xmm_reg2)
+            code9 += "cvtdq2ps %s, %s\n" % (xmm_reg, xmm_reg)
+            code9 += "mulps %s, oword [%s]\n" % (xmm_reg, arg.name)
+
+        cgen.release_reg(xmm_reg2)
 
     cgen.release_reg(reg2)
     cgen.release_reg(reg4)

@@ -43,12 +43,12 @@ def func_pointers_shader(label, runtimes, objs, prepare):
     return shader
 
 class Material:
-    def __init__(self, bsdf=None, sample=None, pdf=None, emission=None, is_dielectric=False):
+    def __init__(self, bsdf=None, sample=None, pdf=None, emission=None, dielectric=False):
         self.bsdf = bsdf
         self.sample = sample
         self.pdf = pdf
         self.emission = emission
-        self.is_dielectric = is_dielectric
+        self.dielectric = dielectric
 
     def prepare_bsdf(self, runtimes):
         self.bsdf.prepare(runtimes)

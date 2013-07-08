@@ -29,7 +29,7 @@ class Project:
         self.integrators_code = None
         self.nthreads = 1
         self.shapes = ShapeManager()
-        self.col_mgr = ColorManager(spectral=False)
+        self.col_mgr = ColorManager(spectral=True)
         self.lgt_mgr = LightManager()
         self.mat_mgr = MaterialManager()
 
@@ -68,7 +68,7 @@ class Project:
             props = create_props(contents, col_mgr=self.col_mgr)
         return props
 
-    def create_material(self, name, mat_type, props):
+    def create_material(self, name, mat_type, props, dielectric=False):
         if self.mat_loader is None:
             raise ValueError("Material loader is not initialized!")
         contents = self.mat_loader.load(mat_type, 'bsdf.py')
@@ -94,7 +94,7 @@ class Project:
         else:
             em_sh = SurfaceShader(contents, props, col_mgr=self.col_mgr)
 
-        mat = Material(bsdf=bsdf, sample=sample, pdf=pdf, emission=em_sh)
+        mat = Material(bsdf=bsdf, sample=sample, pdf=pdf, emission=em_sh, dielectric=dielectric)
         return mat
 
     def set_material(self, shape_name, material_name):
@@ -122,7 +122,7 @@ class Film(BaseShader):
 
 x = sample.ix
 y = sample.iy
-y = hdr_image.height - y - 1
+#y = hdr_image.height - y - 1
 rgba = get_rgba(hdr_image, x, y)
 
 acum_weight = rgba[3]
@@ -356,6 +356,11 @@ class Renderer:
         return shader
 
     def _visible_shader(self, runtimes):
+        def is_dielectric(shp):
+            return self._project.mat_mgr.material(shp.material_idx).dielectric
+
+        #self._project.shapes.filter_dielectrics(is_dielectric)
+
         if self._intersector is None:
             self._intersector = LinearIsect(self._project.shapes)
 

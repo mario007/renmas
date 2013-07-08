@@ -180,6 +180,12 @@ class ImageRGBA(Image):
         _convert_pixels(self.width*self.height, src, dst)
         return img
 
+    @classmethod
+    def user_type(cls):
+        typ_name = "ImageRGBA"
+        fields = [('width', Integer), ('height', Integer), ('pitch', Integer), ('pixels', Pointer)]
+        return (typ_name, fields)
+
     def __repr__(self):
         adr = self._pixels.ptr()
         return '<ImageRGBA object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \

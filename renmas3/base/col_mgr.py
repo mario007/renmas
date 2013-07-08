@@ -48,7 +48,8 @@ class ColorManager:
         self._cie_x = self._create_sampled_spectrum(Cie_x)
         self._cie_y = self._create_sampled_spectrum(Cie_y)
         self._cie_z = self._create_sampled_spectrum(Cie_z)
-        self.yint= sum(self._cie_y.samples)
+        self.yint = 106.856895
+        #yint = CIE_Y_integral
 
         self._spect_white = self._create_sampled_spectrum(SpectWhite)
         self._spect_cyan = self._create_sampled_spectrum(SpectCyan)
@@ -233,6 +234,257 @@ class ColorManager:
         rez.clamp()
         return rez
 
+    # xmm0 = rgb 
+    # eax = pointer to spectrum
+    #TODO -- remove broadcasts put local r, g, b values
+    # it will improve space and preformanse
+    def rgb_to_sampled_asm(self, runtimes, label):
+        if not self._spectral:
+            ASM = """
+                #DATA
+            """
+            ASM += self.spectrum_asm_struct() +  """
+            #CODE
+            """
+            ASM += " global " + label + ":\n" + """
+            macro eq128 eax.Spectrum.values = xmm0 {xmm7}
+            ret
+            """
+            mc = self.create_assembler().assemble(ASM, True)
+            #mc.print_machine_code()
+            name = "rgb_to_spectrum" + str(id(self))
+            for r in runtimes:
+                if not r.global_exists(label):
+                    ds = r.load(name, mc)
+            return
+
+
+        ASM = """
+            #DATA
+        """
+        ASM += self.spectrum_asm_struct() +  """
+        Spectrum cyan, blue, green, magenta, red, yellow, white  
+        float con1 = 0.94
+        float low = 0.0
+        float high = 0.99
+        float rgb[4]
+        Spectrum temp1, temp2
+        #CODE
+
+        """
+        ASM += " global " + label + ":\n" + """
+        macro eq128 rgb = xmm0 {xmm7}
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro if xmm0 > xmm1 goto _next
+        macro if xmm0 > xmm2 goto _next
+
+        macro mov ecx, temp1
+        macro mov ebx, white
+        macro spectrum ecx = xmm0 * ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro if xmm1 > xmm2 goto _red2
+        
+        macro eq32 xmm1 = xmm1 - xmm0
+        macro mov ecx, temp2
+        macro mov ebx, cyan 
+        macro spectrum ecx = xmm1 * ebx 
+
+        macro mov ecx, temp1
+        macro mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro eq32 xmm2 = xmm2 - xmm1
+
+        macro mov ecx, temp2
+        macro mov ebx, blue 
+        macro spectrum ecx = xmm2 * ebx 
+
+        macro mov ecx, temp1
+        macro mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+        jmp _end
+
+        _red2:
+
+        macro eq32 xmm2 = xmm2 - xmm0
+        macro mov ecx, temp2
+        macro mov ebx, cyan 
+        macro spectrum ecx = xmm2 * ebx 
+
+        macro mov ecx, temp1
+        macro mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro eq32 xmm1 = xmm1 - xmm2
+
+        macro mov ecx, temp2
+        macro mov ebx, green 
+        macro spectrum ecx = xmm1 * ebx 
+
+        macro mov ecx, temp1
+        macro mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+        jmp _end
+
+
+        _next:
+        macro if xmm1 > xmm0 goto _next2
+        macro if xmm1 > xmm2 goto _next2
+
+        macro mov ecx, temp1
+        macro mov ebx, white
+        macro spectrum ecx = xmm1 * ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro if xmm0 > xmm2 goto _green2
+
+        macro eq32 xmm0 = xmm0 - xmm1
+        macro mov ecx, temp2
+        macro mov ebx, magenta 
+        macro spectrum ecx = xmm0 * ebx 
+
+        macro mov ecx, temp1
+        macro mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro eq32 xmm2 = xmm2 - xmm0
+
+        macro mov ecx, temp2
+        macro mov ebx, blue 
+        macro spectrum ecx = xmm2 * ebx 
+
+        macro mov ecx, temp1
+        macro mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+    
+        jmp _end
+
+        _green2:
+
+        macro eq32 xmm2 = xmm2 - xmm1
+        macro mov ecx, temp2
+        macro mov ebx, magenta 
+        macro spectrum ecx = xmm2 * ebx 
+
+        macro mov ecx, temp1
+        macro mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro eq32 xmm0 = xmm0 - xmm2
+
+        macro mov ecx, temp2
+        macro mov ebx, red 
+        macro spectrum ecx = xmm0 * ebx 
+
+        macro mov ecx, temp1
+        macro mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        jmp _end
+
+        _next2:
+
+        macro mov ecx, temp1
+        macro mov ebx, white
+        macro spectrum ecx = xmm2 * ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro if xmm0 > xmm1 goto _blue2
+
+        macro eq32 xmm0 = xmm0 - xmm2
+        macro mov ecx, temp2
+        macro mov ebx, yellow 
+        macro spectrum ecx = xmm0 * ebx 
+
+        macro mov ecx, temp1
+        macro mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro eq32 xmm1 = xmm1 - xmm0
+
+        macro mov ecx, temp2
+        macro mov ebx, green 
+        macro spectrum ecx = xmm1 * ebx 
+
+        macro mov ecx, temp1
+        macro mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        jmp _end
+
+        _blue2:
+
+        macro eq32 xmm1 = xmm1 - xmm2
+        macro mov ecx, temp2
+        macro mov ebx, yellow 
+        macro spectrum ecx = xmm1 * ebx 
+
+        macro mov ecx, temp1
+        macro mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        macro eq128 xmm0 = rgb
+        macro broadcast xmm1 = xmm0[1]
+        macro broadcast xmm2 = xmm0[2]
+        macro eq32 xmm0 = xmm0 - xmm1
+
+        macro mov ecx, temp2
+        macro mov ebx, red 
+        macro spectrum ecx = xmm0 * ebx 
+
+        macro mov ecx, temp1
+        macro mov ebx,  temp2 
+        macro spectrum ecx = ecx + ebx 
+
+        _end:
+        macro mov ecx, temp1
+        macro eq32 xmm0 = con1
+        macro spectrum eax = xmm0 * ecx 
+
+        macro eq32 xmm0 = low
+        macro eq32 xmm1 = high
+        macro spectrum clamp eax 
+        ret
+        """
+
+        mc = self.create_assembler().assemble(ASM, True)
+        #mc.print_machine_code()
+        name = "rgb_to_spectrum" + str(id(self))
+        for r in runtimes:
+            if not r.global_exists(label):
+                ds = r.load(name, mc)
+                ds['cyan.values'] = self._spect_cyan.to_ds()
+                ds['blue.values'] = self._spect_blue.to_ds()
+                ds['green.values'] = self._spect_green.to_ds()
+                ds['magenta.values'] = self._spect_magenta.to_ds()
+                ds['red.values'] = self._spect_red.to_ds()
+                ds['yellow.values'] = self._spect_yellow.to_ds()
+                ds['white.values'] = self._spect_white.to_ds()
+
+
     # Convert spectrum to r,g,b components
     # @param self The object pointer
     # @param spectrum   
@@ -244,6 +496,7 @@ class ColorManager:
         r, g, b = self.XYZ_to_RGB(X, Y, Z)
         return RGBSpectrum(r, g, b)
 
+    #NOTE in eax(rax) must be spectrum
     def to_RGB_asm(self, runtimes, label):
         global_label = 'global %s:\n' % label
         # in eax(rax) must be spectrum
@@ -295,7 +548,10 @@ class ColorManager:
                 if not r.global_exists(label):
                     descs.append(r.load(name, mc))
             for ds in descs:
-                ds["one_over_yint"] = 1.0 / self.yint
+                start, end = self._spectrum_region
+                #yint = CIE_Y_integral
+                scale = float(end - start) / (self.yint * self._nsamples)
+                ds["one_over_yint"] = scale 
                 ds["__x.values"] = self._cie_x.to_ds()
                 ds["__y.values"] = self._cie_y.to_ds()
                 ds["__z.values"] = self._cie_z.to_ds()
@@ -330,9 +586,13 @@ class ColorManager:
         y_sum = sum(y.samples)
         z_sum = sum(z.samples)
 
-        X = x_sum / self.yint  
-        Y = y_sum / self.yint  
-        Z = z_sum / self.yint  
+        start, end = self._spectrum_region
+        #yint = CIE_Y_integral
+        scale = float(end - start) / (self.yint * self._nsamples)
+
+        X = x_sum * scale  
+        Y = y_sum * scale
+        Z = z_sum * scale  
         return (X, Y, Z)
 
     # Calcualte lumminance of spectrum 
@@ -344,7 +604,12 @@ class ColorManager:
             return spectrum.r*0.212671 + spectrum.g*0.715160 + spectrum.b*0.072169
         y = self._cie_y.mix_spectrum(spectrum)
         y_sum = sum(y.samples)
-        return y_sum / self.yint  
+
+        start, end = self._spectrum_region
+        #yint = CIE_Y_integral
+        scale = float(end - start) / (self.yint * self._nsamples)
+
+        return y_sum * scale  
 
     def _Y_asm_rgb(self, runtimes, label):
         global_label = 'global %s:\n' % label
@@ -388,7 +653,10 @@ class ColorManager:
             if not r.global_exists(label):
                 dsecs.append(r.load(name, mc))
         for ds in dsecs:
-            ds["one_over_yint"] = 1.0 / self.yint
+            start, end = self._spectrum_region
+            #yint = CIE_Y_integral
+            scale = float(end - start) / (self.yint * self._nsamples)
+            ds["one_over_yint"] = scale
             ds["__y.values"] = self._cie_y.to_ds()
 
     def Y_asm(self, runtimes, label):
@@ -493,6 +761,8 @@ class ColorManager:
         func_name, label = func
         if func_name == "spectrum_to_rgb":
             self.to_RGB_asm(runtimes, label)
+        elif func_name == "rgb_to_spectrum":
+            self.rgb_to_sampled_asm(runtimes, label)
         elif func_name == "luminance":
             self.Y_asm(runtimes, label)
         else:

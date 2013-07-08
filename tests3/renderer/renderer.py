@@ -9,11 +9,12 @@ ren = Renderer()
 #ren.parse_scene_file('../scenes/cornel1.txt')
 #ren.parse_scene_file('../scenes/cornel2.txt')
 #ren.parse_scene_file('../scenes/cornel3.txt')
-#ren.parse_scene_file('../scenes/cornel4.txt')
+ren.parse_scene_file('../scenes/cornel4.txt')
 #ren.parse_scene_file('../scenes/cube.txt')
 #ren.parse_scene_file('../scenes/dragon.txt')
+#ren.parse_scene_file('../scenes/dielectric.txt')
 
-ren.parse_scene_file('F:/ray_tracing_scenes/mitsuba_material/scene.txt')
+#ren.parse_scene_file('F:/ray_tracing_scenes/mitsuba_material/scene.txt')
 #ren.parse_scene_file('F:/ray_tracing_scenes/san-miguel/scene.txt')
 #ren.open_project('scene1.proj')
 
@@ -21,8 +22,11 @@ ren.prepare()
 
 start = time.clock()
 ret = False
+frame_pass = 0
 while not ret:
     ret = ren.render()
+    frame_pass += 1
+    print("Frame number %i" % frame_pass)
 print(time.clock() - start)
 
 ren.save_project('scene1.proj')

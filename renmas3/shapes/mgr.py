@@ -10,6 +10,7 @@ class ShapeManager:
         self._shape_names = {} #name:shape
         self._shape_addr = {} # shape:idx  - using index in dynamic array we can calculate address
         self._shape_arrays = {} # DynamicArrays for assembly rendering
+        self._shape_dielectrics_arrays = None
 
     def names(self):
         return self._shape_names.keys()
@@ -27,6 +28,34 @@ class ShapeManager:
             return None
         darr = self._shape_arrays[shape_type]
         return darr
+
+    def filter_dielectrics(self, is_dielectric):
+        self._shape_dielectrics_arrays = {}
+        for name, shape in self._shape_names.items():
+            if not is_dielectric(shape):
+                if type(shape) not in self._shape_dielectrics_arrays:
+                    darr = DynamicArray(self._create_struct(shape))
+                    self._shape_dielectrics_arrays[type(shape)] = darr
+                    idx = 0
+                else:
+                    darr = self._shape_dielectrics_arrays[type(shape)]
+                    idx = darr.num_objects()
+                darr.add_instance(shape.attributes())
+
+    def dielectric_shape_types(self):
+        if self._shape_dielectrics_arrays is None:
+            return self._shape_arrays.keys()
+        return self._shape_dielectrics_arrays.keys()
+
+    def dielectric_dynamic_array(self, shape_type):
+        if self._shape_dielectrics_arrays is None:
+            if shape_type not in self._shape_arrays:
+                return None
+            return self._shape_arrays[shape_type]
+
+        if shape_type not in self._shape_dielectrics_arrays:
+            return None
+        return self._shape_dielectrics_arrays[shape_type]
 
     def _create_struct(self, shape):
         code = " #DATA " + shape.asm_struct() + """

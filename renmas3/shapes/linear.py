@@ -89,8 +89,16 @@ class LinearIsect(Intersector):
             if not r.global_exists(label):
                 ds_arr.append(r.load(name, mc))
 
-        for shp_type in self.mgr.shape_types():
-            dy_arr = self.mgr.dynamic_array(shp_type)
+        if visibility:
+            shp_types = self.mgr.dielectric_shape_types()
+        else:
+            shp_types = self.mgr.shape_types()
+
+        for shp_type in shp_types:
+            if visibility:
+                dy_arr = self.mgr.dielectric_dynamic_array(shp_type)
+            else:
+                dy_arr = self.mgr.dynamic_array(shp_type)
             for ds in ds_arr:
                 ds["ptr_" + shp_type.asm_struct_name()] = dy_arr.address_info()
                 ds["n_" + shp_type.asm_struct_name()] = dy_arr.size
@@ -122,7 +130,11 @@ class LinearIsect(Intersector):
         return data
 
     def _load_isect_routines(self, runtimes, visibility):
-        for shp_type in self.mgr.shape_types():
+        if visibility:
+            shp_types = self.mgr.dielectric_shape_types()
+        else:
+            shp_types = self.mgr.shape_types()
+        for shp_type in shp_types:
             if not visibility:
                 lbl_isect = shp_type.asm_struct_name() + "_intersect"
                 shp_type.isect_asm(runtimes, lbl_isect)
@@ -135,6 +147,11 @@ class LinearIsect(Intersector):
     # eax - pointer to ray
     # ebx - pointer to hitpoint
     def _generate_code_section32(self, runtimes, label, visibility):
+        if visibility:
+            shp_types = self.mgr.dielectric_shape_types()
+        else:
+            shp_types = self.mgr.shape_types()
+
         ASM = "#CODE \n"
         ASM += "global " + label + ":\n"
         ASM += """
@@ -148,7 +165,7 @@ class LinearIsect(Intersector):
             mov dword [ebx + Hitpoint.t], edx
             """
         code = ""
-        for shp_type in self.mgr.shape_types():
+        for shp_type in shp_types:
             code1 = """ 
             ;=== intersection of array
             mov eax, dword [r1]
@@ -183,6 +200,11 @@ class LinearIsect(Intersector):
     # rax - pointer to ray
     # rbx - pointer to hitpoint
     def _generate_code_section64(self, runtimes, label, visibility):
+        if visibility:
+            shp_types = self.mgr.dielectric_shape_types()
+        else:
+            shp_types = self.mgr.shape_types()
+
         ASM = "#CODE \n"
         ASM += "global " + label + ":\n"
         ASM += """
@@ -196,7 +218,7 @@ class LinearIsect(Intersector):
             mov dword [rbx + Hitpoint.t], edx
             """
         code = ""
-        for shp_type in self.mgr.shape_types():
+        for shp_type in shp_types:
             code1 = """ 
             ;=== intersection of array
             mov rax, qword [r1]

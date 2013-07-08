@@ -22,7 +22,7 @@ def _zero_spectrum(vals):
     return r == 0.0 and g == 0.0 and b == 0.0
 
 def _create_material(name, values, project):
-    Ka = Kd = Ks = Ke = Ns = illum = d = Tr = Tf = None
+    Ka = Kd = Ks = Ke = Ns = Ni = illum = d = Tr = Tf = None
     map_Ka = map_Kd = map_Ks = map_d = None
 
     if 'Ka' in values and not _zero_spectrum(values['Ka']):
@@ -35,6 +35,8 @@ def _create_material(name, values, project):
         Ke = _create_spectrum(values['Ke'], project)
     if 'Ns' in values:
         Ns = float(values['Ns'][0])
+    if 'Ni' in values:
+        Ni = float(values['Ni'][0])
     if 'd' in values:
         d = float(values['d'][0])
     if 'Tr' in values:
@@ -54,7 +56,12 @@ def _create_material(name, values, project):
 
     props = {}
     #just basic lambertian and anisotropic ward
-    if Kd is not None and Ks is not None and Ns is not None:
+    if illum is not None and illum == 6 and Ni is not None:
+        props['ior'] = Ni
+        mat = project.create_material(name, 'glass', props, dielectric=True)
+        project.mat_mgr.add(name, mat)
+
+    elif Kd is not None and Ks is not None and Ns is not None:
         props['diffuse'] = Kd
         props['specular'] = Ks
         props['exponent'] = Ns

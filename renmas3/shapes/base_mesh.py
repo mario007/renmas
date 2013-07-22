@@ -222,3 +222,12 @@ class BaseMesh(Shape):
     def __getstate__(self):
         return {}
 
+    def translate(self, dx, dy, dz):
+        pass
+
+    def translate(self, sx, sy, sz):
+        pass
+
+    def prepare(self, performanse=False):
+        pass
+

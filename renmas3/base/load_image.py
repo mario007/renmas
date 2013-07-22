@@ -58,6 +58,7 @@ def load_image(fname):
     typ = _detect_format(fname)
     if typ is None:
         return None #unknown type of image file
+    typ = typ.lower()
     if typ in _image_loaders:
         return _image_loaders[typ](fname)
 

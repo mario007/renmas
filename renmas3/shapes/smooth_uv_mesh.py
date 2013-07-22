@@ -19,14 +19,21 @@ class SmoothUVMesh(BaseMesh):
         self._tb = tb
         self.material_idx = material_idx
 
-        self._grid = GridMesh()
-        self._grid.setup(self)
-
     def bbox(self):
         min_p, max_p = self._vb.bbox()
         p0 = Vector3(min_p[0], min_p[1], min_p[2])
         p1 = Vector3(max_p[0], max_p[1], max_p[2])
         return BBox(p0, p1)
+
+    def translate(self, dx, dy, dz):
+        self._vb.translate(dx, dy, dz)
+
+    def scale(self, sx, sy, sz):
+        self._vb.scale(sx, sy, sz)
+
+    def prepare(self, performanse=False):
+        self._grid = GridMesh()
+        self._grid.setup(self, performanse=performanse)
 
     def ntriangles(self):
         return self._tb.size()

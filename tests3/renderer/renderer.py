@@ -9,16 +9,21 @@ ren = Renderer()
 #ren.parse_scene_file('../scenes/cornel1.txt')
 #ren.parse_scene_file('../scenes/cornel2.txt')
 #ren.parse_scene_file('../scenes/cornel3.txt')
+
 ren.parse_scene_file('../scenes/cornel4.txt')
 #ren.parse_scene_file('../scenes/cube.txt')
 #ren.parse_scene_file('../scenes/dragon.txt')
 #ren.parse_scene_file('../scenes/dielectric.txt')
+#ren.parse_scene_file('../scenes/dielectric2.txt')
 
 #ren.parse_scene_file('F:/ray_tracing_scenes/mitsuba_material/scene.txt')
 #ren.parse_scene_file('F:/ray_tracing_scenes/san-miguel/scene.txt')
 #ren.open_project('scene1.proj')
 
+start = time.clock()
 ren.prepare()
+end = time.clock() - start
+print ("Prezivili pripremu. Priprema trajala %f" % end)
 
 start = time.clock()
 ret = False

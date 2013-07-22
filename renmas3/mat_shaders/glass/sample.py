@@ -15,8 +15,23 @@ if tir < 0.0: #TIR happend -- we just sample reflection ray
     shadepoint.reflection_type = 69
     return 0
 
+
+tmp = ior - 1.0
+tmp2 = ior + 1.0
+R0 = tmp / tmp2
+R0 = R0 * R0
+wo = shadepoint.wo * -1.0
+cosine = dot(wo, hitpoint.normal)
+if cosine < 0.0:
+    cosine = cosine * -1.0
+tmp = 1.0 - cosine
+tmp = tmp * tmp * tmp * tmp * tmp
+tmp2 = 1.0 - R0
+R = tmp * tmp2 + R0
+P = 0.5 * R + 0.25
+
 tmp = random()
-if tmp > 0.5: # reflection ray
+if tmp < P: # reflection ray
     shadepoint.wi = normal * ndotwo * 2.0 - shadepoint.wo
     shadepoint.reflection_type = 69
     return 0

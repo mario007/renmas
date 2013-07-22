@@ -9,6 +9,7 @@ from .bbox import BBox
 import renmas3.switch as proc
 from .hit import HitPoint
 from ..macros import create_assembler, MacroCall
+from .tri_box_overlap import tri_box_overlap
 
 def clamp(x, minimum, maximum):
     return max(minimum, min(maximum, x))
@@ -18,7 +19,7 @@ class GridMesh:
         self.bbox = None
         self.mesh = None
 
-    def setup(self, mesh):
+    def setup(self, mesh, performanse=False):
         self.mesh = mesh
 
         start_time = time.clock()
@@ -64,6 +65,10 @@ class GridMesh:
         nzwz = float(nz) / wz
         nxny = nx * ny
          
+        nx_part = wx / float(nx)
+        ny_part = wy / float(ny)
+        nz_part = wz / float(nz)
+
         start_time = time.clock()
         for idx_triangle in range(ntriangles):
             ob_min, ob_max = mesh.bbox_triangle(idx_triangle)
@@ -97,19 +102,38 @@ class GridMesh:
             stx = ixmin
             sty = iymin
             
+            if performanse:
+                v0, v1, v2 = mesh.get_indices(idx_triangle)
+                p0 = mesh.get_point(v0)
+                p1 = mesh.get_point(v1)
+                p2 = mesh.get_point(v2)
+            
             while True:
                 ixmin = stx
                 iymin = sty
                 while True:
                     ixmin = stx
                     while True:
-                        idx = ixmin + nx * iymin + nx * ny * izmin
-                        cells[idx].append(idx_triangle)
+                        ret = 1 
+                        if performanse:
+                            start_x = ixmin * nx_part + bbox.x0
+                            end_x = (ixmin + 1) * nx_part + bbox.x0
+                            start_y = iymin * ny_part  + bbox.y0
+                            end_y = (iymin + 1) * ny_part + bbox.y0
+                            start_z = izmin * nz_part + bbox.z0
+                            end_z = (izmin + 1) * nz_part + bbox.z0
+                            box_center = ((start_x+end_x)/2.0, (start_y+end_y)/2.0, (start_z+end_z)/2.0)
+                            half_size = ((end_x-start_x)/2.0, (end_y-start_y)/2.0, (end_z-start_z)/2.0)
+                            ret = tri_box_overlap(box_center, half_size, (p0,p1,p2))
 
-                        duzina = len(cells[idx])
-                        num_objects += 1
-                        if duzina == 1: num_arrays += 1
-                        if duzina > max_len: max_len = duzina
+                        if ret == 1:
+                            idx = ixmin + nx * iymin + nx * ny * izmin
+                            cells[idx].append(idx_triangle)
+
+                            duzina = len(cells[idx])
+                            num_objects += 1
+                            if duzina == 1: num_arrays += 1
+                            if duzina > max_len: max_len = duzina
 
                         if ixmin == ixmax: break
                         ixmin += 1

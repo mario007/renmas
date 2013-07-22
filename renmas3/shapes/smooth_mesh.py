@@ -19,8 +19,15 @@ class SmoothMesh(BaseMesh):
         self._tb = tb
         self.material_idx = material_idx
 
+    def translate(self, dx, dy, dz):
+        self._vb.translate(dx, dy, dz)
+
+    def scale(self, sx, sy, sz):
+        self._vb.scale(sx, sy, sz)
+
+    def prepare(self, performanse=False):
         self._grid = GridMesh()
-        self._grid.setup(self)
+        self._grid.setup(self, performanse=performanse)
 
     def bbox(self):
         min_p, max_p = self._vb.bbox()

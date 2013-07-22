@@ -10,11 +10,21 @@ from .expps import exp_ps_asm
 from .expss import exp_ss_asm
 from .sinps import sin_ps_asm
 from .sinss import sin_ss_asm
+from .tanps import tan_ps_asm
+from .tanss import tan_ss_asm
+from .atanps import atan_ps_asm
+from .atanss import atan_ss_asm
+from .asinps import asin_ps_asm
+from .asinss import asin_ss_asm
 from .cosps import cos_ps_asm
 from .cosss import cos_ss_asm
+from .acosps import acos_ps_asm
+from .acosss import acos_ss_asm
 from .sincosps import sincos_ps_asm
 from .random_float import random_float
 from .hemisphere import sample_hemisphere_asm
+from .atanr2ss import atanr2_ss_asm
+from .atanr2ps import atanr2_ps_asm
 
 _asm_functions = {}
 _asm_functions['pow_ps'] = pow_ps_asm 
@@ -24,12 +34,23 @@ _asm_functions['log_ss'] = log_ss_asm
 _asm_functions['exp_ps'] = exp_ps_asm
 _asm_functions['exp_ss'] = exp_ss_asm
 _asm_functions['sin_ps'] = sin_ps_asm
+_asm_functions['asin_ss'] = asin_ss_asm
+_asm_functions['asin_ps'] = asin_ps_asm
 _asm_functions['sin_ss'] = sin_ss_asm
 _asm_functions['cos_ps'] = cos_ps_asm
 _asm_functions['cos_ss'] = cos_ss_asm
+_asm_functions['acos_ps'] = acos_ps_asm
+_asm_functions['acos_ss'] = acos_ss_asm
 _asm_functions['random'] = random_float
 _asm_functions['sincos_ps'] = sincos_ps_asm
 _asm_functions['sample_hemisphere'] = sample_hemisphere_asm
+_asm_functions['tan_ps'] = tan_ps_asm
+_asm_functions['tan_ss'] = tan_ss_asm
+_asm_functions['atan_ps'] = atan_ps_asm
+_asm_functions['atan_ss'] = atan_ss_asm
+
+_asm_functions['atanr2_ss'] = atanr2_ss_asm
+_asm_functions['atanr2_ps'] = atanr2_ps_asm
 
 _compiled_funs ={}
 

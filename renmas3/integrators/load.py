@@ -149,6 +149,10 @@ while ret != 0:
             ray.dir = shadepoint.wi
             hit2 = isect(ray, hitpoint)
             if hit2 == 0:
+                shadepoint.wo = ray.dir
+                environment_emission(hitpoint, shadepoint)
+                env_em = shadepoint.light_intensity * path
+                acum_col = acum_col + env_em 
                 break
             cur_depth = cur_depth + 1
 

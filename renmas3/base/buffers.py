@@ -57,8 +57,8 @@ class Vertices(Buffer):
         for i in range(self._size):
             p = x86.GetFloat(addr, 0, 3)
             v0 = xs * p[0]
-            v1 = xy * p[1]
-            v2 = xz * p[2]
+            v1 = ys * p[1]
+            v2 = zs * p[2]
             x86.SetFloat(addr, (v0, v1, v2, 0.0), 0)
             addr += self._item_size
 

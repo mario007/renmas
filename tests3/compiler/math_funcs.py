@@ -79,6 +79,37 @@ ret4 = pow((1.9, 1.15, 2.11, 2.22), (1.77, 2.21, 2.5, 2.71))
     def test_sqrt(self):
         self.math_fun_test('sqrt', math.sqrt)
 
+    def test_acos(self):
+        self.math_fun_test('acos', math.acos)
+
+    def test_asin(self):
+        self.math_fun_test('asin', math.asin)
+
+    def test_tan(self):
+        self.math_fun_test('tan', math.tan)
+
+    def test_atan(self):
+        self.math_fun_test('atan', math.atan)
+
+    def test_atanr2(self):
+        code = """
+ret = atanr2(1.4, 4.4)
+ret2 = atanr2((1.1, 1.25), (2.1, 3.1))
+        """
+        props = {'ret':1.1, 'ret2':Vector2(2.2, 4), 'ret3':Vector3(5,6,7),
+                'ret4':Vector4(11,1,1,1)}
+        bs = BasicShader(code, props)
+        runtime = Runtime()
+        bs.prepare([runtime])
+        #print (bs.shader._code)
+
+        bs.execute()
+        val = bs.shader.get_value('ret')
+        self.assertAlmostEqual(val, math.atan2(1.4, 1.0/4.4), places=3)
+        val = bs.shader.get_value('ret2')
+        self.assertAlmostEqual(val.x, math.atan2(1.1, 1.0/2.1), places=3)
+        self.assertAlmostEqual(val.y, math.atan2(1.25, 1.0/3.1), places=3)
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -286,13 +286,16 @@ class Renderer:
     def prepare_materials_emission(self, runtimes):
         return self._project.mat_mgr.prepare_emission('emission', runtimes, self._project.col_mgr)
 
+    def prepare_environment(self, runtimes):
+        return self._project.lgt_mgr.prepare_environment('environment_emission', runtimes, self._project.col_mgr)
+
     def prepare(self):
         """Prepare renderer for rendering. Compile all shaders. Build
         acceleration structures."""
         if self._project is None:
             raise ValueError("Project is not created!")
         nthreads = self._project.nthreads
-        self._runtimes = [Runtime(code=4, data=4) for n in range(nthreads)]
+        self._runtimes = [Runtime(code=8, data=8) for n in range(nthreads)]
 
         if self._project.sampler is None:
             raise ValueError("Sampler is not defined!")
@@ -341,11 +344,12 @@ class Renderer:
         sam_mat_sh = self.prepare_materials_samples(runtimes)
         pdf_sh = self.prepare_materials_pdf(runtimes)
         em_sh = self.prepare_materials_emission(runtimes)
+        env_em = self.prepare_environment(runtimes)
 
         nlight_sh = self._project.lgt_mgr.nlights_shader('number_of_lights', runtimes)
 
         self._integrator.prepare(runtimes, [sam_sh, cam_sh, film_sh, isect_sh,
-            lgt_sh, mat_sh, nlight_sh, visible_sh, sam_mat_sh, pdf_sh, em_sh])
+            lgt_sh, mat_sh, nlight_sh, visible_sh, sam_mat_sh, pdf_sh, em_sh, env_em])
 
     def _isect_shader(self, runtimes):
         if self._intersector is None:

@@ -755,6 +755,106 @@ class ColorManager:
             return SampledSpectrum([0.0]*self._nsamples)
         else:
             return RGBSpectrum(0.0, 0.0, 0.0)
+    
+    def chromacity_to_spectrum(self, x, y):
+        M1 = (-1.3515 - 1.7703 * x +  5.9114 * y) / (0.0241 + 0.2562 * x - 0.7341 * y)
+        M2 = ( 0.03   -31.4424 * x + 30.0717 * y) / (0.0241 + 0.2562 * x - 0.7341 * y)
+        spec = self._s0 + self._s1 * M1 + self._s2 * M2
+        if self._spectral:
+            return spec
+        else:
+            return self.to_RGB(spec)
+
+    # xmm0 = x
+    # xmm1 = y
+    # eax = pointer to spectrum
+    def chromacity_to_spectrum_asm(self, runtimes, label):
+        #NOTE for this function we temporarly switch to spectral
+        # so that we got correct asm functions 
+        old_value = self._spectral
+        self._spectral = True
+
+        asm_struct = self.spectrum_asm_struct()
+        ASM = """
+            #DATA
+        """
+        ASM += asm_struct +  """
+            Spectrum s0, s1, s2 
+            float m1, m2
+            float con1 = 0.0241
+            float con2 = 0.2562
+            float con3 = 0.7341
+            float con4 = 1.3515
+            float con5 = 1.7703
+            float con6 = 5.9114
+            float con7 = 0.03
+            float con8 = 31.4424
+            float con9 = 30.0717
+            
+            Spectrum temp1, temp2
+            #CODE
+        """
+        ASM += " global " + label + ":\n" + """
+        macro eq32 xmm2 = xmm0 * con2 + con1 {xmm7}
+        macro eq32 xmm3 = xmm1 * con3 {xmm7}
+        macro eq32 xmm2 = xmm2 - xmm3 {xmm7}
+        macro eq32 xmm4 = xmm1 * con6 - con4 {xmm7}
+        macro eq32 xmm5 = xmm0 * con5 {xmm7}
+        macro eq32 xmm4 = xmm4 - xmm5 {xmm7}
+        macro eq32 xmm4 = xmm4 / xmm2 {xmm7}
+        macro eq32 xmm5 = xmm1 * con9 + con7 {xmm7}
+        macro eq32 xmm6 = xmm0 * con8 {xmm7}
+        macro eq32 xmm5 = xmm5 - xmm6 {xmm7}
+        macro eq32 xmm5 = xmm5 / xmm2 {xmm7}
+
+        macro eq32 m1 = xmm4 {xmm7}
+        macro eq32 m2 = xmm5 {xmm7}
+        
+        macro mov ecx, temp1 
+        macro mov ebx, s1
+        macro spectrum ecx = xmm4 * ebx 
+
+        macro mov ecx, temp2
+        macro mov ebx, s2
+        macro eq32 xmm4 = m2
+        macro spectrum ecx = xmm4 * ebx 
+
+        macro mov edx, temp1
+        macro spectrum ebx = ecx + edx
+
+        macro mov edx, s0
+        macro spectrum ebx = ebx + edx
+        """
+        if old_value:
+            ASM += "macro spectrum eax = ebx\n"
+        else:
+            push = "macro push eax\n"
+            if self._bits == '64bit':
+                mov = "mov rax, rbx\n"
+            else:
+                mov = "mov eax, ebx\n"
+            conv_to_rgb = "chromacity_conv" + str(id(self))
+            self.to_RGB_asm(runtimes, conv_to_rgb)
+            asm_call = "call %s\n" % conv_to_rgb 
+            pop = "macro pop eax\n"
+            store = "macro eq128 eax.Spectrum.values = xmm0 {xmm7}\n"
+            ASM += push + mov + asm_call + pop + store 
+        ASM += """
+        ret
+        """
+
+        mc = self.create_assembler().assemble(ASM, True)
+        #mc.print_machine_code()
+        name = "chromacity_to_spectrum" + str(id(self))
+        for r in runtimes:
+            if not r.global_exists(label):
+                ds = r.load(name, mc)
+                ds['s0.values'] = self._s0.to_ds()
+                ds['s1.values'] = self._s1.to_ds()
+                ds['s2.values'] = self._s2.to_ds()
+
+        self._spectral = old_value
+
 
     def load_asm_function(self, func, runtimes):
 
@@ -765,5 +865,7 @@ class ColorManager:
             self.rgb_to_sampled_asm(runtimes, label)
         elif func_name == "luminance":
             self.Y_asm(runtimes, label)
+        elif func_name == "chromacity_to_spectrum":
+            self.chromacity_to_spectrum_asm(runtimes, label)
         else:
             raise ValueError("Cannot load asm function ", func_name)

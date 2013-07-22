@@ -1,3 +1,5 @@
+import os.path
+from renmas3.base import load_image
 
 #Ka 0.0435 0.0435 0.0435
 #Kd 0.1086 0.1086 0.1086
@@ -21,7 +23,7 @@ def _zero_spectrum(vals):
     r, g, b = float(vals[0]), float(vals[1]), float(vals[2])
     return r == 0.0 and g == 0.0 and b == 0.0
 
-def _create_material(name, values, project):
+def _create_material(name, values, project, directory):
     Ka = Kd = Ks = Ke = Ns = Ni = illum = d = Tr = Tf = None
     map_Ka = map_Kd = map_Ks = map_d = None
 
@@ -61,6 +63,15 @@ def _create_material(name, values, project):
         mat = project.create_material(name, 'glass', props, dielectric=True)
         project.mat_mgr.add(name, mat)
 
+    elif map_Kd is not None:
+        fname = os.path.join(directory, map_Kd)
+        image = load_image(fname)
+        if image is None:
+            raise ValueError("Image is None ", map_Kd)
+        props['texture'] = image
+        mat = project.create_material(name, 'lambertian_texture', props)
+        project.mat_mgr.add(name, mat)
+
     elif Kd is not None and Ks is not None and Ns is not None:
         props['diffuse'] = Kd
         props['specular'] = Ks
@@ -85,7 +96,7 @@ def parse_matlib(fobj, project):
         vals = line.split()
         if vals[0].strip() == 'newmtl':
             if name is not None:
-                _create_material(name, values, project)
+                _create_material(name, values, project, os.path.dirname(fobj.name))
             values.clear()
             name = vals[1].strip()
             continue
@@ -93,6 +104,6 @@ def parse_matlib(fobj, project):
         values[vals[0].strip()] = vals[1:]
 
     if name is not None:
-        _create_material(name, values, project)
+        _create_material(name, values, project, os.path.dirname(fobj.name))
 
 

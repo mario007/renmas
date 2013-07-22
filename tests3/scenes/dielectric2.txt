@@ -17,7 +17,7 @@
 Options
 sampler_type = random
 pixel_size = 0.5
-nsamples = 128 
+nsamples = 4 
 width = 1024
 height = 1024
 nthreads = 8
@@ -172,12 +172,14 @@ material = green
 End
 
 Shape
-type = Sphere
-name = Sphere 1
-radius = 0.08
-origin = 0.2, 0.1, 0.3
+type = Mesh
+#fname = dragon_vrip_res4.ply
+fname = dragon_vrip.ply
+translate = 0.2, -0.05, 0.1
+scale = 1.5, 1.5, 1.5
 material = simple_glass
 End
+
 
 
 ##     2) The light is defined as a point (instead of a quad with points             ##

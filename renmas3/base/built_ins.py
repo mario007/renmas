@@ -182,6 +182,35 @@ def _rgb_to_spectrum(cgen, args):
 
 register_function('rgb_to_spectrum', _rgb_to_spectrum, inline=False) 
 
+def _chromacity_to_spectrum(cgen, args):
+    if len(args) != 2:
+        raise ValueError("Function accept two arguements!", args)
+    cgen.clear_regs()
+    xmm1 = cgen.register(reg='xmm0')
+    xmm2 = cgen.register(reg='xmm1')
+    code1, reg1, typ1 = load_operand(cgen, args[0], dest_reg=xmm1)
+    code2, reg2, typ2 = load_operand(cgen, args[1], dest_reg=xmm2)
+
+    if typ1 != Float or typ2 != Float:
+        raise ValueError("Type mismatch! Float arugment is expected.", args)
+
+    if cgen.BIT64:
+        reg3 = cgen.register(typ='general', bit=64, reg='rax')
+    else:
+        reg3 = cgen.register(typ='general', bit=32, reg='eax')
+    arg = cgen.create_tmp_spec()
+    code3, reg3, typ3 = arg.load_cmd(cgen, dest_reg=reg3)
+
+    label = 'chromacity_to_spectrum_yxmpa1y5z0p'
+    cgen.add_color_func('chromacity_to_spectrum', label)
+    call = 'call %s\n' % label
+
+    cgen.release_reg(xmm1)
+    cgen.release_reg(xmm2)
+    code = code1 + code2 + code3 + call
+    return code, reg3, typ3
+
+register_function('chromacity_to_spectrum', _chromacity_to_spectrum, inline=False) 
 
 def _luminance(cgen, args):
     if len(args) != 1:
@@ -459,12 +488,11 @@ def _label_sufix(AVX=False, BIT64=False):
     suffix = '%s_%s' % (avx, bit)
     return suffix
 
-def _pow(cgen, args):
+def _math_atanr2_pow(cgen, args, fun_ss, fun_ps):
     if len(args) != 2:
-        raise ValueError("Wrong number of arguments in pow fucntion", args)
+        msg = "Wrong number of arguments in %s, %s fucntion" % (fun_ss, fun_ps)
+        raise ValueError(msg, args)
 
-    #NOTE here we dont use load_func_args function because pow can accept
-    # different type parameters Float, Vector3, ...
     cgen.clear_regs()
     xmm1 = cgen.register(reg='xmm0')
     xmm2 = cgen.register(reg='xmm1')
@@ -472,25 +500,31 @@ def _pow(cgen, args):
     code2, reg2, typ2 = load_operand(cgen, args[1], dest_reg=xmm2)
 
     if typ1 != typ2:
-        raise ValueError("Type mismatch", typ1, typ2)
+        raise ValueError("Type mismatch atanr2 function!", typ1, typ2)
 
     if typ1 == Float:
-        label = 'fast_pow_ss_' + _label_sufix(cgen.AVX, cgen.BIT64) + '_yxa8mm3epu'
-        cgen.add_asm_function('pow_ss', label)
+        label = fun_ss + '_' + _label_sufix(cgen.AVX, cgen.BIT64) + '_yxa8mm3epu'
+        cgen.add_asm_function(fun_ss, label)
     elif typ1 == Vec2 or typ1 == Vec3 or typ1 == Vec4:
-        label = 'fast_pow_ps_' + _label_sufix(cgen.AVX, cgen.BIT64) + '_pxp3axmuj'
-        cgen.add_asm_function('pow_ps', label)
+        label = fun_ps + '_' + _label_sufix(cgen.AVX, cgen.BIT64) + '_pxp3axmuj'
+        cgen.add_asm_function(fun_ps, label)
     else:
-        raise ValueError("Unsuported type for pow", typ1)
+        raise ValueError("Unsuported type for math function", typ1)
+
     code3 = 'call %s\n' % label
-    code3 = code1 + code2 + code3
-    return code3, 'xmm0', typ1
+    code4 = code1 + code2 + code3
+    cgen.release_reg(reg2)
+    return code4, 'xmm0', typ1
+
+def _pow(cgen, args):
+    return _math_atanr2_pow(cgen, args, 'pow_ss', 'pow_ps')
 
 register_function('pow', _pow, inline=False) 
 
 def _math_fun(cgen, args, fun_ss, fun_ps):
     if len(args) != 1:
-        raise ValueError("Wrong number of arguments in pow fucntion", args)
+        msg = "Wrong number of arguments in %s, %s fucntion" % (fun_ss, fun_ps)
+        raise ValueError(msg, args)
 
     cgen.clear_regs()
     xmm1 = cgen.register(reg='xmm0')
@@ -529,6 +563,31 @@ def _cos(cgen, args):
     return _math_fun(cgen, args, 'cos_ss', 'cos_ps')
 
 register_function('cos', _cos, inline=False)
+
+def _acos(cgen, args):
+    return _math_fun(cgen, args, 'acos_ps', 'acos_ps')
+
+register_function('acos', _acos, inline=False)
+
+def _asin(cgen, args):
+    return _math_fun(cgen, args, 'asin_ss', 'asin_ps')
+
+register_function('asin', _asin, inline=False)
+
+def _tan(cgen, args):
+    return _math_fun(cgen, args, 'tan_ss', 'tan_ps')
+
+register_function('tan', _tan, inline=False)
+
+def _atan(cgen, args):
+    return _math_fun(cgen, args, 'atan_ss', 'atan_ps')
+
+register_function('atan', _atan, inline=False)
+
+def _atanr2(cgen, args):
+    return _math_atanr2_pow(cgen, args, 'atanr2_ss', 'atanr2_ps')
+
+register_function('atanr2', _atanr2, inline=False)
 
 def _random_funcs(cgen, args, rnd_fun, ret_type):
     if len(args) != 0:

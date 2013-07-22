@@ -31,13 +31,19 @@ class ShadePoint():
 register_user_type(ShadePoint)
 
 class SurfaceShader(BaseShader):
-    def __init__(self, code, props, col_mgr):
+    def __init__(self, code, props, col_mgr, method_name=None):
         super(SurfaceShader, self).__init__(code)
         self._col_mgr = col_mgr
         self.props = props
+        self._method_name = method_name
 
     def standalone(self):
         return False
+
+    def method_name(self):
+        if self._method_name is None:
+            return 'generic_shader_' + str(id(self))
+        return self._method_name
 
     def col_mgr(self):
         return self._col_mgr

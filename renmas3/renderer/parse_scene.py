@@ -1,3 +1,4 @@
+import time
 import os.path
 from ..base import Vector3, Spectrum
 from ..samplers import RegularSampler, RandomSampler
@@ -10,6 +11,7 @@ from .mat import Material
 from .materials import create_lambertian_brdf, create_lambertian_sample
 from .materials import create_lambertian_pdf, create_lambertian_emission
 from .parse_matlib import parse_matlib
+from .sunsky import SunSky
 
 def _parse_line(line):
     keyword, vals = line.split('=')
@@ -124,6 +126,17 @@ def _parse_shape(fobj, project):
 
         meshes = load_meshes_from_file(filename, project=project, material_loader=lambda mlib_fobj: parse_matlib(mlib_fobj, project))
         for name, mesh in meshes.items():
+            if 'translate' in values:
+                dx = float(values['translate'][0])
+                dy = float(values['translate'][1])
+                dz = float(values['translate'][2])
+                mesh.translate(dx, dy, dz)
+            if 'scale' in values:
+                sx = float(values['scale'][0])
+                sy = float(values['scale'][1])
+                sz = float(values['scale'][2])
+                mesh.scale(sx, sy, sz)
+            mesh.prepare(performanse=False)
             project.shapes.add(name, mesh)
             if 'material' in values:
                 mat_name = values['material'][0].strip()
@@ -156,6 +169,9 @@ def _parse_light(fobj, project):
         sh = create_point_illuminate(project.col_mgr, position, intesity)
         light = Light(illuminate=sh)
         project.lgt_mgr.add(_gen_name(light, 'light'), light)
+    elif typ == 'sunsky':
+        sun_sky = SunSky(project.col_mgr)
+        project.lgt_mgr.add('sun1', sun_sky)
     else:
         raise ValueError("Unsuported type of light!", typ)
 

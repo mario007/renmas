@@ -19,8 +19,6 @@ eta2 = eta * eta
 tir = 1.0 - tmp / eta2
 
 # schlick aproximation of fresnel
-cosine = dot(shadepoint.wo, normal)
-
 wo = shadepoint.wo * -1.0
 cosine = dot(wo, hitpoint.normal)
 if cosine < 0.0:

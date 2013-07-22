@@ -2,6 +2,7 @@
 from ..base import create_shader_function
 from .mat import func_pointers_shader
 from .surface import SurfaceShader
+from .sunsky import SunSky
 
 class AreaLight:
     def __init__(self, shape, material, col_mgr):
@@ -61,14 +62,27 @@ class LightManager:
     def __init__(self):
         self._lights = []
         self._lights_d = {}
+        self._environment = None
 
     def add(self, name, light):
         if name in self._lights_d:
             raise ValueError("Light with that name allready exist!")
-        if not isinstance(light, (Light, AreaLight)):
+        if not isinstance(light, (Light, AreaLight, SunSky)):
             raise ValueError("Type error. Light is expected!", light)
+        #TODO -- implement check not to add environment light more than once
+        if isinstance(light, SunSky):
+            self._environment = light
         self._lights.append(light)
         self._lights_d[name] = light
+
+    def prepare_environment(self, name, runtimes, col_mgr):
+        if self._environment is not None:
+            return self._environment.prepare_environment(name, runtimes)
+        code = "shadepoint.light_intensity = spectrum(0.0)"
+        illuminate = SurfaceShader(code, props={}, col_mgr=col_mgr,
+                method_name=name)
+        illuminate.prepare(runtimes, [])
+        return illuminate.shader
 
     def remove(self, name):
         if name not in self._lights_d:

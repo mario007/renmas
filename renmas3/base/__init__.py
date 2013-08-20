@@ -1,6 +1,6 @@
 
 from .vector3 import Vector2, Vector3, Vector4
-from .array import FloatArray, Int32Array, Int64Array
+from .array import FloatArray, Int32Array, Int64Array, FloatArray2D
 from .arg import Argument, ArgumentMap, ArgumentList
 from .integer import Integer, Float
 from .vec234 import Vec2, Vec3, Vec4

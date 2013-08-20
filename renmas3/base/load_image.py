@@ -4,6 +4,7 @@ import os.path
 from .image import ImageRGBA
 from .tga import load_tga
 from .rgbe import load_hdr
+from .ppm import load_ppm
 
 # extension in C++ that uses GDI+ to load image
 def _windows_image_loader(fname):
@@ -35,7 +36,8 @@ _image_loaders = {
         'png': load_png,
         'tga': load_tga,
         'jpg': load_jpg,
-        'hdr': load_hdr
+        'hdr': load_hdr,
+        'ppm': load_ppm
         }
 
 def register_image_loader(typ, func):

@@ -4,6 +4,7 @@ import os.path
 
 from .image import ImageBGRA
 from .tga import save_tga
+from .ppm import save_ppm
 
 # extension in C++ that uses GDI+ to load image
 def _windows_image_save(fname):
@@ -32,7 +33,8 @@ def save_png(fname, image):
 
 _image_writers = {
         'tga': save_tga,
-        'png': save_png
+        'png': save_png,
+        'ppm': save_ppm
         }
 
 def register_image_writer(typ, func):

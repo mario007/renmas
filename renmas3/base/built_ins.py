@@ -725,3 +725,47 @@ def _sqrt(cgen, args):
 
 register_function('sqrt', _sqrt, inline=True)
 
+def _get_item(cgen, args):
+    arg1 = cgen.get_arg(args[0])
+    if not isinstance(arg1, Struct):
+        raise ValueError("Array structure is expected.", arg1)
+    if arg1.typ.typ == "FloatArray" and len(args) != 2:
+        raise ValueError("Wrong number of arguments in get_item.", args)
+    elif arg1.typ.typ == "FloatArray2D" and len(args) != 3:
+        raise ValueError("Wrong number of arguments in get_item.", args)
+    if arg1.typ.typ != "FloatArray" and arg1.typ.typ != "FloatArray2D":
+        raise ValueError("Wrong array format", arg1.typ.typ)
+
+    code1, reg1, typ1 = load_operand(cgen, args[1])
+    if typ1 != Integer:
+        raise ValueError("Argument for index must be integer", typ1)
+    code2 = "imul %s, %s, 4\n" % (reg1, reg1) 
+    if arg1.typ.typ == "FloatArray2D":
+        code6, reg6, typ6 = load_operand(cgen, args[2])
+        code7, reg7, typ7 = load_operand(cgen, Attribute(arg1.name, 'pitch'))
+        code8 = "imul %s, %s\n" % (reg6, reg7) 
+        code9 = "add %s, %s\n" % (reg1, reg6) 
+        cgen.release_reg(reg6)
+        cgen.release_reg(reg7)
+        code2 = code2 + code6 + code7 + code8 + code9
+
+    code3, reg2, typ2 = load_operand(cgen, Attribute(arg1.name, 'address'))
+    if cgen.BIT64:
+        code4 = "add %s, %s\n" % (reg2, 'r' + reg1[1:]) #TODO better handle conversion of 32 and 64 registers
+    else:
+        code4 = "add %s, %s\n" % (reg2, reg1)
+
+    xmm_reg = cgen.register(typ='xmm')
+    if cgen.AVX:
+        code5 = "vmovss %s, dword [%s]\n" % (xmm_reg, reg2)
+    else:
+        code5 = "movss %s, dword [%s]\n" % (xmm_reg, reg2)
+
+    cgen.release_reg(reg1)
+    cgen.release_reg(reg2)
+
+    code = code1 + code2 + code3 + code4 + code5
+    return code, xmm_reg, Float
+
+register_function('get_item', _get_item, inline=True)
+

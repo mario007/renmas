@@ -1,6 +1,7 @@
 import time
+import math
 import os.path
-from ..base import Vector3, Spectrum
+from ..base import Vector3, Spectrum, load_image, ImagePRGBA
 from ..samplers import RegularSampler, RandomSampler
 from ..cameras import create_perspective_camera
 from ..shapes import Sphere, Triangle, Rectangle, load_meshes_from_file
@@ -12,6 +13,34 @@ from .materials import create_lambertian_brdf, create_lambertian_sample
 from .materials import create_lambertian_pdf, create_lambertian_emission
 from .parse_matlib import parse_matlib
 from .sunsky import SunSky
+from .env_light import EnvLight
+
+def _set_lat_long_coords(u, v):
+    theta = u * math.pi
+    phi = v * 2 * math.pi
+    x = math.sin(theta) * math.cos(phi)
+    y = math.cos(theta)
+    z = -math.sin(theta) * math.sin(phi)
+    return x, y, z
+
+def _get_mirror_ball_pixel_coord(x, y, z):
+    u = x / math.sqrt(2 * (1 + z))
+    v = y / math.sqrt(2 * (1 + z))
+    return u, v
+
+def conv_angular_to_ll(img):
+    width, height = img.size()
+    new_img = ImagePRGBA(width*2, height)
+    for j in range(height):
+        for i in range(width * 2):
+            x, y, z = _set_lat_long_coords(1 - j / float(height - 1), i / float(width * 2 - 1))
+            u, v = _get_mirror_ball_pixel_coord(x, y, z)
+            #convert to pixel coordiantes
+            u = (u + 1) * 0.5 * width
+            v = (v + 1) * 0.5 * height
+            r, g, b, a = img.get_pixel(int(u), int(v))
+            new_img.set_pixel(i, j, r, g, b, a)
+    return new_img
 
 def _parse_line(line):
     keyword, vals = line.split('=')
@@ -172,6 +201,14 @@ def _parse_light(fobj, project):
     elif typ == 'sunsky':
         sun_sky = SunSky(project.col_mgr)
         project.lgt_mgr.add('sun1', sun_sky)
+    elif typ == 'envlight':
+        directory = os.path.dirname(os.path.abspath(fobj.name))
+        fname = values['fname'][0].strip()
+        filename = os.path.join(directory, fname)
+        img = load_image(filename)
+        img = conv_angular_to_ll(img)
+        env_lgt = EnvLight(img, project.col_mgr)
+        project.lgt_mgr.add('env1', env_lgt)
     else:
         raise ValueError("Unsuported type of light!", typ)
 

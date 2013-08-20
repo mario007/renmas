@@ -3,6 +3,7 @@ from ..base import create_shader_function
 from .mat import func_pointers_shader
 from .surface import SurfaceShader
 from .sunsky import SunSky
+from .env_light import EnvLight
 
 class AreaLight:
     def __init__(self, shape, material, col_mgr):
@@ -34,14 +35,13 @@ wi = normalize(wi)
 shp_normal = shadepoint.shape_normal * -1.0
 cos_light = dot(shp_normal, wi)
 if cos_light < 0.0:
-    cos_light = 0.0
+    cos_light = cos_light * -1.0
 
 weight = cos_light / (shadepoint.shape_pdf * len_squared)
 shadepoint.light_intensity = shadepoint.material_emission * weight
 shadepoint.light_position = shadepoint.shape_sample
 shadepoint.wi = wi
         """
-
         illuminate = SurfaceShader(code, props={}, col_mgr=self.col_mgr)
         illuminate.prepare(runtimes, [sample_sh.shader, self.material.emission.shader])
         name = illuminate.method_name()
@@ -67,10 +67,10 @@ class LightManager:
     def add(self, name, light):
         if name in self._lights_d:
             raise ValueError("Light with that name allready exist!")
-        if not isinstance(light, (Light, AreaLight, SunSky)):
+        if not isinstance(light, (Light, AreaLight, SunSky, EnvLight)):
             raise ValueError("Type error. Light is expected!", light)
         #TODO -- implement check not to add environment light more than once
-        if isinstance(light, SunSky):
+        if isinstance(light, SunSky) or isinstance(light, EnvLight):
             self._environment = light
         self._lights.append(light)
         self._lights_d[name] = light

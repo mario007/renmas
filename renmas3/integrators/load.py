@@ -149,7 +149,7 @@ while ret != 0:
             ray.dir = shadepoint.wi
             hit2 = isect(ray, hitpoint)
             if hit2 == 0:
-                shadepoint.wo = ray.dir
+                shadepoint.wo = ray.dir * -1.0
                 environment_emission(hitpoint, shadepoint)
                 env_em = shadepoint.light_intensity * path
                 acum_col = acum_col + env_em 
@@ -159,7 +159,16 @@ while ret != 0:
         v = spectrum_to_rgb(acum_col)
         add_sample(sample, v)
     else:
-        add_sample(sample, background)
+        shadepoint.wo = ray.dir * -1.0
+        environment_emission(hitpoint, shadepoint)
+        emm = shadepoint.light_intensity
+        env_em = luminance(emm)
+        if env_em > 0.001:
+            v = spectrum_to_rgb(shadepoint.light_intensity)
+            #add_sample(sample, v)
+            add_sample(sample, background)
+        else:
+            add_sample(sample, background)
 """
 
 _integrators['pathtracer'] = Pathtracer_code

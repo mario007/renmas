@@ -29,7 +29,7 @@ class Project:
         self.integrators_code = None
         self.nthreads = 1
         self.shapes = ShapeManager()
-        self.col_mgr = ColorManager(spectral=True)
+        self.col_mgr = ColorManager(spectral=False)
         self.lgt_mgr = LightManager()
         self.mat_mgr = MaterialManager()
 

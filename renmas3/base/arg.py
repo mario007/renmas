@@ -75,6 +75,7 @@ class Argument:
 
     @classmethod
     def item_supported(cls, typ):
+        """Only for array types. Is array accepts this type of items."""
         return False
 
     @classmethod

@@ -2,7 +2,7 @@
 Options
 sampler_type = random
 pixel_size = 1.0
-nsamples = 10
+nsamples = 100
 width = 400
 height = 400
 nthreads = 1
@@ -23,7 +23,7 @@ End
 
 Light
 type = EnvLight 
-fname = grace_probe.hdr
+fname = uffizi-large.hdr
 End
 
 Material

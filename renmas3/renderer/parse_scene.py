@@ -206,7 +206,7 @@ def _parse_light(fobj, project):
         fname = values['fname'][0].strip()
         filename = os.path.join(directory, fname)
         img = load_image(filename)
-        img = conv_angular_to_ll(img)
+        #img = conv_angular_to_ll(img)
         env_lgt = EnvLight(img, project.col_mgr)
         project.lgt_mgr.add('env1', env_lgt)
     else:

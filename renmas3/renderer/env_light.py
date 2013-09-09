@@ -135,18 +135,29 @@ pdf2 = midval
 
 height = float(img.height)
 width = float(img.width)
-phi = 6.2831853 * val1 / height
-theta = 3.14159 * val2 / width
+
+
+#phi = 6.2831853 * val1 / height
+#theta = 3.14159 * val2 / width
+u = float(val2) / width * 2.0
+v = float(val1) / height
+theta = 3.14159 * (u - 1.0)
+phi = 3.14159 * v
+
 tmp = sin(theta)
 if tmp < 0.0:
     tmp = tmp * -1.0
 tmp = tmp * pi22
 pdf = pdf1 * pdf2 / tmp
 
-sin_theta = sin(theta)
-x = cos(phi) * sin_theta
-y = cos(theta)
-z = sin(phi) * sin_theta
+x = sin(phi) * sin(theta)
+y = cos(phi)
+z = sin(phi) * cos(theta)
+z = z * -1.0
+#sin_theta = sin(theta)
+#x = cos(phi) * sin_theta
+#y = cos(theta)
+#z = sin(phi) * sin_theta
 
 wi = float3(x, y, z)
 wi = normalize(wi)

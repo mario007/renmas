@@ -210,7 +210,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				RECT rect;
 				HDC hdc = GetDC(hwnd);
 				GetWindowRect(GetDesktopWindow(), &rect);
-				FrameBuffer *fb = new FrameBuffer(rect.right, rect.bottom, hwnd, hdc);
+				//FrameBuffer *fb = new FrameBuffer(rect.right, rect.bottom, hwnd, hdc);
+				FrameBuffer *fb = new FrameBuffer(2560, 1600, hwnd, hdc);
 				SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)fb);
 				ReleaseDC(hwnd, hdc);
 			}

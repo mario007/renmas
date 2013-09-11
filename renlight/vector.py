@@ -248,3 +248,10 @@ class Vector4:
         self.w = t * self.w
         return self
 
+    @classmethod
+    def create(cls, *args):
+        """
+            Create new Vector4.
+        """
+        return Vector4(float(args[0]), float(args[1]), float(args[2]), float(args[3]))
+

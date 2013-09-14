@@ -1,6 +1,6 @@
 
 import unittest
-loader = unittest.TestLoader()
-suite = loader.discover('base')
-#suite.addTests(loader.discover('base'))
+from unittest import TestLoader
+suite = TestLoader().discover('base')
+suite.addTests(TestLoader().discover('sdl'))
 unittest.TextTestRunner(verbosity=3).run(suite)

@@ -1,16 +1,17 @@
 
 """
     This module contain implementation of basic vector types.
-    
 """
 
 import math
+
 
 class Vector2:
     """
         Implementation of Vector2 type.
     """
     __slots__ = ['x', 'y']
+
     def __init__(self, x, y):
         """
             Constructor accept x and y component of the vector.
@@ -81,6 +82,7 @@ class Vector3:
         Implementation of Vector3 type.
     """
     __slots__ = ['x', 'y', 'z']
+
     def __init__(self, x, y, z):
         """
             Constructor accept x, y and z component of the vector.
@@ -118,7 +120,7 @@ class Vector3:
             Return True if two vectors are equal otherwise False.
         """
         return (self.x == vec.x) and (self.y == vec.y) and (self.z == vec.z)
-    
+
     def __mul__(self, t):
         """
             Return new vector that is scaled by factor t.
@@ -156,7 +158,7 @@ class Vector3:
         """
             Return length squared.
         """
-        return (self.x * self.x) + (self.y * self.y) + (self.z * self.z) 
+        return (self.x * self.x) + (self.y * self.y) + (self.z * self.z)
 
     def normalize(self):
         """
@@ -164,7 +166,7 @@ class Vector3:
         """
         length = self.length()
         if length == 0.0:
-            return self  
+            return self
         return self.scale(1.0 / length)
 
     def cross(self, vec):
@@ -172,8 +174,8 @@ class Vector3:
             Return cross product of two vectors.
         """
         return Vector3(self.y * vec.z - self.z * vec.y,
-                      self.z * vec.x - self.x * vec.z,
-                      self.x * vec.y - self.y * vec.x)
+                       self.z * vec.x - self.x * vec.z,
+                       self.x * vec.y - self.y * vec.x)
 
     @classmethod
     def create(cls, *args):
@@ -182,11 +184,13 @@ class Vector3:
         """
         return Vector3(float(args[0]), float(args[1]), float(args[2]))
 
+
 class Vector4:
     """
         Implementation of Vector4 type.
     """
     __slots__ = ['x', 'y', 'z', 'w']
+
     def __init__(self, x, y, z, w):
         """
             Constructor accept x, y, z and w component of the vector.
@@ -212,19 +216,22 @@ class Vector4:
         """
             Return new vector that is sum of two vectors.
         """
-        return Vector4(self.x + vec.x, self.y + vec.y, self.z + vec.z, self.w + vec.w)
+        return Vector4(self.x + vec.x, self.y + vec.y,
+                       self.z + vec.z, self.w + vec.w)
 
     def __sub__(self, vec):
         """
             Return new vector that is difference of two vectors.
         """
-        return Vector4(self.x - vec.x, self.y - vec.y, self.z - vec.z, self.w - vec.w)
+        return Vector4(self.x - vec.x, self.y - vec.y,
+                       self.z - vec.z, self.w - vec.w)
 
     def __eq__(self, vec):
         """
             Return True if two vectors are equal otherwise False.
         """
-        return (self.x == vec.x) and (self.y == vec.y) and (self.z == vec.z) and (self.w == vec.w)
+        return (self.x == vec.x) and (self.y == vec.y) and \
+            (self.z == vec.z) and (self.w == vec.w)
 
     def __mul__(self, t):
         """
@@ -253,5 +260,6 @@ class Vector4:
         """
             Create new Vector4.
         """
-        return Vector4(float(args[0]), float(args[1]), float(args[2]), float(args[3]))
+        return Vector4(float(args[0]), float(args[1]),
+                       float(args[2]), float(args[3]))
 

@@ -23,13 +23,14 @@ def _conv_rgba_bgra_asm32():
     ror eax, 8
     mov dword [edi], eax
 
-    add esi, 4 
-    add edi, 4 
+    add esi, 4
+    add edi, 4
     sub ebp, 1
     jnz _loop
     #END
     """
     return ASM
+
 
 def _conv_rgba_bgra_asm64():
     ASM = """
@@ -69,11 +70,13 @@ def _conv_rgba_bgra_asm():
 
 _runtime, _ds = _conv_rgba_bgra_asm()
 
+
 def _convert_pixels(npixels, src, dst):
     _ds['npixels'] = npixels
     _ds['ptr_src'] = src
-    _ds['ptr_dst'] = dst 
+    _ds['ptr_dst'] = dst
     _runtime.run('convert')
+
 
 class Image:
     """

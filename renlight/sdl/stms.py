@@ -6,12 +6,14 @@
 from .strs import Const, Callable
 from .asm_cmds import process_expression, store_const, store_operand
 from .asm_cmds import move_reg_to_acum, generate_test
+from .args import IntArg
+
 
 class Statement:
     """
         Abstract base class that define interface for statements.
     """
-    
+
     def asm_code(self, cgen):
         """
             Generate assembly code for this statement.
@@ -23,10 +25,10 @@ class Statement:
 class StmAssign(Statement):
     def __init__(self, dest, expr):
         self.dest = dest
-        self.expr = expr 
+        self.expr = expr
 
     def asm_code(self, cgen):
-        if isinstance(self.expr, Const): #little optimization
+        if isinstance(self.expr, Const):  # little optimization
             code = store_const(cgen, self.dest, self.expr)
             return code
         elif isinstance(self.expr, Callable) and cgen.is_user_type(self.expr):
@@ -40,7 +42,7 @@ class StmAssign(Statement):
 
 class StmExpression(Statement):
     def __init__(self, expr):
-        self.expr = expr 
+        self.expr = expr
 
     def asm_code(self, cgen):
         code, reg, typ = process_expression(cgen, self.expr)
@@ -49,15 +51,15 @@ class StmExpression(Statement):
 
 class StmReturn(Statement):
     def __init__(self, expr):
-        self.expr = expr 
+        self.expr = expr
 
     def asm_code(self, cgen):
         if self.expr is None:
-            cgen.register_ret_type(Integer)
+            cgen.register_ret_type(IntArg)
             return "ret\n"
         code, reg, typ = process_expression(cgen, self.expr)
         cgen.register_ret_type(typ)
-        code2 = move_reg_to_acum(cgen, reg, typ) 
+        code2 = move_reg_to_acum(cgen, reg, typ)
         return code + code2 + "ret\n"
 
 

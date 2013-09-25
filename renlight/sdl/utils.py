@@ -2,10 +2,13 @@
     Utilities classes.
 """
 import struct
+from .args import StructArg
+
 
 class Registers:
     def __init__(self):
-        self._xmm = ('xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0')
+        self._xmm = ('xmm7', 'xmm6', 'xmm5', 'xmm4',
+                     'xmm3', 'xmm2', 'xmm1', 'xmm0')
         self._general32 = ('ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax')
         self._general64 = ('rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax')
 
@@ -39,10 +42,18 @@ class LocalArgs:
             self._free_args[type(arg)] = set()
         self._free_args[type(arg)].add(arg)
 
-    def _get_free_arg(self, arg_type):
+    def _get_free_arg(self, arg):
+        arg_type = type(arg)
+        typ1 = type(arg.value)
         if arg_type in self._free_args:
             try:
-                return self._free_args[arg_type].pop()
+                if isinstance(arg, StructArg):
+                    for a in self._free_args[arg_type]:
+                        if isinstance(a.value, typ1):
+                            self._free_args[arg_type].remove(a)
+                            return a
+                else:
+                    return self._free_args[arg_type].pop()
             except KeyError:
                 return None
         return None
@@ -61,23 +72,29 @@ class LocalArgs:
     def add(self, name, arg):
         loc_arg = self.get_arg(name)
         if loc_arg is not None and type(loc_arg) == type(arg):
-            return loc_arg
+            if isinstance(loc_arg, StructArg) and isinstance(arg, StructArg):
+                typ1, typ2 = type(loc_arg.value), type(arg.value)
+                if typ1 is typ2:
+                    return loc_arg
+            else:
+                return loc_arg
 
         if loc_arg is not None:
             self._move_to_free_args(loc_arg)
 
-        loc_arg = self._get_free_arg(type(arg))
+        loc_arg = self._get_free_arg(arg)
         if loc_arg is None:
             loc_arg = arg
 
         self._used_args[name] = loc_arg
-        return loc_arg 
+        return loc_arg
 
     def __contains__(self, name):
         return name in self._used_args
 
     def __getitem__(self, name):
         return self._used_args[name]
+
 
 def float2hex(f):
     r = struct.pack('f', f)

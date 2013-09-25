@@ -11,7 +11,8 @@ from .args import ArgList
 
 
 class Shader:
-    def __init__(self, code, args=[], is_func=False, name=None, func_args=[]):
+    def __init__(self, code, args=[], is_func=False,
+                 name=None, func_args=[]):
 
         self._code = code
         self._args = args
@@ -27,13 +28,30 @@ class Shader:
         for arg in self._args:
             self._args_map[arg.name] = arg
 
-    def compile(self):
+        self._ret_type = None
+
+    @property
+    def ret_type(self):
+        return self._ret_type
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def func_args(self):
+        return self._func_args
+
+    def compile(self, shaders=[]):
         stms = parse(self._code)
         cgen = CodeGenerator()
-        self._asm_code = cgen.generate_code(stms, args=self._args,
-                                            is_func=self._is_func,
-                                            name=self._name,
-                                            func_args=self._func_args)
+        asm, ret_type = cgen.generate_code(stms, args=self._args,
+                                           is_func=self._is_func,
+                                           name=self._name,
+                                           func_args=self._func_args,
+                                           shaders=shaders)
+        self._asm_code = asm
+        self._ret_type = ret_type
 
     def prepare(self, runtimes):
         if self._asm_code is None:

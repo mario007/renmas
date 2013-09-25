@@ -4,10 +4,14 @@
 """
 
 import platform
+
 import renlight.proc as proc
 from .utils import LocalArgs, Registers
 from .strs import Attribute, Callable, Const, Name, Subscript
-from .args import Argument, arg_from_value
+from .args import Argument, arg_from_value, _struct_desc,\
+    StructArg, IntArg, Vec2Arg, Vec3Arg, Vec4Arg, FloatArg
+from .asm_cmds import store_func_args, load_func_args, move_reg_to_reg,\
+    move_reg_to_mem, move_mem_to_reg
 
 
 class CodeGenerator:
@@ -53,65 +57,87 @@ class CodeGenerator:
         else:
             return False
 
-    def create_arg(self, dest, value):
-        arg = self.get_arg(dest)
-        if isinstance(value, (Const, Name, Attribute, Subscript)) or issubclass(value, Argument):
-            if isinstance(value, Const):
-                arg2 = arg_from_value(self._generate_name('local'), value.const)
-            elif issubclass(value, Argument):#Note value is Argument class IntArg, etc...
-                arg2 = value(self._generate_name('local'))
-            else:
-                arg2 = self.get_arg(value)
-                if arg2 is None:
-                    raise ValueError("Argument doesn't exist!", value)
-            if type(arg) != type(arg2) and self._is_arg_fixed(dest):
-                raise ValueError("This argument is fixed and cannot change type!")
-            if type(arg) == type(arg2):
-                return arg
-            else:
-                if isinstance(dest, (Attribute, Subscript)):
-                    raise ValueError("Canot create attribute or subscirpt as local arguments.")
-                arg3 = self._locals.add(dest.name, arg2)
-                return arg3
+    def is_user_type(self, src):
+        if not isinstance(src, Callable):
+            raise ValueError("User types must be callable!", src)
+        return src.name in _struct_desc
 
+    def create_arg(self, dest, value):
+        if not isinstance(value, (Const, Name,
+                                  Attribute, Subscript, Callable))\
+                and not issubclass(value, Argument):
+            raise ValueError("Unknown(unsuported) value in create arg!", value)
+
+        arg = self.get_arg(dest)
+        if isinstance(value, Const):
+            name = self._generate_name('local')
+            arg2 = arg_from_value(name, value.const)
         elif isinstance(value, Callable):
-            raise ValueError("Implement this user type(callable) HitPoint()")
+            name = self._generate_name('local')
+            struct_desc = _struct_desc[value.name]
+            val = struct_desc.factory()
+            arg2 = StructArg(name, val)
+        elif issubclass(value, Argument):  # value is Argument class
+            arg2 = value(self._generate_name('local'))
         else:
-            raise ValueError("Unknown value in create arg! ", value)
+            arg2 = self.get_arg(value)
+            if arg2 is None:
+                raise ValueError("Argument doesn't exist!", value)
+        if isinstance(arg, StructArg):
+            arg = arg.resolve(dest.path)
+        if type(arg) != type(arg2) and self._is_arg_fixed(dest):
+            raise ValueError("Argument is fixed and cannot change type!")
+        if type(arg) == type(arg2):
+            return arg
+        else:
+            if isinstance(dest, (Attribute, Subscript)):
+                raise ValueError("Canot create attribute or subscirpt\
+                        as local arguments.")
+            arg3 = self._locals.add(dest.name, arg2)
+            return arg3
+
+    def _struct_def(self, struct_arg, structs):
+        for arg in struct_arg.args:
+            if isinstance(arg, StructArg):
+                return self._struct_def(arg, structs)
+        if type(struct_arg.value) in structs:
+            return ''
+        structs.add(type(struct_arg.value))
+        data = struct_arg.struct_def(self)
+        return data
 
     def _generate_data_section(self, args, func_args):
+        # First we collect all diferent structure types in our program
+        all_args = list(args) + list(func_args) + list(self._locals.get_args())
         data = ''
-        #TODO remove duplicates, struct inside sturct
-        #data += self._generate_struct_defs()
+        structs = set()
+        for arg in all_args:
+            if isinstance(arg, StructArg):
+                data += self._struct_def(arg, structs)
 
         #specs = self._tmp_specs + self._tmp_specs_used
         #for arg in specs:
         #    data += arg.generate_data()
 
-        for arg in func_args:
-            data += arg.generate_data(self)
-
-        for arg in args:
-            data += arg.generate_data(self)
-
-        args = self._locals.get_args()
-        for arg in args:
+        for arg in all_args:
             data += arg.generate_data(self)
 
         for arg in self._constants.values():
             data += arg.generate_data(self)
 
-        #for ds_reg in self._saved_regs:
-        #    data += ds_reg
+        for ds_reg in self._saved_regs:
+            data += ds_reg
 
         return data
 
-    def generate_code(self, statements, args=[], is_func=False, name=None, func_args=[]):
+    def generate_code(self, statements, args=[], is_func=False,
+                      name=None, func_args=[], shaders=[]):
 
         self._locals = LocalArgs()
         self._constants = {}
         self._ret_type = None
         self._saved_regs = set()
+        self._shaders = shaders
 
         self._args = {}
         for a in args:
@@ -124,15 +150,15 @@ class CodeGenerator:
         glo = ''
         if is_func:
             if name is None:
-                raise ValueError("If shader is function it must also have a name!")
+                raise ValueError("Function shaders must have a name!")
             glo = "global %s:\n" % name
-        #code = glo + store_func_args(self, func_args) + code #NOTE fix this quickly
+        code = glo + store_func_args(self, func_args) + code
         if is_func:
             code = data + code + 'ret\n'
         else:
             code = data + code + '#END \n'
 
-        return code
+        return code, self._ret_type
 
     def inst_code(self, stm):
         """
@@ -147,7 +173,8 @@ class CodeGenerator:
         """
             Free all registers.
         """
-        self._xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
+        self._xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4',
+                     'xmm3', 'xmm2', 'xmm1', 'xmm0']
         self._general = ['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
         self._general64 = ['rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax']
 
@@ -176,7 +203,7 @@ class CodeGenerator:
                 return reg
 
         if reg is not None:
-            raise ValueError("Register %s is ocupied and could not be obtained!" % reg)
+            raise ValueError("Register %s is allready ocupied!" % reg)
 
         if typ == 'xmm':
             return self._xmm.pop()
@@ -208,10 +235,125 @@ class CodeGenerator:
 
     def _generate_name(self, prefix=''):
         """
-            Used for generating names for local variables and name of constants.
+            Used for generating names of local variables and constants.
             @param prefix - Prefix of generated name
         """
         name = prefix + '_' + str(self._counter) + str(id(self))
         self._counter += 1
         return name
 
+    def _get_shader(self, name):
+        for shader in self._shaders:
+            if name == shader.name:
+                return shader
+        return None
+
+    def _get_function(self, name):
+        return None
+
+    def _find_free_reg(self, regs, typ):
+        acum = self.acum_for_type(typ)
+        xmm = ('xmm0', 'xmm1', 'xmm2', 'xmm3', 'xmm4', 'xmm5', 'xmm6', 'xmm7')
+        g32 = ('eax', 'ebx', 'ecx', 'edx', 'esi', 'edi', 'ebp')
+        g64 = ('rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi', 'rbp')
+
+        reg = None
+        if self.regs.is_xmm(acum):
+            f = xmm
+        elif self.regs.is_reg32(acum):
+            f = g32
+        elif self.regs.is_reg64(acum):
+            f = g64
+        for r in f:
+            if r not in regs:
+                reg = r
+                break
+
+        if reg is None:
+            raise ValueError("Could not find free register for acumulator!")
+        return reg
+
+    def acum_for_type(self, arg_type):
+        types = {IntArg: 'eax', FloatArg: 'xmm0',
+                 Vec2Arg: 'xmm0', Vec3Arg: 'xmm0', Vec4Arg: 'xmm0'}
+        return types[arg_type]
+
+    def generate_callable(self, obj, regs):
+        if not isinstance(obj, Callable):
+            raise ValueError("Callable is expected!", obj)
+
+        shader = self._get_shader(obj.name)
+        if shader is not None:
+            code = self.save_regs(regs)
+            self.clear_regs()
+            code += load_func_args(self, obj.args, shader.func_args)
+            self.clear_regs()
+            code += "call %s\n" % obj.name
+            typ = shader.ret_type
+            if typ is None:
+                typ = IntArg
+                reg = self.acum_for_type(typ)
+                self.register(reg=reg)
+            else:
+                reg = self._find_free_reg(regs, typ)
+                acum = self.acum_for_type(typ)
+                code += move_reg_to_reg(self, acum, reg)
+                self.register(reg=reg)
+            for r in regs:
+                if r != reg:
+                    self.register(reg=r)
+            code += self.load_regs(regs)
+            return code, reg, typ
+
+        # function = self.get_function(obj.name)
+        # if function is not None:
+        #     func, inline = function
+        #     if not inline:
+        #         self.clear_regs()
+        #     code, reg, typ = func(self, obj.args)
+        #     if not inline:
+        #         self.clear_regs()
+        #         self.register(reg=reg)
+        #     return code, reg, typ
+
+        raise ValueError("Callable %s doesn't exist." % obj.name)
+
+    def save_regs(self, regs):
+        code = ''
+        for reg in regs:
+            name = '%s_%i' % (reg, id(self))
+            if self.regs.is_xmm(reg):
+                ds_reg = "float %s[4]\n" % name
+            elif self.regs.is_reg32(reg):
+                ds_reg = "uint32 %s\n" % name
+            elif self.regs.is_reg64(reg):
+                ds_reg = "uint64 %s\n" % name
+
+            self._saved_regs.add(ds_reg)
+            code += move_reg_to_mem(self, reg, name)
+        return code
+
+    def load_regs(self, regs):
+        code = ''
+        for reg in regs:
+            name = '%s_%i' % (reg, id(self))
+            code += move_mem_to_reg(self, reg, name)
+        return code
+
+    def register_ret_type(self, typ):
+        if self._ret_type is None:
+            self._ret_type = typ
+        if self._ret_type != typ:
+            raise ValueError("Return Type mismatch ", self._ret_type, typ)
+
+    def create_const(self, operand):
+        if not isinstance(operand, Const):
+            raise ValueError("Const is expected!", operand)
+
+        name = self._generate_name('const')
+        arg = arg_from_value(name, operand.const)
+        key = (type(arg), operand.const)
+        if key in self._constants:
+            return self._constants[key]
+        self._constants[key] = arg
+        return arg

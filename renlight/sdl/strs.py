@@ -4,8 +4,9 @@ class Attribute:
         Class represents attribute(filed) in structure.
     """
     def __init__(self, name, path):
-        self.name = name #name of struct
-        self.path = path #path to member in struct
+        self.name = name  # name of struct
+        self.path = path  # path to member in struct
+
 
 class Callable:
     """
@@ -15,6 +16,7 @@ class Callable:
         self.name = name
         self.args = args
 
+
 class Const:
     """
         Class represents constant(int, float).
@@ -23,12 +25,14 @@ class Const:
     def __init__(self, const):
         self.const = const
 
+
 class Name:
     """
         Class represents name(variable) in shading language.
     """
     def __init__(self, name):
         self.name = name
+
 
 class Subscript:
     """
@@ -38,7 +42,8 @@ class Subscript:
         self.name = name
         self.index = index
         #if we have path than this is array in struct
-        self.path = path #path to member in struct
+        self.path = path  # path to member in struct
+
 
 class NoOp:
     """
@@ -46,6 +51,7 @@ class NoOp:
         missing left or right operand.
     """
     pass
+
 
 class Operation:
     """
@@ -56,9 +62,10 @@ class Operation:
         self.operator = operator
         self.right = right
 
+
 class Operations:
     """
-       Class that holds list of arithmetic operations. 
+       Class that holds list of arithmetic operations.
     """
     def __init__(self, operations):
         self.operations = operations

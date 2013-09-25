@@ -5,28 +5,32 @@
 """
 
 import ast
-from .strs import Attribute, Callable, Const, Name, Subscript, NoOp, Operation, Operations
-from .stms import StmIf, StmWhile, StmBreak, StmAssign, StmReturn, StmExpression, StmEmpty
+from .strs import Attribute, Callable, Const, Name, Subscript,\
+    NoOp, Operation, Operations
+
+from .stms import StmIf, StmWhile, StmBreak, StmAssign, StmReturn,\
+    StmExpression, StmEmpty
 
 
 def operator(obj):
     """
-       Extract arithmetic operator from ast object. 
+       Extract arithmetic operator from ast object.
     """
-    o = {ast.Add:'+', ast.Mult:'*', ast.Sub:'-', ast.Div:'/', ast.Mod:'%'}
+    o = {ast.Add: '+', ast.Mult: '*', ast.Sub: '-', ast.Div: '/', ast.Mod:'%'}
     return o[type(obj)]
+
 
 def extract_unary(obj):
     """
-       Extract unary operator from ast object. 
+       Extract unary operator from ast object.
     """
-    o = {ast.USub:'-', ast.UAdd:'+'}
+    o = {ast.USub: '-', ast.UAdd:'+'}
     return o[type(obj)]
 
 
 def extract_numbers(obj):
     """
-        Return tuple of constants from ast.Tuple, ast.List object 
+        Return tuple of constants from ast.Tuple, ast.List object
     """
     nums = obj.elts
     numbers = []
@@ -42,6 +46,7 @@ def extract_numbers(obj):
             raise ValueError("Its not a constant", n)
     return tuple(numbers)
 
+
 def extract_path(obj):
     """
         Construct path from ast.Attribute object
@@ -55,8 +60,9 @@ def extract_path(obj):
         name = obj.id
     else:
         raise ValueError("Unknown target name, maybe subscript!", obj)
-    
+
     return (name, path)
+
 
 def extract_subscript(obj):
     if not isinstance(obj, ast.Subscript):
@@ -85,6 +91,7 @@ def make_name(obj):
         return extract_subscript(obj)
     else:
         raise ValueError("Unsuported source")
+
 
 def unary_number(obj):
     if isinstance(obj.operand, ast.Num):
@@ -137,25 +144,25 @@ def parse_arithmetic(bin_op, operations):
         o = operator(bin_op.op)
         operations.append(Operation(left=op1, operator=o, right=op2))
         return operations
-    
+
     if isinstance(left, ast.BinOp):
         parse_arithmetic(left, operations)
         if isinstance(right, ast.BinOp):
             parse_arithmetic(right, operations)
-            operations.append(Operation(left=NoOp, operator=operator(op), right=NoOp))
+            operations.append(Operation(NoOp, operator(op), NoOp))
         else:
             op2 = extract_operand(right)
-            operations.append(Operation(left=NoOp, operator=operator(op), right=op2))
+            operations.append(Operation(NoOp, operator(op), op2))
         return operations
 
     if isinstance(right, ast.BinOp):
         parse_arithmetic(right, operations)
         if isinstance(left, ast.BinOp):
             parse_arithmetic(left, operations)
-            operations.append(Operation(left=NoOp, operator=operator(op), right=NoOp))
+            operations.append(Operation(NoOp, operator(op), NoOp))
         else:
             op2 = extract_operand(left)
-            operations.append(Operation(left=op2, operator=operator(op), right=NoOp))
+            operations.append(Operation(op2, operator(op), NoOp))
         return operations
 
     raise ValueError("Unsuported expression", left, right, op)
@@ -163,9 +170,10 @@ def parse_arithmetic(bin_op, operations):
 
 def extract_con_op(obj):
     """
-       Extract conditional operator from ast object. 
+       Extract conditional operator from ast object.
     """
-    o = {ast.Lt:'<', ast.Gt:'>', ast.Eq:'==', ast.LtE:'<=', ast.GtE:'>=', ast.NotEq:'!='}
+    o = {ast.Lt: '<', ast.Gt: '>', ast.Eq: '==', ast.LtE: '<=',
+         ast.GtE: '>=', ast.NotEq:'!='}
     return o[type(obj)]
 
 
@@ -186,7 +194,7 @@ def extract_test(obj):
             raise ValueError("Not suported yet multiple conditions operators", obj.ops)
         con = extract_con_op(obj.ops[0])
         test = ((left_op, con, right_op),)
-    else: 
+    else:
         raise ValueError("Unknown test!", obj)
     return test
 
@@ -200,7 +208,7 @@ def parse_assign(assign):
     else:
         ops = extract_operand(assign.value)
 
-    for t in assign.targets: 
+    for t in assign.targets:
         return StmAssign(make_name(t), ops)
 
 
@@ -219,8 +227,12 @@ def parse_call(call):
 
 
 def parse_return(obj):
-    src = extract_operand(obj)
-    return StmReturn(src)
+    if isinstance(obj, ast.BinOp):
+        expr = Operations(parse_arithmetic(obj, []))
+    else:
+        expr = extract_operand(obj)
+    return StmReturn(expr)
+
 
 def parse_if(obj, br_label):
     test = extract_test(obj.test)
@@ -243,6 +255,7 @@ def parse_if(obj, br_label):
 
     raise ValueError("Not yet implemented this version of If statement", obj)
 
+
 def parse_while(obj):
     if obj.orelse:
         raise ValueError("Orelse in while still not suported")
@@ -254,6 +267,7 @@ def parse_while(obj):
         body.append(stm)
     return stm_while
 
+
 def parse_statement(statement, br_label=None):
     if isinstance(statement, ast.Assign):
         return parse_assign(statement)
@@ -264,7 +278,7 @@ def parse_statement(statement, br_label=None):
     elif isinstance(statement, ast.Pass):
         return StmEmpty()
     elif isinstance(statement, ast.Expr):
-        if isinstance(statement.value, ast.Call): # function call
+        if isinstance(statement.value, ast.Call):  # function call
             return parse_call(statement.value)
         else:
             raise ValueError('Expr statement', statement, statement.value)
@@ -276,6 +290,7 @@ def parse_statement(statement, br_label=None):
         return StmBreak(br_label)
     else:
         raise ValueError('Uknown satement', statement)
+
 
 def parse(text):
     """

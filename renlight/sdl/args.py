@@ -34,11 +34,17 @@ class IntArg(Argument):
     def generate_data(self, cgen):
         return 'int32 %s = %i \n' % (self.name, self._value)
 
-    def update(self, ds):
-        ds[self.name] = self._value
+    def update(self, ds, path=None):
+        if path is None:
+            ds[self.name] = self._value
+        else:
+            ds[path + self.name] = self._value
 
-    def from_ds(self, ds):
-        val = ds[self.name]
+    def from_ds(self, ds, path=None):
+        if path is None:
+            val = ds[self.name]
+        else:
+            val = ds[path + self.name]
         self.value = val
         return val
 
@@ -61,11 +67,17 @@ class FloatArg(Argument):
     def generate_data(self, cgen):
         return 'float %s = %f \n' % (self.name, self._value)
 
-    def update(self, ds):
-        ds[self.name] = self._value
+    def update(self, ds, path=None):
+        if path is None:
+            ds[self.name] = self._value
+        else:
+            ds[path + self.name] = self._value
 
-    def from_ds(self, ds):
-        val = ds[self.name]
+    def from_ds(self, ds, path=None):
+        if path is None:
+            val = ds[self.name]
+        else:
+            val = ds[path + self.name]
         self.value = val
         return val
 
@@ -90,14 +102,21 @@ class Vec2Arg(Argument):
         return 'float %s[4] = %f,%f,0.0,0.0 \n' % \
             (self.name, float(v.x), float(v.y))
 
-    def update(self, ds):
+    def update(self, ds, path=None):
         v = self._value
-        ds[self.name] = (float(v.x), float(v.y), 0.0, 0.0)
+        if path is None:
+            ds[self.name] = (float(v.x), float(v.y), 0.0, 0.0)
+        else:
+            ds[path + self.name] = (float(v.x), float(v.y), 0.0, 0.0)
 
-    def from_ds(self, ds):
-        val = ds[self.name]
-        vec = Vector2(val[0], val[1])
-        self.value = vec
+    def from_ds(self, ds, path=None):
+        if path is None:
+            val = ds[self.name]
+        else:
+            val = ds[path + self.name]
+        vec = self._value
+        vec.x = val[0]
+        vec.y = val[1]
         return vec
 
 
@@ -121,14 +140,22 @@ class Vec3Arg(Argument):
         return 'float %s[4] = %f,%f,%f,0.0 \n' % \
             (self.name, float(v.x), float(v.y), float(v.z))
 
-    def update(self, ds):
+    def update(self, ds, path=None):
         v = self._value
-        ds[self.name] = (float(v.x), float(v.y), float(v.z), 0.0)
+        if path is None:
+            ds[self.name] = (float(v.x), float(v.y), float(v.z), 0.0)
+        else:
+            ds[path + self.name] = (float(v.x), float(v.y), float(v.z), 0.0)
 
-    def from_ds(self, ds):
-        val = ds[self.name]
-        vec = Vector3(val[0], val[1], val[2])
-        self.value = vec
+    def from_ds(self, ds, path=None):
+        if path is None:
+            val = ds[self.name]
+        else:
+            val = ds[path + self.name]
+        vec = self._value
+        vec.x = val[0]
+        vec.y = val[1]
+        vec.z = val[2]
         return vec
 
 
@@ -152,15 +179,127 @@ class Vec4Arg(Argument):
         return 'float %s[4] = %f,%f,%f,%f \n' % \
             (self.name, float(v.x), float(v.y), float(v.z), float(v.w))
 
-    def update(self, ds):
+    def update(self, ds, path=None):
         v = self._value
-        ds[self.name] = (float(v.x), float(v.y), float(v.z), float(v.w))
+        vals = (float(v.x), float(v.y), float(v.z), float(v.w))
+        if path is None:
+            ds[self.name] = vals
+        else:
+            ds[path + self.name] = vals
 
-    def from_ds(self, ds):
-        val = ds[self.name]
-        vec = Vector4(val[0], val[1], val[2], val[3])
-        self.value = vec
+    def from_ds(self, ds, path=None):
+        if path is None:
+            val = ds[self.name]
+        else:
+            val = ds[path + self.name]
+        vec = self._value
+        vec.x = val[0]
+        vec.y = val[1]
+        vec.z = val[2]
+        vec.w = val[3]
         return vec
+
+
+class StructDesc:
+    def __init__(self, typ, type_name, fields, factory):
+        self.typ = typ
+        self.type_name = type_name
+        self.fields = fields
+        self.factory = factory
+
+_struct_desc = {}
+
+
+def register_struct(typ, type_name, fields, factory=None):
+    desc = StructDesc(typ, type_name, fields, factory)
+    _struct_desc[typ] = desc
+    _struct_desc[type_name] = desc
+
+
+class StructArg(Argument):
+    def __init__(self, name, value):
+        super(StructArg, self).__init__(name)
+        if type(value) not in _struct_desc:
+            raise ValueError("This structure is not registerd!", type(value))
+        self._value = value
+
+        self._args = []
+        desc = _struct_desc[type(value)]
+        for arg_name, arg_type in desc.fields:
+            val = getattr(value, arg_name)
+            arg = arg_type(arg_name, val)
+            self._args.append(arg)
+
+    @property
+    def args(self):
+        return self._args
+
+    @property
+    def type_name(self):
+        return _struct_desc[type(self._value)].type_name
+
+    def _set_value(self, value):
+        assert type(self._value) is type(value)
+        self._value = value
+
+    def _get_value(self):
+        return self._value
+    value = property(_get_value, _set_value)
+
+    def generate_data(self, cgen):
+        return '%s %s\n' % (self.type_name, self.name)
+
+    def update(self, ds, prefix=''):
+        for arg in self._args:
+            if isinstance(arg, StructArg):
+                prefix = prefix + self.name + '.'
+                arg.update(ds, prefix=prefix)
+            else:
+                if prefix == '':
+                    path = '%s.' % self.name
+                else:
+                    path = '%s%s.' % (prefix, self.name)
+                arg.update(ds, path=path)
+
+    def from_ds(self, ds, prefix=''):
+        for arg in self._args:
+            if isinstance(arg, StructArg):
+                prefix = prefix + self.name + '.'
+                arg.from_ds(ds, prefix=prefix)
+            else:
+                if prefix == '':
+                    path = '%s.' % self.name
+                else:
+                    path = '%s%s.' % (prefix, self.name)
+                arg.from_ds(ds, path=path)
+        return self._value
+
+    def resolve(self, path):
+        comps = path.split('.')
+        for arg in self._args:
+            if arg.name == comps[0]:
+                if len(comps) == 1:
+                    return arg
+                else:
+                    if not isinstance(arg, StructArg):
+                        raise ValueError('Struct argument is expected', arg)
+                    return arg.resolve('.'.join(comps[1:]))
+        raise ValueError("Could not resove path ", path)
+
+    def struct_def(self, cgen):
+        code = "struct %s \n" % _struct_desc[type(self._value)].type_name
+        for a in self._args:
+            code += a.generate_data(cgen)
+        code += "end struct \n\n"
+        return code
+
+
+class StructArgPtr(StructArg):
+    def generate_data(self, cgen):
+        if cgen.BIT64:
+            return 'uint64 %s\n' % self.name
+        else:
+            return 'uint32 %s\n' % self.name
 
 
 class ArgList(Argument):
@@ -198,7 +337,9 @@ class ArgList(Argument):
 
 
 def arg_from_value(name, value):
-    if isinstance(value, int):
+    if type(value) in _struct_desc:
+        arg = StructArg(name, value)
+    elif isinstance(value, int):
         arg = IntArg(name, value)
     elif isinstance(value, float):
         arg = FloatArg(name, value)

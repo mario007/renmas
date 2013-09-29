@@ -31,6 +31,10 @@ class CodeGenerator:
         return proc.AVX
 
     @property
+    def SSE41(self):
+        return proc.SSE41
+
+    @property
     def BIT64(self):
         bits = platform.architecture()[0]
         if bits == '64bit':

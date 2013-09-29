@@ -552,6 +552,21 @@ def move_reg_to_acum(cgen, reg, typ):
     return move_reg_to_reg(cgen, reg, acum)
 
 
+def zero_register(cgen, reg):
+    if cgen.regs.is_reg32(reg):
+        code = "xor %s, %s\n" % (reg, reg)
+    elif cgen.regs.is_reg64(reg):
+        code = "xor %s, %s\n" % (reg, reg)
+    elif cgen.regs.is_xmm(reg):
+        if cgen.AVX:
+            code = "vpxor %s, %s, %s\n" % (reg, reg, reg)
+        else:
+            code = "pxor %s, %s\n" % (reg, reg)
+    else:
+        raise ValueError("Unsuported register!", reg)
+    return code
+
+
 def generate_test(cgen, test, end_label):
     raise NotImplementedError()
 

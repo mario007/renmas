@@ -14,6 +14,13 @@ from .asm_cmds import store_func_args, load_func_args, move_reg_to_reg,\
     move_reg_to_mem, move_mem_to_reg
 
 
+_built_ins_function = {}
+
+
+def register_function(name, func, inline):
+    _built_ins_function[name] = (func, inline)
+
+
 class CodeGenerator:
     def __init__(self):
         self.regs = Registers()
@@ -249,6 +256,8 @@ class CodeGenerator:
         return None
 
     def _get_function(self, name):
+        if name in _built_ins_function:
+            return _built_ins_function[name]
         return None
 
     def _find_free_reg(self, regs, typ):
@@ -278,43 +287,59 @@ class CodeGenerator:
                  Vec2Arg: 'xmm0', Vec3Arg: 'xmm0', Vec4Arg: 'xmm0'}
         return types[arg_type]
 
+    def _call_shader(self, shader, operand, regs):
+        code = self.save_regs(regs)
+        self.clear_regs()
+        code += load_func_args(self, operand.args, shader.func_args)
+        self.clear_regs()
+        code += "call %s\n" % operand.name
+        typ = shader.ret_type
+        if typ is None:
+            typ = IntArg
+            reg = self.acum_for_type(typ)
+            self.register(reg=reg)
+        else:
+            reg = self._find_free_reg(regs, typ)
+            acum = self.acum_for_type(typ)
+            code += move_reg_to_reg(self, acum, reg)
+            self.register(reg=reg)
+        for r in regs:
+            if r != reg:
+                self.register(reg=r)
+        code += self.load_regs(regs)
+        return code, reg, typ
+
+    def _call_function(self, operand, regs):
+
+        function = self._get_function(operand.name)
+        func, inline = function
+        if inline:
+            return func(self, operand.args)
+
+        code1 = self.save_regs(regs)
+        self.clear_regs()
+        code2, reg, typ = func(self, operand.args)
+        self.clear_regs()
+        reg2 = self._find_free_reg(regs, typ)
+        code3 = move_reg_to_reg(self, reg, reg2)
+        self.register(reg=reg2)
+        for r in regs:
+            if r != reg2:
+                self.register(reg=r)
+        code4 = self.load_regs(regs)
+        return code1 + code2 + code3 + code4, reg2, typ
+
     def generate_callable(self, obj, regs):
         if not isinstance(obj, Callable):
             raise ValueError("Callable is expected!", obj)
 
+        function = self._get_function(obj.name)
+        if function is not None:
+            return self._call_function(obj, regs)
+
         shader = self._get_shader(obj.name)
         if shader is not None:
-            code = self.save_regs(regs)
-            self.clear_regs()
-            code += load_func_args(self, obj.args, shader.func_args)
-            self.clear_regs()
-            code += "call %s\n" % obj.name
-            typ = shader.ret_type
-            if typ is None:
-                typ = IntArg
-                reg = self.acum_for_type(typ)
-                self.register(reg=reg)
-            else:
-                reg = self._find_free_reg(regs, typ)
-                acum = self.acum_for_type(typ)
-                code += move_reg_to_reg(self, acum, reg)
-                self.register(reg=reg)
-            for r in regs:
-                if r != reg:
-                    self.register(reg=r)
-            code += self.load_regs(regs)
-            return code, reg, typ
-
-        # function = self.get_function(obj.name)
-        # if function is not None:
-        #     func, inline = function
-        #     if not inline:
-        #         self.clear_regs()
-        #     code, reg, typ = func(self, obj.args)
-        #     if not inline:
-        #         self.clear_regs()
-        #         self.register(reg=reg)
-        #     return code, reg, typ
+            return self._call_shader(shader, obj, regs)
 
         raise ValueError("Callable %s doesn't exist." % obj.name)
 

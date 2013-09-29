@@ -755,6 +755,9 @@ def load_func_args(cgen, operands, args):
         if isinstance(arg2, StructArg):
             if isinstance(operand, Attribute):
                 arg2 = arg2.resolve(operand.path)
+        if isinstance(arg, StructArgPtr) and isinstance(arg2, StructArg):
+            if arg.type_name != arg2.type_name:
+                raise ValueError("Different type of structures!", arg, arg2)
 
         key = (type(arg), type(arg2))
         if key not in _ldf:

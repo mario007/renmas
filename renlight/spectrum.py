@@ -1,8 +1,8 @@
 
 """
     This module contain implementation of basic spectrum types.
-    
 """
+
 
 class Spectrum:
     """
@@ -79,7 +79,9 @@ class Spectrum:
 
 
 class RGBSpectrum(Spectrum):
+
     __slots__ = ['r', 'g', 'b']
+
     def __init__(self, r, g, b):
         self.r = r
         self.g = g
@@ -165,17 +167,11 @@ class RGBSpectrum(Spectrum):
         self.b = value
         return self
 
-    def asm_struct(self):
-        code = """
-        struct Spectrum
-        float values[4]
-        end struct
-        """
-        return code
-
 
 class SampledSpectrum(Spectrum):
+
     __slots__ = ['samples']
+
     def __init__(self, samples):
         self.samples = samples
 
@@ -237,21 +233,16 @@ class SampledSpectrum(Spectrum):
             Clamp each component of spectrum in range [low, high].
         """
         for i in range(len(self.samples)):
-            if self.samples[i] > high: self.samples[i] = high
-            if self.samples[i] < low: self.samples[i] = low
+            if self.samples[i] > high:
+                self.samples[i] = high
+            if self.samples[i] < low:
+                self.samples[i] = low
 
     def zero(self):
-        vals = [0.0 for i in range(len(self.samples))] 
+        vals = [0.0 for i in range(len(self.samples))]
         return SampledSpectrum(vals)
 
     def set(self, value):
         value = float(value)
         self.samples = [value for i in range(len(self.samples))]
         return self
-
-    def asm_struct(self):
-        code = "struct Spectrum \n"
-        code += "float values[ %i ] \n" % len(self.samples)
-        code += "end struct \n"
-        return code
-

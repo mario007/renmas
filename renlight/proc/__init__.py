@@ -11,4 +11,3 @@ SSE3 = __asm.cpu["sse3"]
 SSE41 = __asm.cpu["sse41"]
 #SSE41 = False
 SSE2 = __asm.cpu["sse2"]
-

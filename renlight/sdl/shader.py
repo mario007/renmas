@@ -52,14 +52,12 @@ class Shader:
                                            shaders=shaders)
         self._asm_code = asm
         self._ret_type = ret_type
+        asm = Tdasm()
+        self._mc = asm.assemble(self._asm_code, self._is_func)
 
     def prepare(self, runtimes):
-        if self._asm_code is None:
-            raise ValueError("Shader is not compiled!")
-        asm = Tdasm()
-        mc = asm.assemble(self._asm_code, self._is_func)
         name = 'shader' + str(id(self))
-        self._ds = [r.load(name, mc) for r in runtimes]
+        self._ds = [r.load(name, self._mc) for r in runtimes]
         self._runtimes = runtimes
 
         self.update_args()
@@ -96,6 +94,8 @@ class Shader:
             return arg.from_ds(self._ds[0])
 
     def execute(self):
+        if self._is_func:
+            raise ValueError("Function shader cannot be directly executed.")
         name = 'shader' + str(id(self))
         if len(self._runtimes) == 1:
             self._runtimes[0].run(name)

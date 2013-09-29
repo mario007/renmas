@@ -64,9 +64,9 @@ class StmReturn(Statement):
 
 
 class StmIf(Statement):
-    def __init__(self, body, test, orelse=None):
+    def __init__(self, body, conditions, orelse=None):
         self.body = body
-        self.test = test
+        self.conditions = conditions
         self.orelse = orelse
 
     def asm_code(self, cgen):
@@ -75,9 +75,9 @@ class StmIf(Statement):
         endif_label = 'endif_' + str(id(self))
 
         if self.orelse is not None:
-            code = generate_test(cgen, self.test, orelse_label)
+            code = generate_test(cgen, self.conditions, orelse_label)
         else:
-            code = generate_test(cgen, self.test, if_label)
+            code = generate_test(cgen, self.conditions, if_label)
         code += ''.join(cgen.inst_code(i) for i in self.body)
 
         if self.orelse is not None:
@@ -91,16 +91,16 @@ class StmIf(Statement):
 
 
 class StmWhile(Statement):
-    def __init__(self, body, test):
+    def __init__(self, body, conditions):
         self.body = body
-        self.test = test
+        self.conditions = conditions
 
     def asm_code(self, cgen):
         begin_label = 'while_' + str(id(self))
         end_label = 'endwhile_' + str(id(self))
 
         code = "%s:\n" % begin_label
-        code += generate_test(cgen, self.test, end_label)
+        code += generate_test(cgen, self.conditions, end_label)
         code += ''.join(cgen.inst_code(i) for i in self.body)
         code += "jmp %s\n" % begin_label
         code += "%s:\n" % end_label

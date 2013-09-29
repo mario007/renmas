@@ -567,8 +567,55 @@ def zero_register(cgen, reg):
     return code
 
 
+def compare_ints(cgen, reg1, con, reg2, label):
+    #if condition is met not jump to end of if
+    code = "cmp %s, %s\n" % (reg1, reg2)
+    cons = {'==': 'jne', '<': 'jge', '>': 'jle',
+            '<=': 'jg', '>=': 'jl', '!=': 'je'}
+    code += "%s %s\n" % (cons[con], label)
+    return code
+
+
+def compare_floats(cgen, xmm1, con, xmm2, label):
+    if cgen.AVX:
+        code = "vcomiss %s, %s\n" % (xmm1, xmm2)
+    else:
+        code = "comiss %s, %s\n" % (xmm1, xmm2)
+    cons = {'==': 'jnz', '<': 'jnc', '>': 'jc', '!=': 'jz'}
+    code += "%s %s\n" % (cons[con], label)
+    return code
+
+
 def generate_test(cgen, test, end_label):
-    raise NotImplementedError()
+    if len(test.conditions) != 1:
+        raise ValueError("Only one condtion for now!", test.conditions)
+    condition = test.conditions[0]
+    code1, reg1, typ1 = load_operand(cgen, condition.left)
+    if condition.right is NoOp:
+        if typ1 != IntArg:
+            raise ValueError("Only int for single argument condition.")
+        line1 = "cmp %s, 0\n" % reg1
+        line2 = "je %s\n" % end_label
+        code = code1 + line1 + line2
+        return code
+
+    code2, reg2, typ2 = load_operand(cgen, condition.right)
+    code = code1 + code2
+    if typ1 == IntArg and typ2 == IntArg:
+        code += compare_ints(cgen, reg1, condition.operator, reg2, end_label)
+    elif typ1 == FloatArg and typ2 == FloatArg:
+        code += compare_floats(cgen, reg1, condition.operator, reg2, end_label)
+    elif typ1 == IntArg and typ2 == FloatArg:
+        xmm = cgen.register(typ='xmm')
+        code += conv_int_to_float(cgen, reg1, xmm)
+        code += compare_floats(cgen, xmm, condition.operator, reg2, end_label)
+    elif typ1 == FloatArg and typ2 == IntArg:
+        xmm = cgen.register(typ='xmm')
+        code += conv_int_to_float(cgen, reg2, xmm)
+        code += compare_floats(cgen, reg1, condition.operator, xmm, end_label)
+    else:
+        raise ValueError("Unsuported operands types", typ1, typ2)
+    return code
 
 
 def store_func_args(cgen, args):

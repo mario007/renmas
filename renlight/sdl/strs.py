@@ -47,7 +47,7 @@ class Subscript:
 
 class NoOp:
     """
-        In arithmetic, with this class we indicate that we are
+        In arithmetic and conditions, with this class we indicate that we are
         missing left or right operand.
     """
     pass
@@ -70,3 +70,22 @@ class Operations:
     def __init__(self, operations):
         self.operations = operations
 
+
+class Condition:
+    """
+       Class that one simple logic condition
+    """
+    def __init__(self, left, operator, right):
+        self.left = left
+        self.operator = operator
+        self.right = right
+
+
+class Conditions:
+    """
+       Class that holds list of logic conditions.
+    """
+    def __init__(self, conditions, logic_ops):
+        assert len(conditions) == len(logic_ops) + 1
+        self.conditions = conditions
+        self.logic_ops = logic_ops

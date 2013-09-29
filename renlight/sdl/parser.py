@@ -6,7 +6,7 @@
 
 import ast
 from .strs import Attribute, Callable, Const, Name, Subscript,\
-    NoOp, Operation, Operations
+    NoOp, Operation, Operations, Condition, Conditions
 
 from .stms import StmIf, StmWhile, StmBreak, StmAssign, StmReturn,\
     StmExpression, StmEmpty
@@ -177,26 +177,47 @@ def extract_con_op(obj):
     return o[type(obj)]
 
 
-def extract_test(obj):
-    if isinstance(obj, ast.Num):
-        test = ((Const(obj.n),),)
-    elif isinstance(obj, ast.Name):
-        test = ((Name(obj.id),),)
-    elif isinstance(obj, ast.Attribute):
-        name, path = extract_path(obj)
-        test = ((Attribute(name, path),),)
+def extract_logic_op(obj):
+    o = {ast.And: 'and', ast.Or: 'or'}
+    return o[type(obj)]
+
+
+def extract_compare(obj):
+    if len(obj.comparators) != 1:
+        raise ValueError("Multiple comparators!!!", obj.comparators)
+    left_op = extract_operand(obj.left)
+    right_op = extract_operand(obj.comparators[0])
+    if len(obj.ops) != 1:
+        raise ValueError("Multiple conditions!", obj.ops)
+    con_op = extract_con_op(obj.ops[0])
+    con = Condition(left_op, con_op, right_op)
+    return con
+
+
+def extract_test(obj, conditions, logic_ops):
+    if isinstance(obj, ast.BoolOp):
+        if len(obj.values) > 2:
+            raise ValueError("Not yet suported!", obj, obj.values)
+        if not isinstance(obj.values[0], ast.Compare):
+            raise ValueError("Not yet suported!", obj, obj.values)
+        if not isinstance(obj.values[1], ast.Compare):
+            raise ValueError("Not yet suported!", obj, obj.values)
+        con1 = extract_compare(obj.values[0])
+        con2 = extract_compare(obj.values[1])
+        log_op = extract_logic_op(obj.op)
+
+        conditions.append(con1)
+        conditions.append(con2)
+        logic_ops.append(log_op)
+
     elif isinstance(obj, ast.Compare):
-        if len(obj.comparators) != 1:
-            raise ValueError("Not suported yet comparators", obj.comparators)
-        left_op = extract_operand(obj.left)
-        right_op = extract_operand(obj.comparators[0])
-        if len(obj.ops) != 1:
-            raise ValueError("Not suported yet multiple conditions operators", obj.ops)
-        con = extract_con_op(obj.ops[0])
-        test = ((left_op, con, right_op),)
+        con = extract_compare(obj)
+        conditions.append(con)
     else:
-        raise ValueError("Unknown test!", obj)
-    return test
+        op = extract_operand(obj)
+        con = Condition(op, NoOp, NoOp)
+        conditions.append(con)
+    return conditions, logic_ops
 
 
 def parse_assign(assign):
@@ -235,7 +256,10 @@ def parse_return(obj):
 
 
 def parse_if(obj, br_label):
-    test = extract_test(obj.test)
+    conditions = []
+    logic_ops = []
+    extract_test(obj.test, conditions, logic_ops)
+    test = Conditions(conditions, logic_ops)
     body = []
     for statement in obj.body:
         stm = parse_statement(statement, br_label)
@@ -259,7 +283,10 @@ def parse_if(obj, br_label):
 def parse_while(obj):
     if obj.orelse:
         raise ValueError("Orelse in while still not suported")
-    test = extract_test(obj.test)
+    conditions = []
+    logic_ops = []
+    extract_test(obj.test, conditions, logic_ops)
+    test = Conditions(conditions, logic_ops)
     body = []
     stm_while = StmWhile(body, test)
     for statement in obj.body:

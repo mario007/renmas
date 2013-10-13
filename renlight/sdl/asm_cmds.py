@@ -3,6 +3,7 @@ from .utils import float2hex
 from .strs import Attribute, Name, Callable, Const, Subscript, Operations, NoOp
 from .args import IntArg, FloatArg, Vec2Arg, Vec3Arg,\
     Vec4Arg, StructArg, StructArgPtr
+from .arr import ArrayArg
 
 
 def conv_int_to_float(cgen, reg, xmm):
@@ -177,6 +178,12 @@ def store_operand(cgen, dest, reg, typ):
             code2 = "movaps oword [%s + %s], %s\n" % (ptr_reg, path, xmm)
         return code + code2
 
+    def _store_name_struct_arg(cgen, dest, reg, arg):
+        if cgen.BIT64:
+            return "mov qword [%s], %s \n" % (arg.name, reg)
+        else:
+            return "mov dword [%s], %s \n" % (arg.name, reg)
+
     _stf = {(Name, IntArg): _store_int_name_arg,
             (Name, FloatArg): _store_float_name_arg,
             (Name, Vec2Arg): _store_vec234_name_arg,
@@ -186,7 +193,8 @@ def store_operand(cgen, dest, reg, typ):
             (Attribute, FloatArg): _store_atr_flt_arg,
             (Attribute, Vec2Arg): _store_atr_vec234_arg,
             (Attribute, Vec3Arg): _store_atr_vec234_arg,
-            (Attribute, Vec4Arg): _store_atr_vec234_arg
+            (Attribute, Vec4Arg): _store_atr_vec234_arg,
+            (Name, StructArgPtr): _store_name_struct_arg
             }
 
     #TODO -- implict conversion int to float
@@ -279,6 +287,34 @@ def load_operand(cgen, op, dest_reg=None):
             code2 = "movaps %s, oword [%s + %s]\n" % (xmm, ptr_reg, path)
         return code + code2, xmm, type(arg)
 
+    def _load_sub_arr_arg(cgen, op, arg, dest_reg):
+
+        #load item from array
+        # address = arr_adr + item_size * index
+        code, reg, typ = load_operand(cgen, op.index)
+        if typ != IntArg:
+            raise ValueError("Index in subscript must be Integer!", typ)
+        item_size = arg.value.item_size
+        code += "imul %s, %s, %i\n" % (reg, reg, item_size)
+        if op.path is not None:
+            raise ValueError("Todo array argument in structure", op.path)
+
+        if not isinstance(arg.value.item_arg, StructArg):
+            raise ValueError("Only struct array are supported!!", op.path)
+
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='pointer')
+        #TODO check if dest_reg is pointer
+        if cgen.BIT64:
+            code += "mov %s, qword [%s] \n" % (dest_reg, arg.name)
+            code += "add %s, %s\n" % (dest_reg, 'r' + reg[1:])
+        else:
+            code += "mov %s, dword [%s] \n" % (dest_reg, arg.name)
+            code += "add %s, %s\n" % (dest_reg, reg)
+
+        cgen.release_reg(reg)
+        return code, dest_reg, arg.value.item_arg
+
     _ldf = {(Name, IntArg): _load_int_name_arg,
             (Name, FloatArg): _load_float_name_arg,
             (Name, Vec2Arg): _load_vec234_name_arg,
@@ -293,7 +329,8 @@ def load_operand(cgen, op, dest_reg=None):
             (Attribute, FloatArg): _load_atr_float_arg,
             (Attribute, Vec2Arg): _load_atr_vec234_arg,
             (Attribute, Vec3Arg): _load_atr_vec234_arg,
-            (Attribute, Vec4Arg): _load_atr_vec234_arg
+            (Attribute, Vec4Arg): _load_atr_vec234_arg,
+            (Subscript, ArrayArg): _load_sub_arr_arg
             }
 
     if isinstance(op, Const):

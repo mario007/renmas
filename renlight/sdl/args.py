@@ -48,6 +48,14 @@ class IntArg(Argument):
         self.value = val
         return val
 
+    @classmethod
+    def conv_to_ds(cls, obj):
+        return int(obj)
+
+    @classmethod
+    def conv_to_obj(cls, val):
+        return int(val)
+
 
 class FloatArg(Argument):
 
@@ -80,6 +88,14 @@ class FloatArg(Argument):
             val = ds[path + self.name]
         self.value = val
         return val
+
+    @classmethod
+    def conv_to_ds(cls, obj):
+        return float(obj)
+
+    @classmethod
+    def conv_to_obj(cls, val):
+        return float(val)
 
 
 class Vec2Arg(Argument):

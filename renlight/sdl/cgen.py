@@ -9,7 +9,7 @@ import renlight.proc as proc
 from .utils import LocalArgs, Registers
 from .strs import Attribute, Callable, Const, Name, Subscript
 from .args import Argument, arg_from_value, _struct_desc,\
-    StructArg, IntArg, Vec2Arg, Vec3Arg, Vec4Arg, FloatArg
+    StructArg, IntArg, Vec2Arg, Vec3Arg, Vec4Arg, FloatArg, StructArgPtr
 from .asm_cmds import store_func_args, load_func_args, move_reg_to_reg,\
     move_reg_to_mem, move_mem_to_reg
 
@@ -76,6 +76,7 @@ class CodeGenerator:
     def create_arg(self, dest, value):
         if not isinstance(value, (Const, Name,
                                   Attribute, Subscript, Callable))\
+                and not isinstance(value, StructArg)\
                 and not issubclass(value, Argument):
             raise ValueError("Unknown(unsuported) value in create arg!", value)
 
@@ -88,6 +89,11 @@ class CodeGenerator:
             struct_desc = _struct_desc[value.name]
             val = struct_desc.factory()
             arg2 = StructArg(name, val)
+        elif isinstance(value, StructArg):
+            name = self._generate_name('local')
+            struct_desc = _struct_desc[value.type_name]
+            val = struct_desc.factory()
+            arg2 = StructArgPtr(name, val)
         elif issubclass(value, Argument):  # value is Argument class
             arg2 = value(self._generate_name('local'))
         else:

@@ -66,7 +66,7 @@ def extract_path(obj):
 
 def extract_subscript(obj):
     if not isinstance(obj, ast.Subscript):
-        raise ValueError("Object is not subscript")
+        raise ValueError("Object is not subscript", obj)
     path = None
     if isinstance(obj.value, ast.Name):
         name = obj.value.id
@@ -74,10 +74,7 @@ def extract_subscript(obj):
         name, path = extract_path(obj.value)
     else:
         raise ValueError("Not suported name(attribute) in subscript!")
-    if isinstance(obj.slice.value, ast.Num):
-        index = Const(obj.slice.value.n)
-    else:
-        raise ValueError("Only constants for now in subscript TODO rest!")
+    index = extract_operand(obj.slice.value)
     return Subscript(name, index, path)
 
 

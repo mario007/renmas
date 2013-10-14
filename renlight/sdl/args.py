@@ -174,6 +174,14 @@ class Vec3Arg(Argument):
         vec.z = val[2]
         return vec
 
+    @classmethod
+    def conv_to_ds(cls, obj):
+        return (obj.x, obj.y, obj.z, 0.0)
+
+    @classmethod
+    def conv_to_obj(cls, val):
+        return Vector3(val[0], val[1], val[2])
+
 
 class Vec4Arg(Argument):
 

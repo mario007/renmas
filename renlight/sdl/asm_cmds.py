@@ -770,6 +770,19 @@ def load_func_args(cgen, operands, args):
             raise ValueError("Could not load argument!", operand)
         return code
 
+    def _load_struct_arg_ptr_ptr(cgen, operand, arg, xmms, regs, ptr_reg):
+        reg = regs.pop()
+        if isinstance(operand, Name):
+            if cgen.BIT64:
+                code = "mov %s, qword [%s] \n" % ('r' + reg[1:], arg.name)
+            else:
+                code = "mov %s, dword [%s] \n" % (reg, arg.name)
+        elif isinstance(operand, Attribute):  # TODO
+            raise ValueError("Not load argument Implement this.", operand)
+        else:
+            raise ValueError("Could not load argument!", operand)
+        return code
+
     xmms = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
     regs = ['edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
     ptr_reg = 'rbp' if cgen.BIT64 else 'ebp'
@@ -781,6 +794,7 @@ def load_func_args(cgen, operands, args):
             (Vec3Arg, Vec3Arg): _load_vec234_vec234_arg,
             (Vec4Arg, Vec4Arg): _load_vec234_vec234_arg,
             (StructArgPtr, StructArg): _load_struct_arg_ptr,
+            (StructArgPtr, StructArgPtr): _load_struct_arg_ptr_ptr,
             }
 
     code = ''

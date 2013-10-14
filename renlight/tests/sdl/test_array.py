@@ -1,9 +1,8 @@
 
 import unittest
 from tdasm import Runtime
-from renlight.vector import Vector2, Vector3, Vector4
 from renlight.sdl.shader import Shader
-from renlight.sdl.args import IntArg, FloatArg, Vec2Arg, Vec3Arg, Vec4Arg
+from renlight.sdl.args import FloatArg
 from renlight.sdl.args import register_struct
 from renlight.sdl.arr import Array, ArrayArg
 
@@ -13,7 +12,8 @@ class SuperPoint:
         self.x = x
         self.y = y
 
-register_struct(SuperPoint, 'SuperPoint', fields=[('x', FloatArg), ('y', FloatArg)],
+register_struct(SuperPoint, 'SuperPoint',
+                fields=[('x', FloatArg), ('y', FloatArg)],
                 factory=lambda: SuperPoint(1.0, 2.0))
 
 

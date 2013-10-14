@@ -20,15 +20,14 @@ class SphereTest(unittest.TestCase):
         sph_shader.prepare(runtimes)
 
         code = """
-p1 = isect_b_sphere(ray, sphere)
+min_dist = 99999.0
+p1 = isect_b_sphere(ray, sphere, min_dist)
         """
 
         direction = Vector3(-1.0, -1.0, -1.0)
         direction.normalize()
         ray = Ray(Vector3(5.0, 5.0, 5.0), direction)
         sphere = Sphere(Vector3(0.0, 0.0, 0.0), 2.0, 0)
-
-        #print(sphere.isect_b(ray))
 
         r_arg = StructArg('ray', ray)
         sph_arg = StructArg('sphere', sphere)
@@ -41,7 +40,8 @@ p1 = isect_b_sphere(ray, sphere)
         shader.prepare(runtimes)
         shader.execute()
 
-        #print(shader.get_value('p1'))
+        result = shader.get_value('p1')
+        self.assertEqual(result, 1)
 
     def test_isect_sph(self):
         sph_shader = Sphere.isect_shader()
@@ -50,7 +50,8 @@ p1 = isect_b_sphere(ray, sphere)
         sph_shader.prepare(runtimes)
 
         code = """
-p1 = isect_sphere(ray, sphere, hitpoint)
+min_dist = 99999.0
+p1 = isect_sphere(ray, sphere, hitpoint, min_dist)
         """
 
         direction = Vector3(-1.0, -1.0, -1.0)

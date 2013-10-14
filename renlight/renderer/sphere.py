@@ -6,10 +6,7 @@ from renlight.sdl import Shader, register_struct,\
     Vec3Arg, StructArgPtr, FloatArg, IntArg
 
 from .hitpoint import HitPoint
-
-
-class Shape:
-    pass
+from .shape import Shape
 
 
 class Sphere(Shape):
@@ -32,11 +29,11 @@ class Sphere(Shape):
             denom = 2.0 * a
             t = (-b - e) / denom  # smaller root
             if t > 0.0005 and t < min_dist:
-                return t
+                return True
 
             t = (-b + e) / denom  # larger root
             if t > 0.0005 and t < min_dist:
-                return t
+                return True
         return False
 
     @classmethod
@@ -55,12 +52,12 @@ e = sqrt(disc)
 denom = 2.0 * a
 t = (-1.0 * b - e) / denom
 if t > 0.0005:
-    if t < 99999.0:
+    if t < min_dist:
         return 1
 
 t = (-1.0 * b + e) / denom
 if t > 0.0005:
-    if t < 99999.0:
+    if t < min_dist:
         return 1
 
 return 0
@@ -74,7 +71,8 @@ return 0
         sphere = Sphere(Vector3(0.0, 0.0, 0.0), 0.0, 0)
 
         func_args = [StructArgPtr('ray', ray),
-                     StructArgPtr('sphere', sphere)]
+                     StructArgPtr('sphere', sphere),
+                     FloatArg('min_dist', 0.0)]
 
         shader = Shader(code=code, args=args, name='isect_b_sphere',
                         func_args=func_args, is_func=True)
@@ -96,7 +94,7 @@ e = sqrt(disc)
 denom = 2.0 * a
 t = (-1.0 * b - e) / denom
 if t > 0.0005:
-    if t < 99999.0:
+    if t < min_dist:
         normal = (temp + r_dir * t) * (1.0 / sphere.radius)
         hit = ray.origin + r_dir * t
         hitpoint.t = t
@@ -109,7 +107,7 @@ if t > 0.0005:
 
 t = (-1.0 * b + e) / denom
 if t > 0.0005:
-    if t < 99999.0:
+    if t < min_dist:
         normal = (temp + r_dir * t) * (1.0 / sphere.radius)
         hit = ray.origin + r_dir * t
         hitpoint.t = t
@@ -134,7 +132,8 @@ return 0
 
         func_args = [StructArgPtr('ray', ray),
                      StructArgPtr('sphere', sphere),
-                     StructArgPtr('hitpoint', hitpoint)]
+                     StructArgPtr('hitpoint', hitpoint),
+                     FloatArg('min_dist', 0.0)]
 
         shader = Shader(code=code, args=args, name='isect_sphere',
                         func_args=func_args, is_func=True)

@@ -17,6 +17,7 @@ class Sample:
         return 'x=%f y=%f ix=%i iy=%i weight=%f' % (self.x, self.y, self.ix,
                                                     self.iy, self.weight)
 
-register_struct(Sample, 'Sample', fields=[('x', FloatArg), ('y', FloatArg),
-    ('ix', IntArg), ('iy', IntArg), ('weight', FloatArg)],
-    factory=lambda: Sample(0.0, 0.0, 0, 0, 0.0))
+register_struct(Sample, 'Sample', fields=[('x', FloatArg),
+                ('y', FloatArg), ('ix', IntArg), ('iy', IntArg),
+                ('weight', FloatArg)],
+                factory=lambda: Sample(0.0, 0.0, 0, 0, 0.0))

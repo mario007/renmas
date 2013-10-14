@@ -279,6 +279,7 @@ class StructArg(Argument):
 
     def from_ds(self, ds, prefix=''):
         for arg in self._args:
+            #TODO Test FIX struct inside struct
             if isinstance(arg, StructArg):
                 prefix = prefix + self.name + '.'
                 arg.from_ds(ds, prefix=prefix)
@@ -287,7 +288,8 @@ class StructArg(Argument):
                     path = '%s.' % self.name
                 else:
                     path = '%s%s.' % (prefix, self.name)
-                arg.from_ds(ds, path=path)
+                val = arg.from_ds(ds, path=path)
+                setattr(self._value, arg.name, val)
         return self._value
 
     def resolve(self, path):

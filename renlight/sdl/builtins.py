@@ -238,3 +238,28 @@ def _cross_function(cgen, operands):
     return code, xmm1, Vec3Arg
 
 register_function('cross', _cross_function, inline=True)
+
+
+def _sqrt(cgen, operands):
+    if len(operands) != 1:
+        raise ValueError("Wrong number of arguments in sqrt func.", operands)
+
+    code1, xmm1, typ1 = load_operand(cgen, operands[0])
+
+    #TODO --- typ1 == Integer
+    if typ1 == FloatArg:
+        if cgen.AVX:
+            code1 += 'vsqrtss %s, %s, %s\n' % (xmm1, xmm1, xmm1)
+        else:
+            code1 += 'sqrtss %s, %s\n' % (xmm1, xmm1)
+    elif typ1 == Vec2Arg or typ1 == Vec3Arg or typ1 == Vec4Arg:
+        if cgen.AVX:
+            code1 += 'vsqrtps %s, %s, %s\n' % (xmm1, xmm1, xmm1)
+        else:
+            code1 += 'sqrtps %s, %s\n' % (xmm1, xmm1)
+    else:
+        raise ValueError("Unsuported type of argument in sqrt function!", typ1)
+
+    return code1, xmm1, typ1
+
+register_function('sqrt', _sqrt, inline=True)

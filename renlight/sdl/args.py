@@ -333,6 +333,8 @@ class ArgList(Argument):
         All arguments must have same type and name.
     """
     def __init__(self, name, args):
+        super(ArgList, self).__init__(name)
+
         typ = type(args[0])
         if not all(typ is type(arg) for arg in args):
             raise ValueError("All arguments must have same type")
@@ -340,6 +342,10 @@ class ArgList(Argument):
             raise ValueError("All arguments must have same name")
 
         self._args = args
+
+    @property
+    def args(self):
+        return self._args
 
     def _set_value(self, lst_values):
         for value, arg in zip(lst_values, self._args):

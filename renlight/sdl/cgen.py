@@ -8,8 +8,8 @@ import platform
 import renlight.proc as proc
 from .utils import LocalArgs, Registers
 from .strs import Attribute, Callable, Const, Name, Subscript
-from .args import Argument, arg_from_value, _struct_desc,\
-    StructArg, IntArg, Vec2Arg, Vec3Arg, Vec4Arg, FloatArg, StructArgPtr
+from .args import Argument, arg_from_value, _struct_desc, StructArg,\
+    IntArg, Vec2Arg, Vec3Arg, Vec4Arg, FloatArg, StructArgPtr, ArgList
 from .asm_cmds import store_func_args, load_func_args, move_reg_to_reg,\
     move_reg_to_mem, move_mem_to_reg
 
@@ -158,11 +158,13 @@ class CodeGenerator:
 
         self._args = {}
         for a in args:
+            if isinstance(a, ArgList):
+                a = a.args[0]
             self._args[a.name] = a
         self._func_args = func_args
 
         code = ''.join(self.inst_code(s) for s in statements)
-        data = self._generate_data_section(args, func_args) + '\n'
+        data = self._generate_data_section(self._args.values(), func_args) + '\n'
         data = "\n#DATA \n" + data + "#CODE \n"
         glo = ''
         if is_func:

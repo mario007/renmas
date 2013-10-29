@@ -2,7 +2,7 @@
 from .utils import float2hex
 from .strs import Attribute, Name, Callable, Const, Subscript, Operations, NoOp
 from .args import IntArg, FloatArg, Vec2Arg, Vec3Arg,\
-    Vec4Arg, StructArg, StructArgPtr
+    Vec4Arg, StructArg, StructArgPtr, PointerArg
 from .arr import ArrayArg
 
 
@@ -315,6 +315,15 @@ def load_operand(cgen, op, dest_reg=None):
         cgen.release_reg(reg)
         return code, dest_reg, arg.value.item_arg
 
+    def _load_atr_ptr_arg(cgen, op, arg, dest_reg):
+        code, ptr_reg, path = load_struct_ptr(cgen, op)
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='pointer')
+        #TODO check if dest_reg is pointer
+
+        code2 = "mov %s, dword [%s + %s]\n" % (dest_reg, ptr_reg, path)
+        return code + code2, dest_reg, PointerArg
+
     _ldf = {(Name, IntArg): _load_int_name_arg,
             (Name, FloatArg): _load_float_name_arg,
             (Name, Vec2Arg): _load_vec234_name_arg,
@@ -330,7 +339,8 @@ def load_operand(cgen, op, dest_reg=None):
             (Attribute, Vec2Arg): _load_atr_vec234_arg,
             (Attribute, Vec3Arg): _load_atr_vec234_arg,
             (Attribute, Vec4Arg): _load_atr_vec234_arg,
-            (Subscript, ArrayArg): _load_sub_arr_arg
+            (Subscript, ArrayArg): _load_sub_arr_arg,
+            (Attribute, PointerArg): _load_atr_ptr_arg
             }
 
     if isinstance(op, Const):

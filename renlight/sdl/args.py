@@ -328,6 +328,49 @@ class StructArgPtr(StructArg):
             return 'uint32 %s\n' % self.name
 
 
+class PointerArg(Argument):
+    def __init__(self, name, value=0):
+        super(PointerArg, self).__init__(name)
+        assert int is type(value)
+        self._value = value
+
+    def _set_value(self, value):
+        assert int is type(value)
+        self._value = value
+
+    def _get_value(self):
+        return self._value
+    value = property(_get_value, _set_value)
+
+    def update(self, ds, path=None):
+        if path is None:
+            ds[self.name] = self._value
+        else:
+            ds[path + self.name] = self._value
+
+    def from_ds(self, ds, path=None):
+        if path is None:
+            val = ds[self.name]
+        else:
+            val = ds[path + self.name]
+        self.value = val
+        return val
+
+    @classmethod
+    def conv_to_ds(cls, obj):
+        return int(obj)
+
+    @classmethod
+    def conv_to_obj(cls, val):
+        return int(val)
+
+    def generate_data(self, cgen):
+        if cgen.BIT64:
+            return 'uint64 %s = %i\n' % (self.name, self._value)
+        else:
+            return 'uint32 %s = %i\n' % (self.name, self._value)
+
+
 class ArgList(Argument):
     """
         All arguments must have same type and name.

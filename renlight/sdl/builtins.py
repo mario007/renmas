@@ -1,5 +1,6 @@
 
-from .args import IntArg, FloatArg, Vec2Arg, Vec3Arg, Vec4Arg
+from .strs import Name, Attribute, Const
+from .args import IntArg, FloatArg, Vec2Arg, Vec3Arg, Vec4Arg, StructArg
 from .asm_cmds import load_operand, conv_float_to_int, conv_int_to_float,\
     zero_register
 from .cgen import register_function
@@ -263,3 +264,134 @@ def _sqrt(cgen, operands):
     return code1, xmm1, typ1
 
 register_function('sqrt', _sqrt, inline=True)
+
+
+def _clock(cgen, operands):
+    if len(operands) != 0:
+        raise ValueError("Clock function doesnt accept arguments.", operands)
+
+    reg = cgen.register(reg='eax')
+    code = "cpuid\nrdtsc\n"
+
+    return code, reg, IntArg
+
+register_function('clock', _clock, inline=False)
+
+
+def _get_rgba(cgen, operands):
+    if len(operands) != 3:
+        raise ValueError("Wrong number of args in get_rgba fucntion", operands)
+    if not isinstance(operands[0], Name):  # TODO improve this
+        raise ValueError("First operand must be Name!!!", operands[0])
+    arg1 = cgen.get_arg(operands[0])
+    if not isinstance(arg1, StructArg):
+        raise ValueError("Image structure is expected!", arg1)
+    if arg1.type_name != "ImagePRGBA" and arg1.type_name != 'ImageRGBA':
+        raise ValueError("Wrong image structure!", arg1.type_name)
+    code1, reg1, typ1 = load_operand(cgen, operands[1])
+    code2, reg2, typ2 = load_operand(cgen, operands[2])
+
+    if typ1 != IntArg or typ2 != IntArg:
+        raise ValueError("Argument for x and y must be integers", typ1, typ2)
+
+    code3, reg3, typ3 = load_operand(cgen, Attribute(arg1.name, 'pitch'))
+    code4 = "imul %s, %s\n" % (reg2, reg3)
+    if arg1.type_name == "ImagePRGBA":
+        code5 = "imul %s, %s, 16\n" % (reg1, reg1)
+    else:
+        code5 = "imul %s, %s, 4\n" % (reg1, reg1)
+    code6 = "add %s, %s\n" % (reg2, reg1)
+
+    cgen.release_reg(reg1)
+    cgen.release_reg(reg3)
+
+    code7, reg4, typ4 = load_operand(cgen, Attribute(arg1.name, 'pixels'))
+
+    if cgen.BIT64:
+        code8 = "add %s, %s\n" % (reg4, 'r' + reg2[1:])  # TODO improve conv.
+    else:
+        code8 = "add %s, %s\n" % (reg4, reg2)
+
+    xmm_reg = cgen.register(typ='xmm')
+    if arg1.type_name == "ImagePRGBA":
+        if cgen.AVX:
+            code9 = "vmovaps %s, oword [%s]\n" % (xmm_reg, reg4)
+        else:
+            code9 = "movaps %s, oword [%s]\n" % (xmm_reg, reg4)
+    else:
+        con = Const((0.0039, 0.0039, 0.0039, 0.0039))
+        arg = cgen.create_const(con)
+        xmm_reg2 = cgen.register(typ='xmm')
+        if cgen.AVX:
+            code9 = "vmovss %s, dword [%s]\n" % (xmm_reg, reg4)
+            code9 += "vpxor %s, %s, %s\n" % (xmm_reg2, xmm_reg2, xmm_reg2)
+            code9 += "vpunpcklbw %s, %s, %s\n" % (xmm_reg, xmm_reg, xmm_reg2)
+            code9 += "vpunpcklwd %s, %s, %s\n" % (xmm_reg, xmm_reg, xmm_reg2)
+            code9 += "vcvtdq2ps %s, %s\n" % (xmm_reg, xmm_reg)
+            code9 += "vmulps %s, %s, oword [%s]\n" % (xmm_reg, xmm_reg, arg.name)
+        else:
+            code9 = "movss %s, dword [%s]\n" % (xmm_reg, reg4)
+            code9 += "pxor %s, %s\n" % (xmm_reg2, xmm_reg2)
+            code9 += "punpcklbw %s, %s\n" % (xmm_reg, xmm_reg2)
+            code9 += "punpcklwd %s, %s\n" % (xmm_reg, xmm_reg2)
+            code9 += "cvtdq2ps %s, %s\n" % (xmm_reg, xmm_reg)
+            code9 += "mulps %s, oword [%s]\n" % (xmm_reg, arg.name)
+
+        cgen.release_reg(xmm_reg2)
+
+    cgen.release_reg(reg2)
+    cgen.release_reg(reg4)
+
+    code = code1 + code2 + code3 + code4 + code5 + code6 + code7 + code8 + code9
+    return code, xmm_reg, Vec4Arg
+
+register_function('get_rgba', _get_rgba, inline=True)
+
+
+def _set_rgba(cgen, operands):
+    if len(operands) != 4:
+        raise ValueError("Wrong number of args in set_rgba fucntion", operands)
+    arg1 = cgen.get_arg(operands[0])
+    if not isinstance(arg1, StructArg):
+        raise ValueError("Image structure is expected!", arg1)
+    if arg1.type_name != "ImagePRGBA":
+        raise ValueError("Wrong image structure!", arg1.type_name)
+
+    code1, reg1, typ1 = load_operand(cgen, operands[1])
+    code2, reg2, typ2 = load_operand(cgen, operands[2])
+
+    if typ1 != IntArg or typ2 != IntArg:
+        raise ValueError("Argument for x and y must be integers", typ1, typ2)
+
+    code3, reg3, typ3 = load_operand(cgen, Attribute(arg1.name, 'pitch'))
+
+    code4 = "imul %s, %s\n" % (reg2, reg3)
+    code5 = "imul %s, %s, 16\n" % (reg1, reg1)
+    code6 = "add %s, %s\n" % (reg2, reg1)
+
+    cgen.release_reg(reg1)
+    cgen.release_reg(reg3)
+
+    code7, reg4, typ4 = load_operand(cgen, Attribute(arg1.name, 'pixels'))
+    if cgen.BIT64:
+        code8 = "add %s, %s\n" % (reg4, 'r' + reg2[1:])  # TODO improve conv.
+    else:
+        code8 = "add %s, %s\n" % (reg4, reg2)
+
+    code9, xmm_reg, typ5 = load_operand(cgen, operands[3])
+    if typ5 != Vec4Arg:
+        raise ValueError("Operand is expected to be Vec4 type", typ5)
+
+    if cgen.AVX:
+        code10 = "vmovaps oword [%s], %s\n" % (reg4, xmm_reg)
+    else:
+        code10 = "movaps oword [%s], %s\n" % (reg4, xmm_reg)
+
+    cgen.release_reg(reg4)
+    cgen.release_reg(xmm_reg)
+
+    code = code1 + code2 + code3 + code4 + code5 + code6 + code7 + code8 + code9 + code10
+    return code, reg2, IntArg
+
+register_function('set_rgba', _set_rgba, inline=True)
+

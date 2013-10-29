@@ -1,11 +1,11 @@
 """
     This module contain implementation of classes that store image.
-    
 """
 
 import platform
 import x86
 from tdasm import Tdasm, Runtime
+
 
 def _conv_rgba_bgra_asm32():
     ASM = """
@@ -48,20 +48,21 @@ def _conv_rgba_bgra_asm64():
     ror eax, 8
     mov dword [rdi], eax
 
-    add rsi, 4 
-    add rdi, 4 
+    add rsi, 4
+    add rdi, 4
     sub ebp, 1
     jnz _loop
     #END
     """
     return ASM
 
+
 def _conv_rgba_bgra_asm():
     bits = platform.architecture()[0]
     if bits == '64bit':
         code = _conv_rgba_bgra_asm64()
     else:
-        code =  _conv_rgba_bgra_asm32()
+        code = _conv_rgba_bgra_asm32()
 
     mc = Tdasm().assemble(code)
     runtime = Runtime()
@@ -82,7 +83,7 @@ class Image:
     """
         Base Image class that holds dimension of image and pixels.
         You don't have to instantiate this class directly, use
-        more specialized version. 
+        more specialized version.
     """
     def __init__(self, width, height, pitch):
         """
@@ -97,13 +98,13 @@ class Image:
     @property
     def pixels(self):
         """
-            Return address of pixels 
+            Return address of pixels
         """
         return self._pixels.ptr()
 
     def size(self):
         """
-            Return size of image. (width, height) tuple is returned.  
+            Return size of image. (width, height) tuple is returned.
         """
         return (self.width, self.height)
 
@@ -121,7 +122,7 @@ class Image:
 
     def __repr__(self):
         """
-           Return information about image. 
+           Return information about image.
         """
         adr = self._pixels.ptr()
         return '<Image object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \
@@ -135,17 +136,18 @@ class ImageRGBA(Image):
     """
     def __init__(self, width, height):
         """
-            Create image of specified width and height in rgba format.  
+            Create image of specified width and height in rgba format.
         """
         super(ImageRGBA, self).__init__(width, height, width*4)
-        
+
     def set_pixel(self, x, y, r, g, b, a=255):
         """
             Set color of pixel at cooridantes x, y.
             r, g, b, a are red, green blue and alpha color components.
             Each component must be in range 0-255.
             Default value for alpha component is 255.
-            Function return False if x, y coordinates are out of range otherwise True
+            Function return False if x, y coordinates are out of
+            range otherwise True
         """
         if x < 0 or x >= self.width:
             return False
@@ -171,7 +173,7 @@ class ImageRGBA(Image):
         g = (pix >> 8) & 0xFF
         b = (pix >> 16) & 0xFF
         a = pix >> 24
-        return (r, g, b, a) 
+        return (r, g, b, a)
 
     def to_bgra(self):
         """
@@ -186,7 +188,7 @@ class ImageRGBA(Image):
 
     def __repr__(self):
         """
-           Return information about image. 
+           Return information about image.
         """
         adr = self._pixels.ptr()
         return '<ImageRGBA object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \
@@ -201,7 +203,7 @@ class ImageBGRA(Image):
     """
     def __init__(self, width, height):
         """
-            Create image of specified width and height in bgra format.  
+            Create image of specified width and height in bgra format.
         """
         super(ImageBGRA, self).__init__(width, height, width*4)
 
@@ -211,7 +213,8 @@ class ImageBGRA(Image):
             r, g, b, a are red, green blue and alpha color components.
             Each component must be in range 0-255.
             Default value for alpha component is 255.
-            Function return False if x, y coordinates are out of range otherwise True
+            Function return False if x, y coordinates are out of range
+            otherwise True
         """
         if x < 0 or x >= self.width:
             return False
@@ -237,7 +240,7 @@ class ImageBGRA(Image):
         g = (pix >> 8) & 0xFF
         r = (pix >> 16) & 0xFF
         a = pix >> 24
-        return (r, g, b, a) 
+        return (r, g, b, a)
 
     def to_rgba(self):
         """
@@ -252,7 +255,7 @@ class ImageBGRA(Image):
 
     def __repr__(self):
         """
-           Return information about image. 
+           Return information about image.
         """
         adr = self._pixels.ptr()
         return '<ImageBGRA object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \
@@ -262,13 +265,14 @@ class ImageBGRA(Image):
 class ImagePRGBA(Image):
     """
         Image class that stores pixels in rgba format.
-        Each component (red, green, blue and alpa) uses 32 bits and are written in floating-point format.
+        Each component (red, green, blue and alpa) uses 32 bits
+        and are written in floating-point format.
 
     """
 
     def __init__(self, width, height):
         """
-            Create image of specified width and height in prgba format.  
+            Create image of specified width and height in prgba format.
         """
         super(ImagePRGBA, self).__init__(width, height, width*16)
 
@@ -276,12 +280,13 @@ class ImagePRGBA(Image):
         """
             Set color of pixel at cooridantes x, y.
             r, g, b, a are red, green blue and alpha color components.
-            Default value for alpha component is 0.99. 
-            Function return False if x, y coordinates are out of range otherwise True
+            Default value for alpha component is 0.99.
+            Function return False if x, y coordinates are out of
+            range otherwise True
         """
-        if x < 0 or x >= self.width: 
+        if x < 0 or x >= self.width:
             return False
-        if y < 0 or y >= self.height: 
+        if y < 0 or y >= self.height:
             return False
         adr = y * self.pitch + x * 16
         x86.SetFloat(self._pixels.ptr() + adr, (r, g, b, a), 0)
@@ -289,7 +294,8 @@ class ImagePRGBA(Image):
 
     def get_pixel(self, x, y):
         """
-            Get color of pixel at cooridantes x, y. (r, g, b, a) tuple is returned.
+            Get color of pixel at cooridantes x, y. (r, g, b, a)
+            tuple is returned.
             If x, y cooridantes are out of range None is return.
         """
         if x < 0 or x >= self.width:
@@ -297,12 +303,12 @@ class ImagePRGBA(Image):
         if y < 0 or y >= self.height:
             return None
         adr = y * self.pitch + x * 16
-        # return r, g, b, a 
+        # return r, g, b, a
         return x86.GetFloat(self._pixels.ptr() + adr, 0, 4)
-    
+
     def __repr__(self):
         """
-           Return information about image. 
+           Return information about image.
         """
         adr = self._pixels.ptr()
         return '<ImagePRGBA object at %s Width=%i, Height=%i, Pitch=%i, Pixels=%s>' % \

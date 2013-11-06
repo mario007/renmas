@@ -3,7 +3,8 @@
 from .loader import Loader
 from .shader import Shader
 from .builtins import *
-from .args import register_struct, Vec3Arg, StructArgPtr, StructArg, PointerArg
+from .args import register_struct, Vec3Arg, StructArgPtr,\
+    StructArg, PointerArg, parse_args
 
 
 from renlight.ray import Ray

@@ -283,11 +283,12 @@ class StructArg(Argument):
                     path = '%s.' % self.name
                 else:
                     path = '%s%s.' % (prefix, self.name)
+                arg.value = getattr(self._value, arg.name)
                 arg.update(ds, path=path)
 
     def from_ds(self, ds, prefix=''):
         for arg in self._args:
-            #TODO Test FIX struct inside struct
+            #TODO Test and FIX if nessesary struct inside struct
             if isinstance(arg, StructArg):
                 prefix = prefix + self.name + '.'
                 arg.from_ds(ds, prefix=prefix)
@@ -430,3 +431,38 @@ def arg_from_value(name, value):
     else:
         raise ValueError("Unknown type of value", type(value), value)
     return arg
+
+
+def _parse_vec4(line):
+    t = line.split('=', maxsplit=1)
+    name = t.pop(0).strip()
+    if len(t) == 0:
+        return Vec4Arg(name, Vector4(0.0, 0.0, 0.0, 0.0))
+
+    v = t.pop(0).strip().split(',')
+    arg = Vec4Arg(name, Vector4(float(v[0]), float(v[1]),
+                                float(v[2]), float(v[3])))
+
+    return arg
+
+
+def parse_args(text):
+    funcs = {'Vector4': _parse_vec4}
+    args = []
+    for line in text.splitlines():
+        line = line.strip()
+        if line == '':
+            continue
+        type_name, rest = line.split(maxsplit=1)
+        if type_name in funcs:
+            arg = funcs[type_name](rest.strip())
+        elif type_name in _struct_desc:
+            value = _struct_desc[type_name].factory()
+            vals = rest.strip().split()
+            name = vals.pop(0).strip()
+            arg = StructArg(name, value)
+        else:
+            raise ValueError("Unknown typename ", type_name)
+        args.append(arg)
+    return args
+

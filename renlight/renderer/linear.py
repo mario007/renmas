@@ -87,3 +87,18 @@ while i < %s:
     def visible_shader(self):
         pass
 
+    def compile(self):
+        isect_shaders = []
+        for shp_type in self.shp_mgr.shape_types():
+            isect = shp_type.isect_shader()
+            isect.compile()
+            isect_shaders.append(isect)
+        self.isect_shaders = isect_shaders
+
+        self.shader = self.isect_shader()
+        self.shader.compile(isect_shaders)
+
+    def prepare(self, runtimes):
+        for isect_shader in self.isect_shaders:
+            isect_shader.prepare(runtimes)
+        self.shader.prepare(runtimes)

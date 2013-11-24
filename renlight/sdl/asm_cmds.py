@@ -1,8 +1,8 @@
 
 from .utils import float2hex
 from .strs import Attribute, Name, Callable, Const, Subscript, Operations, NoOp
-from .args import IntArg, FloatArg, Vec2Arg, Vec3Arg,\
-    Vec4Arg, StructArg, StructArgPtr, PointerArg
+from .args import IntArg, FloatArg, Vec2Arg, Vec3Arg, Vec4Arg,\
+    StructArg, StructArgPtr, PointerArg, RGBArg, SampledArg, SampledArgPtr
 from .arr import ArrayArg
 
 
@@ -40,6 +40,104 @@ def load_struct_ptr(cgen, operand):
         code = "mov %s, %s \n" % (ptr_reg, arg.name)
     path = "%s.%s" % (arg.type_name, operand.path)
     return code, ptr_reg, path
+
+
+def _load_xmms(cgen, offset, nregs, reg):
+    code = ''
+    xmms = []
+    if cgen.AVX:
+        _xmm = ['ymm7', 'ymm6', 'ymm5', 'ymm4', 'ymm3', 'ymm2', 'ymm1', 'ymm0']
+        for i in range(nregs):
+            xmm = _xmm.pop()
+            code += "vmovaps %s, yword[%s + %i] \n" % (xmm, reg, offset)
+            xmms.append(xmm)
+            offset += 32
+    else:
+        _xmm = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
+        for i in range(nregs):
+            xmm = _xmm.pop()
+            code += "movaps %s, oword[%s + %i] \n" % (xmm, reg, offset)
+            xmms.append(xmm)
+            offset += 16
+    return code, xmms
+
+
+def _arithmetic(cgen, xmms, offset, reg, op):
+    code = ''
+    if cgen.AVX:
+        ops = {'+': 'vaddps', '-': 'vsubps', '*': 'vmulps', '/': 'vdivps'}
+        for xmm in xmms:
+            code += "%s %s, %s, yword[%s + %i]\n" % (ops[op], xmm, xmm, reg, offset)
+            offset += 32
+    else:
+        ops = {'+': 'addps', '-': 'subps', '*': 'mulps', '/': 'divps'}
+        for xmm in xmms:
+            code += "%s %s, oword[%s + %i]\n" % (ops[op], xmm, reg, offset)
+            offset += 16
+    return code
+
+
+def _store_xmms(cgen, xmms, offset, reg):
+    code = ''
+    if cgen.AVX:
+        for xmm in xmms:
+            code += "vmovaps yword[%s + %i], %s\n" % (reg, offset, xmm)
+            offset += 32
+    else:
+        for xmm in xmms:
+            code += "movaps oword[%s + %i], %s\n" % (reg, offset, xmm)
+            offset += 16
+    return code
+
+
+def arithmetic_sampled(cgen, reg1, op, reg2, dst_reg, n):
+
+    if cgen.AVX:
+        rounds, WIDTH = n // 8, 32
+    else:
+        rounds, WIDTH = n // 4, 16
+
+    nrounds = 0
+    code = ""
+    while rounds > 0:
+        nregs = 8 if rounds > 8 else rounds
+        code1, xmms = _load_xmms(cgen, nrounds * WIDTH, nregs, reg1)
+        code2 = _arithmetic(cgen, xmms, nrounds * WIDTH, reg2, op)
+        code3 = _store_xmms(cgen, xmms, nrounds * WIDTH, dst_reg)
+        code += code1 + code2 + code3
+        rounds -= 8
+        nrounds += 8
+    return code
+
+
+def arith_sampled_mult(cgen, reg1, dst_reg, n):  # '*' and xmm7 implied
+    def _arithmetic_mult(xmms):
+        code = ''
+        if cgen.AVX:
+            for xmm in xmms:
+                code += "vmulps %s, %s, %s\n" % (xmm, xmm, 'ymm7')
+        else:
+            for xmm in xmms:
+                code += "mulps %s, %s\n" % (xmm, 'xmm7')
+        return code
+
+    if cgen.AVX:
+        rounds, WIDTH = n // 8, 32
+    else:
+        rounds, WIDTH = n // 4, 16
+
+    nrounds = 0
+    code = ""
+
+    while rounds > 0:
+        nregs = 7 if rounds > 7 else rounds
+        code1, xmms = _load_xmms(cgen, nrounds * WIDTH, nregs, reg1)
+        code2 = _arithmetic_mult(xmms)
+        code3 = _store_xmms(cgen, xmms, nrounds * WIDTH, dst_reg)
+        code += code1 + code2 + code3
+        rounds -= 7
+        nrounds += 7
+    return code
 
 
 def store_const(cgen, dest, const):
@@ -138,6 +236,44 @@ def store_const(cgen, dest, const):
     raise ValueError("Store const, unsuported destination!", dest)
 
 
+def _load_avx_samples(n, offset, name):
+    x1 = ['ymm7', 'ymm6', 'ymm5', 'ymm4',
+          'ymm3', 'ymm2', 'ymm1', 'ymm0']
+    xmms = []
+    code = ''
+    for i in range(n):
+        xmm = x1.pop()
+        code += "vmovaps %s, yword [%s + %i]\n" % (xmm, name, offset)
+        offset += 32
+        xmms.append(xmm)
+    return code, xmms
+
+
+def _load_sse_samples(n, offset, name):
+    x1 = ['xmm7', 'xmm6', 'xmm5', 'xmm4',
+          'xmm3', 'xmm2', 'xmm1', 'xmm0']
+    xmms = []
+    code = ''
+    for i in range(n):
+        xmm = x1.pop()
+        code += "movaps %s, oword [%s + %i]\n" % (xmm, name, offset)
+        offset += 16
+        xmms.append(xmm)
+    return code, xmms
+
+
+def _store_samples(offset, name, xmms, cgen):
+    code = ''
+    for xmm in xmms:
+        if cgen.AVX:
+            code += "vmovaps yword [%s + %i], %s \n" % (name, offset, xmm)
+            offset += 32
+        else:
+            code += "movaps oword [%s + %i], %s \n" % (name, offset, xmm)
+            offset += 16
+    return code
+
+
 def store_operand(cgen, dest, reg, typ):
 
     def _store_int_name_arg(cgen, dest, reg, arg):
@@ -156,6 +292,37 @@ def store_operand(cgen, dest, reg, typ):
         else:
             code = "movaps oword [%s], %s \n" % (arg.name, xmm)
         return code
+
+    def _store_rgb_name_arg(cgen, dest, xmm, arg):
+        if cgen.AVX:
+            code = "vmovaps oword [%s], %s \n" % (arg.name, xmm)
+        else:
+            code = "movaps oword [%s], %s \n" % (arg.name, xmm)
+        return code
+
+    def _store_sampled_name_arg(cgen, dest, reg, arg):
+        used_xmms = cgen.get_used_xmms()
+        prolog = cgen.save_regs(used_xmms)
+
+        width = 8 if cgen.AVX else 4
+        rounds = len(arg.value.samples) // width
+
+        code = ''
+        offset = 0
+        while rounds > 0:
+            n = 8 if rounds > 8 else rounds
+            if cgen.AVX:
+                code1, xmms = _load_avx_samples(n, offset, reg)
+                code2 = _store_samples(offset, arg.name, xmms, cgen)
+                offset += n * 32
+            else:
+                code1, xmms = _load_sse_samples(n, offset, reg)
+                code2 = _store_samples(offset, arg.name, xmms, cgen)
+                offset += n * 16
+            rounds -= 8
+            code += code1 + code2
+        epilog = cgen.load_regs(used_xmms)
+        return prolog + code + epilog
 
     def _store_atr_int_arg(cgen, dest, reg, arg):
         code, ptr_reg, path = load_struct_ptr(cgen, dest)
@@ -178,6 +345,14 @@ def store_operand(cgen, dest, reg, typ):
             code2 = "movaps oword [%s + %s], %s\n" % (ptr_reg, path, xmm)
         return code + code2
 
+    def _store_atr_rgb_arg(cgen, dest, xmm, arg):
+        code, ptr_reg, path = load_struct_ptr(cgen, dest)
+        if cgen.AVX:
+            code2 = "vmovaps oword [%s + %s], %s\n" % (ptr_reg, path, xmm)
+        else:
+            code2 = "movaps oword [%s + %s], %s\n" % (ptr_reg, path, xmm)
+        return code + code2
+
     def _store_name_struct_arg(cgen, dest, reg, arg):
         if cgen.BIT64:
             return "mov qword [%s], %s \n" % (arg.name, reg)
@@ -189,11 +364,14 @@ def store_operand(cgen, dest, reg, typ):
             (Name, Vec2Arg): _store_vec234_name_arg,
             (Name, Vec3Arg): _store_vec234_name_arg,
             (Name, Vec4Arg): _store_vec234_name_arg,
+            (Name, RGBArg): _store_rgb_name_arg,
+            (Name, SampledArg): _store_sampled_name_arg,
             (Attribute, IntArg): _store_atr_int_arg,
             (Attribute, FloatArg): _store_atr_flt_arg,
             (Attribute, Vec2Arg): _store_atr_vec234_arg,
             (Attribute, Vec3Arg): _store_atr_vec234_arg,
             (Attribute, Vec4Arg): _store_atr_vec234_arg,
+            (Attribute, RGBArg): _store_atr_rgb_arg,
             (Name, StructArgPtr): _store_name_struct_arg
             }
 
@@ -216,6 +394,11 @@ def load_operand(cgen, op, dest_reg=None):
     def _xmm(dest_reg):
         if dest_reg is None:
             dest_reg = cgen.register(typ='xmm')
+        return dest_reg
+
+    def _pointer(dest_reg):
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='pointer')
         return dest_reg
 
     def _check_xmm(cgen, xmm):
@@ -254,6 +437,32 @@ def load_operand(cgen, op, dest_reg=None):
             code = "movaps %s, oword [%s] \n" % (xmm, arg.name)
         return code, xmm, type(arg)
 
+    def _load_rgb_name_arg(cgen, op, arg, dest_reg):
+        xmm = _xmm(dest_reg)
+        _check_xmm(cgen, xmm)
+        if cgen.AVX:
+            code = "vmovaps %s, oword [%s] \n" % (xmm, arg.name)
+        else:
+            code = "movaps %s, oword [%s] \n" % (xmm, arg.name)
+        return code, xmm, RGBArg
+
+    def _load_sampled_name_arg(cgen, op, arg, dest_reg):
+        reg = _pointer(dest_reg)
+        #TODO check if reg is valid 32-64 bit pointer
+        code = 'mov %s, %s\n' % (reg, arg.name)
+        return code, reg, arg
+
+    def _load_sampled_ptr_name_arg(cgen, op, arg, dest_reg):
+        reg = _pointer(dest_reg)
+        #TODO check if reg is valid 32-64 bit pointer
+        if cgen.BIT64:
+            code = "mov %s, qword [%s] \n" % (reg, arg.name)
+        else:
+            code = "mov %s, dword [%s] \n" % (reg, arg.name)
+
+        spec_arg = SampledArg(arg.name, arg.spectrum)
+        return code, reg, spec_arg
+
     def _load_atr_int_arg(cgen, op, arg, dest_reg):
         reg = _general(dest_reg)
         code, ptr_reg, path = load_struct_ptr(cgen, op)
@@ -287,6 +496,15 @@ def load_operand(cgen, op, dest_reg=None):
             code2 = "movaps %s, oword [%s + %s]\n" % (xmm, ptr_reg, path)
         return code + code2, xmm, type(arg)
 
+    def _load_atr_rgb_arg(cgen, op, arg, dest_reg):
+        xmm = _xmm(dest_reg)
+        code, ptr_reg, path = load_struct_ptr(cgen, op)
+        if cgen.AVX:
+            code2 = "vmovaps %s, oword [%s + %s]\n" % (xmm, ptr_reg, path)
+        else:
+            code2 = "movaps %s, oword [%s + %s]\n" % (xmm, ptr_reg, path)
+        return code + code2, xmm, RGBArg
+
     def _load_sub_arr_arg(cgen, op, arg, dest_reg):
 
         #load item from array
@@ -315,6 +533,27 @@ def load_operand(cgen, op, dest_reg=None):
         cgen.release_reg(reg)
         return code, dest_reg, arg.value.item_arg
 
+    def _load_sub_rgb_arg(cgen, op, arg, dest_reg):
+        # address = arr_adr + item_size * index
+        code, reg, typ = load_operand(cgen, op.index)
+        if typ != IntArg:
+            raise ValueError("Index in subscript must be Integer!", typ)
+        xmm = _xmm(dest_reg)
+        _check_xmm(cgen, xmm)
+        if op.path is not None:
+            raise ValueError("Todo!!! array argument in structure", op.path)
+
+        ptr_reg = cgen.register(typ='pointer')
+        code += "mov %s, %s\n" % (ptr_reg, arg.name)
+        if cgen.BIT64:
+            reg = 'r' + reg[1:]
+        if cgen.AVX:
+            code += "vmovss %s, dword [%s + %s * 4] \n" % (xmm, ptr_reg, reg)
+        else:
+            code += "movss %s, dword [%s + %s * 4] \n" % (xmm, ptr_reg, reg)
+
+        return code, xmm, FloatArg
+
     def _load_atr_ptr_arg(cgen, op, arg, dest_reg):
         code, ptr_reg, path = load_struct_ptr(cgen, op)
         if dest_reg is None:
@@ -329,6 +568,9 @@ def load_operand(cgen, op, dest_reg=None):
             (Name, Vec2Arg): _load_vec234_name_arg,
             (Name, Vec3Arg): _load_vec234_name_arg,
             (Name, Vec4Arg): _load_vec234_name_arg,
+            (Name, RGBArg): _load_rgb_name_arg,
+            (Name, SampledArg): _load_sampled_name_arg,
+            (Name, SampledArgPtr): _load_sampled_ptr_name_arg,
             (Const, IntArg): _load_int_name_arg,
             (Const, FloatArg): _load_float_name_arg,
             (Const, Vec2Arg): _load_vec234_name_arg,
@@ -339,7 +581,9 @@ def load_operand(cgen, op, dest_reg=None):
             (Attribute, Vec2Arg): _load_atr_vec234_arg,
             (Attribute, Vec3Arg): _load_atr_vec234_arg,
             (Attribute, Vec4Arg): _load_atr_vec234_arg,
+            (Attribute, RGBArg): _load_atr_rgb_arg,
             (Subscript, ArrayArg): _load_sub_arr_arg,
+            (Subscript, RGBArg): _load_sub_rgb_arg,
             (Attribute, PointerArg): _load_atr_ptr_arg
             }
 
@@ -456,6 +700,65 @@ def arith_cmd(cgen, reg1, typ1, op, reg2, typ2):
             code2 = "mulps %s, %s \n" % (reg1, reg2)
         return code + code2, reg1, typ1
 
+    def _ar_sampled_sampled_arg(cgen, reg1, arg1, op, reg2, arg2):
+
+        used_xmms = cgen.get_used_xmms()
+        prolog = cgen.save_regs(used_xmms)
+
+        sam_arg = cgen.create_tmp_spec(arg1)
+        dst_reg = cgen.register(typ='pointer')
+        ld_sam = 'mov %s, %s\n' % (dst_reg, sam_arg.name)
+
+        n = len(arg1.value.samples)
+        ar = arithmetic_sampled(cgen, reg1, op, reg2, dst_reg, n)
+
+        epilog = cgen.load_regs(used_xmms)
+        code = prolog + ld_sam + ar + epilog
+        return code, dst_reg, sam_arg
+
+    def _expand_to_xmm7(cgen, xmm, typ):
+        def _conv_int_to_float(cgen, reg, xmm):
+            if cgen.AVX:
+                return "vcvtsi2ss %s, %s, %s \n" % (xmm, xmm, reg)
+            else:
+                return "cvtsi2ss %s, %s \n" % (xmm, reg)
+        expand = ''
+        if typ is IntArg:
+            expand = _conv_int_to_float(cgen, xmm, 'xmm7')
+            xmm = 'xmm7'
+
+        if cgen.AVX:
+            expand += "vshufps %s, %s, %s, 0x00\n" % (xmm, xmm, xmm)
+            xmm = "y" + xmm[1:]
+            expand += "vperm2f128 %s, %s, %s, 0x00 \n" % (xmm, xmm, xmm)
+            if xmm != 'ymm7':
+                expand += "vmovaps %s, %s\n" % ('ymm7', xmm)
+        else:
+            expand += "shufps %s, %s, 0x00\n" % (xmm, xmm)
+            if xmm != 'xmm7':
+                expand += "movaps %s, %s\n" % ('xmm7', xmm)
+        return expand
+
+    def _ar_sampled_float_arg(cgen, reg1, arg1, op, xmm, typ2):
+        if op != '*':
+            raise ValueError("Only multiplication is allowed", arg1, typ2)
+
+        used_xmms = cgen.get_used_xmms()
+        prolog = cgen.save_regs(used_xmms)
+
+        sam_arg = cgen.create_tmp_spec(arg1)
+        dst_reg = cgen.register(typ='pointer')
+        ld_sam = 'mov %s, %s\n' % (dst_reg, sam_arg.name)
+
+        expand = _expand_to_xmm7(cgen, xmm, typ2)
+
+        n = len(arg1.value.samples)
+        ar = arith_sampled_mult(cgen, reg1, dst_reg, n)
+
+        epilog = cgen.load_regs(used_xmms)
+        code = prolog + ld_sam + expand + ar + epilog
+        return code, dst_reg, sam_arg
+
     _arf = {(IntArg, IntArg): _ar_int_int_arg,
             (FloatArg, FloatArg): _ar_float_float_arg,
             (IntArg, FloatArg): _ar_int_float_arg,
@@ -475,11 +778,26 @@ def arith_cmd(cgen, reg1, typ1, op, reg2, typ2):
             (FloatArg, Vec2Arg): _ar_float_v234_arg,
             (FloatArg, Vec3Arg): _ar_float_v234_arg,
             (FloatArg, Vec4Arg): _ar_float_v234_arg,
+            (RGBArg, RGBArg): _ar_v234_v234_arg,
+            (RGBArg, IntArg): _ar_v234_int_arg,
+            (RGBArg, FloatArg): _ar_v234_float_arg,
+            (IntArg, RGBArg): _ar_int_v234_arg,
+            (FloatArg, RGBArg): _ar_float_v234_arg
             }
 
+    if isinstance(typ1, SampledArg) and isinstance(typ2, SampledArg):
+        return _ar_sampled_sampled_arg(cgen, reg1, typ1, op, reg2, typ2)
+    elif isinstance(typ1, SampledArg) and typ2 is FloatArg:
+        return _ar_sampled_float_arg(cgen, reg1, typ1, op, reg2, typ2)
+    elif typ1 is FloatArg and isinstance(typ2, SampledArg):
+        return _ar_sampled_float_arg(cgen, reg2, typ2, op, reg1, typ1)
+    elif isinstance(typ1, SampledArg) and typ2 is IntArg:
+        return _ar_sampled_float_arg(cgen, reg1, typ1, op, reg2, typ2)
+    elif typ1 is IntArg and isinstance(typ2, SampledArg):
+        return _ar_sampled_float_arg(cgen, reg2, typ2, op, reg1, typ1)
     key = (typ1, typ2)
     if key not in _arf:
-        raise ValueError("Arithmetic is nod defined!", key)
+        raise ValueError("Arithmetic is not defined!", key)
     code, reg, typ = _arf[key](cgen, reg1, typ1, op, reg2, typ2)
     return code, reg, typ
 
@@ -516,14 +834,7 @@ def process_operation(cgen, operation, stack=[]):
     else:
         raise ValueError("Operation is wrong!", left, right, operation)
 
-    #xmms = []
-    #NOTE We save xmm registers because SampledSpec
-    # uses all xmm registers for arithmetic
-    # if typ is SampledSpec or typ2 is SampledSpec:
-    #     xmms = [r for r, t in stack if cgen.is_xmm(r)]
-    #sregs = cgen.save_regs(xmms)
     code3, reg3, typ3 = arith_cmd(cgen, reg, typ, op, reg2, typ2)
-    #lregs = cgen.load_regs(xmms)
 
     if reg3 != reg:
         cgen.release_reg(reg)
@@ -531,7 +842,6 @@ def process_operation(cgen, operation, stack=[]):
         cgen.release_reg(reg2)
 
     stack.append((reg3, typ3))
-    #return code + sregs + code3 + lregs, reg3, typ3
     return code + code3, reg3, typ3
 
 
@@ -685,12 +995,18 @@ def store_func_args(cgen, args):
                 code += "vmovss dword [%s], %s \n" % (arg.name, xmm)
             else:
                 code += "movss dword [%s], %s \n" % (arg.name, xmm)
-        elif isinstance(arg, (Vec2Arg, Vec3Arg, Vec4Arg)):
+        elif isinstance(arg, (Vec2Arg, Vec3Arg, Vec4Arg, RGBArg)):
             xmm = xmms.pop()
             if cgen.AVX:
                 code += "vmovaps oword [%s], %s \n" % (arg.name, xmm)
             else:
                 code += "movaps oword [%s], %s \n" % (arg.name, xmm)
+        elif isinstance(arg, SampledArgPtr):
+            reg = general.pop()
+            if cgen.BIT64:
+                code += "mov qword [%s], %s\n" % (arg.name, 'r' + reg[1:])
+            else:
+                code += "mov dword [%s], %s\n" % (arg.name, reg)
         else:
             raise ValueError("Currently unsuported argument.", arg)
     return code
@@ -770,6 +1086,7 @@ def load_func_args(cgen, operands, args):
             reg = 'r' + reg[1:] if cgen.BIT64 else reg
             code = "mov %s, %s\n" % (reg, arg.name)
         elif isinstance(operand, Attribute):
+            raise ValueError("Test this! TODO: lea or mov??", operand)
             code, path = _load_struct_ptr(cgen, operand, ptr_reg)
             if cgen.BIT64:
                 reg = 'r' + reg[1:]
@@ -793,6 +1110,17 @@ def load_func_args(cgen, operands, args):
             raise ValueError("Could not load argument!", operand)
         return code
 
+    def _load_sam_ptr_sam(cgen, operand, arg, xmms, regs, ptr_reg):
+        reg = regs.pop()
+        reg = 'r' + reg[1:] if cgen.BIT64 else reg
+        if isinstance(operand, Name):
+            code = 'mov %s, %s\n' % (reg, arg.name)
+        elif isinstance(operand, Attribute):
+            raise ValueError("Not load argument Implement this.", operand)
+        else:
+            raise ValueError("Could not load argument!", operand)
+        return code
+
     xmms = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
     regs = ['edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
     ptr_reg = 'rbp' if cgen.BIT64 else 'ebp'
@@ -803,8 +1131,10 @@ def load_func_args(cgen, operands, args):
             (Vec2Arg, Vec2Arg): _load_vec234_vec234_arg,
             (Vec3Arg, Vec3Arg): _load_vec234_vec234_arg,
             (Vec4Arg, Vec4Arg): _load_vec234_vec234_arg,
+            (RGBArg, RGBArg): _load_vec234_vec234_arg,
             (StructArgPtr, StructArg): _load_struct_arg_ptr,
             (StructArgPtr, StructArgPtr): _load_struct_arg_ptr_ptr,
+            (SampledArgPtr, SampledArg): _load_sam_ptr_sam,
             }
 
     code = ''

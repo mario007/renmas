@@ -1,6 +1,7 @@
 
 from .strs import Name, Attribute, Const
-from .args import IntArg, FloatArg, Vec2Arg, Vec3Arg, Vec4Arg, StructArg
+from .args import IntArg, FloatArg, Vec2Arg, Vec3Arg, Vec4Arg, StructArg,\
+    SampledArg, RGBArg
 from .asm_cmds import load_operand, conv_float_to_int, conv_int_to_float,\
     zero_register
 from .cgen import register_function
@@ -394,4 +395,105 @@ def _set_rgba(cgen, operands):
     return code, reg2, IntArg
 
 register_function('set_rgba', _set_rgba, inline=True)
+
+
+def _sum_samples(cgen, operands):
+    if len(operands) != 1:
+        raise ValueError("Wrong number of arguments in sum_samples", operands)
+    arg = cgen.get_arg(operands[0])
+    if not isinstance(arg, SampledArg):
+        raise ValueError("SampledArg is expected!", arg)
+
+    n = len(arg.value.samples)
+    if cgen.AVX:
+        rounds = n // 8 - 1
+        code = "vmovaps ymm0, yword[%s]\n" % arg.name
+        offset = 32
+        for i in range(rounds):
+            code += "vaddps ymm0, ymm0, yword[%s + %i]\n" % (arg.name, offset)
+            offset += 32
+        code += """
+            vperm2f128 ymm1, ymm0, ymm0, 0x01
+            vaddps xmm0, xmm0, xmm1
+            vmovhlps xmm2, xmm2, xmm0
+            vmovaps xmm1, xmm0
+            vshufps xmm1, xmm1, xmm1, 0x55
+            vmovaps xmm3, xmm2
+            vshufps xmm3, xmm3, xmm3, 0x55
+            vaddss xmm0, xmm0, xmm1
+            vaddss xmm2, xmm2, xmm3
+            vaddss xmm0, xmm0, xmm2
+            """
+    else:
+        rounds = n // 4 - 1
+        code = "movaps xmm0, oword[%s]\n" % arg.name
+        offset = 16
+        for i in range(rounds):
+            code += "addps xmm0, oword[%s + %i]\n" % (arg.name, offset)
+            offset += 16
+        code += """
+            movhlps xmm2, xmm0
+            movaps xmm1, xmm0
+            shufps xmm1, xmm1, 0x55
+            movaps xmm3, xmm2
+            shufps xmm3, xmm3, 0x55
+            addss xmm0, xmm1
+            addss xmm2, xmm3
+            addss xmm0, xmm2
+            """
+
+    return code, 'xmm0', FloatArg
+
+register_function('sum_samples', _sum_samples, inline=False)
+
+
+def _spectrum(cgen, operands):
+    if len(operands) != 2:
+        raise ValueError("Wrong number of arguments in Spectrum", operands)
+
+    arg = cgen.get_arg(operands[0])
+    if type(arg) != RGBArg and type(arg) != SampledArg:
+        raise ValueError("RGBArg or SampledArg is expected", arg)
+    code, xmm, typ2 = load_operand(cgen, operands[1])
+    if typ2 != FloatArg:
+        raise ValueError("FloatArg is expected", typ2)
+
+    if cgen.AVX:
+        code += "vshufps %s, %s, %s, 0x00\n" % (xmm, xmm, xmm)
+    else:
+        code += "shufps %s, %s, 0x00\n" % (xmm, xmm)
+
+    if type(arg) == RGBArg:
+        return code, xmm, RGBArg
+
+    name = Name(cgen._generate_name('local'))
+    sam_arg = cgen.create_arg(name, arg)
+    dst_reg = cgen.register(typ='pointer')
+    code += 'mov %s, %s\n' % (dst_reg, sam_arg.name)
+
+    offset = 0
+    if cgen.AVX:
+        xmm = "y" + xmm[1:]
+        code += "vperm2f128 %s, %s, %s, 0x00 \n" % (xmm, xmm, xmm)
+        rounds = len(arg.value.samples) // 8
+        for i in range(rounds):
+            code += "vmovaps yword[%s + %i], %s\n" % (sam_arg.name, offset, xmm)
+            offset += 32
+    else:
+        rounds = len(arg.value.samples) // 4
+        for i in range(rounds):
+            code += "movaps oword[%s + %i], %s\n" % (sam_arg.name, offset, xmm)
+            offset += 16
+
+    code1, reg, typ = load_operand(cgen, name)
+    return code + code1, reg, typ
+
+register_function('Spectrum', _spectrum, inline=True)
+
+
+def _call_indirect(cgen, operands):
+    pass
+    raise ValueError("Tu smo")
+
+register_function('call_indirect', _call_indirect, inline=False)
 

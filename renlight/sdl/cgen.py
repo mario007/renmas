@@ -6,10 +6,11 @@
 import platform
 
 import renlight.proc as proc
+from renlight.spectrum import SampledSpectrum
 from .utils import LocalArgs, Registers
 from .strs import Attribute, Callable, Const, Name, Subscript
 from .args import Argument, arg_from_value, _struct_desc, StructArg,\
-    IntArg, Vec2Arg, Vec3Arg, Vec4Arg, FloatArg, StructArgPtr, ArgList
+    IntArg, Vec2Arg, Vec3Arg, Vec4Arg, FloatArg, StructArgPtr, ArgList, SampledArg
 from .asm_cmds import store_func_args, load_func_args, move_reg_to_reg,\
     move_reg_to_mem, move_mem_to_reg
 
@@ -77,6 +78,7 @@ class CodeGenerator:
         if not isinstance(value, (Const, Name,
                                   Attribute, Subscript, Callable))\
                 and not isinstance(value, StructArg)\
+                and not isinstance(value, SampledArg)\
                 and not issubclass(value, Argument):
             raise ValueError("Unknown(unsuported) value in create arg!", value)
 
@@ -89,6 +91,10 @@ class CodeGenerator:
             struct_desc = _struct_desc[value.name]
             val = struct_desc.factory()
             arg2 = StructArg(name, val)
+        elif isinstance(value, SampledArg):
+            name = self._generate_name('local')
+            samples = tuple(value.value.samples)
+            arg2 = SampledArg(name, SampledSpectrum(samples))
         elif isinstance(value, StructArg):
             name = self._generate_name('local')
             struct_desc = _struct_desc[value.type_name]
@@ -100,6 +106,7 @@ class CodeGenerator:
             arg2 = self.get_arg(value)
             if arg2 is None:
                 raise ValueError("Argument doesn't exist!", value)
+
         if isinstance(arg, StructArg):
             arg = arg.resolve(dest.path)
         if type(arg) != type(arg2) and self._is_arg_fixed(dest):
@@ -132,9 +139,9 @@ class CodeGenerator:
             if isinstance(arg, StructArg):
                 data += self._struct_def(arg, structs)
 
-        #specs = self._tmp_specs + self._tmp_specs_used
-        #for arg in specs:
-        #    data += arg.generate_data()
+        specs = self._tmp_specs + self._tmp_specs_used
+        for arg in specs:
+            data += arg.generate_data(self)
 
         for arg in all_args:
             data += arg.generate_data(self)
@@ -155,6 +162,10 @@ class CodeGenerator:
         self._ret_type = None
         self._saved_regs = set()
         self._shaders = shaders
+
+        # Local Sampled Spectrums for temporal calculations in expressions
+        self._tmp_specs = []
+        self._tmp_specs_used = []
 
         self._args = {}
         for a in args:
@@ -179,13 +190,28 @@ class CodeGenerator:
 
         return code, self._ret_type
 
+    def create_tmp_spec(self, factory_arg):
+        if self._tmp_specs:
+            arg = self._tmp_specs.pop()
+        else:
+            name = self._generate_name('local_sam_spec')
+            val = factory_arg.value.zero()
+            arg = SampledArg(name, val)
+        self._tmp_specs_used.append(arg)
+        return arg
+
+    def _free_tmp_specs(self):
+        for arg in self._tmp_specs_used:
+            self._tmp_specs.append(arg)
+        self._tmp_specs_used = []
+
     def inst_code(self, stm):
         """
             Generate code for statement.
             @param - statement
         """
         self.clear_regs()
-        #self._free_tmp_specs()
+        self._free_tmp_specs()
         return stm.asm_code(self)
 
     def clear_regs(self):
@@ -196,6 +222,12 @@ class CodeGenerator:
                      'xmm3', 'xmm2', 'xmm1', 'xmm0']
         self._general = ['ebp', 'edi', 'esi', 'edx', 'ecx', 'ebx', 'eax']
         self._general64 = ['rbp', 'rdi', 'rsi', 'rdx', 'rcx', 'rbx', 'rax']
+
+    def get_used_xmms(self):
+        x1 = ['xmm7', 'xmm6', 'xmm5', 'xmm4', 'xmm3', 'xmm2', 'xmm1', 'xmm0']
+        x1 = set(x1)
+        x2 = set(self._xmm)
+        return x1 - x2
 
     def register(self, typ=None, bit=32, reg=None):
         """
@@ -320,6 +352,9 @@ class CodeGenerator:
                 self.register(reg=r)
         code += self.load_regs(regs)
         return code, reg, typ
+
+    def call_indirect(self):
+        pass
 
     def _call_function(self, operand, regs):
 

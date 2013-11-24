@@ -2,7 +2,9 @@ import unittest
 from tdasm import Runtime
 from renlight.vector import Vector2, Vector3, Vector4
 from renlight.sdl.shader import Shader
-from renlight.sdl.args import IntArg, FloatArg, Vec2Arg, Vec3Arg, Vec4Arg
+from renlight.sdl.args import IntArg, FloatArg, Vec2Arg, Vec3Arg,\
+    Vec4Arg, RGBArg, SampledArg
+from renlight.spectrum import RGBSpectrum, SampledSpectrum, create_samples
 
 
 class AssignTest(unittest.TestCase):
@@ -43,6 +45,42 @@ p5 = r
         self.assertAlmostEqual(v.w, 1.0)
         v = shader.get_value('p5')
         self.assertAlmostEqual(v, 3.3)
+
+    def test_assign_rgb_spectrum(self):
+        code = """
+p2 = p1
+        """
+        p1 = RGBArg('p1', RGBSpectrum(0.36, 0.85, 0.14))
+        p2 = RGBArg('p2', RGBSpectrum(0.0, 0.0, 0.0))
+        shader = Shader(code=code, args=[p1, p2])
+        shader.compile()
+        shader.prepare([Runtime()])
+        shader.execute()
+
+        v = shader.get_value('p2')
+        self.assertAlmostEqual(v.r, 0.36)
+        self.assertAlmostEqual(v.g, 0.85)
+        self.assertAlmostEqual(v.b, 0.14)
+
+    def test_assign_sampled_spectrum(self):
+        code = """
+p2 = p1
+        """
+        vals = [(450, 0.33), (480, 0.45)]
+        samples = create_samples(vals, 32, 400, 700)
+        p1 = SampledArg('p1', SampledSpectrum(samples))
+        vals = [(430, 0.23), (480, 0.55), (600, 0.77)]
+        samples2 = create_samples(vals, 32, 400, 700)
+        p2 = SampledArg('p2', SampledSpectrum(samples2))
+
+        shader = Shader(code=code, args=[p1, p2])
+        shader.compile()
+        shader.prepare([Runtime()])
+        shader.execute()
+
+        v = shader.get_value('p2')
+        for val1, val2 in zip(samples, v.samples):
+            self.assertAlmostEqual(val1, val2)
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,6 @@
 
 from renlight.vector import Vector2, Vector3, Vector4
+from renlight.spectrum import RGBSpectrum, SampledSpectrum
 
 
 class Argument:
@@ -288,7 +289,7 @@ class StructArg(Argument):
 
     def from_ds(self, ds, prefix=''):
         for arg in self._args:
-            #TODO Test and FIX if nessesary struct inside struct
+            #TODO Test and FIX struct inside struct
             if isinstance(arg, StructArg):
                 prefix = prefix + self.name + '.'
                 arg.from_ds(ds, prefix=prefix)
@@ -372,6 +373,107 @@ class PointerArg(Argument):
             return 'uint32 %s = %i\n' % (self.name, self._value)
 
 
+class RGBArg(Argument):
+
+    def __init__(self, name, value=RGBSpectrum(0.0, 0.0, 0.0)):
+        super(RGBArg, self).__init__(name)
+        assert RGBSpectrum is type(value)
+        self._value = value
+
+    def _set_value(self, value):
+        assert RGBSpectrum is type(value)
+        self._value = value
+
+    def _get_value(self):
+        return self._value
+    value = property(_get_value, _set_value)
+
+    def generate_data(self, cgen):
+        v = self._value
+        return 'float %s[4] = %f,%f,%f,0.0 \n' % \
+            (self.name, float(v.r), float(v.g), float(v.b))
+
+    def update(self, ds, path=None):
+        v = self._value
+        if path is None:
+            ds[self.name] = (float(v.r), float(v.g), float(v.b), 0.0)
+        else:
+            ds[path + self.name] = (float(v.r), float(v.g), float(v.b), 0.0)
+
+    def from_ds(self, ds, path=None):
+        if path is None:
+            val = ds[self.name]
+        else:
+            val = ds[path + self.name]
+        col = self._value
+        col.r = val[0]
+        col.g = val[1]
+        col.b = val[2]
+        return col
+
+    @classmethod
+    def conv_to_ds(cls, obj):
+        return (obj.r, obj.g, obj.b, 0.0)
+
+    @classmethod
+    def conv_to_obj(cls, val):
+        return RGBSpectrum(val[0], val[1], val[2])
+
+
+class SampledArg(Argument):
+
+    def __init__(self, name, value):
+        super(SampledArg, self).__init__(name)
+        assert SampledSpectrum is type(value)
+        self._value = value
+
+    def _set_value(self, value):
+        assert SampledSpectrum is type(value)
+        self._value = value
+
+    def _get_value(self):
+        return self._value
+    value = property(_get_value, _set_value)
+
+    def generate_data(self, cgen):
+        n = len(self._value.samples)
+        d = 'float %s[%i] =' % (self.name, n)
+        vals = ','.join(format(float(v), '.8f') for v in self._value.samples)
+        return '%s %s\n' % (d, vals)
+
+    def update(self, ds, path=None):
+        vals = [float(v) for v in self._value.samples]
+        if path is None:
+            ds[self.name] = tuple(vals)
+        else:
+            ds[path + self.name] = tuple(vals)
+
+    def from_ds(self, ds, path=None):
+        if path is None:
+            val = ds[self.name]
+        else:
+            val = ds[path + self.name]
+
+        self._value.samples = tuple(val)
+        return self._value
+
+    @classmethod
+    def conv_to_ds(cls, obj):
+        vals = [float(v) for v in obj.samples]
+        return tuple(vals)
+
+    @classmethod
+    def conv_to_obj(cls, val):
+        return SampledSpectrum(tuple(val))
+
+
+class SampledArgPtr(PointerArg):
+    def __init__(self, name, value, sampled_spectrum):
+        super(SampledArgPtr, self).__init__(name, value)
+        assert SampledSpectrum is type(sampled_spectrum)
+        self.spectrum = sampled_spectrum
+
+
 class ArgList(Argument):
     """
         All arguments must have same type and name.
@@ -446,8 +548,17 @@ def _parse_vec4(line):
     return arg
 
 
+def _parse_rgb(line):
+    t = line.split('=', maxsplit=1)
+    name = t.pop(0).strip()
+    if len(t) == 0:
+        return RGBArg(name, RGBSpectrum(0.0, 0.0, 0.0))
+    v = t.pop(0).strip().split(',')
+    return RGBArg(name, RGBSpectrum(float(v[0]), float(v[1]), float(v[2])))
+
+
 def parse_args(text):
-    funcs = {'Vector4': _parse_vec4}
+    funcs = {'vector4': _parse_vec4, 'rgb': _parse_rgb}
     args = []
     for line in text.splitlines():
         line = line.strip()

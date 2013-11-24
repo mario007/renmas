@@ -1,4 +1,4 @@
 
-Vector4  background = 0.5, 0.0, 0.0, 0.99
-Vector4 hit_color = 0.0, 0.5, 0.0, 0.99
+vector4  background = 0.5, 0.0, 0.0, 0.99
+vector4 hit_color = 0.0, 0.5, 0.0, 0.99
 ImagePRGBA image

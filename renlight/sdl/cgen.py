@@ -10,7 +10,8 @@ from renlight.spectrum import SampledSpectrum
 from .utils import LocalArgs, Registers
 from .strs import Attribute, Callable, Const, Name, Subscript
 from .args import Argument, arg_from_value, _struct_desc, StructArg,\
-    IntArg, Vec2Arg, Vec3Arg, Vec4Arg, FloatArg, StructArgPtr, ArgList, SampledArg
+    IntArg, Vec2Arg, Vec3Arg, Vec4Arg, FloatArg, StructArgPtr, ArgList,\
+    SampledArg, PointerArg
 from .asm_cmds import store_func_args, load_func_args, move_reg_to_reg,\
     move_reg_to_mem, move_mem_to_reg
 
@@ -20,6 +21,13 @@ _built_ins_function = {}
 
 def register_function(name, func, inline):
     _built_ins_function[name] = (func, inline)
+
+
+_prototype_functions = {}
+
+
+def register_prototype(name, func_args=[], ret_type=None):
+    _prototype_functions[name] = (func_args, ret_type)
 
 
 class CodeGenerator:
@@ -304,6 +312,10 @@ class CodeGenerator:
             return _built_ins_function[name]
         return None
 
+    def _get_prototype(self, name):
+        if name in _prototype_functions:
+            return _prototype_functions[name]
+
     def _find_free_reg(self, regs, typ):
         acum = self.acum_for_type(typ)
         xmm = ('xmm0', 'xmm1', 'xmm2', 'xmm3', 'xmm4', 'xmm5', 'xmm6', 'xmm7')
@@ -353,7 +365,46 @@ class CodeGenerator:
         code += self.load_regs(regs)
         return code, reg, typ
 
-    def call_indirect(self):
+    def _load_function_ptr(self, operand):
+        if not isinstance(operand, Name):
+            raise ValueError("Todo: Attribute, Subscript!!!", operand)
+        arg = self.get_arg(operand)
+        if not isinstance(arg, PointerArg):
+            raise ValueError("Pointer is expected", arg)
+        ptr_reg = 'rbp' if self.BIT64 else 'ebp'
+        code = "mov %s, %s \n" % (ptr_reg, arg.name)
+        return code
+
+    def _call_shader_indirect(self, obj, regs):
+
+        func_args, typ = self._get_prototype(obj.name)
+
+        code = self.save_regs(regs)
+        self.clear_regs()
+        code += load_func_args(self, obj.args[:-1], func_args)
+        code += self._load_function_ptr(obj.args[-1])
+        self.clear_regs()
+
+        if self.BIT64:
+            code += "call qword [rbp]\n"
+        else:
+            code += "call dword [ebp]\n"
+
+        if typ is None:
+            typ = IntArg
+            reg = self.acum_for_type(typ)
+            self.register(reg=reg)
+        else:
+            reg = self._find_free_reg(regs, typ)
+            acum = self.acum_for_type(typ)
+            code += move_reg_to_reg(self, acum, reg)
+            self.register(reg=reg)
+        for r in regs:
+            if r != reg:
+                self.register(reg=r)
+        code += self.load_regs(regs)
+        return code, reg, typ
+
         pass
 
     def _call_function(self, operand, regs):
@@ -387,6 +438,10 @@ class CodeGenerator:
         shader = self._get_shader(obj.name)
         if shader is not None:
             return self._call_shader(shader, obj, regs)
+
+        prototype = self._get_prototype(obj.name)
+        if prototype is not None:
+            return self._call_shader_indirect(obj, regs)
 
         raise ValueError("Callable %s doesn't exist." % obj.name)
 

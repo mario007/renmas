@@ -63,8 +63,9 @@ class Shader:
         self.update_args()
 
     def get_ptrs(self):
-        name = 'shader' + str(id(self))
-        ptrs = [r.address_module(name) for r in self._runtimes]
+        if not self._is_func:
+            raise ValueError("Only function shader can have function pointers!")
+        ptrs = [r.address_label(self._name) for r in self._runtimes]
         return ptrs
 
     def update_args(self):

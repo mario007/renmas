@@ -1,7 +1,7 @@
 
 from .strs import Name, Attribute, Const
 from .args import IntArg, FloatArg, Vec2Arg, Vec3Arg, Vec4Arg, StructArg,\
-    SampledArg, RGBArg
+    SampledArg, RGBArg, PointerArg
 from .asm_cmds import load_operand, conv_float_to_int, conv_int_to_float,\
     zero_register
 from .cgen import register_function
@@ -489,11 +489,4 @@ def _spectrum(cgen, operands):
     return code + code1, reg, typ
 
 register_function('Spectrum', _spectrum, inline=True)
-
-
-def _call_indirect(cgen, operands):
-    pass
-    raise ValueError("Tu smo")
-
-register_function('call_indirect', _call_indirect, inline=False)
 

@@ -5,7 +5,7 @@ from tdasm import Runtime
 
 from renlight.vector import Vector3
 from renlight.sdl.shader import Shader
-from renlight.sdl.args import Vec3Arg, PointerArg 
+from renlight.sdl.args import Vec3Arg, PointerArg, RGBArg 
 
 from renlight.renderer.shadepoint import register_rgb_shadepoint, register_sampled_shadepoint
 from renlight.spectrum import RGBSpectrum
@@ -23,16 +23,21 @@ class MaterialTest(unittest.TestCase):
         runtime = Runtime()
         mat.prepare([runtime])
         ptrs = mat.bsdf.get_ptrs()
-        print(ptrs)
 
         code = """
 hp = HitPoint()
 sp = ShadePoint()
-call_indirect(hp, sp, ptr_func)
+material_reflectance(hp, sp, ptr_func)
+rez = sp.material_reflectance
         """
         ptr_func = PointerArg('ptr_func', ptrs[0])
-        shader = Shader(code=code, args=[ptr_func])
-        #shader.compile()
+        rez = RGBArg('rez', RGBSpectrum(0.0, 0.0, 0.0))
+        shader = Shader(code=code, args=[ptr_func, rez])
+        shader.compile()
+        shader.prepare([runtime])
+        shader.execute()
+
+        print(shader.get_value('rez'))
 
 if __name__ == "__main__":
     unittest.main()

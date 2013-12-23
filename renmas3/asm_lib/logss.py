@@ -83,7 +83,7 @@ def log_ss():
     global fast_log_ss:
     vmaxss	xmm0, xmm0, dword [_ps_am_min_norm_pos]  ; cut off denormalized stuff
     vmovss	xmm1, dword [_ps_am_1]
-    movd	edx, xmm0
+    vmovd	edx, xmm0
 
     vandps	xmm0, xmm0, oword [_ps_am_inv_mant_mask]
     vorps	xmm0, xmm0, xmm1

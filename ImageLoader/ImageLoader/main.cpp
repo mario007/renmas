@@ -150,8 +150,8 @@ bool GetImageInternal(char *name, void *address, int width, int height)
 		  for(int x=0; x<width; x++)
 		  {
 
-			picture.GetPixel(x, height - y, &pixCol); //for flipping
-			//picture.GetPixel(x, y, &pixCol);
+			//picture.GetPixel(x, height - y - 1, &pixCol); //for flipping
+			picture.GetPixel(x, y, &pixCol);
 			r = pixCol.GetRed();
 			g = pixCol.GetGreen();
 			b = pixCol.GetBlue();

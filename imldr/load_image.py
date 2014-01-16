@@ -1,7 +1,7 @@
 import platform
 import os.path
 
-from sdl.image import ImageRGBA
+from sdl.image import ImageRGBA, ImagePRGBA
 from .tga import load_tga
 from .rgbe import load_hdr
 from .ppm import load_ppm
@@ -52,10 +52,29 @@ def _detect_format(fname):
     else:
         return ext[1:] #Remove period from extension
 
+
+def _load_image_frimgldr(fname):
+    import freeimgldr
+    width, height, bpp = freeimgldr.QueryImage(fname)
+    if bpp > 32:
+        im = ImagePRGBA(width, height)
+    else:
+        im = ImageRGBA(width, height)
+    addr, pitch = im.address_info()
+    freeimgldr.GetImage(fname, addr, width, height, bpp)
+    return im
+
+
 def load_image(fname):
 
     if not os.path.isfile(fname):
         return None #file doesn't exists
+
+    try:
+        import freeimgldr
+        return _load_image_frimgldr(fname)
+    except ImportError:
+        pass
 
     typ = _detect_format(fname)
     if typ is None:

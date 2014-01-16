@@ -2,7 +2,7 @@
 import platform
 import os.path
 
-from sdl.image import ImageBGRA
+from sdl.image import ImageBGRA, ImageRGBA, ImagePRGBA
 from .tga import save_tga
 from .ppm import save_ppm
 
@@ -40,10 +40,29 @@ _image_writers = {
 def register_image_writer(typ, func):
     _image_writers[typ] = func
 
+
+def _save_image_frimgldr(fname, image, typ=None):
+    import freeimgldr
+
+    addr, pitch = image.address_info()
+    width, height = image.size()
+    if isinstance(image, ImagePRGBA):
+        bpp = 128
+    else:
+        bpp = 24
+    freeimgldr.SaveImage(fname, addr, width, height, bpp)
+
+
 def save_image(fname, image, typ=None):
-    #TODO hdr support
     if isinstance(image, ImageBGRA):
         image = image.to_rgba()
+
+    try:
+        import freeimgldr
+        return _save_image_frimgldr(fname, image, typ)
+    except ImportError:
+        pass
+
 
     if typ is not None:
         if typ in _image_writers:

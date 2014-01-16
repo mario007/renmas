@@ -535,6 +535,15 @@ def arg_from_value(name, value):
     return arg
 
 
+def _parse_float(line):
+    t = line.split('=', maxsplit=1)
+    name = t.pop(0).strip()
+    if len(t) == 0:
+        return FloatArg(name, 0.0)
+    v = float(t.pop(0).strip())
+    return FloatArg(name, v)
+
+
 def _parse_vec4(line):
     t = line.split('=', maxsplit=1)
     name = t.pop(0).strip()
@@ -558,7 +567,9 @@ def _parse_rgb(line):
 
 
 def parse_args(text):
-    funcs = {'vector4': _parse_vec4, 'rgb': _parse_rgb}
+    funcs = {'vector4': _parse_vec4, 'rgb': _parse_rgb,
+            'float': _parse_float}
+
     args = []
     for line in text.splitlines():
         line = line.strip()

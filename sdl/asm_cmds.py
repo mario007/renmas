@@ -533,7 +533,7 @@ def load_operand(cgen, op, dest_reg=None):
         cgen.release_reg(reg)
         return code, dest_reg, arg.value.item_arg
 
-    def _load_sub_rgb_arg(cgen, op, arg, dest_reg):
+    def _load_sub_vec234_arg(cgen, op, arg, dest_reg):
         # address = arr_adr + item_size * index
         code, reg, typ = load_operand(cgen, op.index)
         if typ != IntArg:
@@ -583,7 +583,10 @@ def load_operand(cgen, op, dest_reg=None):
             (Attribute, Vec4Arg): _load_atr_vec234_arg,
             (Attribute, RGBArg): _load_atr_rgb_arg,
             (Subscript, ArrayArg): _load_sub_arr_arg,
-            (Subscript, RGBArg): _load_sub_rgb_arg,
+            (Subscript, RGBArg): _load_sub_vec234_arg,
+            (Subscript, Vec2Arg): _load_sub_vec234_arg,
+            (Subscript, Vec3Arg): _load_sub_vec234_arg,
+            (Subscript, Vec4Arg): _load_sub_vec234_arg,
             (Attribute, PointerArg): _load_atr_ptr_arg
             }
 
@@ -774,7 +777,7 @@ def arith_cmd(cgen, reg1, typ1, op, reg2, typ2):
             (IntArg, Vec4Arg): _ar_int_v234_arg,
             (Vec2Arg, FloatArg): _ar_v234_float_arg,
             (Vec3Arg, FloatArg): _ar_v234_float_arg,
-            (Vec3Arg, FloatArg): _ar_v234_float_arg,
+            (Vec4Arg, FloatArg): _ar_v234_float_arg,
             (FloatArg, Vec2Arg): _ar_float_v234_arg,
             (FloatArg, Vec3Arg): _ar_float_v234_arg,
             (FloatArg, Vec4Arg): _ar_float_v234_arg,

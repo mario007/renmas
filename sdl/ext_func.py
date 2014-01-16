@@ -1,5 +1,5 @@
 
-from tdasm.asm_lib import logss, logps, expss, expps
+from tdasm.asm_lib import logss, logps, expss, expps, powss, powps
 
 
 class ExtFunction:
@@ -16,6 +16,8 @@ def load_ext_function(runtimes, ext_func):
     funcs['log_ps'] = logps.log_ps_asm
     funcs['exp_ss'] = expss.exp_ss_asm
     funcs['exp_ps'] = expps.exp_ps_asm
+    funcs['pow_ss'] = powss.pow_ss_asm
+    funcs['pow_ps'] = powps.pow_ps_asm
 
     name = ext_func.name
     if name not in funcs:

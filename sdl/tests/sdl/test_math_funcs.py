@@ -50,5 +50,29 @@ t2 = exp(val)
         self.assertAlmostEqual(v.y, exp(1.6), places=3)
         self.assertAlmostEqual(v.z, exp(2.9), places=3)
 
+    def test_pow(self):
+        code = """
+val1 = 1.4
+val2 = 1.2
+t1 = pow(val1, val2)
+val1 = (1.6, 1.3, 2.2)
+val2 = (1.1, 1.2, 1.3)
+t2 = pow(val1, val2)
+
+        """
+        t1 = FloatArg('t1', 0.0)
+        t2 = Vec3Arg('t2', Vector3(1, 4.4, 29))
+        shader = Shader(code=code, args=[t1, t2])
+        shader.compile()
+        shader.prepare([Runtime()])
+        shader.execute()
+        v = shader.get_value('t1')
+        self.assertAlmostEqual(v, pow(1.4, 1.2), places=3)
+        v = shader.get_value('t2')
+        self.assertAlmostEqual(v.x, pow(1.6, 1.1), places=3)
+        self.assertAlmostEqual(v.y, pow(1.3, 1.2), places=3)
+        self.assertAlmostEqual(v.z, pow(2.2, 1.3), places=3)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -3,7 +3,7 @@
 #include <Python.h>
 #include <stdio.h>
 
-PyObject *renmas3 = NULL;
+
 PyObject *iface = NULL;
 
 extern "C" __declspec(dllexport) int __cdecl Init()
@@ -12,12 +12,9 @@ extern "C" __declspec(dllexport) int __cdecl Init()
 	//Py_SetPath(L".\\DistPython\\Lib;G:\\GitTDASM\\tdasm;G:\\GitRENMAS\\renmas"); // laptop
 	//Py_SetPath(L".\\DistPython\\Lib;.\\GitTDASM;.\\GitRENMAS"); // distribution
 
-	Py_Initialize();  
-	renmas3 = PyImport_ImportModule("renmas3");
-	if (renmas3 == NULL) 
-		return -1;
-	
-	iface = PyImport_ImportModule("renmas3.interface.iface");
+	Py_Initialize(); 
+
+	iface = PyImport_ImportModule("isharp.iface");
 	if (iface == NULL) 
 		return -1;
 	return 0;
@@ -124,6 +121,19 @@ extern "C" __declspec(dllexport) long __cdecl GetProperty(const char *id_obj, co
 	}
 	else
 	{
+		PyObject* excType, *excValue, *excTraceback;
+    PyErr_Fetch(&excType, &excValue, &excTraceback);
+    PyErr_NormalizeException(&excType, &excValue, &excTraceback);
+
+	PyObject *mod = PyImport_ImportModule("traceback");
+	PyObject *list = PyObject_CallMethod(mod, "format_exception", "OOO", excType, excValue, excTraceback);
+	PyObject *separator = PyUnicode_FromString("\n");
+	PyObject *exc_info = PyUnicode_Join(separator, list);
+
+	text = PyUnicode_AsWideCharString(exc_info, NULL);
+	*value = (wchar_t *) text;
+
+
 		PyErr_Print();
 		return -1;
 	}
@@ -149,22 +159,17 @@ extern "C" __declspec(dllexport) long __cdecl FreeObject(const char *id_obj)
 int main(int argc, char *argv[])
 {
   int result = Init();
-  printf("Rezultat je %i\n", result);
+  printf("Init pvm and import of isharp.iface. Result=%i\n", result);
+  
   wchar_t *value;
-  long ret = ExecuteFunction("create_renderer1", "", &value);
-  printf("%i", ret);
+  long ret = ExecuteFunction("create_image", "RGBA,10,10", &value);
+  printf("Id of created image is = %ls\n", value);
 
   char id_obj[16000];
   sprintf(id_obj, "%ls", value);
+  result = FreeObject(id_obj);
+  printf("Object released = %i\n", result);
 
-  ret = ExecuteObjFunction(id_obj, "parse_scene_file", "F:/GitRenmas/renmas/tests3/scenes/sphere1.txt", &value);
-  //ret = ExecuteObjFunction(id_obj, "parse_scene_file", "F:/GitRenmas/renmas/tests3/scenes/cornel4.txt", &value);
-
-  ret = ExecuteObjFunction(id_obj, "render", "", &value);
-  //ret = ExecuteObjFunction(id_obj, "render", "", &value);
-  
-  char rezultat[32];
-  sprintf(rezultat, "%ls", value);
-  printf("rezultat %s", rezultat);
-  printf("%i", ret);
+  ShutDown();
+  return 0;
 }

@@ -526,3 +526,38 @@ def _exp(cgen, operands):
     return _math_fun(cgen, operands, 'exp_ss', 'exp_ps')
 
 register_function('exp', _exp, inline=False)
+
+
+def _math_atanr2_pow(cgen, operands, fun_ss, fun_ps):
+    if len(operands) != 2:
+        msg = "Wrong number of arguments in %s, %s fucntion" % (fun_ss, fun_ps)
+        raise ValueError(msg, operands)
+
+    xmm1 = cgen.register(reg='xmm0')
+    xmm2 = cgen.register(reg='xmm1')
+    code1, reg1, typ1 = load_operand(cgen, operands[0], dest_reg=xmm1)
+    code2, reg2, typ2 = load_operand(cgen, operands[1], dest_reg=xmm2)
+
+    if typ1 != typ2:
+        raise ValueError("Type mismatch atanr2 function!", typ1, typ2)
+
+    sufix = _label_sufix(cgen.AVX, cgen.BIT64)
+    if typ1 == FloatArg:
+        label = '%s_%s_yxa8m3epu' % (fun_ss, sufix)
+        cgen.add_ext_function(fun_ss, label)
+    elif typ1 == Vec2Arg or typ1 == Vec3Arg or typ1 == Vec4Arg:
+        label = '%s_%s_pxp3axmuj' % (fun_ps, sufix)
+        cgen.add_ext_function(fun_ps, label)
+    else:
+        raise ValueError("Unsuported type for math function", typ1)
+
+    code3 = 'call %s\n' % label
+    code4 = code1 + code2 + code3
+    cgen.release_reg(reg2)
+    return code4, 'xmm0', typ1
+
+
+def _pow(cgen, operands):
+    return _math_atanr2_pow(cgen, operands, 'pow_ss', 'pow_ps')
+
+register_function('pow', _pow, inline=False) 

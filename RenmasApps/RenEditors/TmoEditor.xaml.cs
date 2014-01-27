@@ -39,6 +39,10 @@ namespace RenEditors
 
             StackPanel sp = new StackPanel();
             sp.Orientation = Orientation.Vertical;
+            sp.VerticalAlignment = System.Windows.VerticalAlignment.Stretch;
+            TextBlock title = new TextBlock();
+            title.Text = "Tmo public properties";
+            sp.Children.Add(title);
 
             foreach (BaseProperty prop in props)
             {
@@ -46,7 +50,46 @@ namespace RenEditors
                 sp.Children.Add(editor);
             }
 
+            StackPanel btns = new StackPanel();
+            btns.Orientation = Orientation.Horizontal;
+
+            Button btn_shader = new Button();
+            btn_shader.Content = "Shader code";
+            btn_shader.Width = 90;
+            btn_shader.Margin = new Thickness(5);
+            btn_shader.Click += btn_shader_Click;
+            btns.Children.Add(btn_shader);
+
+            Button btn_assembly = new Button();
+            btn_assembly.Content = "Assembly code";
+            btn_assembly.Width = 90;
+            btn_assembly.Margin = new Thickness(5);
+            btn_assembly.Click += btn_assembly_Click;
+            btns.Children.Add(btn_assembly);
+            
+
+            sp.Children.Add(btns);
             this.Content = sp;
+        }
+
+        void btn_assembly_Click(object sender, RoutedEventArgs e)
+        {
+            var wnd = new Window();
+            TextBox code = new TextBox();
+            code.IsReadOnly = true;
+            code.Text = this.target.assembly_code();
+            wnd.Content = code;
+            wnd.Show();
+        }
+
+        void btn_shader_Click(object sender, RoutedEventArgs e)
+        {
+            var wnd = new Window();
+            TextBox code = new TextBox();
+            code.IsReadOnly = true;
+            code.Text = this.target.shader_code();
+            wnd.Content = code;
+            wnd.Show();
         }
 
         public UserControl build_editor(BaseProperty property)

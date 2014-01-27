@@ -4,12 +4,13 @@
         Title="MainWindow" Height="350" Width="525">
     <Grid Name="mw_grid">
         <Grid.RowDefinitions>
-            <RowDefinition Height="25" />
+            <RowDefinition Height="25"/>
+            <RowDefinition />
             <RowDefinition />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition />
-            <ColumnDefinition Width="150" />
+            <ColumnDefinition Width="300" />
         </Grid.ColumnDefinitions>
         <Menu Grid.Row="0" HorizontalAlignment="Stretch" Grid.ColumnSpan="2" VerticalAlignment="Top" Background="Silver"  BorderBrush="Black">
             <MenuItem Header="_File">
@@ -20,9 +21,31 @@
             </MenuItem>
 
         </Menu>
-        <Image Name="img_output" HorizontalAlignment="Left" Grid.Row="1" Grid.Column="0" FlowDirection="RightToLeft">
-            
+        <Image Grid.RowSpan="2" Name="img_output" HorizontalAlignment="Left" Grid.Row="1" Grid.Column="0" Margin="5">
+
         </Image>
+        <StackPanel Grid.Column="1" HorizontalAlignment="Stretch" Grid.Row="2" VerticalAlignment="Stretch">
+            <StackPanel Height="20" Orientation="Horizontal" Margin="5">
+                <TextBox Name="txt_filename" HorizontalAlignment="Left" Width="260" IsReadOnly="True" Margin="0,0,5,0">
+                </TextBox>
+                <Button Content="..." Width="20" HorizontalAlignment="Right" Click="ImportHdr_OnClick"></Button>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Size:" Width="30" Margin="5"></TextBlock>
+                <TextBox Width="50" Height="20" Margin="5" Name="txt_img_width" IsReadOnly="True"></TextBox>
+                <TextBlock Text="X" Height="20" Margin="5"></TextBlock>
+                <TextBox Width="50" Height="20" Margin="5" Name="txt_img_height" IsReadOnly="True"></TextBox>
+                <TextBlock Text="pixels" Height="20" Margin="5"></TextBlock>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Time:" Width="30" Height="20" Margin="5"></TextBlock>
+                <TextBox Width="50" Height="20" Margin="5" IsReadOnly="True" Name="txt_elapsed_time"></TextBox>
+                <TextBlock Text="miliseconds" Margin="5"></TextBlock>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <Button Content="Tone map" Width="90" HorizontalAlignment="Left" Click="ToneMap_OnClick" Margin="5"/>
+            </StackPanel>
+        </StackPanel>
 
     </Grid>
 </Window>

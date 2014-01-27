@@ -38,25 +38,19 @@ namespace RenHdr
             RenEditors.TmoEditor tmo_ed = new RenEditors.TmoEditor();
             tmo_ed.set_target(this.tmo);
 
-            Button btn = new Button();
-            btn.Content = "Tone map";
-            btn.Click += btn_tone_map_click;
-
             StackPanel sp = new StackPanel();
             sp.Orientation = Orientation.Vertical;
             sp.Children.Add(tmo_ed);
-            sp.Children.Add(btn);
 
             Grid.SetColumn(sp, 1);
             Grid.SetRow(sp, 1);
             this.mw_grid.Children.Add(sp);
 
+            //SolidColorBrush mySolidColorBrush = new SolidColorBrush();
+            //mySolidColorBrush.Color = Color.FromArgb(255, 47, 47, 47);
+            //this.Background = mySolidColorBrush;     
 
-        }
 
-        void btn_tone_map_click(object sender, RoutedEventArgs e)
-        {
-            this.tone_map();
         }
 
         private void MenuItem_Exit(object sender, RoutedEventArgs e)
@@ -74,7 +68,7 @@ namespace RenHdr
             Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
             dlg.FileName = "hdr_image"; // Default file name
             dlg.DefaultExt = ".hdr"; // Default file extension
-            dlg.Filter = "HDR (.hdr)|*.hdr"; // Filter files by extension
+            dlg.Filter = "HDR (.hdr)|*.hdr|All Files (*.*)|*.*"; // Filter files by extension
 
             Nullable<bool> result = dlg.ShowDialog();
             if (result == true)
@@ -82,6 +76,10 @@ namespace RenHdr
                 string filename = dlg.FileName;
                 this.hdr_image = RenEditors.RenUtils.LoadHdrImage(filename);
                 this.hdr_output = RenEditors.PyImage.CreateImage(hdr_image.Width, hdr_image.Height, RenEditors.ImageType.PRGBA);
+
+                this.txt_filename.Text = dlg.FileName;
+                this.txt_img_width.Text = this.hdr_image.Width.ToString();
+                this.txt_img_height.Text = this.hdr_image.Height.ToString();
 
                 this.tone_map();
             }
@@ -94,11 +92,11 @@ namespace RenHdr
             DateTime start = DateTime.Now;
             this.tmo.tmo(this.hdr_image, this.hdr_output);
             this.ldr_output = this.hdr_output.convert_to_bgra();
-            var flippedImage = new TransformedBitmap(this.ldr_output.BufferSource, new ScaleTransform(-1, -1));
+            var flippedImage = new TransformedBitmap(this.ldr_output.BufferSource, new ScaleTransform(1, -1));
             this.img_output.Source = flippedImage;
             //this.img_output.Source = this.ldr_output.BufferSource;
             TimeSpan elapsed = DateTime.Now - start;
-            start = DateTime.Now;
+            this.txt_elapsed_time.Text = elapsed.Milliseconds.ToString();
         }
 
         private void MenuItem_Save(object sender, RoutedEventArgs e)
@@ -114,6 +112,16 @@ namespace RenHdr
                 return;
                 this.tmo.save_image(dlg.FileName, this.hdr_output);
             }
+        }
+
+        private void ToneMap_OnClick(object sender, RoutedEventArgs e)
+        {
+            this.tone_map();
+        }
+
+        private void ImportHdr_OnClick(object sender, RoutedEventArgs e)
+        {
+            this.load_hdr_image();
         }
     }
 }

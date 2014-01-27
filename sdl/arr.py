@@ -1,10 +1,18 @@
 
+import platform
 from tdasm import Tdasm
+import x86
 from .dynamic_array import DynamicArray
 from .args import arg_from_value, StructArg, _struct_desc, Argument
+from .memcpy import memcpy
 
 
 class Array:
+    def __init__(self):
+        pass
+
+
+class ObjArray(Array):
     def __init__(self, value):
         arg = arg_from_value('p1', value)
         if not isinstance(arg, StructArg):
@@ -33,7 +41,11 @@ class Array:
         #CODE
         #END
         """
-        mc = Tdasm().assemble(code)
+        ia32 = True
+        bits = platform.architecture()[0]
+        if bits == '64bit':
+            ia32 = False
+        mc = Tdasm().assemble(code, ia32=ia32)
         return mc.get_struct(name)
 
     def __getitem__(self, key):
@@ -67,14 +79,81 @@ class Array:
         return self._arg
 
 
+class PtrsArray(Array):
+    def __init__(self, reserve=0):
+        self._reserve = reserve
+        if reserve == 0:
+            self._reserve = 1
+        self._size = 0
+        self._item_size = 4
+        self.BIT64 = False
+        bits = platform.architecture()[0]
+        if bits == '64bit':
+            self._item_size = 8
+            self.BIT64 = True
+
+        self._address = x86.MemData(self._reserve*self._item_size)
+
+    def append(self, value):
+        if not isinstance(value, int):
+            raise ValueError("Integer value is expected!", value)
+        if self._reserve == self._size:
+            self._resize()
+
+        offset = self._item_size * self._size
+        if self.BIT64:
+            x86.SetUInt64(self._address.ptr() + offset, value, 0)
+        else:
+            x86.SetUInt32(self._address.ptr() + offset, value, 0)
+        self._size += 1
+
+    def __getitem__(self, key):
+        if key >= self._size:
+            raise IndexError("Key is out of bounds! ", key)
+
+        offset = self._item_size * self._size
+        if self.BIT64:
+            return x86.GetUInt64(self._address.ptr() + offset, 0, 0)
+        else:
+            return x86.GetUInt32(self._address.ptr() + offset, 0, 0)
+
+    def __len__(self):
+        return self._size
+
+    def address(self):
+        return self._address.ptr()  
+
+    @property
+    def item_size(self):
+        return self._item_size
+
+    @property
+    def type_name(self):
+        return 'ptrs'
+
+    def _resize(self):
+        if self._size >= 0 and self._size <= 100:
+            self._reserve += 1
+        elif self._size > 100 and self._size <= 10000:
+            self._reserve += 100
+        elif self._size > 10000 and self._size <= 1000000:
+            self._reserve += 10000
+        else:
+            self._reserve += 100000
+
+        temp = x86.MemData(self._item_size*self._reserve)
+        memcpy(temp.ptr(), self._address.ptr(), self._size*self._item_size) 
+        self._address = temp
+
+
 class ArrayArg(Argument):
     def __init__(self, name, value):
         super(ArrayArg, self).__init__(name)
-        assert Array is type(value)
+        assert isinstance(value, Array)
         self._value = value
 
     def _set_value(self, value):
-        assert Array is type(value)
+        assert isinstance(value, Array)
         assert self._value.type_name == value.type_name
         self._value = value
 

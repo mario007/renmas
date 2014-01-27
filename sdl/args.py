@@ -556,6 +556,17 @@ def _parse_vec4(line):
 
     return arg
 
+def _parse_vec3(line):
+    t = line.split('=', maxsplit=1)
+    name = t.pop(0).strip()
+    if len(t) == 0:
+        return Vec3Arg(name, Vector3(0.0, 0.0, 0.0))
+
+    v = t.pop(0).strip().split(',')
+    arg = Vec3Arg(name, Vector3(float(v[0]), float(v[1]),
+                                float(v[2])))
+
+    return arg
 
 def _parse_rgb(line):
     t = line.split('=', maxsplit=1)
@@ -568,7 +579,7 @@ def _parse_rgb(line):
 
 def parse_args(text):
     funcs = {'vector4': _parse_vec4, 'rgb': _parse_rgb,
-            'float': _parse_float}
+            'float': _parse_float, 'vector3': _parse_vec3}
 
     args = []
     for line in text.splitlines():

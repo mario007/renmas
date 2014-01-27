@@ -25,22 +25,18 @@ class ITmo:
 
     def get_prop(self, objects, args):
         key = args
-        if key == 'q':
-            return str(self.tmapping.shader.get_value('q'))
-        elif key == 'k':
-            return str(self.tmapping.shader.get_value('k'))
-        elif key == 'gamma':
-            return str(self.tmapping.shader.get_value('gamma'))
+        if key in self.tmapping.shader._args_map:
+            arg = self.tmapping.shader._args_map[key]
+            if isinstance(arg, FloatArg):
+                return str(self.tmapping.shader.get_value(key))
         raise ValueError("Wrong key %s" % key)
 
     def set_prop(self, objects, args):
         key, val = args.split(',')
-        if key == 'q':
-            self.tmapping.shader.set_value('q', float(val))
-        elif key == 'k':
-            self.tmapping.shader.set_value('k', float(val))
-        elif key == 'gamma':
-            self.tmapping.shader.set_value('gamma', float(val))
+        if key in self.tmapping.shader._args_map:
+            arg = self.tmapping.shader._args_map[key]
+            if isinstance(arg, FloatArg):
+                self.tmapping.shader.set_value(arg.name, float(val))
         else:
             raise ValueError("Wrong key %s" % key)
         return ""
@@ -68,7 +64,12 @@ class ITmo:
             new_img = image.to_rgba()
             save_image(fname, new_img)
         return ""
+    
+    def shader_code(self, objects, args):
+        return self.tmapping.shader._code
 
+    def assembly_code(self, objects, args):
+        return self.tmapping.shader._asm_code
 
 def create_tmo(objects, args):
     tmo = ITmo()

@@ -49,7 +49,11 @@ def _save_image_frimgldr(fname, image, typ=None):
     if isinstance(image, ImagePRGBA):
         bpp = 128
     else:
-        bpp = 24
+        name, ext = os.path.splitext(fname)
+        if ext == '.png':
+            bpp = 32
+        else:
+            bpp = 24 
     freeimgldr.SaveImage(fname, addr, width, height, bpp)
 
 

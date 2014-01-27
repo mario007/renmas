@@ -2,9 +2,8 @@
 import unittest
 from tdasm import Runtime
 from sdl.shader import Shader
-from sdl.args import FloatArg
-from sdl.args import register_struct
-from sdl.arr import Array, ArrayArg
+from sdl.args import FloatArg, register_struct
+from sdl.arr import ObjArray, ArrayArg
 
 
 class SuperPoint:
@@ -21,7 +20,7 @@ class ArrayTests(unittest.TestCase):
     def test_array(self):
 
         p = SuperPoint(3.0, 4.0)
-        arr = Array(p)
+        arr = ObjArray(p)
         arr.append(p)
         arr.append(p)
         p = SuperPoint(7.0, 9.0)

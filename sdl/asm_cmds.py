@@ -274,6 +274,18 @@ def _store_samples(offset, name, xmms, cgen):
     return code
 
 
+def _store_samples_attr(offset, reg, path, xmms, cgen):
+    code = ''
+    for xmm in xmms:
+        if cgen.AVX:
+            code += "vmovaps yword [%s + %s + %i], %s \n" % (reg, path, offset, xmm)
+            offset += 32
+        else:
+            code += "movaps oword [%s + %s + %i], %s \n" % (reg, path, offset, xmm)
+            offset += 16
+    return code
+
+
 def store_operand(cgen, dest, reg, typ):
 
     def _store_int_name_arg(cgen, dest, reg, arg):
@@ -324,6 +336,31 @@ def store_operand(cgen, dest, reg, typ):
         epilog = cgen.load_regs(used_xmms)
         return prolog + code + epilog
 
+    def _store_atr_sampled_arg(cgen, dest, reg, arg):
+        used_xmms = cgen.get_used_xmms()
+        prolog = cgen.save_regs(used_xmms)
+
+        ld_struct, ptr_reg, path = load_struct_ptr(cgen, dest)
+
+        width = 8 if cgen.AVX else 4
+        rounds = len(arg.value.samples) // width
+        code = ''
+        offset = 0
+        while rounds > 0:
+            n = 8 if rounds > 8 else rounds
+            if cgen.AVX:
+                code1, xmms = _load_avx_samples(n, offset, reg)
+                code2 = _store_samples_attr(offset, ptr_reg, path, xmms, cgen)
+                offset += n * 32
+            else:
+                code1, xmms = _load_sse_samples(n, offset, reg)
+                code2 = _store_samples_attr(offset, ptr_reg, path, xmms, cgen)
+                offset += n * 16
+            rounds -= 8
+            code += code1 + code2
+        epilog = cgen.load_regs(used_xmms)
+        return prolog + ld_struct + code + epilog
+
     def _store_atr_int_arg(cgen, dest, reg, arg):
         code, ptr_reg, path = load_struct_ptr(cgen, dest)
         code += "mov dword [%s + %s], %s\n" % (ptr_reg, path, reg)
@@ -372,6 +409,7 @@ def store_operand(cgen, dest, reg, typ):
             (Attribute, Vec3Arg): _store_atr_vec234_arg,
             (Attribute, Vec4Arg): _store_atr_vec234_arg,
             (Attribute, RGBArg): _store_atr_rgb_arg,
+            (Attribute, SampledArg): _store_atr_sampled_arg,
             (Name, StructArgPtr): _store_name_struct_arg
             }
 
@@ -452,6 +490,16 @@ def load_operand(cgen, op, dest_reg=None):
         code = 'mov %s, %s\n' % (reg, arg.name)
         return code, reg, arg
 
+    def _load_atr_sampled_arg(cgen, op, arg, dest_reg):
+        reg = _pointer(dest_reg)
+        #TODO check if reg is valid 32-64 bit pointer
+        code, ptr_reg, path = load_struct_ptr(cgen, op)
+        if cgen.BIT64:
+            code += "lea %s, qword [%s + %s]\n" % (reg, ptr_reg, path)
+        else:
+            code += "lea %s, dword [%s + %s]\n" % (reg, ptr_reg, path)
+        return code, reg, arg
+
     def _load_sampled_ptr_name_arg(cgen, op, arg, dest_reg):
         reg = _pointer(dest_reg)
         #TODO check if reg is valid 32-64 bit pointer
@@ -516,6 +564,8 @@ def load_operand(cgen, op, dest_reg=None):
         code += "imul %s, %s, %i\n" % (reg, reg, item_size)
         if op.path is not None:
             raise ValueError("Todo array argument in structure", op.path)
+
+        import pdb; pdb.set_trace()
 
         if not isinstance(arg.value.item_arg, StructArg):
             raise ValueError("Only struct array are supported!!", op.path)
@@ -582,6 +632,7 @@ def load_operand(cgen, op, dest_reg=None):
             (Attribute, Vec3Arg): _load_atr_vec234_arg,
             (Attribute, Vec4Arg): _load_atr_vec234_arg,
             (Attribute, RGBArg): _load_atr_rgb_arg,
+            (Attribute, SampledArg): _load_atr_sampled_arg,
             (Subscript, ArrayArg): _load_sub_arr_arg,
             (Subscript, RGBArg): _load_sub_vec234_arg,
             (Subscript, Vec2Arg): _load_sub_vec234_arg,

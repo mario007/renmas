@@ -50,19 +50,3 @@ def load_hdr_image(objects, args):
     objects[str(id(img))] = img
     return str(id(img))
 
-
-def save_image(objects, args):
-    fname, id_img = args.split(',')
-    image = objects[id_img]
-    if isinstance(image, ImagePRGBA):
-        width, height = image.size()
-        new_img = ImageRGBA(width, height)
-        blt_prgba_to_rgba(image, new_img)
-        save_image(fname, new_img)
-    elif isinstance(image, ImageRGBA):
-        save_image(fname, image)
-    elif isinstance(image, ImageBGRA):
-        new_img = image.to_rgba()
-        save_image(fname, new_img)
-    return ""
-

@@ -42,6 +42,7 @@ class CodeGenerator:
 
     @property
     def AVX(self):
+        return False
         return iset_supported('avx')
 
     @property

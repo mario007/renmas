@@ -21,6 +21,8 @@ namespace RenEditors
     public partial class FloatEditor : UserControl
     {
         FloatProperty target;
+        uint tblock_width = 70;
+        uint tbox_width = 70;
 
         public FloatEditor()
         {
@@ -38,6 +40,7 @@ namespace RenEditors
             this.DataContext = this.target;
 
             TextBlock label = new TextBlock();
+            label.Width = this.tblock_width;
             if (this.target == null)
             {
                 label.Text = "";
@@ -48,11 +51,13 @@ namespace RenEditors
             }
 
             TextBox tb = new TextBox();
+            tb.Width = this.tbox_width;
             Binding binder = new Binding("Value");
             binder.Source = this.target;
             tb.SetBinding(TextBox.TextProperty, binder);
 
             StackPanel sp = new StackPanel();
+            sp.Margin = new Thickness(2);
             sp.Orientation = Orientation.Horizontal;
             sp.Children.Add(label);
             sp.Children.Add(tb);

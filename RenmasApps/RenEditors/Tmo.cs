@@ -52,5 +52,17 @@ namespace RenEditors
             string args = filename + ',' + image.ID;
             Base.ExectueObjMethod(this.ID, "save_image", args);
         }
+
+        public string shader_code()
+        {
+            string code = Base.ExectueObjMethod(this.ID, "shader_code", "");
+            return code;
+        }
+
+        public string assembly_code()
+        {
+            string code = Base.ExectueObjMethod(this.ID, "assembly_code", "");
+            return code;
+        }
     }
 }

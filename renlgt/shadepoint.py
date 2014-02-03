@@ -2,7 +2,7 @@
 from sdl import Vector3, RGBSpectrum, register_struct, FloatArg, Vec3Arg,\
     RGBArg, SampledArg, StructArgPtr
 
-from sdl.cgen import register_prototype
+from sdl.cgen import register_prototype, spectrum_factory
 from .hitpoint import HitPoint
 
 
@@ -62,7 +62,7 @@ def register_rgb_light_prototype():
     sp = ShadePoint(wo, wi, li, lpos, ref, 0.0)
 
     func_args = [StructArgPtr('hitpoint', hp), StructArgPtr('shadepoint', sp)]
-    register_prototype('light_radiance', func_args=func_args)
+    register_prototype('__light_radiance', func_args=func_args)
 
 
 def register_sampled_light_prototype(col_mgr):
@@ -78,7 +78,7 @@ def register_sampled_light_prototype(col_mgr):
     sp = ShadePoint(wo, wi, li, lpos, ref, 0.0)
 
     func_args = [StructArgPtr('hitpoint', hp), StructArgPtr('shadepoint', sp)]
-    register_prototype('light_radiance', func_args=func_args)
+    register_prototype('__light_radiance', func_args=func_args)
 
 
 def register_rgb_material_prototype():
@@ -93,7 +93,7 @@ def register_rgb_material_prototype():
     sp = ShadePoint(wo, wi, li, lpos, ref, 0.0)
 
     func_args = [StructArgPtr('hitpoint', hp), StructArgPtr('shadepoint', sp)]
-    register_prototype('material_reflectance', func_args=func_args)
+    register_prototype('__material_reflectance', func_args=func_args)
 
 
 def register_sampled_material_prototype(col_mgr):
@@ -109,18 +109,20 @@ def register_sampled_material_prototype(col_mgr):
     sp = ShadePoint(wo, wi, li, lpos, ref, 0.0)
 
     func_args = [StructArgPtr('hitpoint', hp), StructArgPtr('shadepoint', sp)]
-    register_prototype('material_reflectance', func_args=func_args)
+    register_prototype('__material_reflectance', func_args=func_args)
 
 
 def register_rgb_shadepoint():
     register_rgb_class()
     register_rgb_light_prototype()
     register_rgb_material_prototype()
+    spectrum_factory(lambda: RGBSpectrum(0.0, 0.0, 0.0))
 
 
 def register_sampled_shadepoint(col_mgr):
     register_sampled_class(col_mgr)
     register_sampled_light_prototype(col_mgr)
     register_sampled_material_prototype(col_mgr)
+    spectrum_factory(lambda: col_mgr.zero())
 
 register_rgb_shadepoint()

@@ -5,31 +5,33 @@ from tdasm import Runtime
 from sdl.spectrum import RGBSpectrum, SampledSpectrum, create_samples
 from sdl.shader import Shader
 from sdl.args import RGBArg, SampledArg
+from sdl.cgen import spectrum_factory
 
 
 class SpectrumTests(unittest.TestCase):
 
     def test_rgb_spectrum(self):
         code = """
-spec2 = Spectrum(spec, 0.23)
+spec = Spectrum(0.23)
         """
         spec = RGBArg('spec', RGBSpectrum(0.2, 0.3, 0.4))
-        spec2 = RGBArg('spec2', RGBSpectrum(0.0, 0.0, 0.0))
-        shader = Shader(code=code, args=[spec, spec2])
+        shader = Shader(code=code, args=[spec])
         shader.compile()
         runtime = Runtime()
         shader.prepare([runtime])
         shader.execute()
 
-        val = shader.get_value('spec2')
+        val = shader.get_value('spec')
         self.assertAlmostEqual(val.r, 0.23)
         self.assertAlmostEqual(val.g, 0.23)
         self.assertAlmostEqual(val.b, 0.23)
 
     def test_sampled_spectrum(self):
+        factory = lambda: SampledSpectrum(tuple((0.0 for i in range(32))))
+        spectrum_factory(factory)
 
         code = """
-spec2 = Spectrum(spec, 0.23)
+spec = Spectrum(0.23)
         """
 
         vals = [(450, 0.13), (480, 0.45), (620, 0.58)]
@@ -37,18 +39,13 @@ spec2 = Spectrum(spec, 0.23)
         sam_spec = SampledSpectrum(samples)
         spec = SampledArg('spec', sam_spec)
 
-        vals = [(450, 0.11)]
-        samples = create_samples(vals, 32, 400, 700)
-        sam_spec = SampledSpectrum(samples)
-        spec2 = SampledArg('spec2', sam_spec)
-
-        shader = Shader(code=code, args=[spec, spec2])
+        shader = Shader(code=code, args=[spec])
         shader.compile()
         runtime = Runtime()
         shader.prepare([runtime])
         shader.execute()
 
-        val = shader.get_value('spec2')
+        val = shader.get_value('spec')
         for i in range(len(val.samples)):
             self.assertAlmostEqual(val.samples[i], 0.23)
 

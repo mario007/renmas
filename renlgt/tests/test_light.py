@@ -32,7 +32,7 @@ class LightTest(unittest.TestCase):
 hp = HitPoint()
 hp.hit = (4.0, 5, 6)
 sp = ShadePoint()
-light_radiance(hp, sp, ptr_func)
+__light_radiance(hp, sp, ptr_func)
 spec = sp.light_intensity
 wi = sp.wi
 position = sp.light_position
@@ -83,7 +83,7 @@ position = sp.light_position
 hp = HitPoint()
 hp.hit = (4.0, 5, 6)
 sp = ShadePoint()
-light_radiance(hp, sp, ptr_func)
+__light_radiance(hp, sp, ptr_func)
 spec = sp.light_intensity
 wi = sp.wi
 position = sp.light_position

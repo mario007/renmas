@@ -6,7 +6,7 @@
 import platform
 
 from tdasm import iset_supported
-from .spectrum import SampledSpectrum
+from .spectrum import SampledSpectrum, RGBSpectrum
 from .utils import LocalArgs, Registers
 from .strs import Attribute, Callable, Const, Name, Subscript
 from .args import Argument, arg_from_value, _struct_desc, StructArg,\
@@ -29,6 +29,20 @@ _prototype_functions = {}
 
 def register_prototype(name, func_args=[], ret_type=None):
     _prototype_functions[name] = (func_args, ret_type)
+
+
+_spectrum_factory = None
+
+
+def spectrum_factory(factory):
+    global _spectrum_factory
+    _spectrum_factory = factory
+
+
+def create_spectrum():
+    if _spectrum_factory is None:
+        return RGBSpectrum(0.0, 0.0, 0.0)
+    return _spectrum_factory()
 
 
 class CodeGenerator:

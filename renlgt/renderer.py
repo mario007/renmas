@@ -9,12 +9,23 @@ from .samplers import RegularSampler
 from .shp_mgr import ShapeManager
 from .linear import LinearIsect
 from .integrator import Integrator
+from .light import LightManager
+from .material import MaterialManager
+from .shadepoint import register_sampled_shadepoint, register_rgb_shadepoint
+from .spec_shaders import sampled_to_vec_shader, rgb_to_vec_shader
 
 from .parse_scene import import_scene
 
 
 class Renderer:
     def __init__(self):
+        self._spectral = False
+        self._sam_mgr = SampledManager()
+        if self._spectral:
+            register_sampled_shadepoint(self._sam_mgr)
+        else:
+            register_rgb_shadepoint()
+
         self.sampler = RegularSampler(width=200, height=200,
                                       pixelsize=1.0, nthreads=1)
         self.camera = Camera(eye=Vector3(5.0, 5.0, 5.0),
@@ -22,8 +33,8 @@ class Renderer:
         self.camera.load('pinhole')
         self.shapes = ShapeManager()
         self.intersector = LinearIsect(self.shapes)
-        self.materials = None
-        self.lights = None
+        self.materials = MaterialManager()
+        self.lights = LightManager()
         self.filter = None
         self.integrator = Integrator()
         self.integrator.load('test')
@@ -31,10 +42,16 @@ class Renderer:
         self.tone_mapping = Tmo()
         self.tone_mapping.load('exp')
 
-        self._sam_mgr = SampledManager()
         self._ready = False
-        self._spectral = False
         self._create_hdr_buffer()
+
+    @property
+    def spectral(self):
+        return self._spectral
+
+    @property
+    def sam_mgr(self):
+        return self._sam_mgr
 
     def _create_hdr_buffer(self):
         width, height = self.sampler.get_resolution()
@@ -58,8 +75,24 @@ class Renderer:
         self.intersector.compile()
         self.intersector.prepare(runtimes)
 
+        self.lights.compile_shaders(self.sam_mgr, self.spectral)
+        self.lights.prepare_shaders(runtimes)
+
+        self.materials.compile_shaders(self.sam_mgr, self.spectral)
+        self.materials.prepare_shaders(runtimes)
+
+        if self.spectral:
+            spec_to_vec = sampled_to_vec_shader(self.sam_mgr)
+        else:
+            spec_to_vec = rgb_to_vec_shader()
+        spec_to_vec.compile()
+        spec_to_vec.prepare(runtimes)
+
         shaders = [self.sampler.shader, self.camera.shader,
-                   self.intersector.shader]
+                   self.intersector.shader, self.lights.rad_shader,
+                   self.lights.nlights_shader, self.materials.ref_shader,
+                   spec_to_vec]
+
         self.integrator.compile(shaders)
         self.integrator.prepare(runtimes)
 

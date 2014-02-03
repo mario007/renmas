@@ -489,6 +489,15 @@ class ArgList(Argument):
 
         self._args = args
 
+    def resize(self, args):
+        typ = type(self._args[0])
+        if not all(typ is type(arg) for arg in args):
+            raise ValueError("All arguments must have same type")
+        if not all(self.name == arg.name for arg in args):
+            raise ValueError("All arguments must have same name")
+
+        self._args = args
+
     @property
     def args(self):
         return self._args

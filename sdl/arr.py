@@ -173,3 +173,6 @@ class ArrayArg(Argument):
             return 'uint64 %s\n' % self.name
         else:
             return 'uint32 %s\n' % self.name
+
+    def from_ds(self, ds, path=None):
+        return self._value

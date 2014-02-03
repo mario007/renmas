@@ -9,16 +9,13 @@ from .hitpoint import HitPoint
 from .shadepoint import ShadePoint
 
 
-class Light:
-    pass
-
-
-class GeneralLight(Light):
+class Material:
     def __init__(self):
         path = os.path.dirname(__file__)
-        path = os.path.join(path, 'light_shaders')
+        path = os.path.join(path, 'mat_shaders')
         self._loader = Loader([path])
-        self.shader = None
+
+        self._bsdf_shader = None
 
     def _func_args(self, spectrum):
 
@@ -53,86 +50,52 @@ class GeneralLight(Light):
             else:
                 args.append(a)
 
-        
-        code = self._loader.load(shader_name, 'code.py')
+        code = self._loader.load(shader_name, 'bsdf.py')
         if code is None:
-            raise ValueError("code.py in %s shader dont exist!" % shader_name)
+            raise ValueError("bsdf.py in %s shader dont exist!" % shader_name)
         
-        name = 'light_%i' % id(args)
+        name = 'material_%i' % id(args)
         s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
         func_args = self._func_args(s)
-        self.shader = Shader(code=code, args=args, name=name,
-                             func_args=func_args, is_func=True)
+        self._bsdf_shader = Shader(code=code, args=args, name=name,
+                                   func_args=func_args, is_func=True)
         self._spectral = spectral
         self._sam_mgr = sam_mgr
 
     def compile(self, shaders=[]):
-        self.shader.compile(shaders)
+        self._bsdf_shader.compile(shaders)
 
     def prepare(self, runtimes):
-        self.shader.prepare(runtimes)
-
-    def get_value(self, name):
-        if self.shader is None:
-            raise ValueError("Light shader is not loaded!")
-        return self.shader.get_value(name)
+        self._bsdf_shader.prepare(runtimes)
 
     def set_value(self, name, val):
-        if self.shader is None:
+        if self._bsdf_shader is None:
             raise ValueError("Light shader is not loaded!")
         if self._spectral and isinstance(val, RGBSpectrum):
             val = self._sam_mgr.rgb_to_sampled(val, illum=True)
         if not self._spectral and isinstance(val, SampledSpectrum):
             val = self._sam_mgr.sampled_to_rgb(val)
-        self.shader.set_value(name, val)
+        self._bsdf_shader.set_value(name, val)
+
+    def get_value(self, name):
+        if self._bsdf_shader is None:
+            raise ValueError("Material shader is not loaded!")
+        return self._bsdf_shader.get_value(name)
 
 
-class AreaLight(Light):
-    def __init__(self, shape, material):
-        # sample on shape
-        # emission on material
-        path = os.path.dirname(__file__)
-        path = os.path.join(path, 'area_light_shaders')
-        self._loader = Loader([path])
-
-
-class EnvironmentLight(Light):
+class MaterialManager:
     def __init__(self):
-        path = os.path.dirname(__file__)
-        path = os.path.join(path, 'environment_light_shaders')
-        self._loader = Loader([path])
+        self._materials = []
+        self._materials_d = {}
 
+    def add(self, name, material):
+        if name in self._materials_d:
+            raise ValueError("Material %s allready exist!" % name)
+        if not isinstance(material, Material):
+            raise ValueError("Type error. Material is expected!", material)
 
-class LightManager:
-    def __init__(self):
-        self._lights = []
-        self._lights_d = {}
-        self._environment = None
-
-    def add(self, name, light):
-        if name in self._lights_d:
-            raise ValueError("Light %s allready exist!" % name)
-        if not isinstance(light, Light):
-            raise ValueError("Type error. Light is expected!", light)
-
-        #TODO -- implement check not to add environment light more than once
-        self._lights.append(light)
-        self._lights_d[name] = light
-
-    def remove(self, name):
-        if name not in self._lights_d:
-            raise ValueError("Light %s doesn't exist!" % name)
-
-        light = self._lights_d[name]
-        del self._lights_d[name]
-        self._lights.remove(light)
-
-    def light_idx(self, name):
-        if name not in self._lights_d:
-            raise ValueError("Light %s doesn't exist!" % name)
-
-        light = self._lights_d[name]
-        return self._lights.index(light)
+        self._materials.append(material)
+        self._materials_d[name] = material
 
     def _func_args(self, spectrum):
 
@@ -150,45 +113,45 @@ class LightManager:
                      StructArgPtr('shadepoint', sp), IntArg('mat_idx', 0)]
         return func_args
 
-    def _lgt_radiance(self, sam_mgr, spectral=False):
+    def _mtl_reflectance(self, sam_mgr, spectral=False):
         code = """
-ptr_func = lgt_ptrs[mat_idx]
-__light_radiance(hitpoint, shadepoint, ptr_func)
+ptr_func = mtl_ptrs[mat_idx]
+__material_reflectance(hitpoint, shadepoint, ptr_func)
         """
-        lgt_ptrs = ArrayArg('lgt_ptrs', PtrsArray())
-        al = ArgList('lgt_ptrs', [lgt_ptrs])
+        lgt_ptrs = ArrayArg('mtl_ptrs', PtrsArray())
+        al = ArgList('mtl_ptrs', [lgt_ptrs])
         s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
         func_args = self._func_args(s)
         args = [al]
-        self.rad_shader = Shader(code=code, args=args, name='light_radiance',
-                        func_args=func_args, is_func=True)
+        self.ref_shader = Shader(code=code, args=args, name='material_reflectance',
+                                 func_args=func_args, is_func=True)
 
     def compile_shaders(self, sam_mgr, spectral=False, shaders=[]):
 
-        for l in self._lights:
-            l.compile(shaders)
-        self._lgt_radiance(sam_mgr, spectral)
-        self.rad_shader.compile(shaders)
-
-        code = "return %i\n" % len(self._lights)
-        self.nlights_shader = Shader(code=code, name='number_of_lights', is_func=True)
-        self.nlights_shader.compile()
+        for m in self._materials:
+            m.compile(shaders)
+        self._mtl_reflectance(sam_mgr, spectral)
+        self.ref_shader.compile(shaders)
 
     def prepare_shaders(self, runtimes):
         ptrs = []
-        for l in self._lights:
-            l.prepare(runtimes)
-            p = l.shader.get_ptrs()
+        for m in self._materials:
+            m.prepare(runtimes)
+            p = m._bsdf_shader.get_ptrs()
             ptrs.append(p)
         args = []
         for i in range(len(runtimes)):
             pa = PtrsArray()
             for v in ptrs:
                 pa.append(v[i])
-            args.append(ArrayArg('lgt_ptrs', pa))
+            args.append(ArrayArg('mtl_ptrs', pa))
         
-        aal = self.rad_shader._get_arg('lgt_ptrs')
+        aal = self.ref_shader._get_arg('mtl_ptrs')
         aal.resize(args)
-        self.rad_shader.prepare(runtimes)
+        self.ref_shader.prepare(runtimes)
 
-        self.nlights_shader.prepare(runtimes)
+    def index(self, name):
+        if name not in self._materials_d:
+            raise ValueError("Material %s doesn't exist!" % name)
+        m = self._materials_d[name]
+        return self._materials.index(m)

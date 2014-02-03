@@ -1,10 +1,11 @@
 
+from .spectrum import RGBSpectrum, SampledSpectrum
 from .strs import Name, Attribute, Const
 from .args import IntArg, FloatArg, Vec2Arg, Vec3Arg, Vec4Arg, StructArg,\
     SampledArg, RGBArg, PointerArg
 from .asm_cmds import load_operand, conv_float_to_int, conv_int_to_float,\
     zero_register
-from .cgen import register_function
+from .cgen import register_function, create_spectrum
 
 
 def _int_function(cgen, operands):
@@ -444,25 +445,24 @@ register_function('sum_samples', _sum_samples, inline=False)
 
 
 def _spectrum(cgen, operands):
-    if len(operands) != 2:
+    if len(operands) != 1:
         raise ValueError("Wrong number of arguments in Spectrum", operands)
 
-    arg = cgen.get_arg(operands[0])
-    if type(arg) != RGBArg and type(arg) != SampledArg:
-        raise ValueError("RGBArg or SampledArg is expected", arg)
-    code, xmm, typ2 = load_operand(cgen, operands[1])
-    if typ2 != FloatArg:
-        raise ValueError("FloatArg is expected", typ2)
+    code, xmm, typ1 = load_operand(cgen, operands[0])
+    if typ1 != FloatArg:
+        raise ValueError("FloatArg is expected", typ1)
 
     if cgen.AVX:
         code += "vshufps %s, %s, %s, 0x00\n" % (xmm, xmm, xmm)
     else:
         code += "shufps %s, %s, 0x00\n" % (xmm, xmm)
 
-    if type(arg) == RGBArg:
+    spec = create_spectrum()
+    if isinstance(spec, RGBSpectrum):
         return code, xmm, RGBArg
 
     name = Name(cgen._generate_name('local'))
+    arg = SampledArg(name, spec)
     sam_arg = cgen.create_arg(name, arg)
     dst_reg = cgen.register(typ='pointer')
     code += 'mov %s, %s\n' % (dst_reg, sam_arg.name)
@@ -483,6 +483,7 @@ def _spectrum(cgen, operands):
 
     code1, reg, typ = load_operand(cgen, name)
     return code + code1, reg, typ
+
 
 register_function('Spectrum', _spectrum, inline=True)
 

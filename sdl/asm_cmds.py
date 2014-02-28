@@ -613,6 +613,9 @@ def load_operand(cgen, op, dest_reg=None):
         else:
             code += "movss %s, dword [%s + %s * 4] \n" % (xmm, ptr_reg, reg)
 
+        cgen.release_reg(reg)
+        cgen.release_reg(ptr_reg)
+
         return code, xmm, FloatArg
 
     def _load_atr_ptr_arg(cgen, op, arg, dest_reg):
@@ -625,6 +628,16 @@ def load_operand(cgen, op, dest_reg=None):
         else:
             code2 = "mov %s, dword [%s + %s]\n" % (dest_reg, ptr_reg, path)
         return code + code2, dest_reg, PointerArg
+
+    def _load_name_pointer_arg(cgen, op, arg, dest_reg):
+        if dest_reg is None:
+            dest_reg = cgen.register(typ='pointer')
+        #TODO check if dest_reg is pointer
+        if cgen.BIT64:
+            code = "mov %s, qword [%s]\n" % (dest_reg, arg.name)
+        else:
+            code = "mov %s, dword [%s]\n" % (dest_reg, arg.name)
+        return code, dest_reg, PointerArg
 
     _ldf = {(Name, IntArg): _load_int_name_arg,
             (Name, FloatArg): _load_float_name_arg,
@@ -651,7 +664,8 @@ def load_operand(cgen, op, dest_reg=None):
             (Subscript, Vec2Arg): _load_sub_vec234_arg,
             (Subscript, Vec3Arg): _load_sub_vec234_arg,
             (Subscript, Vec4Arg): _load_sub_vec234_arg,
-            (Attribute, PointerArg): _load_atr_ptr_arg
+            (Attribute, PointerArg): _load_atr_ptr_arg,
+            (Name, PointerArg): _load_name_pointer_arg
             }
 
     if isinstance(op, Const):
@@ -670,6 +684,17 @@ def load_operand(cgen, op, dest_reg=None):
 
 
 def arith_cmd(cgen, reg1, typ1, op, reg2, typ2):
+
+    def _ar_pointer_int_arg(cgen, reg1, typ1, op, reg2, typ2):
+        ops = {'+': 'add', '-': 'sub'}
+        if op not in ops:
+            raise ValueError("Only +,- supported for pointer arithmetic.")
+
+        if cgen.BIT64:
+            code = '%s %s, %s\n' % (ops[op], reg1, 'r' + reg2[1:])
+        else:
+            code = '%s %s, %s\n' % (ops[op], reg1, reg2)
+        return code, reg1, PointerArg
 
     def _ar_int_int_arg(cgen, reg1, typ1, op, reg2, typ2):
         ops = {'+': 'add', '-': 'sub', '*': 'imul'}
@@ -849,7 +874,8 @@ def arith_cmd(cgen, reg1, typ1, op, reg2, typ2):
             (RGBArg, IntArg): _ar_v234_int_arg,
             (RGBArg, FloatArg): _ar_v234_float_arg,
             (IntArg, RGBArg): _ar_int_v234_arg,
-            (FloatArg, RGBArg): _ar_float_v234_arg
+            (FloatArg, RGBArg): _ar_float_v234_arg,
+            (PointerArg, IntArg): _ar_pointer_int_arg
             }
 
     if isinstance(typ1, SampledArg) and isinstance(typ2, SampledArg):
@@ -1085,7 +1111,13 @@ def load_func_args(cgen, operands, args):
 
     def _load_struct_ptr(cgen, operand, ptr_reg):
         str_arg = cgen.get_arg(operand)
-        code = "mov %s, %s \n" % (ptr_reg, str_arg.name)
+        if isinstance(str_arg, StructArgPtr):
+            if cgen.BIT64:
+                code = "mov %s, qword [%s] \n" % (ptr_reg, str_arg.name)
+            else:
+                code = "mov %s, dword [%s] \n" % (ptr_reg, str_arg.name)
+        else:
+            code = "mov %s, %s \n" % (ptr_reg, str_arg.name)
         path = "%s.%s" % (str_arg.type_name, operand.path)
         return code, path
 

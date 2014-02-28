@@ -8,6 +8,7 @@ shadepoint = ShadePoint()
 background_color = (0.0, 0.0, 0.0, 0.99)
 
 nlights = number_of_lights()
+
 while 1:
     ret = generate_sample(sample)
     if ret == 0:
@@ -28,8 +29,7 @@ while 1:
                 light_radiance(hitpoint, shadepoint, idx)
                 ndotwi = dot(hitpoint.normal, shadepoint.wi)
                 if ndotwi > 0.0:
-                    # vis = visible(hitpoint.hit, shadepoint.light_position)
-                    vis = 1
+                    vis = visibility(hitpoint.hit, shadepoint.light_position)
                     if vis:
                         material_reflectance(hitpoint, shadepoint, hitpoint.mat_idx)
                         col = ndotwi * shadepoint.material_reflectance * shadepoint.light_intensity

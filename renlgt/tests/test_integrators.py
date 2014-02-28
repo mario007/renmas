@@ -4,7 +4,8 @@ from imldr import save_image
 from renlgt import Renderer
 
 ren = Renderer()
-ren.load('sphere1.txt')
+#ren.load('sphere1.txt')
+ren.load('triangle1.txt')
 ren.prepare()
 
 ren.render()

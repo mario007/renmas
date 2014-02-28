@@ -40,6 +40,7 @@ namespace RenEditors
             this.DataContext = this.target;
 
             TextBlock label = new TextBlock();
+            label.Foreground = Brushes.White;
             label.Width = this.tblock_width;
             if (this.target == null)
             {
@@ -51,6 +52,8 @@ namespace RenEditors
             }
 
             TextBox tb = new TextBox();
+            tb.Foreground = Brushes.White;
+            tb.CaretBrush = Brushes.White;
             tb.Width = this.tbox_width;
             Binding binder = new Binding("Value");
             binder.Source = this.target;

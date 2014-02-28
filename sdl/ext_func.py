@@ -1,5 +1,6 @@
 
-from tdasm.asm_lib import logss, logps, expss, expps, powss, powps
+from tdasm import iset_supported
+from tdasm.asm_lib import logss, logps, expss, expps, powss, powps, rnd
 
 
 class ExtFunction:
@@ -18,6 +19,15 @@ def load_ext_function(runtimes, ext_func):
     funcs['exp_ps'] = expps.exp_ps_asm
     funcs['pow_ss'] = powss.pow_ss_asm
     funcs['pow_ps'] = powps.pow_ps_asm
+
+    if ext_func.name in ('rand_int', 'random', 'random2', 'random3', 'random4'):
+        if ext_func.name == 'rand_int':
+            rnd.rand_int(runtimes, ext_func.label, AVX=ext_func.AVX,
+                         ia32=ext_func.ia32, hardware=iset_supported('rdrand'))
+        else:
+            rnd.rand_float(runtimes, ext_func.label, AVX=ext_func.AVX,
+                           ia32=ext_func.ia32, hardware=iset_supported('rdrand'))
+        return
 
     name = ext_func.name
     if name not in funcs:

@@ -42,6 +42,7 @@ namespace RenEditors
             sp.VerticalAlignment = System.Windows.VerticalAlignment.Stretch;
             TextBlock title = new TextBlock();
             title.Text = "Tmo public properties";
+            title.Foreground = Brushes.White;
             sp.Children.Add(title);
 
             foreach (BaseProperty prop in props)
@@ -55,6 +56,7 @@ namespace RenEditors
 
             Button btn_shader = new Button();
             btn_shader.Content = "Shader code";
+            btn_shader.Foreground = Brushes.White;
             btn_shader.Width = 90;
             btn_shader.Margin = new Thickness(5);
             btn_shader.Click += btn_shader_Click;
@@ -62,6 +64,7 @@ namespace RenEditors
 
             Button btn_assembly = new Button();
             btn_assembly.Content = "Assembly code";
+            btn_assembly.Foreground = Brushes.White;
             btn_assembly.Width = 90;
             btn_assembly.Margin = new Thickness(5);
             btn_assembly.Click += btn_assembly_Click;

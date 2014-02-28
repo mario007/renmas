@@ -1,0 +1,129 @@
+
+Camera
+type = pinhole
+eye = 0.278, 0.273, -0.800
+lookat = 0.278, 0.273, -0.799
+distance = 740
+End
+
+Light
+type = point
+position = 0.278, 0.500, 0.2795
+intensity = 1, 0.85, 0.43
+#intensity = 0.25, 0.21, 0.10
+#intensity = 4, 3.25, 1.63
+End
+
+Material
+type = lambertian
+name = red 
+diffuse = 0.63, 0.06, 0.04
+End
+
+Material
+type = lambertian
+name = green
+diffuse = 0.15, 0.48, 0.09
+End
+
+Material
+type = lambertian
+name = white
+diffuse = 0.76, 0.75, 0.5
+End
+
+## FLOOR
+Shape
+type = FlatTriangle
+name = floor_1
+p0 = 0.556, 0, 0
+p1 = 0, 0, 0
+p2 = 0, 0, 0.5592
+material = white
+End
+
+Shape
+type = FlatTriangle
+name = floor_2
+p0 = 0.556, 0, 0
+p1 = 0, 0, 0.5592
+p2 = 0.556, 0, 0.5592
+material = white
+End
+
+## CEILING
+Shape
+type = FlatTriangle
+name = ceiling_1
+p0 = 0.556, 0.5488, 0
+p1 = 0.556, 0.5488, 0.5592
+p2 = 0, 0.5488, 0.5592
+material = white
+End
+
+Shape
+type = FlatTriangle
+name = ceiling_2
+p0 = 0.556, 0.5488, 0
+p1 = 0, 0.5488, 0.5592
+p2 = 0, 0.5488, 0
+material = white
+End
+
+## BACK WALL
+Shape
+type = FlatTriangle
+name = back_1
+p0 = 0.556, 0, 0.5592
+p1 = 0, 0, 0.5592
+p2 = 0, 0.5488, 0.5592
+material = white
+End
+
+Shape
+type = FlatTriangle
+name = back_2
+p0 = 0.556, 0, 0.5592
+p1 = 0, 0.5488, 0.5592
+p2 = 0.556, 0.5488, 0.5592
+material = white
+End
+
+## LEFT WALL
+Shape
+type = FlatTriangle
+name = left_1
+p0 = 0.556, 0, 0
+p1 = 0.556, 0, 0.5592
+p2 = 0.556, 0.5488, 0.5592
+material = red
+End
+
+Shape
+type = FlatTriangle
+name = left_2
+p0 = 0.556, 0, 0
+p1 = 0.556, 0.5488, 0.5592
+p2 = 0.556, 0.5488, 0
+material = red
+End
+
+## RIGHT WALL
+Shape
+type = FlatTriangle
+name = right_1
+p0 = 0, 0, 0.5592
+p1 = 0, 0, 0
+p2 = 0, 0.5488, 0
+material = green
+End
+
+Shape
+type = FlatTriangle
+name = right_2
+p0 = 0, 0, 0.5592
+p1 = 0, 0.5488, 0
+p2 = 0, 0.5488, 0.5592
+material = green
+End
+

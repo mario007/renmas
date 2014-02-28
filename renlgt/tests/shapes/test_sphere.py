@@ -10,7 +10,7 @@ from renlgt.sphere import Sphere
 class SphereTest(unittest.TestCase):
 
     def test_isect_b_sph(self):
-        sph_shader = Sphere.isect_b_shader()
+        sph_shader = Sphere.isect_b_shader('isect_b_sphere')
         sph_shader.compile()
         runtimes = [Runtime()]
         sph_shader.prepare(runtimes)
@@ -31,7 +31,7 @@ p1 = isect_b_sphere(ray, sphere, min_dist)
 
         args = [r_arg, sph_arg, p1]
         shader = Shader(code=code, args=args)
-        shader.compile([sph_shader])
+        shader.compile([sph_shader.shader])
 
         shader.prepare(runtimes)
         shader.execute()
@@ -40,7 +40,7 @@ p1 = isect_b_sphere(ray, sphere, min_dist)
         self.assertEqual(result, 1)
 
     def test_isect_sph(self):
-        sph_shader = Sphere.isect_shader()
+        sph_shader = Sphere.isect_shader('isect_sphere')
         sph_shader.compile()
         runtimes = [Runtime()]
         sph_shader.prepare(runtimes)
@@ -64,7 +64,7 @@ p1 = isect_sphere(ray, sphere, hitpoint, min_dist)
 
         args = [r_arg, sph_arg, harg, p1]
         shader = Shader(code=code, args=args)
-        shader.compile([sph_shader])
+        shader.compile([sph_shader.shader])
 
         shader.prepare(runtimes)
         shader.execute()

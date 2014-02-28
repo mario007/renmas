@@ -65,6 +65,44 @@ p1 = isect_scene(ray, hitpoint, min_dist)
         result = shader.get_value('p1')
         self.assertEqual(result, 1)
 
+    def test_linear_visiblity(self):
+        sphere = Sphere(Vector3(0.0, 0.0, 0.0), 2.0, 0)
+        mgr = ShapeManager()
+        mgr.add('sph1', sphere)
+        sphere2 = Sphere(Vector3(0.0, 2.0, 0.0), 3.0, 0)
+        mgr.add('sph2', sphere2)
+
+        isector = LinearIsect(mgr)
+        runtimes = [Runtime()]
+
+        direction = Vector3(-1.0, -1.0, -1.0)
+        direction.normalize()
+        ray = Ray(Vector3(5.0, 5.0, 5.0), direction)
+
+        isector.compile()
+        isector.prepare(runtimes)
+
+        code = """
+p1 = (9, 8, 7)
+p2 = (-2, -5, -3)
+ret = visibility(p1, p2)
+        """
+        ret = IntArg('ret', 6)
+        args = [ret]
+        shader = Shader(code=code, args=args)
+        shader.compile([isector.visible_shader])
+        shader.prepare(runtimes)
+
+        p1 = Vector3(9.0, 8.0, 7.0)
+        p2 = Vector3(-2.0, -5.0, -3.0)
+        ret = isector.visibility(p1, p2)
+        shader.execute()
+        ret_s = shader.get_value('ret')
+        if ret is True and ret_s == 0:
+            raise ValueError("Linear visiblity is calculated wrong", ret, ret_s)
+        if ret is False and ret_s == 1:
+            raise ValueError("Linear visiblity is calculated wrong", ret, ret_s)
+
 
 if __name__ == "__main__":
     unittest.main()

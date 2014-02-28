@@ -4,6 +4,7 @@ from .camera import Camera
 from .sphere import Sphere
 from .light import GeneralLight
 from .material import Material
+from .triangle import FlatTriangle
 
 
 def _parse_line(line):
@@ -110,6 +111,18 @@ def _parse_shape(fobj, renderer):
         mat_idx = renderer.materials.index(mat_name)
         sphere = Sphere(origin, radius, mat_idx=mat_idx)
         renderer.shapes.add(name, sphere)
+    elif typ == 'flattriangle':
+        name = values['name'][0].strip()
+        p = values['p0']
+        p0 = Vector3(float(p[0]), float(p[1]), float(p[2]))
+        p = values['p1']
+        p1 = Vector3(float(p[0]), float(p[1]), float(p[2]))
+        p = values['p2']
+        p2 = Vector3(float(p[0]), float(p[1]), float(p[2]))
+        mat_name = values['material'][0].strip()
+        mat_idx = renderer.materials.index(mat_name)
+        flat = FlatTriangle(p0, p1, p2, mat_idx)
+        renderer.shapes.add(name, flat)
     else:
         raise ValueError("Unsuported type of shape!", typ)
 

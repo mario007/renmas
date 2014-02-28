@@ -4,7 +4,7 @@ from sdl import Vector3, Ray, Shader, register_struct,\
     Vec3Arg, StructArgPtr, FloatArg, IntArg
 
 from .hitpoint import HitPoint
-from .shape import Shape
+from .shape import Shape, DependencyShader
 
 
 class Sphere(Shape):
@@ -35,7 +35,7 @@ class Sphere(Shape):
         return False
 
     @classmethod
-    def isect_b_shader(cls):
+    def isect_b_shader(cls, shader_name):
         code = """
 temp = ray.origin - sphere.origin
 r_dir = ray.direction
@@ -72,12 +72,12 @@ return 0
                      StructArgPtr('sphere', sphere),
                      FloatArg('min_dist', 0.0)]
 
-        shader = Shader(code=code, args=args, name='isect_b_sphere',
+        shader = Shader(code=code, args=args, name=shader_name,
                         func_args=func_args, is_func=True)
-        return shader
+        return DependencyShader(shader)
 
     @classmethod
-    def isect_shader(cls):
+    def isect_shader(cls, shader_name):
         code = """
 temp = ray.origin - sphere.origin
 r_dir = ray.direction
@@ -133,9 +133,9 @@ return 0
                      StructArgPtr('hitpoint', hitpoint),
                      FloatArg('min_dist', 0.0)]
 
-        shader = Shader(code=code, args=args, name='isect_sphere',
+        shader = Shader(code=code, args=args, name=shader_name,
                         func_args=func_args, is_func=True)
-        return shader
+        return DependencyShader(shader)
 
     def isect(self, ray, min_dist=999999.0):  # ray dir. must be normalized
         temp = ray.origin - self.origin

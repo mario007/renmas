@@ -26,7 +26,7 @@ class Renderer:
         else:
             register_rgb_shadepoint()
 
-        self.sampler = RegularSampler(width=200, height=200,
+        self.sampler = RegularSampler(width=512, height=512,
                                       pixelsize=1.0, nthreads=1)
         self.camera = Camera(eye=Vector3(5.0, 5.0, 5.0),
                              lookat=Vector3(0.0, 0.0, 0.0), distance=200)
@@ -37,6 +37,7 @@ class Renderer:
         self.lights = LightManager()
         self.filter = None
         self.integrator = Integrator()
+        #self.integrator.load('isect')
         self.integrator.load('test')
 
         self.tone_mapping = Tmo()
@@ -91,7 +92,7 @@ class Renderer:
         shaders = [self.sampler.shader, self.camera.shader,
                    self.intersector.shader, self.lights.rad_shader,
                    self.lights.nlights_shader, self.materials.ref_shader,
-                   spec_to_vec]
+                   spec_to_vec, self.intersector.visible_shader]
 
         self.integrator.compile(shaders)
         self.integrator.prepare(runtimes)

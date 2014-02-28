@@ -1,5 +1,5 @@
 
-
+from .memcpy import memcpy
 from .loader import Loader
 from .shader import Shader
 from .builtins import *

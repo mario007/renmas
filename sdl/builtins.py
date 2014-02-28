@@ -562,3 +562,133 @@ def _pow(cgen, operands):
     return _math_atanr2_pow(cgen, operands, 'pow_ss', 'pow_ps')
 
 register_function('pow', _pow, inline=False) 
+
+
+def _rand_int(cgen, operands):
+    if len(operands) != 0:
+        raise ValueError("Function doesn't accept arguments", operands)
+
+    label = 'rand_int_pup9aixpmyj'
+    cgen.add_ext_function('rand_int', label)
+
+    code = 'call %s\n' % label
+    #Note: random function returns 32-bit unsigned number and we
+    #want 32-bit signed number but only positive, so we calculate abs value
+    code += 'mov ebx, eax\n'
+    code += 'neg eax\n'
+    code += 'cmovl eax, ebx\n'
+    return code, 'eax', IntArg
+
+register_function('rand_int', _rand_int, inline=False)
+
+def _rand1234(cgen, operands, prefix, ret_type):
+    if len(operands) != 0:
+        raise ValueError("Function doesn't accept arguments", operands)
+    label = '%s_pup9aixpmyj' % prefix
+    cgen.add_ext_function('random', label)
+    code = 'call %s\n' % label
+    return code, 'xmm0', ret_type
+
+def _random(cgen, operands):
+    return _rand1234(cgen, operands, 'random', FloatArg)
+
+
+register_function('random', _random, inline=False)
+
+
+def _random2(cgen, operands):
+    return _rand1234(cgen, operands, 'random2', Vec2Arg)
+
+
+register_function('random2', _random2, inline=False)
+
+
+def _random3(cgen, operands):
+    return _rand1234(cgen, operands, 'random3', Vec3Arg)
+
+
+register_function('random3', _random3, inline=False)
+
+
+def _random4(cgen, operands):
+    return _rand1234(cgen, operands, 'random4', Vec4Arg)
+
+
+register_function('random4', _random4, inline=False)
+
+
+def _min_max(cgen, operands, inst='max'):
+    if len(operands) != 2:
+        msg = "Wrong number of arguments in %s function." % inst
+        raise ValueError(msg, operands)
+
+    code1, xmm1, typ1 = load_operand(cgen, operands[0])
+    code2, xmm2, typ2 = load_operand(cgen, operands[1])
+
+    if typ1 != typ2:
+        raise ValueError("Arguments must be of the same type in min max function!",
+                typ1, typ2)
+
+    if typ1 == FloatArg:
+        if cgen.AVX:
+            l1 = 'v%sss %s, %s, %s\n' % (inst, xmm1, xmm1, xmm2)
+        else:
+            l1 = '%sss %s, %s\n' % (inst, xmm1, xmm2)
+    elif typ1 == Vec2Arg or typ1 == Vec3Arg or typ1 == Vec4Arg:
+        if cgen.AVX:
+            l1 = 'v%sps %s, %s, %s\n' % (inst, xmm1, xmm1, xmm2)
+        else:
+            l1 = '%sps %s, %s\n' % (inst, xmm1, xmm2)
+    else:
+        raise ValueError("Unsuported type of argument in min max function!", typ1)
+
+    cgen.release_reg(xmm2)
+
+    code = code1 + code2 + l1
+    return code, xmm1, typ1
+
+
+def _max(cgen, operands):
+    return _min_max(cgen, operands, 'max')
+
+
+register_function('max', _max, inline=True)
+
+
+def _min(cgen, operands):
+    return _min_max(cgen, operands, 'min')
+
+
+register_function('min', _min, inline=True)
+
+
+def _resolve(cgen, operands):
+    if len(operands) != 2:
+        msg = "Wrong number of arguments in resolve function."
+        raise ValueError(msg, operands)
+
+    code1, reg, typ1 = load_operand(cgen, operands[0])
+    if typ1 != PointerArg:
+        raise ValueError("First arugment in resolve function must be pointer!", operands[0])
+    if not isinstance(operands[1], Name):
+        raise ValueError("Second argument must be Name in resolve!", operands[1])
+
+    if operands[1].name == 'int':
+        reg2 = cgen.register(typ='general')
+        code2 = 'mov %s, dword [%s]\n' % (reg2, reg) 
+        cgen.release_reg(reg)
+        return code1 + code2, reg2, IntArg
+    elif operands[1].name in ('vec2', 'vec3', 'vec4'):
+        xmm = cgen.register(typ='xmm')
+        ret_type = {'vec2': Vec2Arg, 'vec3': Vec3Arg, 'vec4': Vec4Arg}
+        if cgen.AVX:
+            code2 = "vmovaps %s, oword[%s]\n" % (xmm, reg)
+        else:
+            code2 = "movaps %s, oword[%s]\n" % (xmm, reg)
+        cgen.release_reg(reg)
+        return code1 + code2, xmm, ret_type[operands[1].name]
+    else:
+        raise ValueError("%s type not yet supported in resolve!" % operands[1].name)
+    
+
+register_function('resolve', _resolve, inline=True)

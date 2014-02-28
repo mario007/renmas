@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -10,6 +11,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
+using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
@@ -32,6 +34,21 @@ namespace RenHdr
             InitializeComponent();
             Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
 
+            using (FileStream fs = new FileStream("tema.xaml", FileMode.Open))
+            {
+                // Read in ResourceDictionary File
+                ResourceDictionary dic =
+                   (ResourceDictionary)XamlReader.Load(fs);
+                // Clear any previous dictionaries loaded
+                Resources.MergedDictionaries.Clear();
+                // Add in newly loaded Resource Dictionary
+                Resources.MergedDictionaries.Add(dic);
+            }
+
+            SolidColorBrush mySolidColorBrush = new SolidColorBrush();
+            mySolidColorBrush.Color = Color.FromArgb(255, 47, 47, 47);
+            this.Background = mySolidColorBrush;   
+
 
             this.tmo = RenEditors.Tmo.CreateTmo();
 
@@ -45,11 +62,6 @@ namespace RenHdr
             Grid.SetColumn(sp, 1);
             Grid.SetRow(sp, 1);
             this.mw_grid.Children.Add(sp);
-
-            //SolidColorBrush mySolidColorBrush = new SolidColorBrush();
-            //mySolidColorBrush.Color = Color.FromArgb(255, 47, 47, 47);
-            //this.Background = mySolidColorBrush;     
-
 
         }
 

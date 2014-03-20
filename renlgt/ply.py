@@ -329,6 +329,6 @@ class Ply:
 
         name = os.path.basename(fname)
         name, ext = os.path.splitext(name)
-        mdesc = MeshDesc(self._vertex_buffer, self._triangle_buffer, name, 'default')
+        mdesc = MeshDesc(self._vertex_buffer, self._triangle_buffer, name, material=None)
 
         return FileDesc([mdesc])

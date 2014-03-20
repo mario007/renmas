@@ -4,17 +4,17 @@ class MeshDesc:
         self.vb = vb
         self.tb = tb
         self.name = name
-        self.mat_name = material
+        self.material = material
 
     def __repr__(self):
         return '<MeshDesc object at %s name=%s, mat_name=%s, nvertiecs=%i, ntriangles=%i>' % \
-                (hex(id(self)), self.name, self.mat_name, self.vb.size(), self.tb.size())
+                (hex(id(self)), self.name, self.material, self.vb.size(), self.tb.size())
 
 
 class FileDesc:
-    def __init__(self, mesh_descs, fname=None):
+    def __init__(self, mesh_descs, material_file=None):
         self.mesh_descs = mesh_descs
-        self.fname = fname
+        self.material_file = material_file
 
 
 class DependencyShader:

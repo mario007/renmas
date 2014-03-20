@@ -14,6 +14,55 @@ class FlatTriangleTest(unittest.TestCase):
         self.assertAlmostEqual(v1.y, v2.y, places)
         self.assertAlmostEqual(v1.z, v2.z, places)
 
+    def test_isect_flat_triangle1(self):
+        runtimes = [Runtime()]
+
+        tri_shader = FlatTriangle.isect_shader('isect_flat_triangle')
+        tri_shader.compile()
+        tri_shader.prepare(runtimes)
+
+        p0 = Vector3(-0.0831229984, 0.0591476, -0.03213749)
+        p1 = Vector3(-0.082775, 0.059025, -0.031787)
+        p2 = Vector3(-0.0831229, 0.0591773, -0.031787)
+
+        origin = Vector3(-0.21276909825205803,-0.021492251798510553,-0.09822520208358765) 
+        direction = Vector3(0.7788769269741005,0.4843782624535974,0.3984073687694737)
+
+        ray = Ray(origin, direction)
+        hitpoint = HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
+                            Vector3(0.0, 0.0, 0.0), 6, 0.0, 0.0)
+
+        t = FlatTriangle(p0, p1, p2)
+
+        code = """
+min_dist = 150.0
+ret = isect_flat_triangle(ray, triangle, hitpoint, min_dist)
+        """
+
+        r_arg = StructArg('ray', ray)
+        tri_arg = StructArg('triangle', t)
+        harg = StructArg('hitpoint', hitpoint)
+        ret = IntArg('ret', 6)
+
+        args = [r_arg, tri_arg, harg, ret]
+        shader = Shader(code=code, args=args)
+        shader.compile([tri_shader.shader])
+        shader.prepare(runtimes)
+
+        shader.execute()
+
+        min_dist = 150.0
+        hit = t.isect(ray, min_dist)
+
+
+        hp = shader.get_value('hitpoint')
+
+        self.assertAlmostEqual(hit.t, hp.t, places=6)
+        self._almost_equal_vec3(hit.hit, hp.hit, places=6)
+        self._almost_equal_vec3(hit.normal, hp.normal, places=6)
+        self.assertEqual(hit.mat_idx, hp.mat_idx)
+        self.assertAlmostEqual(hit.u, hp.u)
+        self.assertAlmostEqual(hit.v, hp.v)
 
     def test_isect_flat_triangle(self):
         runtimes = [Runtime()]

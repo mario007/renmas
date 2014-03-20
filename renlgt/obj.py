@@ -77,7 +77,7 @@ class Obj:
 
         self._current_groups = ["default"]
         self._new_groups = True
-        self._current_material = "default"
+        self._current_material = None
         self._mtllib = None
 
     def load(self, fname, material_loader=None):
@@ -108,15 +108,14 @@ class Obj:
                 self._face(words)
             elif words[0] == 'mtllib':
                 name = words[1].strip()
-                full_path = os.path.join(os.path.dirname(fname), name)
-                self._mtllib = full_path
+                self._mtllib = name
 
         self._vertices.clear()
         self._normals.clear()
         #self._uv = self._vertex_idx = None
         self._vertex_idx = None
         f.close()
-        return FileDesc(list(self._meshs), fname=self._mtllib)
+        return FileDesc(list(self._meshs), material_file=self._mtllib)
 
     def _get_vertex(self, v, t, n):
         if self._new_groups:

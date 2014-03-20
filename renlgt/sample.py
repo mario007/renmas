@@ -19,6 +19,11 @@ class Sample:
         return 'x=%f y=%f px=%f py=%f ix=%i iy=%i weight=%f' % (self.x, self.y, self.px, self.py,
                                                                 self.ix, self.iy, self.weight)
 
+    @classmethod
+    def factory(cls):
+        return Sample(0.0, 0.0, 0.0, 0.0, 0, 0, 0.0)
+
+
 register_struct(Sample, 'Sample', fields=[('x', FloatArg),
                 ('y', FloatArg), ('px', FloatArg), ('py', FloatArg),
                 ('ix', IntArg), ('iy', IntArg), ('weight', FloatArg)],

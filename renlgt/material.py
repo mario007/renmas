@@ -70,9 +70,9 @@ class Material:
 
     def set_value(self, name, val):
         if self._bsdf_shader is None:
-            raise ValueError("Light shader is not loaded!")
+            raise ValueError("Material shader is not loaded!")
         if self._spectral and isinstance(val, RGBSpectrum):
-            val = self._sam_mgr.rgb_to_sampled(val, illum=True)
+            val = self._sam_mgr.rgb_to_sampled(val, illum=False)
         if not self._spectral and isinstance(val, SampledSpectrum):
             val = self._sam_mgr.sampled_to_rgb(val)
         self._bsdf_shader.set_value(name, val)

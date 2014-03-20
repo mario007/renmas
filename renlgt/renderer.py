@@ -100,7 +100,8 @@ class Renderer:
         self._ready = True
 
     def reset(self):
-        self._create_hdr_buffer()
+        if self._hdr_buffer is not None:
+            self._hdr_buffer.clear()
         self.sampler.reset()
 
     def render(self):
@@ -116,13 +117,13 @@ class Renderer:
         if not self.sampler.has_more_samples():
             return True
 
-        start = time.clock()
         self.integrator.execute(self._hdr_buffer)
-        end = time.clock()
-        print(end-start)
         # print (self.integrator.shader._asm_code)
         # self.integrator.shader._mc.print_machine_code()
         self.sampler.increment_pass()
+
+        if not self.sampler.has_more_samples():
+            return True
 
         return False
 

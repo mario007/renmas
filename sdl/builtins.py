@@ -529,6 +529,42 @@ def _exp(cgen, operands):
 register_function('exp', _exp, inline=False)
 
 
+def _acos(cgen, operands):
+    return _math_fun(cgen, operands, 'acos_ss', 'acos_ps')
+
+register_function('acos', _acos, inline=False)
+
+
+def _asin(cgen, operands):
+    return _math_fun(cgen, operands, 'asin_ss', 'asin_ps')
+
+register_function('asin', _asin, inline=False)
+
+
+def _atan(cgen, operands):
+    return _math_fun(cgen, operands, 'atan_ss', 'atan_ps')
+
+register_function('atan', _atan, inline=False)
+
+
+def _cos(cgen, operands):
+    return _math_fun(cgen, operands, 'cos_ss', 'cos_ps')
+
+register_function('cos', _cos, inline=False)
+
+
+def _sin(cgen, operands):
+    return _math_fun(cgen, operands, 'sin_ss', 'sin_ps')
+
+register_function('sin', _sin, inline=False)
+
+
+def _tan(cgen, operands):
+    return _math_fun(cgen, operands, 'tan_ss', 'tan_ps')
+
+register_function('tan', _tan, inline=False)
+
+
 def _math_atanr2_pow(cgen, operands, fun_ss, fun_ps):
     if len(operands) != 2:
         msg = "Wrong number of arguments in %s, %s fucntion" % (fun_ss, fun_ps)
@@ -562,6 +598,12 @@ def _pow(cgen, operands):
     return _math_atanr2_pow(cgen, operands, 'pow_ss', 'pow_ps')
 
 register_function('pow', _pow, inline=False) 
+
+
+def _atanr2(cgen, operands):
+    return _math_atanr2_pow(cgen, operands, 'atanr2_ss', 'atanr2_ps')
+
+register_function('atanr2', _atanr2, inline=False) 
 
 
 def _rand_int(cgen, operands):

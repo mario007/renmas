@@ -86,6 +86,12 @@ class BaseMesh(Shape):
         code = GridMesh.isect_shader_code(dep_shader.shader.name)
 
         args = []
+        args.append(FloatArg('tmp_tx_next', 0.0))
+        args.append(FloatArg('tmp_ty_next', 0.0))
+        args.append(FloatArg('tmp_tz_next', 0.0))
+        args.append(FloatArg('tmp_dtx_next', 0.0))
+        args.append(FloatArg('tmp_dty_next', 0.0))
+        args.append(FloatArg('tmp_dtz_next', 0.0))
         origin = Vector3(0.0, 0.0, 0.0)
         direction = Vector3(0.0, 0.0, 1.0)
         ray = Ray(origin, direction)
@@ -204,6 +210,13 @@ class FlatMesh(BaseMesh):
     @property
     def tbuffer(self):
         return self._tb.addr()
+
+    def get_points(self, idx):
+        v0, v1, v2 =  self._tb.get(idx)
+        p0 = self._vb.get(v0)
+        p1 = self._vb.get(v1)
+        p2 = self._vb.get(v2)
+        return p0, p1, p2
 
     @classmethod
     def isect_triangles_shader(cls):
@@ -470,6 +483,13 @@ class FlatUVMesh(BaseMesh):
     @property
     def tbuffer(self):
         return self._tb.addr()
+
+    def get_points(self, idx):
+        v0, v1, v2 =  self._tb.get(idx)
+        p0, uv0 = self._vb.get(v0)
+        p1, uv1 = self._vb.get(v1)
+        p2, uv2 = self._vb.get(v2)
+        return p0, p1, p2
 
     @classmethod
     def isect_triangles_shader(cls):
@@ -752,6 +772,13 @@ class SmoothUVMesh(BaseMesh):
     @property
     def tbuffer(self):
         return self._tb.addr()
+
+    def get_points(self, idx):
+        v0, v1, v2 =  self._tb.get(idx)
+        p0, n0, uv0 = self._vb.get(v0)
+        p1, n1, uv1 = self._vb.get(v1)
+        p2, n2, uv2 = self._vb.get(v2)
+        return p0, p1, p2
 
     @classmethod
     def isect_triangles_shader(cls):
@@ -1038,6 +1065,13 @@ class SmoothMesh(BaseMesh):
     @property
     def tbuffer(self):
         return self._tb.addr()
+
+    def get_points(self, idx):
+        v0, v1, v2 =  self._tb.get(idx)
+        p0, n0 = self._vb.get(v0)
+        p1, n1 = self._vb.get(v1)
+        p2, n2 = self._vb.get(v2)
+        return p0, p1, p2
 
     @classmethod
     def isect_triangles_shader(cls):

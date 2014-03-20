@@ -1,4 +1,11 @@
 
+Sampler
+type = random
+width = 300
+height = 300
+nsamples = 9
+pixelsize = 0.5
+End
 
 Camera
 type = pinhole
@@ -16,7 +23,7 @@ End
 Material
 type = lambertian
 name = red_lamb
-diffuse = 0.0, 0.0, 0.6
+diffuse = 0.6, 0.0, 0.0
 End
 
 Shape

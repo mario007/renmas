@@ -9,12 +9,12 @@ ren.load('triangle1.txt')
 ren.prepare()
 
 ren.render()
-#ren.tmo()
+ren.tmo()
 
 width, height = ren._hdr_buffer.size()
 new_img = ImageRGBA(width, height)
-blt_prgba_to_rgba(ren._hdr_buffer, new_img)
-#blt_prgba_to_rgba(ren._hdr_output, new_img)
+#blt_prgba_to_rgba(ren._hdr_buffer, new_img)
+blt_prgba_to_rgba(ren._hdr_output, new_img)
 
 save_image("render1.jpeg", new_img)
 

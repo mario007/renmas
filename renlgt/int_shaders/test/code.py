@@ -35,8 +35,19 @@ while 1:
                         col = ndotwi * shadepoint.material_reflectance * shadepoint.light_intensity
                         acum_col = acum_col + col
             idx = idx + 1
-            c = spectrum_to_vec(col)
-            color = float4(c[0], c[1], c[2], 0.99)
-            set_rgba(hdr_buffer, sample.ix, sample.iy, color)
+
+        c = spectrum_to_vec(acum_col)
+        color = float4(c[0], c[1], c[2], 0.99)
     else:
-        set_rgba(hdr_buffer, sample.ix, sample.iy, background_color)
+        color = background_color
+
+    rgba = get_rgba(hdr_buffer, sample.ix, sample.iy)
+
+    flt_weight = 0.99 # TODO filters box filter
+    color = color * flt_weight + rgba * rgba[3]
+
+    acum_weight = rgba[3] + flt_weight
+    color = color * (1.0 / acum_weight)
+    color = float4(color[0], color[1], color[2], acum_weight)
+
+    set_rgba(hdr_buffer, sample.ix, sample.iy, color)

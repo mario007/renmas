@@ -62,17 +62,10 @@ return 0
 
 
         """
-        args = []
-        origin = Vector3(0.0, 0.0, 0.0)
-        direction = Vector3(0.0, 0.0, 0.0)
-        ray = Ray(origin, direction)
-        sphere = Sphere(Vector3(0.0, 0.0, 0.0), 0.0, 0)
-
-        func_args = [StructArgPtr('ray', ray),
-                     StructArgPtr('sphere', sphere),
+        func_args = [StructArgPtr('ray', Ray.factory()),
+                     StructArgPtr('sphere', Sphere.factory()),
                      FloatArg('min_dist', 0.0)]
-
-        shader = Shader(code=code, args=args, name=shader_name,
+        shader = Shader(code=code, args=[], name=shader_name,
                         func_args=func_args, is_func=True)
         return DependencyShader(shader)
 
@@ -119,21 +112,11 @@ if t > 0.0005:
 return 0
 
         """
-        args = []
-        origin = Vector3(0.0, 0.0, 0.0)
-        direction = Vector3(0.0, 0.0, 0.0)
-        ray = Ray(origin, direction)
-        hitpoint = HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
-                            Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0)
-
-        sphere = Sphere(Vector3(0.0, 0.0, 0.0), 0.0, 0)
-
-        func_args = [StructArgPtr('ray', ray),
-                     StructArgPtr('sphere', sphere),
-                     StructArgPtr('hitpoint', hitpoint),
+        func_args = [StructArgPtr('ray', Ray.factory()),
+                     StructArgPtr('sphere', Sphere.factory()),
+                     StructArgPtr('hitpoint', HitPoint.factory()),
                      FloatArg('min_dist', 0.0)]
-
-        shader = Shader(code=code, args=args, name=shader_name,
+        shader = Shader(code=code, args=[], name=shader_name,
                         func_args=func_args, is_func=True)
         return DependencyShader(shader)
 
@@ -161,6 +144,10 @@ return 0
                 hit_point = ray.origin + ray.direction * t
                 return HitPoint(t, hit_point, normal, self.mat_idx, 0.0, 0.0)
         return False
+
+    @classmethod
+    def factory(cls):
+        return Sphere(Vector3(0.0, 0.0, 0.0), 0.0, 0)
 
 register_struct(Sphere, 'Sphere', fields=[('origin', Vec3Arg),
                 ('radius', FloatArg), ('mat_idx', IntArg)],

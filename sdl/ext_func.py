@@ -1,6 +1,8 @@
 
 from tdasm import iset_supported
-from tdasm.asm_lib import logss, logps, expss, expps, powss, powps, rnd
+from tdasm.asm_lib import logss, logps, expss, expps, powss, powps,\
+    acosss, acosps, asinss, asinps, atanps, atanss, atanr2ps,\
+    atanr2ss, cosps, cosss, sinps, sinss, tanps, tanss, rnd
 
 
 class ExtFunction:
@@ -19,6 +21,20 @@ def load_ext_function(runtimes, ext_func):
     funcs['exp_ps'] = expps.exp_ps_asm
     funcs['pow_ss'] = powss.pow_ss_asm
     funcs['pow_ps'] = powps.pow_ps_asm
+    funcs['acos_ss'] = acosps.acos_ps_asm  # there is bug in acosss for negative values
+    funcs['acos_ps'] = acosps.acos_ps_asm
+    funcs['asin_ss'] = asinss.asin_ss_asm
+    funcs['asin_ps'] = asinps.asin_ps_asm
+    funcs['atan_ss'] = atanss.atan_ss_asm
+    funcs['atan_ps'] = atanps.atan_ps_asm
+    funcs['atanr2_ss'] = atanr2ss.atanr2_ss_asm
+    funcs['atanr2_ps'] = atanr2ps.atanr2_ps_asm
+    funcs['cos_ss'] = cosss.cos_ss_asm
+    funcs['cos_ps'] = cosps.cos_ps_asm
+    funcs['sin_ss'] = sinss.sin_ss_asm
+    funcs['sin_ps'] = sinps.sin_ps_asm
+    funcs['tan_ss'] = tanss.tan_ss_asm
+    funcs['tan_ps'] = tanps.tan_ps_asm
 
     if ext_func.name in ('rand_int', 'random', 'random2', 'random3', 'random4'):
         if ext_func.name == 'rand_int':

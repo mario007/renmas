@@ -1,10 +1,14 @@
 
+import os.path
 from sdl import Vector3, RGBSpectrum, SampledSpectrum
 from .camera import Camera
 from .sphere import Sphere
 from .light import GeneralLight
 from .material import Material
 from .triangle import FlatTriangle
+from .samplers import RegularSampler, RandomSampler, JitteredSampler
+from .mesh import load_meshes, create_mesh, FlatMesh
+from .parse_mtl import parse_matlib
 
 
 def _parse_line(line):
@@ -18,16 +22,17 @@ def _extract_values(fobj):
 
     for line in fobj:
         line = line.strip()
-        if line == "" or line[0] == '#': #skip blank lines and comments
+        if line == "" or line[0] == '#':  # skip blank lines and comments
             continue
-        if line.lower()  == 'end':
+        if line.lower() == 'end':
             break
         key, vals = _parse_line(line)
         values[key] = vals
     return values
 
+
 def _value_factory(old_val, val, sam_mgr, light=False):
-    
+
     if isinstance(old_val, Vector3):
         return Vector3(float(val[0]), float(val[1]), float(val[2]))
     elif isinstance(old_val, RGBSpectrum):
@@ -45,9 +50,9 @@ def _parse_camera(fobj, renderer):
     values = _extract_values(fobj)
     #NOTE keywords are expected to be in lower case!!! Improve this
 
-    eye = values['eye']  
+    eye = values['eye']
     eye = Vector3(float(eye[0]), float(eye[1]), float(eye[2]))
-    lookat = values['lookat']  
+    lookat = values['lookat']
     lookat = Vector3(float(lookat[0]), float(lookat[1]), float(lookat[2]))
     distance = float(values['distance'][0])
 
@@ -57,6 +62,7 @@ def _parse_camera(fobj, renderer):
 
     #TODO - shader public parameters
     renderer.camera = camera
+
 
 def _parse_light(fobj, renderer):
     values = _extract_values(fobj)
@@ -75,6 +81,7 @@ def _parse_light(fobj, renderer):
         new_val = _value_factory(old_val, val, renderer.sam_mgr)
         light.set_value(key, new_val)
     renderer.lights.add(name, light)
+
 
 def _parse_material(fobj, renderer):
     values = _extract_values(fobj)
@@ -123,8 +130,67 @@ def _parse_shape(fobj, renderer):
         mat_idx = renderer.materials.index(mat_name)
         flat = FlatTriangle(p0, p1, p2, mat_idx)
         renderer.shapes.add(name, flat)
+    elif typ == 'mesh':
+        fname = values['fname'][0].strip()
+        full_path = os.path.join(os.path.dirname(fobj.name), fname)
+        if not os.path.isfile(full_path):
+            raise ValueError("File %s doesn't exist!" % full_path)
+        fdesc = load_meshes(full_path)
+        material = None
+        if 'material' in values:
+            material = values['material'][0].strip()
+        if fdesc.material_file is not None:
+            full_path = os.path.join(os.path.dirname(fobj.name), fdesc.material_file)
+            parse_matlib(full_path, renderer)
+
+        #TODO translate, scale
+        for mdesc in fdesc.mesh_descs:
+            if mdesc.material is None:
+                mat_idx = renderer.materials.index(material)
+            else:
+                mat_idx = renderer.materials.index(mdesc.material)
+            mesh = create_mesh(mdesc, mat_idx=mat_idx)
+            mesh.prepare()
+            renderer.shapes.add(mdesc.name, mesh)
     else:
         raise ValueError("Unsuported type of shape!", typ)
+
+
+def _parse_sampler(fobj, renderer):
+    values = _extract_values(fobj)
+    width = 200
+    height = 200
+    pixelsize = 1.0
+    nthreads = 1
+    nsamples = 1
+    if 'width' in values:
+        width = int(values['width'][0])
+    if 'height' in values:
+        height = int(values['height'][0])
+    if 'pixelsize' in values:
+        pixelsize = float(values['pixelsize'][0])
+    if 'nthreads' in values:
+        nthreads = int(values['nthreads'][0])
+        if nthreads > 32:
+            nthreads = 32
+    if 'nsamples' in values:
+        nsamples = int(values['nsamples'][0])
+
+    typ = values['type'][0].strip().lower()
+    if typ == 'regular':
+        sampler = RegularSampler(width=width, height=height,
+                                 pixelsize=pixelsize, nthreads=nthreads)
+        renderer.sampler = sampler
+    elif typ == 'random':
+        sampler = RandomSampler(width=width, height=height,
+                                pixelsize=pixelsize, nthreads=nthreads,
+                                nsamples=nsamples)
+        renderer.sampler = sampler
+    elif typ == 'jittered':
+        sampler = JitteredSampler(width=width, height=height,
+                                  pixelsize=pixelsize, nthreads=nthreads,
+                                  nsamples=nsamples)
+        renderer.sampler = sampler
 
 
 def import_scene(filename, renderer):
@@ -132,7 +198,7 @@ def import_scene(filename, renderer):
     fobj = open(filename)
     for line in fobj:
         line = line.strip()
-        if line == "" or line[0] == '#': #skip blank lines and comments
+        if line == "" or line[0] == '#':  # skip blank lines and comments
             continue
         if line.lower() == 'camera':
             _parse_camera(fobj, renderer)
@@ -142,6 +208,7 @@ def import_scene(filename, renderer):
             _parse_material(fobj, renderer)
         elif line.lower() == 'shape':
             _parse_shape(fobj, renderer)
+        elif line.lower() == 'sampler':
+            _parse_sampler(fobj, renderer)
         else:
             raise ValueError("Unknown keyword in scene file!", line)
-

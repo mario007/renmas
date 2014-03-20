@@ -1,4 +1,5 @@
 
+import math
 from tdasm import Runtime
 from sdl import Shader, StructArgPtr, StructArg, ArgList, register_struct,\
     IntArg, FloatArg
@@ -50,8 +51,13 @@ class Sampler:
     def args(self):
         self._tiles = tiles = create_tiles(self._width, self._height, self._nthreads)
 
+        n = self.nsamples()
+        subx, suby = self._subpixel_location()
+
         args = [IntArg('width', self._width), IntArg('height', self._height),
-                FloatArg('pixelsize', self._pixelsize)]
+                FloatArg('pixelsize', self._pixelsize), IntArg('nsamples', n),
+                IntArg('npass', self._pass), IntArg('subx', subx),
+                IntArg('suby', suby)]
 
         targs = [StructArg('tile', tile) for tile in tiles]
         targ = ArgList('tile', targs)
@@ -87,7 +93,21 @@ class Sampler:
 
     def reset(self):
         self._pass = 0
+        self._update_shader_values()
+
+    def _subpixel_location(self):
+        n = self.nsamples()
+        subx = self._pass // int(math.sqrt(n))
+        suby = self._pass % int(math.sqrt(n))
+        return (subx, suby)
+
+    def _update_shader_values(self):
         if self.shader is not None:
+            self.shader.set_value('npass', self._pass)
+            subx, suby = self._subpixel_location()
+            self.shader.set_value('subx', subx)
+            self.shader.set_value('suby', suby)
+
             curx = [0 for tile in self._tiles]
             self.shader.set_value('curx', curx)
 
@@ -96,6 +116,7 @@ class Sampler:
 
     def increment_pass(self):
         self._pass += 1
+        self._update_shader_values()
 
     def has_more_samples(self):
         if self._pass >= self.nsamples():
@@ -114,14 +135,45 @@ class Sampler:
         code = """
 ret = generate_sample(sample)
         """
-        sample = Sample(0.0, 0.0, 0.0, 0.0, 0, 0, 0.0)
-        args = [StructArg('sample', sample), IntArg('ret', 11)]
+        args = [StructArg('sample', Sample.factory()), IntArg('ret', 11)]
         self._standalone = Shader(code=code, args=args)
         self._standalone.compile([self.shader])
         self._standalone.prepare(runtimes)
 
     def generate_sample(self):
-        
+
+        self._standalone.execute()
+        ret = self._standalone.get_value('ret')
+        if ret == 0:
+            return False
+        sample = self._standalone.get_value('sample')
+        return sample
+
+
+class SamplerGenerator():
+    def __init__(self, sampler):
+        self.sampler = sampler
+
+        self.prepare_standalone()
+
+    def prepare_standalone(self):
+
+        self.sampler.create_shader()
+
+        runtimes = [Runtime()]
+        self.sampler.compile()
+        self.sampler.prepare(runtimes)
+
+        code = """
+ret = generate_sample(sample)
+        """
+        args = [StructArg('sample', Sample.factory()), IntArg('ret', 11)]
+        self._standalone = Shader(code=code, args=args)
+        self._standalone.compile([self.sampler.shader])
+        self._standalone.prepare(runtimes)
+
+    def generate_sample(self):
+
         self._standalone.execute()
         ret = self._standalone.get_value('ret')
         if ret == 0:
@@ -157,10 +209,95 @@ if curx == endx:
 return 1
         """
         args = self.args()
-        sample = Sample(0.0, 0.0, 0.0, 0.0, 0, 0, 0.0)
-        func_args = [StructArgPtr('sample', sample)]
+        func_args = [StructArgPtr('sample', Sample.factory())]
 
         self.shader = Shader(code=code, args=args, name='generate_sample',
                              func_args=func_args, is_func=True)
         return self.shader
 
+
+class RandomSampler(Sampler):
+    def __init__(self, width=200, height=200,
+                 pixelsize=1.0, nthreads=1, nsamples=1):
+        super(RandomSampler, self).__init__(width, height, pixelsize, nthreads)
+        self._nsamples = nsamples
+
+    def nsamples(self):
+        return self._nsamples
+
+    def create_shader(self):
+        code = """
+if cury == endy:
+    return 0
+
+rnds = random2()
+
+tmp = curx - width * 0.5 + rnds[0]
+tmp2 = cury - height * 0.5 + rnds[1]
+
+sample.x = pixelsize * tmp
+sample.y = pixelsize * tmp2
+sample.px = rnds[0]
+sample.py = rnds[1]
+sample.ix = curx
+sample.iy = cury
+sample.weight = 1.0
+
+curx = curx + 1
+if curx == endx:
+    curx = tile.x
+    cury = cury + 1
+return 1
+        """
+        args = self.args()
+        func_args = [StructArgPtr('sample', Sample.factory())]
+
+        self.shader = Shader(code=code, args=args, name='generate_sample',
+                             func_args=func_args, is_func=True)
+        return self.shader
+
+
+class JitteredSampler(Sampler):
+    def __init__(self, width=200, height=200,
+                 pixelsize=1.0, nthreads=1, nsamples=1):
+        super(JitteredSampler, self).__init__(width, height, pixelsize, nthreads)
+        s = int(math.sqrt(nsamples))
+        self._nsamples = s * s
+
+    def nsamples(self):
+        return self._nsamples
+
+    def create_shader(self):
+        code = """
+if cury == endy:
+    return 0
+
+rnds = random2()
+n = float(nsamples)
+n = sqrt(n) 
+px = (subx + rnds[0]) / n
+py = (suby + rnds[1]) / n
+
+tmp = curx - width * 0.5 + px
+tmp2 = cury - height * 0.5 + py
+
+sample.x = pixelsize * tmp
+sample.y = pixelsize * tmp2
+sample.px = px
+sample.py = py
+sample.ix = curx
+sample.iy = cury
+sample.weight = 1.0
+
+curx = curx + 1
+if curx == endx:
+    curx = tile.x
+    cury = cury + 1
+return 1
+        """
+        args = self.args()
+        func_args = [StructArgPtr('sample', Sample.factory())]
+
+        self.shader = Shader(code=code, args=args, name='generate_sample',
+                             func_args=func_args, is_func=True)
+        return self.shader

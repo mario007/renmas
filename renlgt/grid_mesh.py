@@ -211,17 +211,15 @@ tmin = min(ttop, tbot)
 tmax = max(ttop, tbot)
 
 tmp = max(tmin[0], tmin[1])
-tmp2 = max(tmin[0], tmin[2])
-largest_tmin = max(tmp, tmp2)
+largest_tmin = max(tmp, tmin[2])
 
 tmp = min(tmax[0], tmax[1])
-tmp2 = min(tmax[0], tmax[2])
-smallest_tmax = min(tmp, tmp2)
+smallest_tmax = min(tmp, tmax[2])
 
 if largest_tmin > smallest_tmax:
     return 0
 
-ox = ray.direction * largest_tmin  + origin
+ox = direction * largest_tmin  + origin
 if origin[0] > bbox_min[0]: # test if origin is bbox
     if origin[0] < bbox_max[0]:
         if origin[1] > bbox_min[1]:
@@ -236,19 +234,36 @@ nz = float(mesh.nz)
 grid_width = float3(nx, ny, nz)
 
 ixyz = (ox - bbox_min) * grid_width / (bbox_max - bbox_min)
-nxyz = grid_width - (1.0, 1.0, 1.0)
-ixyz = min(nxyz, ixyz)
-tmp = float3(0.0, 0.0, 0.0)
-ixyz = max(tmp, ixyz)
+
+tmp = mesh.nx - 1
+ix = int(ixyz[0])
+if ix > tmp:
+    ix = tmp 
+if ix < 0:
+    ix = 0
+
+tmp = mesh.ny - 1
+iy = int(ixyz[1])
+if iy > tmp:
+    iy = tmp 
+if iy < 0:
+    iy = 0
+
+tmp = mesh.nz - 1
+iz = int(ixyz[2])
+if iz > tmp:
+    iz = tmp 
+if iz < 0:
+    iz = 0
 
 dtxyz = (tmax - tmin) / grid_width
 
 if direction[0] > 0.0:
-    tx_next = tmin[0] + (ixyz[0] + 1.0) * dtxyz[0]
+    tx_next = tmin[0] + (ix + 1) * dtxyz[0]
     ix_step = 1
     ix_stop = mesh.nx
 else:
-    tx_next = tmin[0] + (float(mesh.nx) - ixyz[0]) * dtxyz[0]
+    tx_next = tmin[0] + (mesh.nx - ix) * dtxyz[0]
     ix_step = -1
     ix_stop = -1
 if direction[0] == 0.0:
@@ -257,11 +272,11 @@ if direction[0] == 0.0:
     ix_stop = -1
 
 if direction[1] > 0.0:
-    ty_next = tmin[1] + (ixyz[1] + 1.0) * dtxyz[1]
+    ty_next = tmin[1] + (iy + 1) * dtxyz[1]
     iy_step = 1
     iy_stop = mesh.ny
 else:
-    ty_next = tmin[1] + (float(mesh.ny) - ixyz[1]) * dtxyz[1]
+    ty_next = tmin[1] + (mesh.ny - iy) * dtxyz[1]
     iy_step = -1
     iy_stop = -1
 if direction[1] == 0.0:
@@ -270,11 +285,11 @@ if direction[1] == 0.0:
     iy_stop = -1
 
 if direction[2] > 0.0:
-    tz_next = tmin[2] + (ixyz[2] + 1.0) * dtxyz[2]
+    tz_next = tmin[2] + (iz + 1) * dtxyz[2]
     iz_step = 1
     iz_stop = mesh.nz
 else:
-    tz_next = tmin[2] + (float(mesh.nz) - ixyz[2]) * dtxyz[2]
+    tz_next = tmin[2] + (mesh.nz - iz) * dtxyz[2]
     iz_step = -1
     iz_stop = -1
 if direction[2] == 0.0:
@@ -284,9 +299,6 @@ if direction[2] == 0.0:
 
 nx = mesh.nx
 ny = mesh.ny
-ix = int(ixyz[0])
-iy = int(ixyz[1])
-iz = int(ixyz[2])
 
 while 1:
     idx = ix + nx * iy + nx * ny * iz
@@ -536,17 +548,15 @@ tmin = min(ttop, tbot)
 tmax = max(ttop, tbot)
 
 tmp = max(tmin[0], tmin[1])
-tmp2 = max(tmin[0], tmin[2])
-largest_tmin = max(tmp, tmp2)
+largest_tmin = max(tmp, tmin[2])
 
 tmp = min(tmax[0], tmax[1])
-tmp2 = min(tmax[0], tmax[2])
-smallest_tmax = min(tmp, tmp2)
+smallest_tmax = min(tmp, tmax[2])
 
 if largest_tmin > smallest_tmax:
     return 0
 
-ox = ray.direction * largest_tmin  + origin
+ox = direction * largest_tmin  + origin
 if origin[0] > bbox_min[0]: # test if origin is bbox
     if origin[0] < bbox_max[0]:
         if origin[1] > bbox_min[1]:
@@ -561,19 +571,36 @@ nz = float(mesh.nz)
 grid_width = float3(nx, ny, nz)
 
 ixyz = (ox - bbox_min) * grid_width / (bbox_max - bbox_min)
-nxyz = grid_width - (1.0, 1.0, 1.0)
-ixyz = min(nxyz, ixyz)
-tmp = float3(0.0, 0.0, 0.0)
-ixyz = max(tmp, ixyz)
+
+tmp = mesh.nx - 1
+ix = int(ixyz[0])
+if ix > tmp:
+    ix = tmp 
+if ix < 0:
+    ix = 0
+
+tmp = mesh.ny - 1
+iy = int(ixyz[1])
+if iy > tmp:
+    iy = tmp 
+if iy < 0:
+    iy = 0
+
+tmp = mesh.nz - 1
+iz = int(ixyz[2])
+if iz > tmp:
+    iz = tmp 
+if iz < 0:
+    iz = 0
 
 dtxyz = (tmax - tmin) / grid_width
 
 if direction[0] > 0.0:
-    tx_next = tmin[0] + (ixyz[0] + 1.0) * dtxyz[0]
+    tx_next = tmin[0] + (ix + 1) * dtxyz[0]
     ix_step = 1
     ix_stop = mesh.nx
 else:
-    tx_next = tmin[0] + (float(mesh.nx) - ixyz[0]) * dtxyz[0]
+    tx_next = tmin[0] + (mesh.nx - ix) * dtxyz[0]
     ix_step = -1
     ix_stop = -1
 if direction[0] == 0.0:
@@ -582,11 +609,11 @@ if direction[0] == 0.0:
     ix_stop = -1
 
 if direction[1] > 0.0:
-    ty_next = tmin[1] + (ixyz[1] + 1.0) * dtxyz[1]
+    ty_next = tmin[1] + (iy + 1) * dtxyz[1]
     iy_step = 1
     iy_stop = mesh.ny
 else:
-    ty_next = tmin[1] + (float(mesh.ny) - ixyz[1]) * dtxyz[1]
+    ty_next = tmin[1] + (mesh.ny - iy) * dtxyz[1]
     iy_step = -1
     iy_stop = -1
 if direction[1] == 0.0:
@@ -595,11 +622,11 @@ if direction[1] == 0.0:
     iy_stop = -1
 
 if direction[2] > 0.0:
-    tz_next = tmin[2] + (ixyz[2] + 1.0) * dtxyz[2]
+    tz_next = tmin[2] + (iz + 1) * dtxyz[2]
     iz_step = 1
     iz_stop = mesh.nz
 else:
-    tz_next = tmin[2] + (float(mesh.nz) - ixyz[2]) * dtxyz[2]
+    tz_next = tmin[2] + (mesh.nz - iz) * dtxyz[2]
     iz_step = -1
     iz_stop = -1
 if direction[2] == 0.0:
@@ -609,9 +636,6 @@ if direction[2] == 0.0:
 
 nx = mesh.nx
 ny = mesh.ny
-ix = int(ixyz[0])
-iy = int(ixyz[1])
-iz = int(ixyz[2])
 
 while 1:
     idx = ix + nx * iy + nx * ny * iz

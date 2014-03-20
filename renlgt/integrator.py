@@ -18,6 +18,8 @@ class Integrator:
         if text is not None:
             args = parse_args(text)
         code = self._loader.load(shader_name, 'code.py')
+        if code is None:
+            raise ValueError("Integrator %s code is missing!" % shader_name)
 
         hdr_buffer = StructArg('hdr_buffer', ImagePRGBA(1, 1))
         args.append(hdr_buffer)

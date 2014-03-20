@@ -1,4 +1,5 @@
 
+from .vector import Vector3
 
 class Ray():
 
@@ -12,3 +13,9 @@ class Ray():
         text = "Origin = " + str(self.origin) + " \n"
         text += "Direction = " + str(self.direction)
         return text
+
+    @classmethod
+    def factory(cls):
+        origin = Vector3(0.0, 0.0, 0.0)
+        direction = Vector3(0.0, 0.0, 1.0)
+        return Ray(origin, direction)

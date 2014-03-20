@@ -16,6 +16,12 @@ class HitPoint:
         self.u = u
         self.v = v
 
+    @classmethod
+    def factory(cls):
+        return HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
+                        Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0)
+
+
 register_struct(HitPoint, 'HitPoint', fields=[('t', FloatArg),
                 ('hit', Vec3Arg), ('normal', Vec3Arg), ('mat_idx', IntArg),
                 ('u', FloatArg), ('v', FloatArg)],

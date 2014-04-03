@@ -1,0 +1,4 @@
+
+rgb diffuse
+rgb emission
+

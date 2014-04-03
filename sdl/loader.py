@@ -28,3 +28,9 @@ class Loader:
         if directory not in self._dirs:
             self._dirs.append(directory)
 
+    def exist(self, dirname, filename):
+        for d in self._dirs:
+            full_name = os.path.join(d, dirname, filename)
+            if os.path.isfile(full_name):
+                return True
+        return False

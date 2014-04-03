@@ -25,5 +25,4 @@ class HitPoint:
 register_struct(HitPoint, 'HitPoint', fields=[('t', FloatArg),
                 ('hit', Vec3Arg), ('normal', Vec3Arg), ('mat_idx', IntArg),
                 ('u', FloatArg), ('v', FloatArg)],
-                factory=lambda: HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
-                                         Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0))
+                factory=lambda: HitPoint.factory())

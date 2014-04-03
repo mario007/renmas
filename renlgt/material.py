@@ -16,57 +16,122 @@ class Material:
         self._loader = Loader([path])
 
         self._bsdf_shader = None
+        self._sampling_shader = None
+        self._shader_name = None
+
+    def is_emissive(self):
+        if self._shader_name is None:
+            return False
+        return self._loader.exist(self._shader_name, 'emission.py')
 
     def _func_args(self, spectrum):
-
-        wo = Vector3(0.0, 0.0, 0.0)
-        wi = Vector3(0.0, 0.0, 0.0)
-        li = spectrum.zero()
-        lpos = Vector3(0.0, 0.0, 0.0)
-        ref = spectrum.zero()
-
-        hp = HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
-                      Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0)
-        sp = ShadePoint(wo, wi, li, lpos, ref, 0.0)
-
-        func_args = [StructArgPtr('hitpoint', hp), StructArgPtr('shadepoint', sp)]
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
         return func_args
 
-    def load(self, shader_name, sam_mgr, spectral=False):
+    def _load_args(self):
         tmp_args = []
-        text = self._loader.load(shader_name, 'props.txt')
+        text = self._loader.load(self._shader_name, 'props.txt')
         if text is not None:
             tmp_args = parse_args(text)
         args = []
         for a in tmp_args:
-            if spectral and isinstance(a, RGBArg):
-                val = sam_mgr.rgb_to_sampled(a.value, illum=True)
+            if self._spectral and isinstance(a, RGBArg):
+                val = self._sam_mgr.rgb_to_sampled(a.value, illum=True)
                 aa = SampledArg(a.name, val)
                 args.append(aa)
-            elif not spectral and isinstance(a, SampledArg):
-                val = sam_mgr.sampled_to_rgb(a.value)
+            elif not self._spectral and isinstance(a, SampledArg):
+                val = self._sam_mgr.sampled_to_rgb(a.value)
                 aa = RGBArg(a.name, val)
                 args.append(aa)
             else:
                 args.append(a)
+        return args
+
+    def load(self, shader_name, sam_mgr, spectral=False):
+        self._spectral = spectral
+        self._sam_mgr = sam_mgr
+        self._shader_name = shader_name
 
         code = self._loader.load(shader_name, 'bsdf.py')
         if code is None:
-            raise ValueError("bsdf.py in %s shader dont exist!" % shader_name)
+            raise ValueError("bsdf.py in %s doesnt exist!" % shader_name)
         
+        args = self._load_args()
         name = 'material_%i' % id(args)
         s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
         func_args = self._func_args(s)
         self._bsdf_shader = Shader(code=code, args=args, name=name,
                                    func_args=func_args, is_func=True)
-        self._spectral = spectral
-        self._sam_mgr = sam_mgr
+
+        #Sampling shader
+        code = self._loader.load(self._shader_name, 'sample.py')
+        if code is None:
+            code = self._default_sampling()
+
+        args = self._load_args()
+        name = 'material_sampling_%i' % id(args)
+        func_args = self._func_args(s)
+        self._sampling_shader = Shader(code=code, args=args, name=name,
+                                       func_args=func_args, is_func=True)
+
+
+    def _default_sampling(self):
+        code = """
+r1 = random()
+r2 = random()
+e = 1.0
+
+phi = 2.0 * 3.14159 * r1
+exponent = 1.0 / (e + 1.0)
+cos_theta = pow(r2, exponent)
+
+tmp = 1.0 - cos_theta * cos_theta
+sin_theta = sqrt(tmp)
+sin_phi = sin(phi)
+cos_phi = cos(phi)
+pu = sin_theta * cos_phi 
+pv = sin_theta * sin_phi
+pw = cos_theta
+
+w = hitpoint.normal 
+tv = (0.0034, 1.0, 0.0071)
+v = cross(tv, w)
+v = normalize(v)
+u = cross(v, w)
+
+ndir = u * pu + v * pv + w * pw
+shadepoint.wi = normalize(ndir)
+
+shadepoint.pdf = dot(hitpoint.normal, shadepoint.wi) * 0.318309886
+        """
+        return code
 
     def compile(self, shaders=[]):
         self._bsdf_shader.compile(shaders)
+        self._sampling_shader.compile(shaders)
 
     def prepare(self, runtimes):
         self._bsdf_shader.prepare(runtimes)
+        self._sampling_shader.prepare(runtimes)
+
+    def emission_shader(self, shaders=[]):
+        args = self._load_args()
+        code = self._loader.load(self._shader_name, 'emission.py')
+        if code is None:
+            raise ValueError("emission.py in %s dont exist!" % self._shader_name)
+
+        name = 'material_emission_%i' % id(args)
+        s = self._sam_mgr.zero() if self._spectral else RGBSpectrum(0.0, 0.0, 0.0)
+        func_args = self._func_args(s)
+        emission_shader = Shader(code=code, args=args, name=name,
+                                 func_args=func_args, is_func=True)
+        return emission_shader
+
+    def sync_shader_props(self, shader):
+        for arg in shader.args:
+            val = self.get_value(arg.name)
+            shader.set_value(arg.name, val)
 
     def set_value(self, name, val):
         if self._bsdf_shader is None:
@@ -76,6 +141,7 @@ class Material:
         if not self._spectral and isinstance(val, SampledSpectrum):
             val = self._sam_mgr.sampled_to_rgb(val)
         self._bsdf_shader.set_value(name, val)
+        self._sampling_shader.set_value(name, val)
 
     def get_value(self, name):
         if self._bsdf_shader is None:
@@ -98,19 +164,9 @@ class MaterialManager:
         self._materials_d[name] = material
 
     def _func_args(self, spectrum):
-
-        wo = Vector3(0.0, 0.0, 0.0)
-        wi = Vector3(0.0, 0.0, 0.0)
-        li = spectrum.zero()
-        lpos = Vector3(0.0, 0.0, 0.0)
-        ref = spectrum.zero()
-
-        hp = HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
-                      Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0)
-        sp = ShadePoint(wo, wi, li, lpos, ref, 0.0)
-
-        func_args = [StructArgPtr('hitpoint', hp),
-                     StructArgPtr('shadepoint', sp), IntArg('mat_idx', 0)]
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum)),
+                     IntArg('mat_idx', 0)]
         return func_args
 
     def _mtl_reflectance(self, sam_mgr, spectral=False):
@@ -126,32 +182,70 @@ __material_reflectance(hitpoint, shadepoint, ptr_func)
         self.ref_shader = Shader(code=code, args=args, name='material_reflectance',
                                  func_args=func_args, is_func=True)
 
+    def _mtl_sampling(self, sam_mgr, spectral=False):
+        code = """
+ptr_func = mtl_sampling_ptrs[mat_idx]
+__material_sampling(hitpoint, shadepoint, ptr_func)
+        """
+        lgt_ptrs = ArrayArg('mtl_sampling_ptrs', PtrsArray())
+        al = ArgList('mtl_sampling_ptrs', [lgt_ptrs])
+        s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
+        func_args = self._func_args(s)
+        args = [al]
+        self.sampling_shader = Shader(code=code, args=args, name='material_sampling',
+                                 func_args=func_args, is_func=True)
+
     def compile_shaders(self, sam_mgr, spectral=False, shaders=[]):
 
         for m in self._materials:
             m.compile(shaders)
+
         self._mtl_reflectance(sam_mgr, spectral)
         self.ref_shader.compile(shaders)
 
+        self._mtl_sampling(sam_mgr, spectral)
+        self.sampling_shader.compile(shaders)
+
     def prepare_shaders(self, runtimes):
-        ptrs = []
         for m in self._materials:
             m.prepare(runtimes)
-            p = m._bsdf_shader.get_ptrs()
+
+        args = self._pointer_args('_bsdf_shader', 'mtl_ptrs', runtimes)
+        aal = self.ref_shader._get_arg('mtl_ptrs')
+        aal.resize(args)
+        self.ref_shader.prepare(runtimes)
+
+        args = self._pointer_args('_sampling_shader', 'mtl_sampling_ptrs', runtimes)
+        aal = self.sampling_shader._get_arg('mtl_sampling_ptrs')
+        aal.resize(args)
+        self.sampling_shader.prepare(runtimes)
+
+    def _pointer_args(self, shader_name, arg_name, runtimes):
+        ptrs = []
+        for m in self._materials:
+            shader = getattr(m, shader_name)
+            p = shader.get_ptrs()
             ptrs.append(p)
+
         args = []
         for i in range(len(runtimes)):
             pa = PtrsArray()
             for v in ptrs:
                 pa.append(v[i])
-            args.append(ArrayArg('mtl_ptrs', pa))
-        
-        aal = self.ref_shader._get_arg('mtl_ptrs')
-        aal.resize(args)
-        self.ref_shader.prepare(runtimes)
+            args.append(ArrayArg(arg_name, pa))
+        return args
 
     def index(self, name):
         if name not in self._materials_d:
             raise ValueError("Material %s doesn't exist!" % name)
         m = self._materials_d[name]
         return self._materials.index(m)
+
+    def material(self, index=None, name=None):
+        if index is None and name is None:
+            raise ValueError("Index or Name of material is required")
+
+        if name is not None:
+            return self._materials_d[name] 
+
+        return self._materials[index]

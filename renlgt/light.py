@@ -2,7 +2,7 @@
 import os.path
 from sdl import Vector3, Loader, parse_args, Vec3Arg, FloatArg,\
     Ray, StructArgPtr, Shader, StructArg, RGBSpectrum, RGBArg,\
-    SampledSpectrum, SampledArg, IntArg, ArgList
+    SampledSpectrum, SampledArg, IntArg, ArgList, PointerArg
 from sdl.arr import PtrsArray, ArrayArg
 
 from .hitpoint import HitPoint
@@ -21,18 +21,8 @@ class GeneralLight(Light):
         self.shader = None
 
     def _func_args(self, spectrum):
-
-        wo = Vector3(0.0, 0.0, 0.0)
-        wi = Vector3(0.0, 0.0, 0.0)
-        li = spectrum.zero()
-        lpos = Vector3(0.0, 0.0, 0.0)
-        ref = spectrum.zero()
-
-        hp = HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
-                      Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0)
-        sp = ShadePoint(wo, wi, li, lpos, ref, 0.0)
-
-        func_args = [StructArgPtr('hitpoint', hp), StructArgPtr('shadepoint', sp)]
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
         return func_args
 
     def load(self, shader_name, sam_mgr, spectral=False):
@@ -53,7 +43,6 @@ class GeneralLight(Light):
             else:
                 args.append(a)
 
-        
         code = self._loader.load(shader_name, 'code.py')
         if code is None:
             raise ValueError("code.py in %s shader dont exist!" % shader_name)
@@ -89,11 +78,98 @@ class GeneralLight(Light):
 
 class AreaLight(Light):
     def __init__(self, shape, material):
+
         # sample on shape
         # emission on material
+
         path = os.path.dirname(__file__)
         path = os.path.join(path, 'area_light_shaders')
         self._loader = Loader([path])
+
+        self.shape = shape
+        self.material = material
+        self.shader = None
+
+    def _func_args(self, spectrum):
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
+        return func_args
+
+    def load(self, shader_name, sam_mgr, spectral=False):
+        tmp_args = []
+        text = self._loader.load(shader_name, 'props.txt')
+        if text is not None:
+            tmp_args = parse_args(text)
+        args = []
+        for a in tmp_args:
+            if spectral and isinstance(a, RGBArg):
+                val = sam_mgr.rgb_to_sampled(a.value, illum=True)
+                aa = SampledArg(a.name, val)
+                args.append(aa)
+            elif not spectral and isinstance(a, SampledArg):
+                val = sam_mgr.sampled_to_rgb(a.value)
+                aa = RGBArg(a.name, val)
+                args.append(aa)
+            else:
+                args.append(a)
+        ptr_lgt_sample = PointerArg('ptr_light_sample', 0)
+        lgt_sample = ArgList('ptr_light_sample', [ptr_lgt_sample])
+        args.append(lgt_sample)
+        ptr_mat_emission = PointerArg('ptr_mat_emission', 0)
+        mat_emission = ArgList('ptr_mat_emission', [ptr_mat_emission])
+        args.append(mat_emission)
+
+        code = self._loader.load(shader_name, 'code.py')
+        if code is None:
+            raise ValueError("code.py in %s shader dont exist!" % shader_name)
+        
+        name = 'light_%i' % id(args)
+        s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
+        func_args = self._func_args(s)
+        self.shader = Shader(code=code, args=args, name=name,
+                             func_args=func_args, is_func=True)
+        self._spectral = spectral
+        self._sam_mgr = sam_mgr
+
+    def compile(self, shaders=[]):
+        self.shader.compile(shaders)
+
+        s = self._sam_mgr.zero() if self._spectral else RGBSpectrum(0.0, 0.0, 0.0)
+        self.light_sample_shader = self.shape.light_sample(s)
+        self.light_sample_shader.compile(shaders)
+
+        self._emission_shader = self.material.emission_shader()
+        self._emission_shader.compile(shaders)
+
+    def prepare(self, runtimes):
+        self.light_sample_shader.prepare(runtimes)
+        ptrs = self.light_sample_shader.get_ptrs()
+        args = [PointerArg('ptr_light_sample', p) for p in ptrs]
+        lgt_sample = self.shader._get_arg('ptr_light_sample')
+        lgt_sample.resize(args)
+
+        self._emission_shader.prepare(runtimes)
+        self.material.sync_shader_props(self._emission_shader)
+        ptrs = self._emission_shader.get_ptrs()
+        args = [PointerArg('ptr_mat_emission', p) for p in ptrs]
+        ptr_emission = self.shader._get_arg('ptr_mat_emission')
+        ptr_emission.resize(args)
+
+        self.shader.prepare(runtimes)
+
+    def get_value(self, name):
+        if self.shader is None:
+            raise ValueError("Light shader is not loaded!")
+        return self.shader.get_value(name)
+
+    def set_value(self, name, val):
+        if self.shader is None:
+            raise ValueError("Light shader is not loaded!")
+        if self._spectral and isinstance(val, RGBSpectrum):
+            val = self._sam_mgr.rgb_to_sampled(val, illum=True)
+        if not self._spectral and isinstance(val, SampledSpectrum):
+            val = self._sam_mgr.sampled_to_rgb(val)
+        self.shader.set_value(name, val)
 
 
 class EnvironmentLight(Light):
@@ -119,13 +195,22 @@ class LightManager:
         self._lights.append(light)
         self._lights_d[name] = light
 
-    def remove(self, name):
-        if name not in self._lights_d:
-            raise ValueError("Light %s doesn't exist!" % name)
+    def remove(self, name=None, light=None):
+        if name is None and light is None:
+            raise ValueError("Name or Light argument is required")
 
-        light = self._lights_d[name]
-        del self._lights_d[name]
-        self._lights.remove(light)
+        if name is not None and name not in self._lights_d:
+            raise ValueError("Light %s doesn't exist!" % name)
+        
+        if name is not None:
+            light = self._lights_d[name]
+            del self._lights_d[name]
+            self._lights.remove(light)
+        elif light is not None:
+            for name in self._lights_d.keys():
+                if light is self._lights_d[name]:
+                    del self._lights_d[name]
+                    self._lights.remove(light)
 
     def light_idx(self, name):
         if name not in self._lights_d:
@@ -135,19 +220,9 @@ class LightManager:
         return self._lights.index(light)
 
     def _func_args(self, spectrum):
-
-        wo = Vector3(0.0, 0.0, 0.0)
-        wi = Vector3(0.0, 0.0, 0.0)
-        li = spectrum.zero()
-        lpos = Vector3(0.0, 0.0, 0.0)
-        ref = spectrum.zero()
-
-        hp = HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
-                      Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0)
-        sp = ShadePoint(wo, wi, li, lpos, ref, 0.0)
-
-        func_args = [StructArgPtr('hitpoint', hp),
-                     StructArgPtr('shadepoint', sp), IntArg('mat_idx', 0)]
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum)),
+                     IntArg('mat_idx', 0)]
         return func_args
 
     def _lgt_radiance(self, sam_mgr, spectral=False):
@@ -192,3 +267,9 @@ __light_radiance(hitpoint, shadepoint, ptr_func)
         self.rad_shader.prepare(runtimes)
 
         self.nlights_shader.prepare(runtimes)
+
+    def arealight(self, shape):
+        for light in self._lights:
+            if isinstance(light, AreaLight) and light.shape is shape:
+                return light
+        return None

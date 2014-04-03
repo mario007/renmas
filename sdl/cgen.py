@@ -134,12 +134,16 @@ class CodeGenerator:
             arg2 = self.get_arg(value)
             if arg2 is None:
                 raise ValueError("Argument doesn't exist!", value)
-
+        
         if isinstance(arg, StructArg):
-            arg = arg.resolve(dest.path)
+            if hasattr(dest, 'path'):
+                arg = arg.resolve(dest.path)
         if type(arg) != type(arg2) and self._is_arg_fixed(dest):
             raise ValueError("Argument is fixed and cannot change type!")
-        if type(arg) == type(arg2):
+        if isinstance(arg, StructArg) and isinstance(arg2, StructArg):
+            if arg.type_name == arg2.type_name:
+                return arg
+        if type(arg) == type(arg2) and not isinstance(arg, StructArg) and not isinstance(arg2, StructArg):
             return arg
         else:
             if isinstance(dest, (Attribute, Subscript)):

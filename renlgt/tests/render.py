@@ -38,7 +38,7 @@ def render(filename, output=None, integrator=None, tmo=True):
     print("Total rendering time took %f seconds." % total_time)
 
     if output is None:
-        output = 'Unknown.jpeg'
+        output = os.path.join(os.path.dirname(filename), 'Unknown.jpeg')
 
     name, ext = os.path.splitext(output)
     if ext in ('.rgbe', '.exr'):

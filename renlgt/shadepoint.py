@@ -9,10 +9,12 @@ from .hitpoint import HitPoint
 class ShadePoint:
 
     __slots__ = ['wo', 'wi', 'light_intensity', 'light_position',
-                 'material_reflectance', 'pdf']
+                 'material_reflectance', 'pdf', 'light_normal',
+                 'light_pdf', 'material_emission']
 
     def __init__(self, wo=None, wi=None, light_intensity=None,
-                 light_position=None, material_reflectance=None, pdf=None):
+                 light_position=None, material_reflectance=None, pdf=None,
+                 light_normal=None, light_pdf=None, material_emission=None):
 
         self.wo = wo
         self.wi = wi
@@ -20,109 +22,84 @@ class ShadePoint:
         self.light_position = light_position
         self.material_reflectance = material_reflectance
         self.pdf = pdf
+        self.light_normal = light_normal
+        self.light_pdf = light_pdf
+        self.material_emission = material_emission
+
+    @classmethod
+    def factory(cls, spectrum):
+        wo = Vector3(0.0, 0.0, 0.0)
+        wi = Vector3(0.0, 0.0, 0.0)
+        li = spectrum.zero()
+        lpos = Vector3(0.0, 0.0, 0.0)
+        ref = spectrum.zero()
+        lnormal = Vector3(0.0, 1.0, 0.0)
+        em = spectrum.zero()
+        return ShadePoint(wo, wi, li, lpos, ref, 1.0, lnormal, 1.0, em)
 
 
 def register_rgb_class():
-    wo = Vector3(0.0, 0.0, 0.0)
-    wi = Vector3(0.0, 0.0, 0.0)
-    li = RGBSpectrum(0.0, 0.0, 0.0)
-    lpos = Vector3(0.0, 0.0, 0.0)
-    ref = RGBSpectrum(0.0, 0.0, 0.0)
 
-    register_struct(ShadePoint, 'ShadePoint', fields=[('wo', Vec3Arg),
-                    ('wi', Vec3Arg), ('light_intensity', RGBArg),
+    spectrum = RGBSpectrum(0.0, 0.0, 0.0)
+    register_struct(ShadePoint, 'ShadePoint', fields=[
+                    ('wo', Vec3Arg),
+                    ('wi', Vec3Arg),
+                    ('light_intensity', RGBArg),
                     ('light_position', Vec3Arg),
-                    ('material_reflectance', RGBArg), ('pdf', FloatArg)],
-                    factory=lambda: ShadePoint(wo, wi, li, lpos, ref, 0.0))
+                    ('material_reflectance', RGBArg),
+                    ('pdf', FloatArg),
+                    ('light_normal', Vec3Arg),
+                    ('light_pdf', FloatArg),
+                    ('material_emission', RGBArg)],
+                    factory=lambda: ShadePoint.factory(spectrum))
 
 
 def register_sampled_class(col_mgr):
-    wo = Vector3(0.0, 0.0, 0.0)
-    wi = Vector3(0.0, 0.0, 0.0)
-    li = col_mgr.zero()
-    lpos = Vector3(0.0, 0.0, 0.0)
-    ref = col_mgr.zero()
-
-    register_struct(ShadePoint, 'ShadePoint', fields=[('wo', Vec3Arg),
-                    ('wi', Vec3Arg), ('light_intensity', SampledArg),
+    spectrum = col_mgr.zero()
+    register_struct(ShadePoint, 'ShadePoint', fields=[
+                    ('wo', Vec3Arg),
+                    ('wi', Vec3Arg),
+                    ('light_intensity', SampledArg),
                     ('light_position', Vec3Arg),
-                    ('material_reflectance', SampledArg), ('pdf', FloatArg)],
-                    factory=lambda: ShadePoint(wo, wi, li, lpos, ref, 0.0))
+                    ('material_reflectance', SampledArg),
+                    ('pdf', FloatArg),
+                    ('light_normal', Vec3Arg),
+                    ('light_pdf', FloatArg),
+                    ('material_emission', SampledArg)],
+                    factory=lambda: ShadePoint.factory(spectrum))
 
 
-def register_rgb_light_prototype():
-    wo = Vector3(0.0, 0.0, 0.0)
-    wi = Vector3(0.0, 0.0, 0.0)
-    li = RGBSpectrum(0.0, 0.0, 0.0)
-    lpos = Vector3(0.0, 0.0, 0.0)
-    ref = RGBSpectrum(0.0, 0.0, 0.0)
-
-    hp = HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
-                  Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0)
-    sp = ShadePoint(wo, wi, li, lpos, ref, 0.0)
-
-    func_args = [StructArgPtr('hitpoint', hp), StructArgPtr('shadepoint', sp)]
-    register_prototype('__light_radiance', func_args=func_args)
+def register_rgb_prototype(name):
+    spectrum = RGBSpectrum(0.0, 0.0, 0.0)
+    func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                 StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
+    register_prototype(name, func_args=func_args)
 
 
-def register_sampled_light_prototype(col_mgr):
-
-    wo = Vector3(0.0, 0.0, 0.0)
-    wi = Vector3(0.0, 0.0, 0.0)
-    li = col_mgr.zero()
-    lpos = Vector3(0.0, 0.0, 0.0)
-    ref = col_mgr.zero()
-
-    hp = HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
-                  Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0)
-    sp = ShadePoint(wo, wi, li, lpos, ref, 0.0)
-
-    func_args = [StructArgPtr('hitpoint', hp), StructArgPtr('shadepoint', sp)]
-    register_prototype('__light_radiance', func_args=func_args)
-
-
-def register_rgb_material_prototype():
-    wo = Vector3(0.0, 0.0, 0.0)
-    wi = Vector3(0.0, 0.0, 0.0)
-    li = RGBSpectrum(0.0, 0.0, 0.0)
-    lpos = Vector3(0.0, 0.0, 0.0)
-    ref = RGBSpectrum(0.0, 0.0, 0.0)
-
-    hp = HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
-                  Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0)
-    sp = ShadePoint(wo, wi, li, lpos, ref, 0.0)
-
-    func_args = [StructArgPtr('hitpoint', hp), StructArgPtr('shadepoint', sp)]
-    register_prototype('__material_reflectance', func_args=func_args)
-
-
-def register_sampled_material_prototype(col_mgr):
-
-    wo = Vector3(0.0, 0.0, 0.0)
-    wi = Vector3(0.0, 0.0, 0.0)
-    li = col_mgr.zero()
-    lpos = Vector3(0.0, 0.0, 0.0)
-    ref = col_mgr.zero()
-
-    hp = HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
-                  Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0)
-    sp = ShadePoint(wo, wi, li, lpos, ref, 0.0)
-
-    func_args = [StructArgPtr('hitpoint', hp), StructArgPtr('shadepoint', sp)]
-    register_prototype('__material_reflectance', func_args=func_args)
+def register_sampled_prototype(col_mgr, name):
+    spectrum = col_mgr.zero()
+    func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                 StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
+    register_prototype(name, func_args=func_args)
 
 
 def register_rgb_shadepoint():
     register_rgb_class()
-    register_rgb_light_prototype()
-    register_rgb_material_prototype()
+    register_rgb_prototype('__material_reflectance')
+    register_rgb_prototype('__light_radiance')
+    register_rgb_prototype('__light_sample')
+    register_rgb_prototype('__material_emission')
+    register_rgb_prototype('__material_sampling')
     spectrum_factory(lambda: RGBSpectrum(0.0, 0.0, 0.0))
 
 
 def register_sampled_shadepoint(col_mgr):
     register_sampled_class(col_mgr)
-    register_sampled_light_prototype(col_mgr)
-    register_sampled_material_prototype(col_mgr)
+    register_sampled_prototype(col_mgr, '__material_reflectance')
+    register_sampled_prototype(col_mgr, '__light_radiance')
+    register_sampled_prototype(col_mgr, '__light_sample')
+    register_sampled_prototype(col_mgr, '__material_emission')
+    register_sampled_prototype(col_mgr, '__material_sampling')
     spectrum_factory(lambda: col_mgr.zero())
 
 register_rgb_shadepoint()

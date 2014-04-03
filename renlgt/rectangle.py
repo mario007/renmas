@@ -1,16 +1,17 @@
 
-import math
 from sdl import Vector3, Ray, Shader, register_struct,\
     Vec3Arg, StructArgPtr, FloatArg, IntArg
 
 from .hitpoint import HitPoint
+from .shadepoint import ShadePoint
 from .shape import Shape, DependencyShader
 from .bbox import BBox
 
 
 class Rectangle(Shape):
-    __slots__ = ['point', 'edge_a', 'edge_b', 'normal' ,'mat_idx',
-            'edge_a_squared', 'edge_b_squared']
+
+    __slots__ = ['point', 'edge_a', 'edge_b', 'normal', 'mat_idx',
+                 'edge_a_squared', 'edge_b_squared']
 
     def __init__(self, point, edge_a, edge_b, normal, mat_idx=0):
 
@@ -23,15 +24,15 @@ class Rectangle(Shape):
         self.edge_a_squared = edge_a.length_squared()
         self.edge_b_squared = edge_b.length_squared()
 
-    def isect_b(self, ray, min_dist=999999.0):  # ray direction must be normalized
+    def isect_b(self, ray, min_dist=999999.0):  # ray dir. must be normalized
 
         temp1 = ray.direction.dot(self.normal)
         if temp1 == 0.0:
-            return False 
+            return False
 
         t = (self.point - ray.origin).dot(self.normal) / temp1
         if t < 0.00001:
-            return False 
+            return False
         if t > min_dist:
             return False
 
@@ -58,7 +59,7 @@ tmp = rectangle.point - ray.origin
 t = dot(tmp, rectangle.normal) / temp1
 
 if t < 0.00001:
-    return 0 
+    return 0
 
 if t > min_dist:
     return 0
@@ -92,11 +93,11 @@ return 1
 
         temp1 = ray.direction.dot(self.normal)
         if temp1 == 0.0:
-            return False 
+            return False
 
         t = (self.point - ray.origin).dot(self.normal) / temp1
         if t < 0.00001:
-            return False 
+            return False
         if t > min_dist:
             return False
 
@@ -123,7 +124,7 @@ tmp = rectangle.point - ray.origin
 t = dot(tmp, rectangle.normal) / temp1
 
 if t < 0.00001:
-    return 0 
+    return 0
 
 if t > min_dist:
     return 0
@@ -162,7 +163,7 @@ return 1
         return DependencyShader(shader)
 
     def bbox(self):
-        epsilon = 0.001 
+        epsilon = 0.001
 
         p = self.point
         ea = self.edge_a
@@ -170,7 +171,7 @@ return 1
 
         p0X = min(p.x, p.x + ea.x, p.x + eb.x, p.x + ea.x + eb.x) - epsilon
         p1X = max(p.x, p.x + ea.x, p.x + eb.x, p.x + ea.x + eb.x) + epsilon
-        p0Y = min(p.y, p.y + ea.y, p.y + eb.y, p.y + ea.y + eb.y) - epsilon 
+        p0Y = min(p.y, p.y + ea.y, p.y + eb.y, p.y + ea.y + eb.y) - epsilon
         p1Y = max(p.y, p.y + ea.y, p.y + eb.y, p.y + ea.y + eb.y) + epsilon
         p0Z = min(p.z, p.z + ea.z, p.z + eb.z, p.z + ea.z + eb.z) - epsilon
         p1Z = max(p.z, p.z + ea.z, p.z + eb.z, p.z + ea.z + eb.z) + epsilon
@@ -180,21 +181,29 @@ return 1
 
         return BBox(p0, p1)
 
-    def light_sample(self):
+    def light_sample(self, spectrum):
         area = self.edge_a.length() * self.edge_b.length()
         inv_area = 1.0 / area
 
         code = """
 rnd = random2()
-shadepoint.shape_pdf = inv_area
-shadepoint.shape_normal = normal
-shadepoint.shape_sample = point + edge_a * rnd[0] + edge_b * rnd[1]
+shadepoint.light_pdf = inv_area
+shadepoint.light_normal = normal
+shadepoint.light_position = point + edge_a * rnd[0] + edge_b * rnd[1]
         """
+        inv_area = FloatArg('inv_area', inv_area)
+        normal = Vec3Arg('normal', self.normal)
+        point = Vec3Arg('point', self.point)
+        eda = Vec3Arg('edge_a', self.edge_a)
+        edb = Vec3Arg('edge_b', self.edge_b)
+        args = [inv_area, normal, point, eda, edb]
 
-        props = {'inv_area': inv_area, 'normal': self.normal, 'point': self.point,
-                'edge_a': self.edge_a, 'edge_b': self.edge_b}
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
 
-        return code, props
+        name = 'rect_%i' % id(self)
+        return Shader(code=code, args=args, name=name,
+                      func_args=func_args, is_func=True)
 
     @classmethod
     def factory(cls):

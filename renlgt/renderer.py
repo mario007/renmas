@@ -9,7 +9,7 @@ from .samplers import RegularSampler
 from .shp_mgr import ShapeManager
 from .linear import LinearIsect
 from .integrator import Integrator
-from .light import LightManager
+from .light import LightManager, AreaLight
 from .material import MaterialManager
 from .shadepoint import register_sampled_shadepoint, register_rgb_shadepoint
 from .spec_shaders import sampled_to_vec_shader, rgb_to_vec_shader
@@ -62,6 +62,7 @@ class Renderer:
 
     def prepare(self):
         self._create_hdr_buffer()
+        self.sync_area_lights()
         runtimes = [Runtime() for i in range(self.sampler.nthreads)]
 
         self.sampler.create_shader()
@@ -138,3 +139,15 @@ class Renderer:
 
         import_scene(filename, self)
         self._ready = False
+
+    def sync_area_lights(self):
+        for shape in self.shapes:
+            material = self.materials.material(index=shape.mat_idx)
+            area_light = self.lights.arealight(shape)
+            if material.is_emissive() and area_light is None:
+                light = AreaLight(shape=shape, material=material)
+                light.load('general', self._sam_mgr, self._spectral)
+                name = 'arealight_%i' % id(light)
+                self.lights.add(name, light)
+            elif not material.is_emissive() and area_light is not None:
+                self.lights.remove(light=area_light)

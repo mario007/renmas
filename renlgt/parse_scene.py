@@ -6,6 +6,7 @@ from .sphere import Sphere
 from .light import GeneralLight
 from .material import Material
 from .triangle import FlatTriangle
+from .rectangle import Rectangle
 from .samplers import RegularSampler, RandomSampler, JitteredSampler
 from .mesh import load_meshes, create_mesh, FlatMesh
 from .parse_mtl import parse_matlib
@@ -118,7 +119,21 @@ def _parse_shape(fobj, renderer):
         mat_idx = renderer.materials.index(mat_name)
         sphere = Sphere(origin, radius, mat_idx=mat_idx)
         renderer.shapes.add(name, sphere)
-    elif typ == 'flattriangle':
+    elif typ == 'rectangle':
+        name = values['name'][0].strip()
+        p = values['p']
+        p = Vector3(float(p[0]), float(p[1]), float(p[2]))
+        e1 = values['edge_a']
+        e1 = Vector3(float(e1[0]), float(e1[1]), float(e1[2]))
+        e2 = values['edge_b']
+        e2 = Vector3(float(e2[0]), float(e2[1]), float(e2[2]))
+        n = values['normal']
+        normal = Vector3(float(n[0]), float(n[1]), float(n[2]))
+        mat_name = values['material'][0].strip()
+        mat_idx = renderer.materials.index(mat_name)
+        rect = Rectangle(p, e1, e2, normal, mat_idx)
+        renderer.shapes.add(name, rect)
+    elif typ == 'triangle':
         name = values['name'][0].strip()
         p = values['p0']
         p0 = Vector3(float(p[0]), float(p[1]), float(p[2]))

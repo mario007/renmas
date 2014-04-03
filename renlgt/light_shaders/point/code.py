@@ -10,7 +10,7 @@
 
 # Required output from light shader
 # shadepoint.light_intensity - return radiant intensity of light 
-# shadepoint.light_position - return point of radiant intensity
+# shadepoint.light_position - return point of light
 # shadepoint.wi - direction from intersection point to light position
 
 wi = position - hitpoint.hit

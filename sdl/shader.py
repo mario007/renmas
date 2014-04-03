@@ -43,6 +43,10 @@ class Shader:
     def func_args(self):
         return self._func_args
 
+    @property
+    def args(self):
+        return self._args
+
     def compile(self, shaders=[]):
         stms = parse(self._code)
         cgen = CodeGenerator()

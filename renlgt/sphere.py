@@ -152,4 +152,3 @@ return 0
 register_struct(Sphere, 'Sphere', fields=[('origin', Vec3Arg),
                 ('radius', FloatArg), ('mat_idx', IntArg)],
                 factory=lambda: Sphere(Vector3(0.0, 0.0, 0.0), 0.0, 0))
-

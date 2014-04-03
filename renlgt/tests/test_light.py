@@ -7,6 +7,7 @@ from renlgt.shadepoint import register_sampled_shadepoint,\
 from sdl import PointerArg, Shader, SampledManager,\
     RGBSpectrum, RGBArg, SampledArg, Vector3, Vec3Arg
 
+#TODO Fix test - point light now include 1/r^2
 
 class LightTest(unittest.TestCase):
 

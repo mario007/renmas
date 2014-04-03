@@ -359,6 +359,6 @@ p = 0.343, 0.5487, 0.227
 edge_a = 0.0, 0.0, 0.105
 edge_b = -0.13, 0.0, 0.0
 normal = 0.0, -1.0, 0.0
-material = white_emitter
+material = red
 End
 

@@ -11,14 +11,15 @@ from .bbox import BBox
 class Rectangle(Shape):
 
     __slots__ = ['point', 'edge_a', 'edge_b', 'normal', 'mat_idx',
-                 'edge_a_squared', 'edge_b_squared']
+                 'edge_a_squared', 'edge_b_squared', 'light_id']
 
-    def __init__(self, point, edge_a, edge_b, normal, mat_idx=0):
+    def __init__(self, point, edge_a, edge_b, normal, mat_idx=0, light_id=-1):
 
         self.point = point
         self.edge_a = edge_a
         self.edge_b = edge_b
         self.mat_idx = mat_idx
+        self.light_id = light_id
 
         self.normal = normal.normalize()
         self.edge_a_squared = edge_a.length_squared()
@@ -148,6 +149,7 @@ hitpoint.t = t
 hitpoint.normal = rectangle.normal
 hitpoint.hit = p
 hitpoint.mat_idx = rectangle.mat_idx
+hitpoint.light_id = rectangle.light_id
 hitpoint.u = 0.0
 hitpoint.v = 0.0
 return 1
@@ -201,9 +203,44 @@ shadepoint.light_position = point + edge_a * rnd[0] + edge_b * rnd[1]
         func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
                      StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
 
-        name = 'rect_%i' % id(self)
+        name = 'rect_sample_%i' % id(self)
         return Shader(code=code, args=args, name=name,
                       func_args=func_args, is_func=True)
+
+    def light_pdf(self, spectrum):
+        area = self.edge_a.length() * self.edge_b.length()
+        inv_area = 1.0 / area
+
+        code = """
+shadepoint.light_pdf = inv_area
+        """
+        inv_area = FloatArg('inv_area', inv_area)
+        args = [inv_area]
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
+
+        name = 'rect_light_pdf_%i' % id(self)
+        return Shader(code=code, args=args, name=name,
+                      func_args=func_args, is_func=True)
+
+    def bbox(self):
+        epsilon = 0.001 
+
+        p = self.point
+        ea = self.edge_a
+        eb = self.edge_b
+
+        p0X = min(p.x, p.x + ea.x, p.x + eb.x, p.x + ea.x + eb.x) - epsilon
+        p1X = max(p.x, p.x + ea.x, p.x + eb.x, p.x + ea.x + eb.x) + epsilon
+        p0Y = min(p.y, p.y + ea.y, p.y + eb.y, p.y + ea.y + eb.y) - epsilon 
+        p1Y = max(p.y, p.y + ea.y, p.y + eb.y, p.y + ea.y + eb.y) + epsilon
+        p0Z = min(p.z, p.z + ea.z, p.z + eb.z, p.z + ea.z + eb.z) - epsilon
+        p1Z = max(p.z, p.z + ea.z, p.z + eb.z, p.z + ea.z + eb.z) + epsilon
+
+        p0 = Vector3(p0X, p0Y, p0Z)
+        p1 = Vector3(p1X, p1Y, p1Z)
+
+        return BBox(p0, p1)
 
     @classmethod
     def factory(cls):
@@ -214,5 +251,6 @@ shadepoint.light_position = point + edge_a * rnd[0] + edge_b * rnd[1]
 register_struct(Rectangle, 'Rectangle', fields=[('point', Vec3Arg),
                 ('edge_a', Vec3Arg), ('edge_b', Vec3Arg),
                 ('normal', Vec3Arg), ('edge_a_squared', FloatArg),
-                ('edge_b_squared', FloatArg), ('mat_idx', IntArg)],
+                ('edge_b_squared', FloatArg), ('mat_idx', IntArg),
+                ('light_id', IntArg)],
                 factory=Rectangle.factory)

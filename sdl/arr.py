@@ -23,6 +23,7 @@ class ObjArray(Array):
         struct = self._create_struct(struct_def, arg.type_name)
         self._dyn_arr = DynamicArray(struct)
         self._arg = arg
+        self._objs = []
 
     def append(self, obj):
         typ = type(obj)
@@ -35,6 +36,16 @@ class ObjArray(Array):
             val = getattr(obj, name)
             values[name] = arg_type.conv_to_ds(val)
         self._dyn_arr.add_instance(values)
+        self._objs.append(obj)
+
+    def update(self, obj):
+        desc = _struct_desc[type(self._arg.value)]
+        values = {}
+        for name, arg_type in desc.fields:
+            val = getattr(obj, name)
+            values[name] = arg_type.conv_to_ds(val)
+        index = self._objs.index(obj)
+        self._dyn_arr.edit_instance(index, values)
 
     def _create_struct(self, struct_def, name):
         code = " #DATA \n" + struct_def + """

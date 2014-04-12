@@ -75,6 +75,16 @@ class Material:
         self._sampling_shader = Shader(code=code, args=args, name=name,
                                        func_args=func_args, is_func=True)
 
+        #material pdf
+        code = self._loader.load(self._shader_name, 'pdf.py')
+        if code is None:
+            code = self._default_pdf()
+        args = self._load_args()
+        name = 'material_pdf_%i' % id(args)
+        func_args = self._func_args(s)
+        self._pdf_shader = Shader(code=code, args=args, name=name,
+                                  func_args=func_args, is_func=True)
+
 
     def _default_sampling(self):
         code = """
@@ -107,13 +117,21 @@ shadepoint.pdf = dot(hitpoint.normal, shadepoint.wi) * 0.318309886
         """
         return code
 
+    def _default_pdf(self):
+        code = """
+shadepoint.pdf = dot(hitpoint.normal, shadepoint.wi) * 0.318309886
+        """
+        return code
+
     def compile(self, shaders=[]):
         self._bsdf_shader.compile(shaders)
         self._sampling_shader.compile(shaders)
+        self._pdf_shader.compile(shaders)
 
     def prepare(self, runtimes):
         self._bsdf_shader.prepare(runtimes)
         self._sampling_shader.prepare(runtimes)
+        self._pdf_shader.prepare(runtimes)
 
     def emission_shader(self, shaders=[]):
         args = self._load_args()
@@ -174,8 +192,8 @@ class MaterialManager:
 ptr_func = mtl_ptrs[mat_idx]
 __material_reflectance(hitpoint, shadepoint, ptr_func)
         """
-        lgt_ptrs = ArrayArg('mtl_ptrs', PtrsArray())
-        al = ArgList('mtl_ptrs', [lgt_ptrs])
+        ref_ptrs = ArrayArg('mtl_ptrs', PtrsArray())
+        al = ArgList('mtl_ptrs', [ref_ptrs])
         s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
         func_args = self._func_args(s)
         args = [al]
@@ -187,12 +205,25 @@ __material_reflectance(hitpoint, shadepoint, ptr_func)
 ptr_func = mtl_sampling_ptrs[mat_idx]
 __material_sampling(hitpoint, shadepoint, ptr_func)
         """
-        lgt_ptrs = ArrayArg('mtl_sampling_ptrs', PtrsArray())
-        al = ArgList('mtl_sampling_ptrs', [lgt_ptrs])
+        sampling_ptrs = ArrayArg('mtl_sampling_ptrs', PtrsArray())
+        al = ArgList('mtl_sampling_ptrs', [sampling_ptrs])
         s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
         func_args = self._func_args(s)
         args = [al]
         self.sampling_shader = Shader(code=code, args=args, name='material_sampling',
+                                 func_args=func_args, is_func=True)
+
+    def _mtl_pdf(self, sam_mgr, spectral=False):
+        code = """
+ptr_func = mtl_pdf_ptrs[mat_idx]
+__material_pdf(hitpoint, shadepoint, ptr_func)
+        """
+        pdf_ptrs = ArrayArg('mtl_pdf_ptrs', PtrsArray())
+        al = ArgList('mtl_pdf_ptrs', [pdf_ptrs])
+        s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
+        func_args = self._func_args(s)
+        args = [al]
+        self.pdf_shader = Shader(code=code, args=args, name='material_pdf',
                                  func_args=func_args, is_func=True)
 
     def compile_shaders(self, sam_mgr, spectral=False, shaders=[]):
@@ -205,6 +236,9 @@ __material_sampling(hitpoint, shadepoint, ptr_func)
 
         self._mtl_sampling(sam_mgr, spectral)
         self.sampling_shader.compile(shaders)
+
+        self._mtl_pdf(sam_mgr, spectral)
+        self.pdf_shader.compile(shaders)
 
     def prepare_shaders(self, runtimes):
         for m in self._materials:
@@ -219,6 +253,11 @@ __material_sampling(hitpoint, shadepoint, ptr_func)
         aal = self.sampling_shader._get_arg('mtl_sampling_ptrs')
         aal.resize(args)
         self.sampling_shader.prepare(runtimes)
+
+        args = self._pointer_args('_pdf_shader', 'mtl_pdf_ptrs', runtimes)
+        aal = self.pdf_shader._get_arg('mtl_pdf_ptrs')
+        aal.resize(args)
+        self.pdf_shader.prepare(runtimes)
 
     def _pointer_args(self, shader_name, arg_name, runtimes):
         ptrs = []

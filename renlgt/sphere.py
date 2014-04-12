@@ -5,13 +5,15 @@ from sdl import Vector3, Ray, Shader, register_struct,\
 
 from .hitpoint import HitPoint
 from .shape import Shape, DependencyShader
+from .bbox import BBox
 
 
 class Sphere(Shape):
-    def __init__(self, origin, radius, mat_idx):
+    def __init__(self, origin, radius, mat_idx, light_id=-1):
         self.origin = origin
         self.radius = radius
         self.mat_idx = mat_idx
+        self.light_id = light_id
 
     def isect_b(self, ray, min_dist=99999.0):  # ray dir. must be normalized
         temp = ray.origin - self.origin
@@ -92,6 +94,7 @@ if t > 0.0005:
         hitpoint.normal = normal
         hitpoint.hit = hit
         hitpoint.mat_idx = sphere.mat_idx
+        hitpoint.light_id = sphere.light_id
         hitpoint.u = 0.0
         hitpoint.v = 0.0
         return 1
@@ -105,6 +108,7 @@ if t > 0.0005:
         hitpoint.normal = normal
         hitpoint.hit = hit
         hitpoint.mat_idx = sphere.mat_idx
+        hitpoint.light_id = sphere.light_id
         hitpoint.u = 0.0
         hitpoint.v = 0.0
         return 1
@@ -145,10 +149,27 @@ return 0
                 return HitPoint(t, hit_point, normal, self.mat_idx, 0.0, 0.0)
         return False
 
+    def bbox(self):
+
+        epsilon = 0.001
+        p0X = self.origin.x - self.radius - epsilon
+        p0Y = self.origin.y - self.radius - epsilon
+        p0Z = self.origin.z - self.radius - epsilon
+
+        p1X = self.origin.x + self.radius + epsilon
+        p1Y = self.origin.y + self.radius + epsilon
+        p1Z = self.origin.z + self.radius + epsilon
+
+        p0 = Vector3(p0X, p0Y, p0Z)
+        p1 = Vector3(p1X, p1Y, p1Z)
+
+        return BBox(p0, p1)
+
     @classmethod
     def factory(cls):
         return Sphere(Vector3(0.0, 0.0, 0.0), 0.0, 0)
 
 register_struct(Sphere, 'Sphere', fields=[('origin', Vec3Arg),
-                ('radius', FloatArg), ('mat_idx', IntArg)],
+                ('radius', FloatArg), ('mat_idx', IntArg),
+                ('light_id', IntArg)],
                 factory=lambda: Sphere(Vector3(0.0, 0.0, 0.0), 0.0, 0))

@@ -12,7 +12,8 @@ from .integrator import Integrator
 from .light import LightManager, AreaLight
 from .material import MaterialManager
 from .shadepoint import register_sampled_shadepoint, register_rgb_shadepoint
-from .spec_shaders import sampled_to_vec_shader, rgb_to_vec_shader
+from .spec_shaders import sampled_to_vec_shader, rgb_to_vec_shader,\
+    lum_rgb_shader, lum_sampled_shader
 
 from .parse_scene import import_scene
 
@@ -79,21 +80,30 @@ class Renderer:
 
         self.lights.compile_shaders(self.sam_mgr, self.spectral)
         self.lights.prepare_shaders(runtimes)
+        for shape in self.lights.shapes_to_update():
+            self.shapes.update(shape)
 
         self.materials.compile_shaders(self.sam_mgr, self.spectral)
         self.materials.prepare_shaders(runtimes)
 
         if self.spectral:
             spec_to_vec = sampled_to_vec_shader(self.sam_mgr)
+            lumminance = lum_sampled_shader(self.sam_mgr)
         else:
             spec_to_vec = rgb_to_vec_shader()
+            lumminance = lum_rgb_shader()
         spec_to_vec.compile()
         spec_to_vec.prepare(runtimes)
+        lumminance.compile()
+        lumminance.prepare(runtimes)
 
         shaders = [self.sampler.shader, self.camera.shader,
                    self.intersector.shader, self.lights.rad_shader,
-                   self.lights.nlights_shader, self.materials.ref_shader,
-                   spec_to_vec, self.intersector.visible_shader]
+                   self.lights.nlights_shader, self.lights.env_shader, 
+                   self.lights.emission_shader, self.materials.ref_shader,
+                   spec_to_vec, self.intersector.visible_shader,
+                   lumminance, self.materials.sampling_shader,
+                   self.materials.pdf_shader]
 
         self.integrator.compile(shaders)
         self.integrator.prepare(runtimes)
@@ -150,4 +160,6 @@ class Renderer:
                 name = 'arealight_%i' % id(light)
                 self.lights.add(name, light)
             elif not material.is_emissive() and area_light is not None:
+                area_light.shape.light_id = -1
                 self.lights.remove(light=area_light)
+                self.shapes.update(area_light.shape)

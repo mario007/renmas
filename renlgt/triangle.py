@@ -5,14 +5,16 @@ from sdl import Vector3, Ray, Shader, register_struct,\
 from .hitpoint import HitPoint
 from .shape import Shape, DependencyShader
 from .shader_lib import ray_triangle_isect_shader
+from .bbox import BBox
 
 
 class FlatTriangle(Shape):
-    def __init__(self, p0, p1, p2, mat_idx=0):
+    def __init__(self, p0, p1, p2, mat_idx=0, light_id=-1):
         self.p0 = p0
         self.p1 = p1
         self.p2 = p2
         self.mat_idx = mat_idx
+        self.light_id = light_id
 
         self.normal = (p1 - p0).cross(p2 - p0)
         self.normal.normalize()
@@ -85,6 +87,7 @@ if ret:
     hitpoint.u = 0.0
     hitpoint.v = 0.0
     hitpoint.mat_idx = triangle.mat_idx
+    hitpoint.light_id = triangle.light_id
     return 1
 else:
     return 0
@@ -166,6 +169,21 @@ else:
 
         return True
 
+    def bbox(self):
+        epsilon = 0.0001
+        v0 = self.p0 
+        v1 = self.p1
+        v2 = self.p2
+        minx = min(min(v0.x, v1.x), v2.x) - epsilon
+        maxx = max(max(v0.x, v1.x), v2.x) + epsilon
+        miny = min(min(v0.y, v1.y), v2.y) - epsilon
+        maxy = max(max(v0.y, v1.y), v2.y) + epsilon
+        minz = min(min(v0.z, v1.z), v2.z) - epsilon
+        maxz = max(max(v0.z, v1.z), v2.z) + epsilon
+        p0 = Vector3(minx, miny, minz)
+        p1 = Vector3(maxx, maxy, maxz)
+        return BBox(p0, p1)
+
     @classmethod
     def isect_b_shader(cls, shader_name):
         label = 'ray_triangle_isect_b_%s' % id(cls)
@@ -175,16 +193,8 @@ else:
 return %s(ray, triangle.p0, triangle.p1, triangle.p2, min_dist)
         """ % label
         args = []
-        origin = Vector3(0.0, 0.0, 0.0)
-        direction = Vector3(0.0, 0.0, 0.0)
-        ray = Ray(origin, direction)
-
-        triangle = FlatTriangle(Vector3(1.0, 0.0, 0.0),
-                                Vector3(0.0, 1.0, 0.0),
-                                Vector3(0.0, 0.0, 1.0), 0)
-
-        func_args = [StructArgPtr('ray', ray),
-                     StructArgPtr('triangle', triangle),
+        func_args = [StructArgPtr('ray', Ray.factory()),
+                     StructArgPtr('triangle', FlatTriangle.factory()),
                      FloatArg('min_dist', 0.0)]
 
         shader = Shader(code=code, args=args, name=shader_name,
@@ -193,9 +203,15 @@ return %s(ray, triangle.p0, triangle.p1, triangle.p2, min_dist)
         isect_shader = DependencyShader(shader, [tri_isect])
         return isect_shader
 
+    @classmethod
+    def factory(cls):
+        triangle = FlatTriangle(Vector3(1.0, 0.0, 0.0),
+                                Vector3(0.0, 1.0, 0.0),
+                                Vector3(0.0, 0.0, 1.0), 0)
+        return triangle
+
+
 register_struct(FlatTriangle, 'FlatTriangle', fields=[('p0', Vec3Arg),
                 ('p1', Vec3Arg), ('p2', Vec3Arg), ('normal', Vec3Arg),
-                ('mat_idx', IntArg)],
-                factory=lambda: FlatTriangle(Vector3(1.0, 0.0, 0.0),
-                                             Vector3(0.0, 1.0, 0.0),
-                                             Vector3(0.0, 0.0, 1.0), 0))
+                ('mat_idx', IntArg), ('light_id', IntArg)],
+                factory=lambda: FlatTriangle.factory())

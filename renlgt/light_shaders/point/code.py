@@ -18,3 +18,4 @@ distance_squared = wi[0] * wi[0] + wi[1] * wi[1] + wi[2] * wi[2]
 shadepoint.light_intensity = intensity * (1.0 / distance_squared)
 shadepoint.light_position = position
 shadepoint.wi = normalize(wi)
+shadepoint.light_pdf = 1.0

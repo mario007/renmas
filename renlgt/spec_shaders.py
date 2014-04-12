@@ -18,7 +18,7 @@ return y_sum * scale
     p1 = FloatArg('scale', scale)
     cie_y = SampledArg('cie_y', col_mgr._cie_y)
 
-    shader = Shader(code=code, args=[p1, cie_y], name='lumminance',
+    shader = Shader(code=code, args=[p1, cie_y], name='luminance',
                     func_args=[spec_arg], is_func=True)
     return shader
 
@@ -28,7 +28,7 @@ def lum_rgb_shader():
 return rgb[0] * 0.212671 + rgb[1] * 0.715160 + rgb[2] * 0.072169
     """
     rgb = RGBArg('rgb', RGBSpectrum(0.0, 0.0, 0.0))
-    shader = Shader(code=code, name='lumminance',
+    shader = Shader(code=code, name='luminance',
                     func_args=[rgb], is_func=True)
     return shader
 

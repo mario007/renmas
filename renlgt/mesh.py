@@ -166,7 +166,7 @@ class BaseMesh(Shape):
         raise NotImplementedError()
 
 class FlatMesh(BaseMesh):
-    def __init__(self, vb, tb, mat_idx=0):
+    def __init__(self, vb, tb, mat_idx=0, light_id=-1):
         super(FlatMesh, self).__init__()
 
         if not isinstance(vb, VertexBuffer):
@@ -177,13 +177,19 @@ class FlatMesh(BaseMesh):
         self._vb = vb
         self._tb = tb
         self.mat_idx = mat_idx
+        self.light_id = light_id
+
+        min_p, max_p = self._vb.bbox()
+        self._min_p = min_p
+        self._max_p = max_p
 
     @classmethod
     def empty_mesh(cls):
         return FlatMesh(VertexBuffer(), TriangleBuffer(), mat_idx=0)
 
     def bbox(self):
-        min_p, max_p = self._vb.bbox()
+        min_p = self._min_p
+        max_p = self._max_p
         p0 = Vector3(min_p[0], min_p[1], min_p[2])
         p1 = Vector3(max_p[0], max_p[1], max_p[2])
         return BBox(p0, p1)
@@ -275,7 +281,6 @@ if isect_ocur:
     hitpoint.normal = normalize(normal)
     hitpoint.u = 0.0
     hitpoint.v = 0.0
-    hitpoint.mat_idx = mesh.mat_idx
 
 return isect_ocur
 
@@ -434,12 +439,13 @@ register_struct(FlatMesh, 'FlatMesh', fields=[('vbuffer', PointerArg),
                 ('tbuffer', PointerArg), ('mat_idx', IntArg),
                 ('bbox_min', Vec3Arg), ('bbox_max', Vec3Arg),
                 ('nx', IntArg), ('ny', IntArg), ('nz', IntArg),
-                ('cells', PointerArg), ('lin_arrays', PointerArg)],
+                ('cells', PointerArg), ('lin_arrays', PointerArg),
+                ('light_id', IntArg)],
                 factory=lambda: FlatMesh(VertexBuffer(), TriangleBuffer(), 0))
 
 
 class FlatUVMesh(BaseMesh):
-    def __init__(self, vb, tb, mat_idx=0):
+    def __init__(self, vb, tb, mat_idx=0, light_id=-1):
         super(FlatUVMesh, self).__init__()
 
         if not isinstance(vb, VertexUVBuffer):
@@ -450,13 +456,19 @@ class FlatUVMesh(BaseMesh):
         self._vb = vb
         self._tb = tb
         self.mat_idx = mat_idx
+        self.light_id = light_id
+
+        min_p, max_p = self._vb.bbox()
+        self._min_p = min_p
+        self._max_p = max_p
 
     @classmethod
     def empty_mesh(cls):
         return FlatUVMesh(VertexUVBuffer(), TriangleBuffer(), mat_idx=0)
 
     def bbox(self):
-        min_p, max_p = self._vb.bbox()
+        min_p = self._min_p
+        max_p = self._max_p
         p0 = Vector3(min_p[0], min_p[1], min_p[2])
         p1 = Vector3(max_p[0], max_p[1], max_p[2])
         return BBox(p0, p1)
@@ -552,7 +564,6 @@ if isect_ocur:
     p20 = saved_p2 - saved_p0
     normal = cross(p10, p20)
     hitpoint.normal = normalize(normal)
-    hitpoint.mat_idx = mesh.mat_idx
 
     offset = sp0_idx * vb_item_size + 16
     paddr = vbuffer + offset
@@ -723,12 +734,13 @@ register_struct(FlatUVMesh, 'FlatUVMesh', fields=[('vbuffer', PointerArg),
                 ('tbuffer', PointerArg), ('mat_idx', IntArg),
                 ('bbox_min', Vec3Arg), ('bbox_max', Vec3Arg),
                 ('nx', IntArg), ('ny', IntArg), ('nz', IntArg),
-                ('cells', PointerArg), ('lin_arrays', PointerArg)],
+                ('cells', PointerArg), ('lin_arrays', PointerArg),
+                ('light_id', IntArg)],
                 factory=lambda: FlatUVMesh(VertexUVBuffer(), TriangleBuffer(), 0))
 
 
 class SmoothUVMesh(BaseMesh):
-    def __init__(self, vb, tb, mat_idx=0):
+    def __init__(self, vb, tb, mat_idx=0, light_id=-1):
         super(SmoothUVMesh, self).__init__()
 
         if not isinstance(vb, VertexNUVBuffer):
@@ -739,13 +751,19 @@ class SmoothUVMesh(BaseMesh):
         self._vb = vb
         self._tb = tb
         self.mat_idx = mat_idx
+        self.light_id = light_id
+
+        min_p, max_p = self._vb.bbox()
+        self._min_p = min_p
+        self._max_p = max_p
 
     @classmethod
     def empty_mesh(cls):
         return SmoothUVMesh(VertexNUVBuffer(), TriangleBuffer(), mat_idx=0)
 
     def bbox(self):
-        min_p, max_p = self._vb.bbox()
+        min_p = self._min_p
+        max_p = self._max_p
         p0 = Vector3(min_p[0], min_p[1], min_p[2])
         p1 = Vector3(max_p[0], max_p[1], max_p[2])
         return BBox(p0, p1)
@@ -1016,12 +1034,13 @@ register_struct(SmoothUVMesh, 'SmoothUVMesh', fields=[('vbuffer', PointerArg),
                 ('tbuffer', PointerArg), ('mat_idx', IntArg),
                 ('bbox_min', Vec3Arg), ('bbox_max', Vec3Arg),
                 ('nx', IntArg), ('ny', IntArg), ('nz', IntArg),
-                ('cells', PointerArg), ('lin_arrays', PointerArg)],
+                ('cells', PointerArg), ('lin_arrays', PointerArg),
+                ('light_id', IntArg)],
                 factory=lambda: SmoothUVMesh(VertexNUVBuffer(), TriangleBuffer(), 0))
 
 
 class SmoothMesh(BaseMesh):
-    def __init__(self, vb, tb, mat_idx=0):
+    def __init__(self, vb, tb, mat_idx=0, light_id=-1):
         super(SmoothMesh, self).__init__()
 
         if not isinstance(vb, VertexNBuffer):
@@ -1032,13 +1051,19 @@ class SmoothMesh(BaseMesh):
         self._vb = vb
         self._tb = tb
         self.mat_idx = mat_idx
+        self.light_id = light_id
+
+        min_p, max_p = self._vb.bbox()
+        self._min_p = min_p
+        self._max_p = max_p
 
     @classmethod
     def empty_mesh(cls):
         return SmoothMesh(VertexNBuffer(), TriangleBuffer(), mat_idx=0)
 
     def bbox(self):
-        min_p, max_p = self._vb.bbox()
+        min_p = self._min_p
+        max_p = self._max_p
         p0 = Vector3(min_p[0], min_p[1], min_p[2])
         p1 = Vector3(max_p[0], max_p[1], max_p[2])
         return BBox(p0, p1)
@@ -1302,7 +1327,8 @@ register_struct(SmoothMesh, 'SmoothMesh', fields=[('vbuffer', PointerArg),
                 ('tbuffer', PointerArg), ('mat_idx', IntArg),
                 ('bbox_min', Vec3Arg), ('bbox_max', Vec3Arg),
                 ('nx', IntArg), ('ny', IntArg), ('nz', IntArg),
-                ('cells', PointerArg), ('lin_arrays', PointerArg)],
+                ('cells', PointerArg), ('lin_arrays', PointerArg),
+                ('light_id', IntArg)],
                 factory=lambda: SmoothMesh(VertexNBuffer(), TriangleBuffer(), 0))
 
 

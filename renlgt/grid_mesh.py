@@ -321,6 +321,7 @@ while 1:
                 hitpoint.u = tmp_hitpoint.u
                 hitpoint.v = tmp_hitpoint.v
                 hitpoint.mat_idx = mesh.mat_idx
+                hitpoint.light_id = mesh.light_id
                 return 1
 
         tx_next = tx_next + dtxyz[0]
@@ -340,6 +341,7 @@ while 1:
                 hitpoint.u = tmp_hitpoint.u
                 hitpoint.v = tmp_hitpoint.v
                 hitpoint.mat_idx = mesh.mat_idx
+                hitpoint.light_id = mesh.light_id
                 return 1
 
         ty_next = ty_next + dtxyz[1]
@@ -359,6 +361,7 @@ while 1:
                 hitpoint.u = tmp_hitpoint.u
                 hitpoint.v = tmp_hitpoint.v
                 hitpoint.mat_idx = mesh.mat_idx
+                hitpoint.light_id = mesh.light_id
                 return 1
 
         tz_next = tz_next + dtxyz[2]

@@ -36,20 +36,9 @@ while 1:
         # direct hit of light
         if hitpoint.light_id >= 0:
             # we cheat here, we inlucde only first light hit to reduce noise
-            # if cur_depth == 1:
-            #     light_emission(hitpoint, shadepoint, hitpoint.light_id)
-            #     acum_col = acum_col + shadepoint.material_emission * path_weight
-
-            light_emission(hitpoint, shadepoint, hitpoint.light_id)
-            mis_weight = 1.0
-            if cur_depth > 1:
-                ndotwo = dot(hitpoint.normal, shadepoint.wo)
-                if ndotwo < 0.0:
-                    ndotwo = ndotwo * -1.0
-                direct_pdf = shadepoint.light_pdf * hitpoint.t * hitpoint.t / ndotwo
-                mis_weight = last_pdf / (last_pdf + direct_pdf)
-            weight = mis_weight * path_weight * shadepoint.material_emission
-            acum_col = acum_col + weight
+            if cur_depth == 1:
+                light_emission(hitpoint, shadepoint, hitpoint.light_id)
+                acum_col = acum_col + shadepoint.material_emission * path_weight
             break #light do not reflect
 
         #explicit direct lighting
@@ -63,14 +52,8 @@ while 1:
                     vis = visibility(hitpoint.hit, shadepoint.light_position)
                     if vis:
                         material_reflectance(hitpoint, shadepoint, hitpoint.mat_idx)
-                        material_pdf(hitpoint, shadepoint, hitpoint.mat_idx)
-                        if shadepoint.pdf > 0.00001:
-                            weight = 1.0
-                            if shadepoint.light_pdf < 0.99999:  # not delta light
-                                weight = shadepoint.light_pdf / (shadepoint.pdf + shadepoint.light_pdf)
-                            factor = weight * ndotwi / shadepoint.light_pdf
-                            col = shadepoint.material_reflectance * shadepoint.light_intensity * factor
-                            acum_col = acum_col + col * path_weight
+                        col = shadepoint.material_reflectance * shadepoint.light_intensity * (ndotwi / shadepoint.light_pdf)
+                        acum_col = acum_col + col * path_weight
             idx = idx + 1
 
         if cur_depth > max_depth: 
@@ -89,16 +72,6 @@ while 1:
         pdf = ndotwi / shadepoint.pdf
         if pdf < 0.000001:
             break
-
-        lum = luminance(path_weight)
-        cont_prob = min(0.5, lum)
-        last_pdf = shadepoint.pdf * cont_prob
-        if cur_depth > 3: # russian rullete
-            rnd = random()
-            if rnd > cont_prob:
-                break
-            path_weight = path_weight * ( 1.0 / cont_prob)
-
         path_weight = path_weight * shadepoint.material_reflectance * pdf
 
         ray.origin = hitpoint.hit

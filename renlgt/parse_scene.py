@@ -43,6 +43,8 @@ def _value_factory(old_val, val, sam_mgr, light=False):
         #TODO parsing of spectrum values from file
         s = RGBSpectrum(float(val[0]), float(val[1]), float(val[2]))
         return sam_mgr.rgb_to_sampled(s, illum=light)
+    elif isinstance(old_val, float):
+        return float(val[0])
     else:
         raise ValueError("Unknown type ", old_val)
 
@@ -158,13 +160,19 @@ def _parse_shape(fobj, renderer):
             full_path = os.path.join(os.path.dirname(fobj.name), fdesc.material_file)
             parse_matlib(full_path, renderer)
 
-        #TODO translate, scale
         for mdesc in fdesc.mesh_descs:
             if mdesc.material is None:
                 mat_idx = renderer.materials.index(material)
             else:
                 mat_idx = renderer.materials.index(mdesc.material)
             mesh = create_mesh(mdesc, mat_idx=mat_idx)
+            if 'translate' in values:
+                t = values['translate']
+                mesh.translate(float(t[0]), float(t[1]), float(t[2]))
+            if 'scale' in values:
+                s = values['scale']
+                mesh.scale(float(s[0]), float(s[1]), float(s[2]))
+
             mesh.prepare()
             renderer.shapes.add(mdesc.name, mesh)
     else:

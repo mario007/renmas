@@ -215,13 +215,23 @@ def _blt_floatrgba_code(bgra=True):
     else:
         return _blt_floatrgba_code32(bgra)
 
-_asm = Tdasm()
-_mc = _asm.assemble(_blt_floatrgba_code())
-_runtime = Runtime()
-_data_section = _runtime.load("blt_prgba_to_bgra", _mc)
+bits = platform.architecture()[0]
+if bits == '64bit':
+    _asm = Tdasm()
+    _mc = _asm.assemble(_blt_floatrgba_code(), ia32=False)
+    _runtime = Runtime()
+    _data_section = _runtime.load("blt_prgba_to_bgra", _mc)
 
-_mc2 = _asm.assemble(_blt_floatrgba_code(bgra=False))
-_data_section2 = _runtime.load("blt_prgba_to_rgba", _mc2)
+    _mc2 = _asm.assemble(_blt_floatrgba_code(bgra=False), ia32=False)
+    _data_section2 = _runtime.load("blt_prgba_to_rgba", _mc2)
+else:
+    _asm = Tdasm()
+    _mc = _asm.assemble(_blt_floatrgba_code(), ia32=True)
+    _runtime = Runtime()
+    _data_section = _runtime.load("blt_prgba_to_bgra", _mc)
+
+    _mc2 = _asm.assemble(_blt_floatrgba_code(bgra=False), ia32=True)
+    _data_section2 = _runtime.load("blt_prgba_to_rgba", _mc2)
 
 # blt float rgba to byte bgra
 def blt_prgba_to_bgra(src, dest):

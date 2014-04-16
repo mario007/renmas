@@ -734,3 +734,35 @@ def _resolve(cgen, operands):
     
 
 register_function('resolve', _resolve, inline=True)
+
+
+def _abs(cgen, operands):
+    if len(operands) != 1:
+        msg = "Wrong number of arguments in abs function."
+        raise ValueError(msg, operands)
+
+    code, reg, typ = load_operand(cgen, operands[0])
+    if typ == IntArg:
+        reg2 = cgen.register(typ='general')
+        code += 'mov %s, %s\n' % (reg2, reg)
+        code += 'neg %s\n' % reg
+        code += 'cmovl %s, %s\n' % (reg, reg2)
+        cgen.release_reg(reg2)
+        return code, reg, IntArg
+    elif typ == FloatArg or typ == Vec2Arg or typ == Vec3Arg or typ == Vec4Arg:
+        xmm = cgen.register(typ='xmm')
+        if cgen.AVX:
+            code += 'vpcmpeqw %s, %s, %s\n' % (xmm, xmm, xmm)
+            code += 'vpsrld %s, %s, 1\n' % (xmm, xmm)
+            code += 'vandps %s, %s, %s\n' % (reg, reg, xmm)
+        else:
+            code += 'pcmpeqw %s, %s\n' % (xmm, xmm)
+            code += 'psrld %s, 1\n' % xmm
+            code += 'andps %s, %s\n' % (reg, xmm)
+        cgen.release_reg(xmm)
+        return code, reg, typ
+    else:
+        raise ValueError("Type not yet supported in abs function!", typ1)
+
+
+register_function('abs', _abs, inline=True)

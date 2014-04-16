@@ -270,7 +270,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="C:\Python32\include"
+				AdditionalIncludeDirectories="C:\Python34\include"
 				PreprocessorDefinitions="BIT64;WIN32;NDEBUG;_WINDOWS;_USRDLL;IMAGELOADER_EXPORTS"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
@@ -289,10 +289,10 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="python32.lib gdiplus.lib"
+				AdditionalDependencies="python34.lib gdiplus.lib"
 				OutputFile="$(OutDir)\imload.pyd"
 				LinkIncremental="1"
-				AdditionalLibraryDirectories="C:\Python32\libs"
+				AdditionalLibraryDirectories="C:\Python34\libs"
 				GenerateDebugInformation="true"
 				SubSystem="2"
 				OptimizeReferences="2"

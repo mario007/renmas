@@ -35,18 +35,17 @@ while 1:
 
         # direct hit of light
         if hitpoint.light_id >= 0:
-            # we cheat here, we inlucde only first light hit to reduce noise
+            #we cheat here, we inlucde only first light hit to reduce noise
             # if cur_depth == 1:
             #     light_emission(hitpoint, shadepoint, hitpoint.light_id)
             #     acum_col = acum_col + shadepoint.material_emission * path_weight
+            # break
 
             light_emission(hitpoint, shadepoint, hitpoint.light_id)
             mis_weight = 1.0
             if cur_depth > 1:
                 ndotwo = dot(hitpoint.normal, shadepoint.wo)
-                if ndotwo < 0.0:
-                    ndotwo = ndotwo * -1.0
-                direct_pdf = shadepoint.light_pdf * hitpoint.t * hitpoint.t / ndotwo
+                direct_pdf = shadepoint.light_pdf * hitpoint.t * hitpoint.t / abs(ndotwo)
                 mis_weight = last_pdf / (last_pdf + direct_pdf)
             weight = mis_weight * path_weight * shadepoint.material_emission
             acum_col = acum_col + weight
@@ -80,10 +79,8 @@ while 1:
             break
 
         material_sampling(hitpoint, shadepoint, hitpoint.mat_idx)
-        material_reflectance(hitpoint, shadepoint, hitpoint.mat_idx)
         ndotwi = dot(hitpoint.normal, shadepoint.wi)
-        if ndotwi < 0.0:
-            ndotwi = ndotwi * -1.0
+        ndotwi = abs(ndotwi)
         # if shadepoint.pdf < 0.000001:
         #     break
         pdf = ndotwi / shadepoint.pdf
@@ -92,8 +89,9 @@ while 1:
 
         lum = luminance(path_weight)
         cont_prob = min(0.5, lum)
-        last_pdf = shadepoint.pdf * cont_prob
+        last_pdf = shadepoint.pdf
         if cur_depth > 3: # russian rullete
+            last_pdf = shadepoint.pdf * cont_prob
             rnd = random()
             if rnd > cont_prob:
                 break
@@ -110,7 +108,8 @@ while 1:
 
     rgba = get_rgba(hdr_buffer, sample.ix, sample.iy)
 
-    flt_weight = 0.99 # TODO filters box filter
+    filter_sample(sample)
+    flt_weight = sample.weight
     color = color * flt_weight + rgba * rgba[3]
 
     acum_weight = rgba[3] + flt_weight

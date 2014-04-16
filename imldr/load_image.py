@@ -6,7 +6,7 @@ from .tga import load_tga
 from .rgbe import load_hdr
 from .ppm import load_ppm
 
-# extension in C++ that uses GDI+ to load image
+# extension in C++ uses GDI+ to load image
 def _windows_image_loader(fname):
     try:
         import imload
@@ -66,9 +66,19 @@ def _load_image_frimgldr(fname):
 
 
 def load_image(fname):
+    """
+        Load image form disk. Function use FreeImage library to load
+        image from disk. If the FreeImage library is not present, it
+        uses own built-in loaders for loading images but number of
+        supported formats is reduced.
+
+        arguments:
+        fname - file name (abosulte or relative to the current working directory)
+
+    """
 
     if not os.path.isfile(fname):
-        return None #file doesn't exists
+        raise FileNotFoundError(fname)
 
     try:
         import freeimgldr

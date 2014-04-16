@@ -61,10 +61,11 @@ def _conv_rgba_bgra_asm():
     bits = platform.architecture()[0]
     if bits == '64bit':
         code = _conv_rgba_bgra_asm64()
+        mc = Tdasm().assemble(code, ia32=False)
     else:
         code = _conv_rgba_bgra_asm32()
+        mc = Tdasm().assemble(code, ia32=True)
 
-    mc = Tdasm().assemble(code)
     runtime = Runtime()
     ds = runtime.load("convert", mc)
     return runtime, ds

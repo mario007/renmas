@@ -2,7 +2,7 @@
 import os.path
 from sdl import Vector3, Loader, parse_args, Vec3Arg, FloatArg,\
     Ray, StructArgPtr, Shader, StructArg, RGBSpectrum, RGBArg,\
-    SampledSpectrum, SampledArg, IntArg, ArgList
+    SampledSpectrum, SampledArg, IntArg, ArgList, PointerArg
 from sdl.arr import PtrsArray, ArrayArg
 
 from .hitpoint import HitPoint
@@ -70,6 +70,10 @@ class Material:
             code = self._default_sampling()
 
         args = self._load_args()
+        ptr_mat_bsdf = PointerArg('ptr_mat_bsdf', 0)
+        ptr_bsdf = ArgList('ptr_mat_bsdf', [ptr_mat_bsdf])
+        args.append(ptr_bsdf)
+
         name = 'material_sampling_%i' % id(args)
         func_args = self._func_args(s)
         self._sampling_shader = Shader(code=code, args=args, name=name,
@@ -114,6 +118,8 @@ ndir = u * pu + v * pv + w * pw
 shadepoint.wi = normalize(ndir)
 
 shadepoint.pdf = dot(hitpoint.normal, shadepoint.wi) * 0.318309886
+
+material_bsdf(hitpoint, shadepoint, ptr_mat_bsdf)
         """
         return code
 
@@ -130,6 +136,12 @@ shadepoint.pdf = dot(hitpoint.normal, shadepoint.wi) * 0.318309886
 
     def prepare(self, runtimes):
         self._bsdf_shader.prepare(runtimes)
+
+        ptrs = self._bsdf_shader.get_ptrs()
+        args = [PointerArg('ptr_mat_bsdf', p) for p in ptrs]
+        ptr_bsdf = self._sampling_shader._get_arg('ptr_mat_bsdf')
+        ptr_bsdf.resize(args)
+
         self._sampling_shader.prepare(runtimes)
         self._pdf_shader.prepare(runtimes)
 

@@ -64,6 +64,10 @@ class CodeGenerator:
         return iset_supported('sse41')
 
     @property
+    def SSSE3(self):
+        return iset_supported('ssse3')
+
+    @property
     def BIT64(self):
         bits = platform.architecture()[0]
         if bits == '64bit':

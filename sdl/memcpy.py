@@ -1,5 +1,5 @@
 import platform
-from tdasm import Tdasm, Runtime
+from tdasm import translate, Runtime
 
 def _memcpy_code():
     bits = platform.architecture()[0]
@@ -31,7 +31,12 @@ def _memcpy_code():
         """
     return code 
 
-_mc = Tdasm().assemble(_memcpy_code())
+bits = platform.architecture()[0]
+if bits == '64bit':
+    _mc = translate(_memcpy_code(), ia32=False)
+else:
+    _mc = translate(_memcpy_code(), ia32=True)
+
 _runtime = Runtime()
 _data_section = _runtime.load("memcpy", _mc)
 

@@ -93,6 +93,7 @@ def register_rgb_shadepoint():
     register_rgb_prototype('__material_sampling')
     register_rgb_prototype('__material_pdf')
     register_rgb_prototype('__light_emission')
+    register_rgb_prototype('material_bsdf')
     spectrum_factory(lambda: RGBSpectrum(0.0, 0.0, 0.0))
 
 
@@ -106,6 +107,7 @@ def register_sampled_shadepoint(col_mgr):
     register_sampled_prototype(col_mgr, '__material_sampling')
     register_sampled_prototype(col_mgr, '__material_pdf')
     register_sampled_prototype(col_mgr, '__light_emission')
+    register_sampled_prototype(col_mgr, 'material_bsdf')
     spectrum_factory(lambda: col_mgr.zero())
 
 register_rgb_shadepoint()

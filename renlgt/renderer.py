@@ -14,6 +14,7 @@ from .material import MaterialManager
 from .shadepoint import register_sampled_shadepoint, register_rgb_shadepoint
 from .spec_shaders import sampled_to_vec_shader, rgb_to_vec_shader,\
     lum_rgb_shader, lum_sampled_shader
+from .flt import SampleFilter
 
 from .parse_scene import import_scene
 
@@ -36,7 +37,8 @@ class Renderer:
         self.intersector = LinearIsect(self.shapes)
         self.materials = MaterialManager()
         self.lights = LightManager()
-        self.filter = None
+        self.filter = SampleFilter()
+        self.filter.load('box')
         self.integrator = Integrator()
         #self.integrator.load('isect')
         self.integrator.load('test')
@@ -74,6 +76,9 @@ class Renderer:
         self.camera.compile()
         self.camera.prepare(runtimes)
 
+        self.filter.compile()
+        self.filter.prepare(runtimes)
+
         self.intersector.prepare_accel()
         self.intersector.compile()
         self.intersector.prepare(runtimes)
@@ -103,7 +108,7 @@ class Renderer:
                    self.lights.emission_shader, self.materials.ref_shader,
                    spec_to_vec, self.intersector.visible_shader,
                    lumminance, self.materials.sampling_shader,
-                   self.materials.pdf_shader]
+                   self.materials.pdf_shader, self.filter.shader]
 
         self.integrator.compile(shaders)
         self.integrator.prepare(runtimes)

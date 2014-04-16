@@ -97,7 +97,11 @@ def _blt_rect_code():
     else:
         return _blt_rect_code32()
 
-_mc = Tdasm().assemble(_blt_rect_code())
+bits = platform.architecture()[0]
+if bits == '64bit':
+    _mc = Tdasm().assemble(_blt_rect_code(), ia32=False)
+else:
+    _mc = Tdasm().assemble(_blt_rect_code(), ia32=True)
 _runtime = Runtime()
 _data_section = _runtime.load("bltrgba", _mc)
 

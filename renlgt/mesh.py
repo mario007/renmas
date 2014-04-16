@@ -179,15 +179,19 @@ class FlatMesh(BaseMesh):
         self.mat_idx = mat_idx
         self.light_id = light_id
 
-        min_p, max_p = self._vb.bbox()
-        self._min_p = min_p
-        self._max_p = max_p
+        self._min_p = None
+        self._max_p = None
 
     @classmethod
     def empty_mesh(cls):
         return FlatMesh(VertexBuffer(), TriangleBuffer(), mat_idx=0)
 
     def bbox(self):
+        if self._min_p is None or self._max_p is None:
+            min_p, max_p = self._vb.bbox()
+            self._min_p = min_p
+            self._max_p = max_p
+
         min_p = self._min_p
         max_p = self._max_p
         p0 = Vector3(min_p[0], min_p[1], min_p[2])
@@ -196,9 +200,13 @@ class FlatMesh(BaseMesh):
 
     def translate(self, dx, dy, dz):
         self._vb.translate(dx, dy, dz)
+        self._min_p = None
+        self._max_p = None
 
     def scale(self, sx, sy, sz):
         self._vb.scale(sx, sy, sz)
+        self._min_p = None
+        self._max_p = None
 
     def ntriangles(self):
         return self._tb.size()
@@ -458,15 +466,19 @@ class FlatUVMesh(BaseMesh):
         self.mat_idx = mat_idx
         self.light_id = light_id
 
-        min_p, max_p = self._vb.bbox()
-        self._min_p = min_p
-        self._max_p = max_p
+        self._min_p = None
+        self._max_p = None
 
     @classmethod
     def empty_mesh(cls):
         return FlatUVMesh(VertexUVBuffer(), TriangleBuffer(), mat_idx=0)
 
     def bbox(self):
+        if self._min_p is None or self._max_p is None:
+            min_p, max_p = self._vb.bbox()
+            self._min_p = min_p
+            self._max_p = max_p
+
         min_p = self._min_p
         max_p = self._max_p
         p0 = Vector3(min_p[0], min_p[1], min_p[2])
@@ -475,9 +487,13 @@ class FlatUVMesh(BaseMesh):
 
     def translate(self, dx, dy, dz):
         self._vb.translate(dx, dy, dz)
+        self._min_p = None
+        self._max_p = None
 
     def scale(self, sx, sy, sz):
         self._vb.scale(sx, sy, sz)
+        self._min_p = None
+        self._max_p = None
 
     def ntriangles(self):
         return self._tb.size()
@@ -753,15 +769,19 @@ class SmoothUVMesh(BaseMesh):
         self.mat_idx = mat_idx
         self.light_id = light_id
 
-        min_p, max_p = self._vb.bbox()
-        self._min_p = min_p
-        self._max_p = max_p
+        self._min_p = None
+        self._max_p = None
 
     @classmethod
     def empty_mesh(cls):
         return SmoothUVMesh(VertexNUVBuffer(), TriangleBuffer(), mat_idx=0)
 
     def bbox(self):
+        if self._min_p is None or self._max_p is None:
+            min_p, max_p = self._vb.bbox()
+            self._min_p = min_p
+            self._max_p = max_p
+
         min_p = self._min_p
         max_p = self._max_p
         p0 = Vector3(min_p[0], min_p[1], min_p[2])
@@ -770,9 +790,13 @@ class SmoothUVMesh(BaseMesh):
 
     def translate(self, dx, dy, dz):
         self._vb.translate(dx, dy, dz)
+        self._min_p = None
+        self._max_p = None
 
     def scale(self, sx, sy, sz):
         self._vb.scale(sx, sy, sz)
+        self._min_p = None
+        self._max_p = None
 
     def ntriangles(self):
         return self._tb.size()
@@ -1053,15 +1077,19 @@ class SmoothMesh(BaseMesh):
         self.mat_idx = mat_idx
         self.light_id = light_id
 
-        min_p, max_p = self._vb.bbox()
-        self._min_p = min_p
-        self._max_p = max_p
+        self._min_p = None
+        self._max_p = None
 
     @classmethod
     def empty_mesh(cls):
         return SmoothMesh(VertexNBuffer(), TriangleBuffer(), mat_idx=0)
 
     def bbox(self):
+        if self._min_p is None or self._max_p is None:
+            min_p, max_p = self._vb.bbox()
+            self._min_p = min_p
+            self._max_p = max_p
+
         min_p = self._min_p
         max_p = self._max_p
         p0 = Vector3(min_p[0], min_p[1], min_p[2])
@@ -1070,9 +1098,13 @@ class SmoothMesh(BaseMesh):
 
     def translate(self, dx, dy, dz):
         self._vb.translate(dx, dy, dz)
+        self._min_p = None
+        self._max_p = None
 
     def scale(self, sx, sy, sz):
         self._vb.scale(sx, sy, sz)
+        self._min_p = None
+        self._max_p = None
 
     def ntriangles(self):
         return self._tb.size()

@@ -1,56 +1,43 @@
 
-R0 = (ior - 1.0) / (ior + 1.0)
-R0 = R0 * R0
-k = 0.5
-eta = ior
 
 normal = hitpoint.normal
+incident = shadepoint.wo * -1.0
+n1 = 1.0
+n2 = ior
+
 ndotwo = dot(normal, shadepoint.wo)
 if ndotwo < 0.0:
-    ndotwo = ndotwo * -1.0
-    normal = hitpoint.normal * -1.0
-    eta = 1.0 / eta
+    normal = normal * -1.0
+    n1 = ior
+    n2 = 1.0
 
-tir = 1.0 - (1.0 - ndotwo * ndotwo) / (eta * eta)
-if tir < 0.0: # Total internal reflection occured
-    wi = normal * ndotwo * 2.0 - shadepoint.wo
+ret = tir(normal, incident, n1, n2)
+if ret == 1:  # TIR ocur
+    wi = reflect(normal, incident)
     pdf = 1.0
     reflectance = Spectrum(1.0)
 else:
-    tmp = dot(normal, shadepoint.wo)
-    tmp2 = sqrt(tir)
-    if tmp2 > tmp:
-        t = 1.0 - tmp2
-    else:
-        t = 1.0 - tmp
-
-    # wo = shadepoint.wo * -1.0
-    # cosine = dot(wo, hitpoint.normal)
-    # t = 1.0 - abs(cosine)
-
-    #t = 1.0 - ndotwo
-    R = R0 + (1.0 - R0) * t * t * t * t * t
-    P = (1.0 - k) * R + 0.5 * k
     rnd = random()
 
-    # P = 0.5
-    # R = 0.5
+    k = 0.5
+    R = dielectric_reflectance(normal, incident, n1, n2)
+    P = (1.0 - k) * R + 0.5 * k
 
     if rnd < P: # reflection ray
-        wi = normal * ndotwo * 2.0 - shadepoint.wo
+        wi = reflect(normal, incident)
         pdf = P
         reflectance = Spectrum(1.0) * R
     else: # transmission ray
-        wo = shadepoint.wo * -1.0
-        wi = wo * (1.0 / eta) - ((sqrt(tir) - ndotwo / eta) * normal)
-        #wi = normalize(wi)
+        wi = refract(normal, incident, n1, n2)
         pdf = 1.0 - P
-        #reflectance = Spectrum(1.0) * ((1.0 - R) * (1.0 / (eta * eta)))
-        reflectance = Spectrum(1.0) * ((1.0 - R) * (eta * eta))
+        T = 1.0 - R
+        eta = (n1 * n1) / (n2 * n2)
 
+        reflectance = Spectrum(1.0) * T * eta
 
 ndotwi = dot(hitpoint.normal, wi)
 reflectance = reflectance * (1.0 / abs(ndotwi))
+shadepoint.specular_bounce = 1
 
 shadepoint.wi = wi
 shadepoint.pdf = pdf

@@ -36,9 +36,9 @@ while 1:
         # direct hit of light
         if hitpoint.light_id >= 0:
             # we cheat here, we inlucde only first light hit to reduce noise
-            if cur_depth == 1:
-                light_emission(hitpoint, shadepoint, hitpoint.light_id)
-                acum_col = acum_col + shadepoint.material_emission * path_weight
+            #if cur_depth == 1:
+            light_emission(hitpoint, shadepoint, hitpoint.light_id)
+            acum_col = acum_col + shadepoint.material_emission * path_weight
             break #light do not reflect
 
         #explicit direct lighting
@@ -63,7 +63,6 @@ while 1:
             break
 
         material_sampling(hitpoint, shadepoint, hitpoint.mat_idx)
-        material_reflectance(hitpoint, shadepoint, hitpoint.mat_idx)
         ndotwi = dot(hitpoint.normal, shadepoint.wi)
         if ndotwi < 0.0:
             ndotwi = ndotwi * -1.0

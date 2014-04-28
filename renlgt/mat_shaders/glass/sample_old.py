@@ -20,6 +20,7 @@ if tir < 0.0: #TIR happend -- we just sample reflection ray
         ndotwi = ndotwi * -1.0
     reflectance = (1.0 / ndotwi) * Spectrum(1.0)
     shadepoint.material_reflectance = reflectance
+    shadepoint.specular_bounce = 1
     return 0
 
 tmp = ior - 1.0
@@ -46,6 +47,7 @@ if tmp < P: # reflection ray
     reflectance = (R / ndotwi) * Spectrum(1.0)
     shadepoint.material_reflectance = reflectance
     shadepoint.pdf = P 
+    shadepoint.specular_bounce = 1
     return 0
 
 theta2 = sqrt(tir)
@@ -66,4 +68,5 @@ tmp = RT * eta / ndotwi
 reflectance = tmp * Spectrum(1.0) 
 shadepoint.material_reflectance = reflectance
 shadepoint.pdf = 1.0 - P 
+shadepoint.specular_bounce = 1
 

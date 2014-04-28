@@ -6,7 +6,7 @@ from renmas3.win32 import show_image_in_window
 
 ren = Renderer()
 #ren.parse_scene_file('../scenes/sphere1.txt')
-ren.parse_scene_file('../scenes/sphere_env.txt')
+#ren.parse_scene_file('../scenes/sphere_env.txt')
 #ren.parse_scene_file('../scenes/cornel1.txt')
 #ren.parse_scene_file('../scenes/cornel2.txt')
 #ren.parse_scene_file('../scenes/cornel3.txt')
@@ -15,7 +15,7 @@ ren.parse_scene_file('../scenes/sphere_env.txt')
 #ren.parse_scene_file('../scenes/cube.txt')
 #ren.parse_scene_file('../scenes/dragon.txt')
 #ren.parse_scene_file('../scenes/dielectric.txt')
-#ren.parse_scene_file('../scenes/dielectric2.txt')
+ren.parse_scene_file('../scenes/dielectric2.txt')
 
 #ren.parse_scene_file('F:/ray_tracing_scenes/mitsuba_material/scene.txt')
 #ren.parse_scene_file('F:/ray_tracing_scenes/san-miguel/scene.txt')

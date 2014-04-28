@@ -15,6 +15,7 @@ from .shadepoint import register_sampled_shadepoint, register_rgb_shadepoint
 from .spec_shaders import sampled_to_vec_shader, rgb_to_vec_shader,\
     lum_rgb_shader, lum_sampled_shader
 from .flt import SampleFilter
+from .shader_lib import shaders_functions
 
 from .parse_scene import import_scene
 
@@ -41,7 +42,7 @@ class Renderer:
         self.filter.load('box')
         self.integrator = Integrator()
         #self.integrator.load('isect')
-        self.integrator.load('test')
+        self.integrator.load('test', self._sam_mgr, self._spectral)
 
         self.tone_mapping = Tmo()
         self.tone_mapping.load('exp')
@@ -68,6 +69,11 @@ class Renderer:
         self.sync_area_lights()
         runtimes = [Runtime() for i in range(self.sampler.nthreads)]
 
+        shaders_funcs = shaders_functions()
+        for s in shaders_funcs:
+            s.compile()
+            s.prepare(runtimes)
+
         self.sampler.create_shader()
         self.sampler.compile()
         self.sampler.prepare(runtimes)
@@ -88,7 +94,8 @@ class Renderer:
         for shape in self.lights.shapes_to_update():
             self.shapes.update(shape)
 
-        self.materials.compile_shaders(self.sam_mgr, self.spectral)
+        self.materials.compile_shaders(self.sam_mgr, self.spectral,
+                                       shaders_funcs)
         self.materials.prepare_shaders(runtimes)
 
         if self.spectral:

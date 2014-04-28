@@ -55,7 +55,6 @@ while 1:
                 break
 
             material_sampling(hitpoint, shadepoint, hitpoint.mat_idx)
-            material_reflectance(hitpoint, shadepoint, hitpoint.mat_idx)
             ndotwi = dot(hitpoint.normal, shadepoint.wi)
             if ndotwi < 0.0:
                 ndotwi = ndotwi * -1.0

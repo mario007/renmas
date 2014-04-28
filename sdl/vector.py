@@ -76,6 +76,13 @@ class Vector2:
         """
         return Vector2(float(args[0]), float(args[1]))
 
+    @classmethod
+    def zero(cls):
+        """
+            Create null Vector2.
+        """
+        return Vector2(0.0, 0.0)
+
 
 class Vector3:
     """
@@ -184,6 +191,13 @@ class Vector3:
         """
         return Vector3(float(args[0]), float(args[1]), float(args[2]))
 
+    @classmethod
+    def zero(cls):
+        """
+            Create null Vector3.
+        """
+        return Vector3(0.0, 0.0, 0.0)
+
 
 class Vector4:
     """
@@ -263,3 +277,9 @@ class Vector4:
         return Vector4(float(args[0]), float(args[1]),
                        float(args[2]), float(args[3]))
 
+    @classmethod
+    def zero(cls):
+        """
+            Create null Vector4.
+        """
+        return Vector4(0.0, 0.0, 0.0, 0.0)

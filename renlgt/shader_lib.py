@@ -1,8 +1,9 @@
 
 from sdl import Vector3, Vec3Arg, Shader,\
-    FloatArg, Ray, StructArgPtr
+    FloatArg, Ray, StructArgPtr, IntArg
 
 from .hitpoint import HitPoint
+
 
 def ray_triangle_isect_shader(name, isect_bool=False):
     code = """
@@ -94,3 +95,117 @@ return 1
                     func_args=func_args, is_func=True)
     return shader
 
+
+def argument_factory(name, cls):
+    if cls == int:
+        return IntArg(name, int())
+    elif cls == float:
+        return FloatArg(name, float())
+    elif cls == Vector3:
+        return Vec3Arg(name, Vector3.zero())
+    else:
+        raise ValueError("Argument factory. Unsuported arugment type", name, cls)
+
+
+def shader(func_args):
+    def wrap(func):
+        def wrapped_f(*args, **kwargs):
+            arguments = []
+            for arg in func_args:
+                name, cls = arg
+                a = argument_factory(name, cls)
+                arguments.append(a)
+            code = func(*args, **kwargs)
+            name = func.__name__
+            return Shader(code=code, args=[], name=name,
+                          func_args=arguments, is_func=True)
+        return wrapped_f
+    return wrap
+
+
+@shader([('normal', Vector3), ('incident', Vector3)])
+def reflect():
+    return "return incident - 2.0 * dot(normal, incident) * normal"
+
+
+@shader([('normal', Vector3), ('incident', Vector3),
+         ('n1', float), ('n2', float)])
+def refract():
+    code = """
+n = n1 / n2
+cosi = dot(normal, incident) * -1.0
+sint2 = n * n * (1.0 - cosi * cosi)
+if sint2 > 1.0:  # TIR
+    return (0.0, 0.0, 0.0)  # invalid vector
+tmp = 1.0 - sint2
+cost = sqrt(tmp)
+return n * incident + (n * cosi - cost) * normal
+    """
+    return code
+
+
+@shader([('normal', Vector3), ('incident', Vector3),
+         ('n1', float), ('n2', float)])
+def dielectric_reflectance():
+    code = """
+n = n1 / n2
+cosi = dot(normal, incident) * -1.0
+sint2 = n * n * (1.0 - cosi * cosi)
+if sint2 > 1.0:  # TIR
+    return 1.0
+tmp = 1.0 - sint2
+cost = sqrt(tmp)
+rorth = (n1 * cosi - n2 * cost) / (n1 * cosi + n2 * cost)
+rpar = (n2 * cosi - n1 * cost) / (n2 * cosi + n1 * cost)
+return (rorth * rorth + rpar * rpar) * 0.5
+    """
+    return code
+
+
+@shader([('normal', Vector3), ('incident', Vector3),
+         ('n1', float), ('n2', float)])
+def tmp_dielectric_reflectance():
+    code = """
+tmp = normal * -1.0
+ndotd = dot(tmp, incident) 
+if ndotd < 0.0:
+    normal = normal * -1.0
+    eta = n1 / n2
+else:
+    eta = n2 / n1
+
+tmp = normal * -1.0
+cos_theta_i =  dot(tmp, incident)
+
+tmp = 1.0 - (1.0 - cos_theta_i * cos_theta_i) / (eta * eta)
+cos_theta_t = sqrt(tmp)
+
+rpara = (eta * cos_theta_i - cos_theta_t) / (eta * cos_theta_i + cos_theta_t)
+ropr = (cos_theta_i - eta * cos_theta_t) / (cos_theta_i + eta * cos_theta_t)
+
+kr = 0.5 * (rpara * rpara + ropr * ropr)
+return kr
+    """
+    return code
+
+
+@shader([('normal', Vector3), ('incident', Vector3),
+         ('n1', float), ('n2', float)])
+def tir():
+    code = """
+n = n1 / n2
+cosi = dot(normal, incident) * -1.0
+sint2 = n * n * (1.0 - cosi * cosi)
+if sint2 > 1.0:  # TIR
+    return 1
+return 0
+    """
+    return code
+
+
+def shaders_functions():
+    s1 = reflect()
+    s2 = refract()
+    s3 = dielectric_reflectance()
+    s4 = tir()
+    return [s1, s2, s3, s4]

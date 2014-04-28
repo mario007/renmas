@@ -71,8 +71,11 @@ class Material:
 
         args = self._load_args()
         ptr_mat_bsdf = PointerArg('ptr_mat_bsdf', 0)
+        ptr_mat_pdf = PointerArg('ptr_mat_pdf', 0)
         ptr_bsdf = ArgList('ptr_mat_bsdf', [ptr_mat_bsdf])
+        ptr_pdf = ArgList('ptr_mat_pdf', [ptr_mat_pdf])
         args.append(ptr_bsdf)
+        args.append(ptr_pdf)
 
         name = 'material_sampling_%i' % id(args)
         func_args = self._func_args(s)
@@ -117,9 +120,8 @@ u = cross(v, w)
 ndir = u * pu + v * pv + w * pw
 shadepoint.wi = normalize(ndir)
 
-shadepoint.pdf = dot(hitpoint.normal, shadepoint.wi) * 0.318309886
-
-material_bsdf(hitpoint, shadepoint, ptr_mat_bsdf)
+__material_pdf(hitpoint, shadepoint, ptr_mat_pdf)
+__material_reflectance(hitpoint, shadepoint, ptr_mat_bsdf)
         """
         return code
 
@@ -136,14 +138,19 @@ shadepoint.pdf = dot(hitpoint.normal, shadepoint.wi) * 0.318309886
 
     def prepare(self, runtimes):
         self._bsdf_shader.prepare(runtimes)
+        self._pdf_shader.prepare(runtimes)
 
         ptrs = self._bsdf_shader.get_ptrs()
         args = [PointerArg('ptr_mat_bsdf', p) for p in ptrs]
         ptr_bsdf = self._sampling_shader._get_arg('ptr_mat_bsdf')
         ptr_bsdf.resize(args)
 
+        ptrs = self._pdf_shader.get_ptrs()
+        args = [PointerArg('ptr_mat_pdf', p) for p in ptrs]
+        ptr_pdf = self._sampling_shader._get_arg('ptr_mat_pdf')
+        ptr_pdf.resize(args)
+
         self._sampling_shader.prepare(runtimes)
-        self._pdf_shader.prepare(runtimes)
 
     def emission_shader(self, shaders=[]):
         args = self._load_args()

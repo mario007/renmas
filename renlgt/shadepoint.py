@@ -1,6 +1,6 @@
 
 from sdl import Vector3, RGBSpectrum, register_struct, FloatArg, Vec3Arg,\
-    RGBArg, SampledArg, StructArgPtr
+    RGBArg, SampledArg, StructArgPtr, IntArg
 
 from sdl.cgen import register_prototype, spectrum_factory
 from .hitpoint import HitPoint
@@ -10,11 +10,12 @@ class ShadePoint:
 
     __slots__ = ['wo', 'wi', 'light_intensity', 'light_position',
                  'material_reflectance', 'pdf', 'light_normal',
-                 'light_pdf', 'material_emission']
+                 'light_pdf', 'material_emission', 'specular_bounce']
 
     def __init__(self, wo=None, wi=None, light_intensity=None,
                  light_position=None, material_reflectance=None, pdf=None,
-                 light_normal=None, light_pdf=None, material_emission=None):
+                 light_normal=None, light_pdf=None, material_emission=None,
+                 specular_bounce=None):
 
         self.wo = wo
         self.wi = wi
@@ -25,6 +26,7 @@ class ShadePoint:
         self.light_normal = light_normal
         self.light_pdf = light_pdf
         self.material_emission = material_emission
+        self.specular_bounce = specular_bounce
 
     @classmethod
     def factory(cls, spectrum):
@@ -35,7 +37,7 @@ class ShadePoint:
         ref = spectrum.zero()
         lnormal = Vector3(0.0, 1.0, 0.0)
         em = spectrum.zero()
-        return ShadePoint(wo, wi, li, lpos, ref, 1.0, lnormal, 1.0, em)
+        return ShadePoint(wo, wi, li, lpos, ref, 1.0, lnormal, 1.0, em, 0)
 
 
 def register_rgb_class():
@@ -50,7 +52,8 @@ def register_rgb_class():
                     ('pdf', FloatArg),
                     ('light_normal', Vec3Arg),
                     ('light_pdf', FloatArg),
-                    ('material_emission', RGBArg)],
+                    ('material_emission', RGBArg),
+                    ('specular_bounce', IntArg)],
                     factory=lambda: ShadePoint.factory(spectrum))
 
 
@@ -65,7 +68,8 @@ def register_sampled_class(col_mgr):
                     ('pdf', FloatArg),
                     ('light_normal', Vec3Arg),
                     ('light_pdf', FloatArg),
-                    ('material_emission', SampledArg)],
+                    ('material_emission', SampledArg),
+                    ('specular_bounce', IntArg)],
                     factory=lambda: ShadePoint.factory(spectrum))
 
 
@@ -93,7 +97,6 @@ def register_rgb_shadepoint():
     register_rgb_prototype('__material_sampling')
     register_rgb_prototype('__material_pdf')
     register_rgb_prototype('__light_emission')
-    register_rgb_prototype('material_bsdf')
     spectrum_factory(lambda: RGBSpectrum(0.0, 0.0, 0.0))
 
 
@@ -107,7 +110,6 @@ def register_sampled_shadepoint(col_mgr):
     register_sampled_prototype(col_mgr, '__material_sampling')
     register_sampled_prototype(col_mgr, '__material_pdf')
     register_sampled_prototype(col_mgr, '__light_emission')
-    register_sampled_prototype(col_mgr, 'material_bsdf')
     spectrum_factory(lambda: col_mgr.zero())
 
 register_rgb_shadepoint()

@@ -6,7 +6,7 @@ hitpoint = HitPoint()
 shadepoint = ShadePoint()
 
 nlights = number_of_lights()
-max_depth = 10
+max_depth = 5
 treshold = 0.01 
 min_dist = 99999.0
 
@@ -21,6 +21,7 @@ while 1:
     acum_col = Spectrum(0.0)
     path_weight = Spectrum(1.0)
     last_pdf = 1.0
+    specular_bounce = 1
 
     while 1:
 
@@ -44,9 +45,11 @@ while 1:
             light_emission(hitpoint, shadepoint, hitpoint.light_id)
             mis_weight = 1.0
             if cur_depth > 1:
-                ndotwo = dot(hitpoint.normal, shadepoint.wo)
-                direct_pdf = shadepoint.light_pdf * hitpoint.t * hitpoint.t / abs(ndotwo)
-                mis_weight = last_pdf / (last_pdf + direct_pdf)
+                if specular_bounce != 1:
+                    ndotwo = dot(hitpoint.normal, shadepoint.wo)
+                    distance_squared = hitpoint.t * hitpoint.t
+                    direct_pdf = shadepoint.light_pdf * distance_squared / abs(ndotwo)
+                    mis_weight = last_pdf / (last_pdf + direct_pdf)
             weight = mis_weight * path_weight * shadepoint.material_emission
             acum_col = acum_col + weight
             break #light do not reflect
@@ -63,9 +66,9 @@ while 1:
                     if vis:
                         material_reflectance(hitpoint, shadepoint, hitpoint.mat_idx)
                         material_pdf(hitpoint, shadepoint, hitpoint.mat_idx)
-                        if shadepoint.pdf > 0.00001:
+                        if shadepoint.pdf > 0.0001:
                             weight = 1.0
-                            if shadepoint.light_pdf < 0.99999:  # not delta light
+                            if shadepoint.light_pdf < 0.9999:  # not delta light
                                 weight = shadepoint.light_pdf / (shadepoint.pdf + shadepoint.light_pdf)
                             factor = weight * ndotwi / shadepoint.light_pdf
                             col = shadepoint.material_reflectance * shadepoint.light_intensity * factor
@@ -78,11 +81,13 @@ while 1:
         if path_lum < treshold:
             break
 
+        shadepoint.specular_bounce = 0
         material_sampling(hitpoint, shadepoint, hitpoint.mat_idx)
+        specular_bounce = shadepoint.specular_bounce
         ndotwi = dot(hitpoint.normal, shadepoint.wi)
         ndotwi = abs(ndotwi)
-        # if shadepoint.pdf < 0.000001:
-        #     break
+        if shadepoint.pdf < 0.000001:
+            break
         pdf = ndotwi / shadepoint.pdf
         if pdf < 0.000001:
             break
@@ -110,6 +115,7 @@ while 1:
 
     filter_sample(sample)
     flt_weight = sample.weight
+
     color = color * flt_weight + rgba * rgba[3]
 
     acum_weight = rgba[3] + flt_weight

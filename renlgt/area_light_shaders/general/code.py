@@ -14,9 +14,11 @@ if cos_light < 0.0:
 
     # weight = cos_light / len_squared
     # shadepoint.light_intensity = shadepoint.material_emission * weight
+    # shadepoint.light_pdf = shadepoint.light_pdf
 
     shadepoint.light_pdf = shadepoint.light_pdf * len_squared / cos_light
     shadepoint.light_intensity = shadepoint.material_emission
 else:
     shadepoint.light_intensity = Spectrum(0.0)
+    shadepoint.light_pdf = 1.0
 shadepoint.wi = wi

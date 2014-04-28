@@ -11,7 +11,7 @@ from renlgt import Renderer
 def render(filename, output=None, integrator=None, tmo=True):
     ren = Renderer()
     if integrator is not None:
-        ren.integrator.load(integrator)
+        ren.integrator.load(integrator, ren.sam_mgr, ren.spectral)
     print("Begin of loading %s" % filename)
     start = time.clock()
     ren.load(filename)
@@ -41,6 +41,10 @@ def render(filename, output=None, integrator=None, tmo=True):
         output = os.path.join(os.path.dirname(filename), 'Unknown.jpeg')
 
     name, ext = os.path.splitext(output)
+
+    hdr_output = os.path.join(os.path.dirname(filename), 'Unknown.exr')
+    save_image(hdr_output, ren._hdr_buffer)
+
     if ext in ('.rgbe', '.exr'):
         save_image(output, ren._hdr_buffer)
     else:

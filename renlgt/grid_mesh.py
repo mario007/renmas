@@ -39,8 +39,6 @@ class GridMesh:
         num_cells = int(nx * ny * nz)
 
         cells = [] # we need to initialize empty lists
-        #for c in range(num_cells):
-        #    cells.append([])
         for c in range(num_cells):
             cells.append(array("I"))
 
@@ -101,13 +99,7 @@ class GridMesh:
             stx = ixmin
             sty = iymin
             
-            if performanse:
-                v0, v1, v2 = mesh.get_indices(idx_triangle)
-                p0 = mesh.get_point(v0)
-                p1 = mesh.get_point(v1)
-                p2 = mesh.get_point(v2)
-
-            #NOTE while is faster than for and this is speed critical code
+            #NOTE WHILE is faster than FOR and this is speed critical code
             
             while True:
                 ixmin = stx
@@ -125,8 +117,7 @@ class GridMesh:
                             end_z = (izmin + 1) * nz_part + bbox.z0
                             box_center = ((start_x+end_x)/2.0, (start_y+end_y)/2.0, (start_z+end_z)/2.0)
                             half_size = ((end_x-start_x)/2.0, (end_y-start_y)/2.0, (end_z-start_z)/2.0)
-                            ret = tri_box_overlap(box_center, half_size, (p0,p1,p2))
-
+                            ret = mesh.triangle_box_overlap(box_center, half_size, idx_triangle)
                         if ret == 1:
                             idx = ixmin + nx * iymin + nx * ny * izmin
                             cells[idx].append(idx_triangle)

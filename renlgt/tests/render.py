@@ -23,7 +23,7 @@ def render(filename, output=None, integrator=None, tmo=True):
     ren.prepare()
     elapsed = time.clock() - start
     print("Preparation of scene took %f seconds" % elapsed)
-   
+
     total_time = 0.0
     iteration = 0
     while True:

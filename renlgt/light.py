@@ -2,11 +2,24 @@
 import os.path
 from sdl import Loader, parse_args, StructArgPtr, Shader,\
     RGBSpectrum, RGBArg, SampledSpectrum, SampledArg, IntArg,\
-    ArgList, PointerArg
+    ArgList, PointerArg, Vector3
 from sdl.arr import PtrsArray, ArrayArg
 
 from .hitpoint import HitPoint
 from .shadepoint import ShadePoint
+
+
+def output_arg(name, value):
+    if isinstance(value, int):
+        return '%s = %i\n' % (name, value)
+    elif isinstance(value, float):
+        return '%s = %f\n' % (name, value)
+    elif isinstance(value, RGBSpectrum):
+        return '%s = %f, %f, %f\n' % (name, value.r, value.g, value.b)
+    elif isinstance(value, Vector3):
+        return '%s = %f, %f, %f\n' % (name, value.x, value.y, value.z)
+    else:
+        raise ValueError("Unsupported otuput to save ", name, value)
 
 
 class Light:
@@ -54,6 +67,7 @@ class GeneralLight(Light):
                              func_args=func_args, is_func=True)
         self._spectral = spectral
         self._sam_mgr = sam_mgr
+        self._shader_name = shader_name
 
     def compile(self, shaders=[]):
         self.shader.compile(shaders)
@@ -74,6 +88,21 @@ class GeneralLight(Light):
         if not self._spectral and isinstance(val, SampledSpectrum):
             val = self._sam_mgr.sampled_to_rgb(val)
         self.shader.set_value(name, val)
+
+    def output(self, name):
+        txt ='Light\n'
+        txt +='type = %s\n' % self._shader_name 
+        txt +='name = %s\n' % name
+
+        args = []
+        text = self._loader.load(self._shader_name, 'props.txt')
+        if text is not None:
+            args = parse_args(text)
+        for arg in args:
+            value = self.get_value(arg.name)
+            txt += output_arg(arg.name, value)
+        txt +='End\n'
+        return txt
 
 
 class AreaLight(Light):
@@ -388,3 +417,11 @@ shadepoint.light_pdf = 1.0
             if isinstance(light, AreaLight) and light.shape is shape:
                 return light
         return None
+
+    def output(self):
+        txt = ''
+        for name, light in self._lights_d.items():
+            if isinstance(light, AreaLight):
+                continue
+            txt += light.output(name) + '\n'
+        return txt

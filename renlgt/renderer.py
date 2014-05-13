@@ -1,5 +1,8 @@
 
 import time
+import os
+import os.path
+
 from tdasm import Runtime
 from sdl import ImagePRGBA, ImageRGBA, Vector3, SampledManager
 from hdr import Tmo
@@ -58,6 +61,9 @@ class Renderer:
     def sam_mgr(self):
         return self._sam_mgr
 
+    def _create_defaults(self):
+        pass
+
     def _create_hdr_buffer(self):
         width, height = self.sampler.get_resolution()
         self._hdr_buffer = ImagePRGBA(width, height)
@@ -67,7 +73,7 @@ class Renderer:
     def prepare(self):
         self._create_hdr_buffer()
         self.sync_area_lights()
-        runtimes = [Runtime() for i in range(self.sampler.nthreads)]
+        runtimes = [Runtime(code=4) for i in range(self.sampler.nthreads)]
 
         shaders_funcs = shaders_functions()
         for s in shaders_funcs:
@@ -155,7 +161,36 @@ class Renderer:
             self.tone_mapping.tmo(self._hdr_buffer, self._hdr_output)
 
     def save(self, filename):
-        pass
+        f = open(filename, mode='w')
+        directory = os.path.dirname(os.path.abspath(f.name))
+        mesh_dir = os.path.join(directory, 'meshes')
+        if not os.path.isdir(mesh_dir):
+            os.mkdir(mesh_dir)
+
+        txt = self.sampler.output()
+        f.write(txt)
+        f.write('\n')
+        txt = self.camera.output()
+        f.write(txt)
+        f.write('\n')
+        txt = self.lights.output()
+        f.write(txt)
+        f.write('\n')
+        txt = self.materials.output()
+        f.write(txt)
+        f.write('\n')
+
+        for shape in self.shapes:
+            text = 'Shape\n'
+            fname = self.shapes.name(shape) + '.data'
+            relative_name = os.path.join('meshes', fname)
+            text += shape.output(directory, relative_name)
+            text += 'name = %s\n' % self.shapes.name(shape)
+            text += 'material = %s\n' % self.materials.name(shape.mat_idx)
+            text += 'End\n\n'
+            f.write(text)
+
+        f.close()
 
     def load(self, filename):
 

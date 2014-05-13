@@ -11,6 +11,8 @@ from .grid_mesh import GridMesh
 from .shape import Shape, DependencyShader
 from .hitpoint import HitPoint
 from .shader_lib import ray_triangle_isect_shader
+from .save import save_mesh_data
+from .tri_box_overlap import tri_box_overlap
 
 
 def load_meshes(filename):
@@ -86,23 +88,9 @@ class BaseMesh(Shape):
         code = GridMesh.isect_shader_code(dep_shader.shader.name)
 
         args = []
-        args.append(FloatArg('tmp_tx_next', 0.0))
-        args.append(FloatArg('tmp_ty_next', 0.0))
-        args.append(FloatArg('tmp_tz_next', 0.0))
-        args.append(FloatArg('tmp_dtx_next', 0.0))
-        args.append(FloatArg('tmp_dty_next', 0.0))
-        args.append(FloatArg('tmp_dtz_next', 0.0))
-        origin = Vector3(0.0, 0.0, 0.0)
-        direction = Vector3(0.0, 0.0, 1.0)
-        ray = Ray(origin, direction)
-        hitpoint = HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
-                            Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0)
-
-        mesh = cls.empty_mesh()
-
-        func_args = [StructArgPtr('ray', ray),
-                     StructArgPtr('mesh', mesh),
-                     StructArgPtr('hitpoint', hitpoint),
+        func_args = [StructArgPtr('ray', Ray.factory()),
+                     StructArgPtr('mesh', cls.empty_mesh()),
+                     StructArgPtr('hitpoint', HitPoint.factory()),
                      FloatArg('min_dist', 0.0)]
 
         shader = Shader(code=code, args=args, name=shader_name,
@@ -115,14 +103,8 @@ class BaseMesh(Shape):
         code = GridMesh.isect_shader_b_code(dep_shader.shader.name)
 
         args = []
-        origin = Vector3(0.0, 0.0, 0.0)
-        direction = Vector3(0.0, 0.0, 1.0)
-        ray = Ray(origin, direction)
-
-        mesh = cls.empty_mesh()
-
-        func_args = [StructArgPtr('ray', ray),
-                     StructArgPtr('mesh', mesh),
+        func_args = [StructArgPtr('ray', Ray.factory()),
+                     StructArgPtr('mesh', cls.empty_mesh()),
                      FloatArg('min_dist', 0.0)]
 
         shader = Shader(code=code, args=args, name=shader_name,
@@ -295,19 +277,13 @@ return isect_ocur
         """ % label
 
         args = []
-        origin = Vector3(0.0, 0.0, 0.0)
-        direction = Vector3(0.0, 0.0, 0.0)
-        ray = Ray(origin, direction)
-        hitpoint = HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
-                            Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0)
-
         mesh = FlatMesh(VertexBuffer(), TriangleBuffer(), mat_idx=0)
 
-        func_args = [StructArgPtr('ray', ray),
+        func_args = [StructArgPtr('ray', Ray.factory()),
                      StructArgPtr('mesh', mesh),
                      IntArg('idx_in_array', 0),
                      FloatArg('min_dist', 0.0),
-                     StructArgPtr('hitpoint', hitpoint)]
+                     StructArgPtr('hitpoint', HitPoint.factory())]
 
         shader_name = 'isect_flat_triangles_%s' % id(cls)
         shader = Shader(code=code, args=args, name=shader_name,
@@ -365,12 +341,9 @@ return 0
         """ % label
 
         args = []
-        origin = Vector3(0.0, 0.0, 0.0)
-        direction = Vector3(0.0, 0.0, 0.0)
-        ray = Ray(origin, direction)
         mesh = FlatMesh(VertexBuffer(), TriangleBuffer(), mat_idx=0)
 
-        func_args = [StructArgPtr('ray', ray),
+        func_args = [StructArgPtr('ray', Ray.factory()),
                      StructArgPtr('mesh', mesh),
                      IntArg('idx_in_array', 0),
                      FloatArg('min_dist', 0.0)]
@@ -441,6 +414,22 @@ return 0
 
         return HitPoint(t, hit_point, normal, self.mat_idx, u, v)
 
+    def triangle_box_overlap(self, box_center, half_size, idx_triangle):
+        v0, v1, v2 =  self._tb.get(idx_triangle)
+        p0 = self._vb.get(v0)
+        p1 = self._vb.get(v1)
+        p2 = self._vb.get(v2)
+        ret = tri_box_overlap(box_center, half_size, (p0, p1, p2))
+        return ret
+
+    def output(self, directory, relative_name):
+        full_path = os.path.join(directory, relative_name) 
+        if not os.path.isfile(full_path):
+            save_mesh_data(full_path, vb=self._vb, tb=self._tb, grid=self._grid)
+
+        typ = 'type = Mesh\n'
+        fname = 'fname = %s\n' % relative_name
+        return typ + fname
 
 
 register_struct(FlatMesh, 'FlatMesh', fields=[('vbuffer', PointerArg),
@@ -599,19 +588,13 @@ return isect_ocur
         """ % label
 
         args = []
-        origin = Vector3(0.0, 0.0, 0.0)
-        direction = Vector3(0.0, 0.0, 0.0)
-        ray = Ray(origin, direction)
-        hitpoint = HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
-                            Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0)
-
         mesh = FlatUVMesh(VertexUVBuffer(), TriangleBuffer(), mat_idx=0)
 
-        func_args = [StructArgPtr('ray', ray),
+        func_args = [StructArgPtr('ray', Ray.factory()),
                      StructArgPtr('mesh', mesh),
                      IntArg('idx_in_array', 0),
                      FloatArg('min_dist', 0.0),
-                     StructArgPtr('hitpoint', hitpoint)]
+                     StructArgPtr('hitpoint', HitPoint.factory())]
 
         shader_name = 'isect_flat_triangles_%s' % id(cls)
         shader = Shader(code=code, args=args, name=shader_name,
@@ -669,12 +652,9 @@ return 0
         """ % label
 
         args = []
-        origin = Vector3(0.0, 0.0, 0.0)
-        direction = Vector3(0.0, 0.0, 0.0)
-        ray = Ray(origin, direction)
         mesh = FlatUVMesh(VertexUVBuffer(), TriangleBuffer(), mat_idx=0)
 
-        func_args = [StructArgPtr('ray', ray),
+        func_args = [StructArgPtr('ray', Ray.factory()),
                      StructArgPtr('mesh', mesh),
                      IntArg('idx_in_array', 0),
                      FloatArg('min_dist', 0.0)]
@@ -745,6 +725,23 @@ return 0
         v = uv0[1] * (1.0 - beta - gamma) + beta * uv1[1] + gamma * uv2[1]
 
         return HitPoint(t, hit_point, normal, self.mat_idx, u, v)
+
+    def triangle_box_overlap(self, box_center, half_size, idx_triangle):
+        v0, v1, v2 =  self._tb.get(idx_triangle)
+        p0, uv0 = self._vb.get(v0)
+        p1, uv1 = self._vb.get(v1)
+        p2, uv2 = self._vb.get(v2)
+        ret = tri_box_overlap(box_center, half_size, (p0, p1, p2))
+        return ret
+
+    def output(self, directory, relative_name):
+        full_path = os.path.join(directory, relative_name) 
+        if not os.path.isfile(full_path):
+            save_mesh_data(full_path, vb=self._vb, tb=self._tb, grid=self._grid)
+
+        typ = 'type = Mesh\n'
+        fname = 'fname = %s\n' % relative_name
+        return typ + fname
 
 register_struct(FlatUVMesh, 'FlatUVMesh', fields=[('vbuffer', PointerArg),
                 ('tbuffer', PointerArg), ('mat_idx', IntArg),
@@ -905,19 +902,13 @@ return isect_ocur
         """ % label
 
         args = []
-        origin = Vector3(0.0, 0.0, 0.0)
-        direction = Vector3(0.0, 0.0, 0.0)
-        ray = Ray(origin, direction)
-        hitpoint = HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
-                            Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0)
-
         mesh = SmoothUVMesh(VertexNUVBuffer(), TriangleBuffer(), mat_idx=0)
 
-        func_args = [StructArgPtr('ray', ray),
+        func_args = [StructArgPtr('ray', Ray.factory()),
                      StructArgPtr('mesh', mesh),
                      IntArg('idx_in_array', 0),
                      FloatArg('min_dist', 0.0),
-                     StructArgPtr('hitpoint', hitpoint)]
+                     StructArgPtr('hitpoint', HitPoint.factory())]
 
         shader_name = 'isect_flat_triangles_%s' % id(cls)
         shader = Shader(code=code, args=args, name=shader_name,
@@ -975,12 +966,9 @@ return 0
         """ % label
 
         args = []
-        origin = Vector3(0.0, 0.0, 0.0)
-        direction = Vector3(0.0, 0.0, 0.0)
-        ray = Ray(origin, direction)
         mesh = SmoothUVMesh(VertexNUVBuffer(), TriangleBuffer(), mat_idx=0)
 
-        func_args = [StructArgPtr('ray', ray),
+        func_args = [StructArgPtr('ray', Ray.factory()),
                      StructArgPtr('mesh', mesh),
                      IntArg('idx_in_array', 0),
                      FloatArg('min_dist', 0.0)]
@@ -1053,6 +1041,22 @@ return 0
 
         return HitPoint(t, hit_point, normal, self.mat_idx, u, v)
 
+    def triangle_box_overlap(self, box_center, half_size, idx_triangle):
+        v0, v1, v2 =  self._tb.get(idx_triangle)
+        p0, n0, uv0 = self._vb.get(v0)
+        p1, n1, uv1 = self._vb.get(v1)
+        p2, n2, uv2 = self._vb.get(v2)
+        ret = tri_box_overlap(box_center, half_size, (p0, p1, p2))
+        return ret
+
+    def output(self, directory, relative_name):
+        full_path = os.path.join(directory, relative_name) 
+        if not os.path.isfile(full_path):
+            save_mesh_data(full_path, vb=self._vb, tb=self._tb, grid=self._grid)
+
+        typ = 'type = Mesh\n'
+        fname = 'fname = %s\n' % relative_name
+        return typ + fname
 
 register_struct(SmoothUVMesh, 'SmoothUVMesh', fields=[('vbuffer', PointerArg),
                 ('tbuffer', PointerArg), ('mat_idx', IntArg),
@@ -1207,19 +1211,13 @@ return isect_ocur
         """ % label
 
         args = []
-        origin = Vector3(0.0, 0.0, 0.0)
-        direction = Vector3(0.0, 0.0, 0.0)
-        ray = Ray(origin, direction)
-        hitpoint = HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
-                            Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0)
-
         mesh = SmoothMesh(VertexNBuffer(), TriangleBuffer(), mat_idx=0)
 
-        func_args = [StructArgPtr('ray', ray),
+        func_args = [StructArgPtr('ray', Ray.factory()),
                      StructArgPtr('mesh', mesh),
                      IntArg('idx_in_array', 0),
                      FloatArg('min_dist', 0.0),
-                     StructArgPtr('hitpoint', hitpoint)]
+                     StructArgPtr('hitpoint', HitPoint.factory())]
 
         shader_name = 'isect_flat_triangles_%s' % id(cls)
         shader = Shader(code=code, args=args, name=shader_name,
@@ -1277,12 +1275,9 @@ return 0
         """ % label
 
         args = []
-        origin = Vector3(0.0, 0.0, 0.0)
-        direction = Vector3(0.0, 0.0, 0.0)
-        ray = Ray(origin, direction)
         mesh = SmoothMesh(VertexNBuffer(), TriangleBuffer(), mat_idx=0)
 
-        func_args = [StructArgPtr('ray', ray),
+        func_args = [StructArgPtr('ray', Ray.factory()),
                      StructArgPtr('mesh', mesh),
                      IntArg('idx_in_array', 0),
                      FloatArg('min_dist', 0.0)]
@@ -1354,6 +1349,23 @@ return 0
 
         return HitPoint(t, hit_point, normal, self.mat_idx, u, v)
 
+    def triangle_box_overlap(self, box_center, half_size, idx_triangle):
+        v0, v1, v2 =  self._tb.get(idx_triangle)
+        p0, n0 = self._vb.get(v0)
+        p1, n1 = self._vb.get(v1)
+        p2, n2 = self._vb.get(v2)
+        ret = tri_box_overlap(box_center, half_size, (p0, p1, p2))
+        return ret
+
+    def output(self, directory, relative_name):
+        full_path = os.path.join(directory, relative_name) 
+        if not os.path.isfile(full_path):
+            save_mesh_data(full_path, vb=self._vb, tb=self._tb, grid=self._grid)
+
+        typ = 'type = Mesh\n'
+        fname = 'fname = %s\n' % relative_name
+        return typ + fname
+
 
 register_struct(SmoothMesh, 'SmoothMesh', fields=[('vbuffer', PointerArg),
                 ('tbuffer', PointerArg), ('mat_idx', IntArg),
@@ -1364,10 +1376,7 @@ register_struct(SmoothMesh, 'SmoothMesh', fields=[('vbuffer', PointerArg),
                 factory=lambda: SmoothMesh(VertexNBuffer(), TriangleBuffer(), 0))
 
 
-def create_mesh(mesh_desc, mat_idx=0):
-
-    vb = mesh_desc.vb
-    tb = mesh_desc.tb
+def create_mesh(vb, tb, mat_idx=0):
 
     if isinstance(vb, VertexBuffer) and isinstance(tb, TriangleBuffer):
         return FlatMesh(vb, tb, mat_idx)

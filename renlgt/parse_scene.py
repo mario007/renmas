@@ -1,4 +1,5 @@
 
+import time
 import os.path
 from sdl import Vector3, RGBSpectrum, SampledSpectrum
 from .camera import Camera
@@ -10,6 +11,7 @@ from .rectangle import Rectangle
 from .samplers import RegularSampler, RandomSampler, JitteredSampler
 from .mesh import load_meshes, create_mesh, FlatMesh
 from .parse_mtl import parse_matlib
+from .save import load_mesh_data
 
 
 def _parse_line(line):
@@ -150,6 +152,22 @@ def _parse_shape(fobj, renderer):
     elif typ == 'mesh':
         fname = values['fname'][0].strip()
         full_path = os.path.join(os.path.dirname(fobj.name), fname)
+        root, ext = os.path.splitext(full_path)
+        if ext == '.data':
+            material = values['material'][0].strip()
+            mat_idx = renderer.materials.index(material)
+            vb, tb, grid = load_mesh_data(full_path)
+            mesh = create_mesh(vb, tb, mat_idx=mat_idx)
+            if grid is not None:
+                grid.mesh = mesh
+                mesh._grid = grid
+            else:
+                mesh.prepare()
+            name = values['name'][0].strip()
+            renderer.shapes.add(name, mesh)
+            return
+
+
         if not os.path.isfile(full_path):
             raise ValueError("File %s doesn't exist!" % full_path)
         fdesc = load_meshes(full_path)
@@ -165,7 +183,9 @@ def _parse_shape(fobj, renderer):
                 mat_idx = renderer.materials.index(material)
             else:
                 mat_idx = renderer.materials.index(mdesc.material)
-            mesh = create_mesh(mdesc, mat_idx=mat_idx)
+            vb = mdesc.vb
+            tb = mdesc.tb
+            mesh = create_mesh(vb, tb, mat_idx=mat_idx)
             if 'translate' in values:
                 t = values['translate']
                 mesh.translate(float(t[0]), float(t[1]), float(t[2]))
@@ -174,6 +194,7 @@ def _parse_shape(fobj, renderer):
                 mesh.scale(float(s[0]), float(s[1]), float(s[2]))
 
             mesh.prepare()
+            # mesh.prepare(performanse=True)
             renderer.shapes.add(mdesc.name, mesh)
     else:
         raise ValueError("Unsuported type of shape!", typ)
@@ -181,23 +202,14 @@ def _parse_shape(fobj, renderer):
 
 def _parse_sampler(fobj, renderer):
     values = _extract_values(fobj)
-    width = 200
-    height = 200
-    pixelsize = 1.0
+    width = int(values['width'][0]) if 'width' in values else 200
+    height = int(values['height'][0]) if 'height' in values else 200
+    pixelsize = float(values['pixelsize'][0]) if 'pixelsize' in values else 1.0
+    nsamples = int(values['nsamples'][0]) if 'nsamples' in values else 1
+
     nthreads = 1
-    nsamples = 1
-    if 'width' in values:
-        width = int(values['width'][0])
-    if 'height' in values:
-        height = int(values['height'][0])
-    if 'pixelsize' in values:
-        pixelsize = float(values['pixelsize'][0])
     if 'nthreads' in values:
-        nthreads = int(values['nthreads'][0])
-        if nthreads > 32:
-            nthreads = 32
-    if 'nsamples' in values:
-        nsamples = int(values['nsamples'][0])
+        nthreads = min(32, int(values['nthreads'][0]))
 
     typ = values['type'][0].strip().lower()
     if typ == 'regular':

@@ -242,6 +242,17 @@ shadepoint.light_pdf = inv_area
 
         return BBox(p0, p1)
 
+    def output(self, directory, relative_name):
+        e1 = self.edge_a
+        e2 = self.edge_b
+        n = self.normal
+        typ = 'type = Rectangle\n'
+        p = 'p = %f, %f, %f\n' % (self.point.x, self.point.y, self.point.z)
+        e1 = 'edge_a = %f, %f, %f\n' % (e1.x, e1.y, e1.z)
+        e2 = 'edge_b = %f, %f, %f\n' % (e2.x, e2.y, e2.z)
+        normal = 'normal = %f, %f, %f\n' % (n.x, n.y, n.z)
+        return typ + p + e1 + e2 + normal
+
     @classmethod
     def factory(cls):
         return Rectangle(Vector3(0.0, 0.0, 0.0), Vector3(1.0, 0.0, 0.0),

@@ -220,7 +220,7 @@ elapsed = time.clock() - start
 # print("Time to load mesh file took %f seconds" % elapsed)
 # print(fdesc.fname)
 for mdesc in fdesc.mesh_descs:
-    mesh = create_mesh(mdesc, mat_idx=0)
+    mesh = create_mesh(mdesc.vb, mdesc.tb, mat_idx=0)
     start = time.clock()
     mesh.prepare()
     elapsed = time.clock() - start

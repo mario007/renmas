@@ -165,6 +165,13 @@ return 0
 
         return BBox(p0, p1)
 
+    def output(self, directory, relative_name):
+        typ = 'type = Sphere\n'
+        radius = 'radius = %f\n' % self.radius
+        o = self.origin
+        origin = 'origin = %f, %f, %f\n' % (o.x, o.y, o.z)
+        return typ + radius + origin
+
     @classmethod
     def factory(cls):
         return Sphere(Vector3(0.0, 0.0, 0.0), 0.0, 0)
@@ -172,4 +179,4 @@ return 0
 register_struct(Sphere, 'Sphere', fields=[('origin', Vec3Arg),
                 ('radius', FloatArg), ('mat_idx', IntArg),
                 ('light_id', IntArg)],
-                factory=lambda: Sphere(Vector3(0.0, 0.0, 0.0), 0.0, 0))
+                factory=Sphere.factory)

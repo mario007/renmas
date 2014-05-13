@@ -1,4 +1,6 @@
 
+from array import array
+
 import x86
 from sdl import memcpy
 
@@ -38,8 +40,24 @@ class Buffer:
         memcpy(temp.ptr(), self._address.ptr(), self._size*self._item_size) 
         self._address = temp
 
+    def read_bytes(self, offset=0, nbytes=-1):
+        buff_size = self._size * self._item_size
+        n = nbytes
+        if n == -1:
+            n = buff_size - offset
+        n = min(n, buff_size - offset)
+        n = max(n, 0)
+
+        arr = array('B', [0]*n)
+
+        address = arr.buffer_info()[0]
+        off_addr = self._address.ptr() + offset
+        memcpy(address, off_addr, n) 
+        return arr
+
+
 class Vertices(Buffer):
-    def __init__(self, vertex_size, reserve=0):
+    def __init__(self, vertex_size, reserve=1):
         super(Vertices, self).__init__(vertex_size, reserve)
 
     def scale(self, xs, ys, zs):
@@ -139,7 +157,7 @@ class Vertices(Buffer):
 
 # Buffer that store x,y,z cordinnates of vertex 
 class VertexBuffer(Vertices):
-    def __init__(self, reserve=0):
+    def __init__(self, reserve=1):
         super(VertexBuffer, self).__init__(16, reserve)
 
     def add(self, x, y, z):
@@ -164,7 +182,7 @@ class VertexBuffer(Vertices):
 
 #Buffer that stores x,y,z and normal(nx,ny,nz) of vertex
 class VertexNBuffer(Vertices):
-    def __init__(self, reserve=0):
+    def __init__(self, reserve=1):
         super(VertexNBuffer, self).__init__(32, reserve)
 
     def add(self, x, y, z, nx, ny, nz):
@@ -193,7 +211,7 @@ class VertexNBuffer(Vertices):
 
 #Buffer that stores x,y,z and u,v for texturing
 class VertexUVBuffer(Vertices):
-    def __init__(self, reserve=0):
+    def __init__(self, reserve=1):
         super(VertexUVBuffer, self).__init__(32, reserve)
 
     def add(self, x, y, z, u, v):
@@ -223,7 +241,7 @@ class VertexUVBuffer(Vertices):
 
 #Buffer that stores x,y,z and normal(nx,ny,nz) of vertex, and also u,v for texturing
 class VertexNUVBuffer(Vertices):
-    def __init__(self, reserve=0):
+    def __init__(self, reserve=1):
         super(VertexNUVBuffer, self).__init__(48, reserve)
 
     def add(self, x, y, z, nx, ny, nz, u, v):
@@ -256,7 +274,7 @@ class VertexNUVBuffer(Vertices):
 
 #Buffer that stores 3 triangle indexes in vertex buffer v0, v1, v2
 class TriangleBuffer(Buffer):
-    def __init__(self, reserve=0):
+    def __init__(self, reserve=1):
             super(TriangleBuffer, self).__init__(12, reserve)
 
     def add(self, v0, v1, v2):
@@ -280,7 +298,7 @@ class TriangleBuffer(Buffer):
 
 #Buffer that stores 3 triangle indexes in vertex buffer v0, v1, v2 and normal(nx,ny,nz)
 class TriangleNBuffer(Buffer):
-    def __init__(self, reserve=0):
+    def __init__(self, reserve=1):
             super(TriangleNBuffer, self).__init__(32, reserve)
 
     def add(self, v0, v1, v2, nx, ny, nz):
@@ -309,7 +327,7 @@ class TriangleNBuffer(Buffer):
 
 #Buffer that stores 3 triangle points 
 class FlatTriangleBuffer(Buffer):
-    def __init__(self, reserve=0):
+    def __init__(self, reserve=1):
             super(FlatTriangleBuffer, self).__init__(48, reserve) #TODO try performanse with 64 bytes
 
     def add(self, p0, p1, p2):
@@ -341,7 +359,7 @@ class FlatTriangleBuffer(Buffer):
 
 #Buffer that stores 3 triangle points and normal of triangle 
 class FlatTriangleNBuffer(Buffer):
-    def __init__(self, reserve=0):
+    def __init__(self, reserve=1):
             super(FlatTriangleNBuffer, self).__init__(64, reserve)
 
     def add(self, p0, p1, p2, n):
@@ -376,7 +394,7 @@ class FlatTriangleNBuffer(Buffer):
 
 #Buffer that stores 3 triangle points and 3 normals one for each vertex 
 class SmoothTriangleBuffer(Buffer):
-    def __init__(self, reserve=0):
+    def __init__(self, reserve=1):
             super(SmoothTriangleBuffer, self).__init__(96, reserve) #TODO try with 128 perfomanse
 
     def add(self, p0, p1, p2, n0, n1, n2):

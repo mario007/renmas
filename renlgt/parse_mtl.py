@@ -61,9 +61,23 @@ def _create_material(name, values, renderer, directory):
         map_d = values['map_d'][0].strip()
 
     mat = Material()
-    if Kd is not None: # simple lambertian material
+    if Ks is not None: # phong material
+        mat.load('phong', renderer.sam_mgr, renderer.spectral)
+        mat.set_value('specular', Ks)
+        if Kd is None:
+            Kd = RGBSpectrum(0.0, 0.0, 0.0)
+        mat.set_value('diffuse', Kd)
+        exponent = 1.0 if Ns is None else Ns
+        mat.set_value('exponent', exponent)
+    elif Kd is not None: # simple lambertian material
         mat.load('lambertian', renderer.sam_mgr, renderer.spectral)
         mat.set_value('diffuse', Kd)
+    elif Kd is None and Ks is None: #black lambertian
+        mat.load('lambertian', renderer.sam_mgr, renderer.spectral)
+        Kd = RGBSpectrum(0.0, 0.0, 0.0)
+        mat.set_value('diffuse', Kd)
+    else:
+        raise ValueError("Not sutuable material is found in mtl library", name)
 
     renderer.materials.add(name, mat)
 

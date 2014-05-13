@@ -20,7 +20,7 @@ class Obj:
 
     def _group(self, words):
         if len(words) == 1:
-            self._current_groups = ["default" + str(len(self._vertices))]
+            self._current_groups = ["default" + str(self._vertices.size())]
             self._new_groups = True
         else:
             if not self.check_seq(self._current_groups, words[1:]):

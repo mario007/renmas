@@ -203,6 +203,13 @@ return %s(ray, triangle.p0, triangle.p1, triangle.p2, min_dist)
         isect_shader = DependencyShader(shader, [tri_isect])
         return isect_shader
 
+    def output(self, directory, relative_name):
+        typ = 'type = Triangle\n'
+        p0 = 'p0 = %f, %f, %f\n' % (self.p0.x, self.p0.y, self.p0.z)
+        p1 = 'p1 = %f, %f, %f\n' % (self.p1.x, self.p1.y, self.p1.z)
+        p2 = 'p2 = %f, %f, %f\n' % (self.p2.x, self.p2.y, self.p2.z)
+        return typ + p0 + p1 + p2
+
     @classmethod
     def factory(cls):
         triangle = FlatTriangle(Vector3(1.0, 0.0, 0.0),
@@ -214,4 +221,4 @@ return %s(ray, triangle.p0, triangle.p1, triangle.p2, min_dist)
 register_struct(FlatTriangle, 'FlatTriangle', fields=[('p0', Vec3Arg),
                 ('p1', Vec3Arg), ('p2', Vec3Arg), ('normal', Vec3Arg),
                 ('mat_idx', IntArg), ('light_id', IntArg)],
-                factory=lambda: FlatTriangle.factory())
+                factory=FlatTriangle.factory)

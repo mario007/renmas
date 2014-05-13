@@ -19,6 +19,7 @@ class Camera:
         path = os.path.join(path, 'cam_shaders')
         self._loader = Loader([path])
         self._standalone = None
+        self._shader_name = None
 
     def _compute_uvw(self):
         self._w = self._eye - self._lookat  # w is in oposite direction of view
@@ -55,11 +56,10 @@ class Camera:
         code = self._loader.load(shader_name, 'code.py')
         if code is None:
             raise ValueError("code.py in %s shader dont exist!" % shader_name)
-        origin = Vector3(0.0, 0.0, 0.0)
-        direction = Vector3(0.0, 0.0, 0.0)
-        ray = Ray(origin, direction)
         sample = Sample(0.0, 0.0, 0.0, 0.0, 0, 0, 0.0)
-        func_args = [StructArgPtr('ray', ray), StructArgPtr('sample', sample)]
+        func_args = [StructArgPtr('ray', Ray.factory()),
+                     StructArgPtr('sample', sample)]
+        self._shader_name = shader_name
 
         self.shader = Shader(code=code, args=args, name='generate_ray',
                              func_args=func_args, is_func=True)
@@ -100,3 +100,13 @@ direction = ray.direction
         direction = self._standalone.get_value('direction')
         ray = Ray(origin, direction)
         return ray
+
+    def output(self):
+        type_name = 'Unknown' if self._shader_name is None else self._shader_name
+        txt = 'Camera\n'
+        txt += 'type = %s\n' % type_name
+        txt += 'eye = %f, %f, %f\n' % (self._eye.x, self._eye.y, self._eye.z)
+        txt += 'lookat = %f, %f, %f\n' % (self._lookat.x, self._lookat.y, self._lookat.z)
+        txt += 'distance = %f\n' % self._distance
+        txt += 'End\n'
+        return txt

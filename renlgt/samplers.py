@@ -149,6 +149,20 @@ ret = generate_sample(sample)
         sample = self._standalone.get_value('sample')
         return sample
 
+    def output(self):
+        txt = 'Sampler\n'
+        txt += 'type = %s\n' % self.type_name()
+        txt += 'width = %i\n' % self._width
+        txt += 'height = %i\n' % self._height
+        txt += 'nsamples = %i\n' % self.nsamples()
+        txt += 'nthreads = %i\n' % self._nthreads
+        txt += 'pixelsize = %f\n' % self._pixelsize 
+        txt += 'End\n'
+        return txt
+
+    def type_name(self):
+        raise NotImplementedError()
+
 
 class SamplerGenerator():
     def __init__(self, sampler):
@@ -215,6 +229,9 @@ return 1
                              func_args=func_args, is_func=True)
         return self.shader
 
+    def type_name(self):
+        return 'regular'
+
 
 class RandomSampler(Sampler):
     def __init__(self, width=200, height=200,
@@ -255,6 +272,9 @@ return 1
         self.shader = Shader(code=code, args=args, name='generate_sample',
                              func_args=func_args, is_func=True)
         return self.shader
+
+    def type_name(self):
+        return 'random'
 
 
 class JitteredSampler(Sampler):
@@ -301,3 +321,6 @@ return 1
         self.shader = Shader(code=code, args=args, name='generate_sample',
                              func_args=func_args, is_func=True)
         return self.shader
+
+    def type_name(self):
+        return 'jittered'

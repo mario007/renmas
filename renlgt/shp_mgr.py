@@ -8,20 +8,22 @@ from .sphere import Sphere
 class ShapeManager:
     def __init__(self):
 
-        self._shape_names = {}  # name:shape
+        self._names_shapes = {}  # name:shape
         self._shape_addr = {}  # shape:idx - using in calculation of address
+        self._shapes_names = {} # shape:name
         self._shape_arrays = {}  # DynamicArrays for assembly rendering
 
         self._bbox = None
 
     def add(self, name, shape):
-        if name in self._shape_names:
+        if name in self._names_shapes:
             raise ValueError("Shape %s allready exist" % name)
 
         if shape in self._shape_addr:
             raise ValueError("Shape allready exist", shape)
 
-        self._shape_names[name] = shape
+        self._names_shapes[name] = shape
+        self._shapes_names[shape] = name
         if type(shape) not in self._shape_arrays:
             darr = ObjArray(shape)
             self._shape_arrays[type(shape)] = darr
@@ -40,11 +42,17 @@ class ShapeManager:
         darr = self._shape_arrays[type(shape)]
         darr.update(shape)
 
+    def name(self, shape):
+        return self._shapes_names[shape]
+
+    def shape(self, name):
+        return self._names_shapes[name]
+
     def shape_types(self):
         return self._shape_arrays.keys()
 
     def __iter__(self):
-        for shape in self._shape_names.values():
+        for shape in self._names_shapes.values():
             yield shape
 
     @property

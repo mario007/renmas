@@ -9,6 +9,17 @@ from .hitpoint import HitPoint
 from .shadepoint import ShadePoint
 
 
+def output_arg(name, value):
+    if isinstance(value, int):
+        return '%s = %i\n' % (name, value)
+    elif isinstance(value, float):
+        return '%s = %f\n' % (name, value)
+    elif isinstance(value, RGBSpectrum):
+        return '%s = %f, %f, %f\n' % (name, value.r, value.g, value.b)
+    else:
+        raise ValueError("Unsupported otuput to save ", name, value)
+
+
 class Material:
     def __init__(self):
         path = os.path.dirname(__file__)
@@ -185,11 +196,23 @@ shadepoint.pdf = dot(hitpoint.normal, shadepoint.wi) * 0.318309886
             raise ValueError("Material shader is not loaded!")
         return self._bsdf_shader.get_value(name)
 
+    def output(self, name):
+        txt = 'Material\n'
+        txt += 'type = %s\n' % self._shader_name
+        txt += 'name = %s\n' % name
+        args = self._load_args()
+        for arg in args:
+            value = self.get_value(arg.name)
+            txt += output_arg(arg.name, value)
+        txt += 'End\n'
+        return txt
+
 
 class MaterialManager:
     def __init__(self):
         self._materials = []
         self._materials_d = {}
+        self._materials_idx = {}
 
     def add(self, name, material):
         if name in self._materials_d:
@@ -197,6 +220,7 @@ class MaterialManager:
         if not isinstance(material, Material):
             raise ValueError("Type error. Material is expected!", material)
 
+        self._materials_idx[len(self._materials)] = name 
         self._materials.append(material)
         self._materials_d[name] = material
 
@@ -307,3 +331,12 @@ __material_pdf(hitpoint, shadepoint, ptr_func)
             return self._materials_d[name] 
 
         return self._materials[index]
+
+    def name(self, index):
+        return self._materials_idx[index]
+
+    def output(self):
+        txt = ''
+        for index, mat in enumerate(self._materials):
+            txt += mat.output(self.name(index)) + '\n'
+        return txt

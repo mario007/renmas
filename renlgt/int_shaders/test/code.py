@@ -91,9 +91,9 @@ while 1:
         pdf = ndotwi / shadepoint.pdf
         if pdf < 0.000001:
             break
-        # ttt = luminance(shadepoint.material_reflectance)
-        # if ttt < 0.00001:
-        #     break
+        ttt = luminance(shadepoint.material_reflectance)
+        if ttt < 0.00001:
+            break
 
         lum = luminance(path_weight)
         cont_prob = min(0.5, lum)

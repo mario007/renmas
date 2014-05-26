@@ -1,7 +1,8 @@
 
 import os.path
+from random import random
 from sdl import Vector3, register_struct, Ray, Shader, PointerArg,\
-    IntArg, StructArgPtr, FloatArg, Vec3Arg
+    IntArg, StructArgPtr, FloatArg, Vec3Arg, StructArg
 from .buffers import VertexBuffer, VertexNBuffer, VertexUVBuffer,\
     VertexNUVBuffer, TriangleBuffer
 from .obj import Obj
@@ -13,6 +14,7 @@ from .hitpoint import HitPoint
 from .shader_lib import ray_triangle_isect_shader
 from .save import save_mesh_data
 from .tri_box_overlap import tri_box_overlap
+from .shadepoint import ShadePoint
 
 
 def load_meshes(filename):
@@ -422,6 +424,98 @@ return 0
         ret = tri_box_overlap(box_center, half_size, (p0, p1, p2))
         return ret
 
+    def area(self):
+        ntriangles = min(4000, self._tb.size())
+        area = 0.0
+        for i in range(ntriangles):
+            idx = int(random() * self._tb.size())
+            v0, v1, v2 =  self._tb.get(idx)
+            p0 = self._vb.get(v0)
+            p0 = Vector3(p0[0], p0[1], p0[2])
+            p1 = self._vb.get(v1)
+            p1 = Vector3(p1[0], p1[1], p1[2])
+            p2 = self._vb.get(v2)
+            p2 = Vector3(p2[0], p2[1], p2[2])
+            area += (p1 - p0).cross(p2 - p0).length() * 0.5
+
+        total_area = (area / ntriangles) * self._tb.size()
+        return total_area
+
+    def light_sample(self, spectrum):
+        inv_area = 1.0 / self.area()
+
+        code = """
+tmp = random() * ntriangles
+tmp = int(tmp)
+if tmp < 0:
+    tmp = 0
+if tmp >= ntriangles:
+    tmp = ntriangles - 1
+idx_triangle = tmp
+
+tb_item_size = 12
+vb_item_size = 16
+vbuffer = mesh.vbuffer
+tbuffer = mesh.tbuffer
+
+offset = idx_triangle * tb_item_size
+ind_addr = tbuffer + offset
+p0_idx = resolve(ind_addr, int)
+ind_addr = ind_addr + 4
+p1_idx = resolve(ind_addr, int)
+ind_addr = ind_addr + 4
+p2_idx = resolve(ind_addr, int)
+
+offset = p0_idx * vb_item_size
+paddr = vbuffer + offset
+p0 = resolve(paddr, vec3)
+offset = p1_idx * vb_item_size
+paddr = vbuffer + offset
+p1 = resolve(paddr, vec3)
+offset = p2_idx * vb_item_size
+paddr = vbuffer + offset
+p2 = resolve(paddr, vec3)
+
+r1 = random()
+tmp = 1.0 - r1
+tmp = sqrt(tmp)
+beta = 1.0 - tmp
+gamma = tmp * random()
+shadepoint.light_position = (1.0 - beta - gamma) * p0 + beta * p1 + gamma * p2
+shadepoint.light_pdf = inv_area
+
+p10 = p1 - p0
+p20 = p2 - p0
+normal = cross(p10, p20)
+shadepoint.light_normal = normalize(normal)
+        """
+        inv_area = FloatArg('inv_area', inv_area)
+        ntriangles = IntArg('ntriangles', self._tb.size())
+        mesh = StructArg('mesh', self)
+        args = [inv_area, ntriangles, mesh]
+
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
+
+        name = 'flatmesh_sample_%i' % id(self)
+        return Shader(code=code, args=args, name=name,
+                      func_args=func_args, is_func=True)
+
+    def light_pdf(self, spectrum):
+        inv_area = 1.0 / self.area()
+
+        code = """
+shadepoint.light_pdf = inv_area
+        """
+        inv_area = FloatArg('inv_area', inv_area)
+        args = [inv_area]
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
+
+        name = 'flatmesh_light_pdf_%i' % id(self)
+        return Shader(code=code, args=args, name=name,
+                      func_args=func_args, is_func=True)
+
     def output(self, directory, relative_name):
         full_path = os.path.join(directory, relative_name) 
         if not os.path.isfile(full_path):
@@ -725,6 +819,97 @@ return 0
         v = uv0[1] * (1.0 - beta - gamma) + beta * uv1[1] + gamma * uv2[1]
 
         return HitPoint(t, hit_point, normal, self.mat_idx, u, v)
+
+    def area(self):
+        ntriangles = min(4000, self._tb.size())
+        area = 0.0
+        for i in range(ntriangles):
+            idx = int(random() * self._tb.size())
+            v0, v1, v2 =  self._tb.get(idx)
+            p0, uv0 = self._vb.get(v0)
+            p0 = Vector3(p0[0], p0[1], p0[2])
+            p1, uv1 = self._vb.get(v1)
+            p1 = Vector3(p1[0], p1[1], p1[2])
+            p2, uv2 = self._vb.get(v2)
+            p2 = Vector3(p2[0], p2[1], p2[2])
+            area += (p1 - p0).cross(p2 - p0).length() * 0.5
+
+        total_area = (area / ntriangles) * self._tb.size()
+        return total_area
+
+    def light_sample(self, spectrum):
+        inv_area = 1.0 / self.area()
+
+        code = """
+tmp = random() * ntriangles
+tmp = int(tmp)
+if tmp < 0:
+    tmp = 0
+if tmp >= ntriangles:
+    tmp = ntriangles - 1
+idx_triangle = tmp
+
+vbuffer = mesh.vbuffer
+tbuffer = mesh.tbuffer
+tb_item_size = 12
+vb_item_size = 32
+offset = idx_triangle * tb_item_size
+ind_addr = tbuffer + offset
+p0_idx = resolve(ind_addr, int)
+ind_addr = ind_addr + 4
+p1_idx = resolve(ind_addr, int)
+ind_addr = ind_addr + 4
+p2_idx = resolve(ind_addr, int)
+
+offset = p0_idx * vb_item_size
+paddr = vbuffer + offset
+p0 = resolve(paddr, vec3)
+offset = p1_idx * vb_item_size
+paddr = vbuffer + offset
+p1 = resolve(paddr, vec3)
+offset = p2_idx * vb_item_size
+paddr = vbuffer + offset
+p2 = resolve(paddr, vec3)
+
+r1 = random()
+tmp = 1.0 - r1
+tmp = sqrt(tmp)
+beta = 1.0 - tmp
+gamma = tmp * random()
+shadepoint.light_position = (1.0 - beta - gamma) * p0 + beta * p1 + gamma * p2
+shadepoint.light_pdf = inv_area
+
+p10 = p1 - p0
+p20 = p2 - p0
+normal = cross(p10, p20)
+shadepoint.light_normal = normalize(normal)
+        """
+        inv_area = FloatArg('inv_area', inv_area)
+        ntriangles = IntArg('ntriangles', self._tb.size())
+        mesh = StructArg('mesh', self)
+        args = [inv_area, ntriangles, mesh]
+
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
+
+        name = 'flatuvmesh_sample_%i' % id(self)
+        return Shader(code=code, args=args, name=name,
+                      func_args=func_args, is_func=True)
+
+    def light_pdf(self, spectrum):
+        inv_area = 1.0 / self.area()
+
+        code = """
+shadepoint.light_pdf = inv_area
+        """
+        inv_area = FloatArg('inv_area', inv_area)
+        args = [inv_area]
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
+
+        name = 'flatuvmesh_light_pdf_%i' % id(self)
+        return Shader(code=code, args=args, name=name,
+                      func_args=func_args, is_func=True)
 
     def triangle_box_overlap(self, box_center, half_size, idx_triangle):
         v0, v1, v2 =  self._tb.get(idx_triangle)
@@ -1041,6 +1226,107 @@ return 0
 
         return HitPoint(t, hit_point, normal, self.mat_idx, u, v)
 
+    def area(self):
+        ntriangles = min(4000, self._tb.size())
+        area = 0.0
+        for i in range(ntriangles):
+            idx = int(random() * self._tb.size())
+            v0, v1, v2 =  self._tb.get(idx)
+            p0, n0, uv0 = self._vb.get(v0)
+            p0 = Vector3(p0[0], p0[1], p0[2])
+            p1, n1, uv1 = self._vb.get(v1)
+            p1 = Vector3(p1[0], p1[1], p1[2])
+            p2, n2, uv2 = self._vb.get(v2)
+            p2 = Vector3(p2[0], p2[1], p2[2])
+            area += (p1 - p0).cross(p2 - p0).length() * 0.5
+
+        total_area = (area / ntriangles) * self._tb.size()
+        return total_area
+
+    def light_sample(self, spectrum):
+        inv_area = 1.0 / self.area()
+
+        code = """
+tmp = random() * ntriangles
+tmp = int(tmp)
+if tmp < 0:
+    tmp = 0
+if tmp >= ntriangles:
+    tmp = ntriangles - 1
+idx_triangle = tmp
+
+vbuffer = mesh.vbuffer
+tbuffer = mesh.tbuffer
+tb_item_size = 12
+vb_item_size = 48
+offset = idx_triangle * tb_item_size
+ind_addr = tbuffer + offset
+p0_idx = resolve(ind_addr, int)
+ind_addr = ind_addr + 4
+p1_idx = resolve(ind_addr, int)
+ind_addr = ind_addr + 4
+p2_idx = resolve(ind_addr, int)
+
+offset = p0_idx * vb_item_size
+paddr = vbuffer + offset
+p0 = resolve(paddr, vec3)
+offset = p1_idx * vb_item_size
+paddr = vbuffer + offset
+p1 = resolve(paddr, vec3)
+offset = p2_idx * vb_item_size
+paddr = vbuffer + offset
+p2 = resolve(paddr, vec3)
+
+r1 = random()
+tmp = 1.0 - r1
+tmp = sqrt(tmp)
+beta = 1.0 - tmp
+gamma = tmp * random()
+shadepoint.light_position = (1.0 - beta - gamma) * p0 + beta * p1 + gamma * p2
+shadepoint.light_pdf = inv_area
+
+offset = p0_idx * vb_item_size + 16
+paddr = vbuffer + offset
+n0 = resolve(paddr, vec3)
+
+offset = p1_idx * vb_item_size + 16
+paddr = vbuffer + offset
+n1 = resolve(paddr, vec3)
+
+offset = p2_idx * vb_item_size + 16
+paddr = vbuffer + offset
+n2 = resolve(paddr, vec3)
+
+normal = n0 * (1.0 - beta - gamma) + beta * n1 + gamma * n2  
+shadepoint.light_normal = normalize(normal)
+        """
+        inv_area = FloatArg('inv_area', inv_area)
+        ntriangles = IntArg('ntriangles', self._tb.size())
+        mesh = StructArg('mesh', self)
+        args = [inv_area, ntriangles, mesh]
+
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
+
+        name = 'smoothuvmesh_sample_%i' % id(self)
+        return Shader(code=code, args=args, name=name,
+                      func_args=func_args, is_func=True)
+
+    def light_pdf(self, spectrum):
+        inv_area = 1.0 / self.area()
+
+        code = """
+shadepoint.light_pdf = inv_area
+        """
+        inv_area = FloatArg('inv_area', inv_area)
+        args = [inv_area]
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
+
+        name = 'smoothuvmesh_light_pdf_%i' % id(self)
+        return Shader(code=code, args=args, name=name,
+                      func_args=func_args, is_func=True)
+
     def triangle_box_overlap(self, box_center, half_size, idx_triangle):
         v0, v1, v2 =  self._tb.get(idx_triangle)
         p0, n0, uv0 = self._vb.get(v0)
@@ -1348,6 +1634,107 @@ return 0
         u = v = 0.0
 
         return HitPoint(t, hit_point, normal, self.mat_idx, u, v)
+
+    def area(self):
+        ntriangles = min(4000, self._tb.size())
+        area = 0.0
+        for i in range(ntriangles):
+            idx = int(random() * self._tb.size())
+            v0, v1, v2 =  self._tb.get(idx)
+            p0, n0 = self._vb.get(v0)
+            p0 = Vector3(p0[0], p0[1], p0[2])
+            p1, n1 = self._vb.get(v1)
+            p1 = Vector3(p1[0], p1[1], p1[2])
+            p2, n2 = self._vb.get(v2)
+            p2 = Vector3(p2[0], p2[1], p2[2])
+            area += (p1 - p0).cross(p2 - p0).length() * 0.5
+
+        total_area = (area / ntriangles) * self._tb.size()
+        return total_area
+
+    def light_sample(self, spectrum):
+        inv_area = 1.0 / self.area()
+
+        code = """
+tmp = random() * ntriangles
+tmp = int(tmp)
+if tmp < 0:
+    tmp = 0
+if tmp >= ntriangles:
+    tmp = ntriangles - 1
+idx_triangle = tmp
+
+vbuffer = mesh.vbuffer
+tbuffer = mesh.tbuffer
+tb_item_size = 12
+vb_item_size = 32
+offset = idx_triangle * tb_item_size
+ind_addr = tbuffer + offset
+p0_idx = resolve(ind_addr, int)
+ind_addr = ind_addr + 4
+p1_idx = resolve(ind_addr, int)
+ind_addr = ind_addr + 4
+p2_idx = resolve(ind_addr, int)
+
+offset = p0_idx * vb_item_size
+paddr = vbuffer + offset
+p0 = resolve(paddr, vec3)
+offset = p1_idx * vb_item_size
+paddr = vbuffer + offset
+p1 = resolve(paddr, vec3)
+offset = p2_idx * vb_item_size
+paddr = vbuffer + offset
+p2 = resolve(paddr, vec3)
+
+r1 = random()
+tmp = 1.0 - r1
+tmp = sqrt(tmp)
+beta = 1.0 - tmp
+gamma = tmp * random()
+shadepoint.light_position = (1.0 - beta - gamma) * p0 + beta * p1 + gamma * p2
+shadepoint.light_pdf = inv_area
+
+offset = p0_idx * vb_item_size + 16
+paddr = vbuffer + offset
+n0 = resolve(paddr, vec3)
+
+offset = p1_idx * vb_item_size + 16
+paddr = vbuffer + offset
+n1 = resolve(paddr, vec3)
+
+offset = p2_idx * vb_item_size + 16
+paddr = vbuffer + offset
+n2 = resolve(paddr, vec3)
+
+normal = n0 * (1.0 - beta - gamma) + beta * n1 + gamma * n2  
+shadepoint.light_normal = normalize(normal)
+        """
+        inv_area = FloatArg('inv_area', inv_area)
+        ntriangles = IntArg('ntriangles', self._tb.size())
+        mesh = StructArg('mesh', self)
+        args = [inv_area, ntriangles, mesh]
+
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
+
+        name = 'smoothmesh_sample_%i' % id(self)
+        return Shader(code=code, args=args, name=name,
+                      func_args=func_args, is_func=True)
+
+    def light_pdf(self, spectrum):
+        inv_area = 1.0 / self.area()
+
+        code = """
+shadepoint.light_pdf = inv_area
+        """
+        inv_area = FloatArg('inv_area', inv_area)
+        args = [inv_area]
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
+
+        name = 'smoothmesh_light_pdf_%i' % id(self)
+        return Shader(code=code, args=args, name=name,
+                      func_args=func_args, is_func=True)
 
     def triangle_box_overlap(self, box_center, half_size, idx_triangle):
         v0, v1, v2 =  self._tb.get(idx_triangle)

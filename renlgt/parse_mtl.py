@@ -28,16 +28,16 @@ def _create_material(name, values, renderer, directory):
     #TODO sampled spectrum
     if 'Ka' in values and not _zero_spectrum(values['Ka']):
         v = values['Ka']
-        Ka = RGBSpectrum(v[0], v[1], v[2])
+        Ka = RGBSpectrum(float(v[0]), float(v[1]), float(v[2]))
     if 'Kd' in values and not _zero_spectrum(values['Kd']):
         v = values['Kd']
-        Kd = RGBSpectrum(v[0], v[1], v[2])
+        Kd = RGBSpectrum(float(v[0]), float(v[1]), float(v[2]))
     if 'Ks' in values and not _zero_spectrum(values['Ks']):
         v = values['Ks']
-        Ks = RGBSpectrum(v[0], v[1], v[2])
+        Ks = RGBSpectrum(float(v[0]), float(v[1]), float(v[2]))
     if 'Ke' in values and not _zero_spectrum(values['Ke']):
         v = values['Ke']
-        Ke = RGBSpectrum(v[0], v[1], v[2])
+        Ke = RGBSpectrum(float(v[0]), float(v[1]), float(v[2]))
     if 'Ns' in values:
         Ns = float(values['Ns'][0])
     if 'Ni' in values:
@@ -48,7 +48,7 @@ def _create_material(name, values, renderer, directory):
         Tr = float(values['Tr'][0])
     if 'Tf' in values and not _zero_spectrum(values['Tf']):
         v = values['Tf']
-        Tf = RGBSpectrum(v[0], v[1], v[2])
+        Tf = RGBSpectrum(float(v[0]), float(v[1]), float(v[2]))
     if 'illum' in values:
         illum = int(values['illum'][0])
     if 'map_Ka' in values:
@@ -61,8 +61,14 @@ def _create_material(name, values, renderer, directory):
         map_d = values['map_d'][0].strip()
 
     mat = Material()
-    if Ks is not None: # phong material
-        mat.load('phong', renderer.sam_mgr, renderer.spectral)
+    if Ke is not None: # lambertian emission
+        mat.load('lambertian_emiter', renderer.sam_mgr, renderer.spectral)
+        mat.set_value('emission', Ke)
+        if Kd is None:
+            Kd = RGBSpectrum(0.0, 0.0, 0.0)
+        mat.set_value('diffuse', Kd)
+    elif Ks is not None: # phong material
+        mat.load('phong2', renderer.sam_mgr, renderer.spectral)
         mat.set_value('specular', Ks)
         if Kd is None:
             Kd = RGBSpectrum(0.0, 0.0, 0.0)

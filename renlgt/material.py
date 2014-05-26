@@ -190,6 +190,7 @@ shadepoint.pdf = dot(hitpoint.normal, shadepoint.wi) * 0.318309886
             val = self._sam_mgr.sampled_to_rgb(val)
         self._bsdf_shader.set_value(name, val)
         self._sampling_shader.set_value(name, val)
+        self._pdf_shader.set_value(name, val)
 
     def get_value(self, name):
         if self._bsdf_shader is None:

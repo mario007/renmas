@@ -1,0 +1,6 @@
+
+rgb diffuse
+rgb specular
+float nu = 1.0
+float nv = 1.0
+

@@ -132,6 +132,17 @@ def _float4_function(cgen, operands):
 register_function('float4', _float4_function, inline=True)
 
 
+def _rgb_function(cgen, operands):
+    if len(operands) != 3:
+        raise ValueError("Wrong number of operands in rgb func.", operands)
+
+    code1, xmm = _combine_two_floats(cgen, operands[0], operands[1])
+    code2, xmm = _add_float(cgen, xmm, operands[2], 8)
+    return code1 + code2, xmm, RGBArg
+
+register_function('rgb', _rgb_function, inline=True)
+
+
 def _dot_function(cgen, operands):
     if len(operands) != 2:
         raise ValueError("Wrong number of operands in dot fucntion", operands)

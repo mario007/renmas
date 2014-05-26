@@ -74,18 +74,12 @@ hitpoint.v = gamma
 return 1
 
         """
-    origin = Vector3(0.0, 0.0, 0.0)
-    direction = Vector3(0.0, 0.0, 0.0)
-    ray = Ray(origin, direction)
-    ray_a = StructArgPtr('ray', ray)
+    ray_a = StructArgPtr('ray', Ray.factory())
     p0 = Vec3Arg('p0', Vector3(0.0, 0.0, 0.0))
     p1 = Vec3Arg('p1', Vector3(0.0, 0.0, 0.0))
     p2 = Vec3Arg('p2', Vector3(0.0, 0.0, 0.0))
     dist = FloatArg('min_dist', 0.0)
-
-    hitpoint = HitPoint(0.0, Vector3(0.0, 0.0, 0.0),
-                        Vector3(0.0, 0.0, 0.0), 0, 0.0, 0.0)
-    hit_a = StructArgPtr('hitpoint', hitpoint)
+    hit_a = StructArgPtr('hitpoint', HitPoint.factory())
     if isect_bool:
         func_args = [ray_a, p0, p1, p2, dist]
     else:

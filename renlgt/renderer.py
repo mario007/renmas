@@ -100,10 +100,6 @@ class Renderer:
         for shape in self.lights.shapes_to_update():
             self.shapes.update(shape)
 
-        self.materials.compile_shaders(self.sam_mgr, self.spectral,
-                                       shaders_funcs)
-        self.materials.prepare_shaders(runtimes)
-
         if self.spectral:
             spec_to_vec = sampled_to_vec_shader(self.sam_mgr)
             lumminance = lum_sampled_shader(self.sam_mgr)
@@ -114,6 +110,10 @@ class Renderer:
         spec_to_vec.prepare(runtimes)
         lumminance.compile()
         lumminance.prepare(runtimes)
+
+        self.materials.compile_shaders(self.sam_mgr, self.spectral,
+                                       shaders_funcs + [lumminance])
+        self.materials.prepare_shaders(runtimes)
 
         shaders = [self.sampler.shader, self.camera.shader,
                    self.intersector.shader, self.lights.rad_shader,
@@ -139,7 +139,6 @@ class Renderer:
         times. Function return True if all samples are processed otherwise
         False.
         """
-
         if not self._ready:
             self.prepare()
 

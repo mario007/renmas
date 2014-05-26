@@ -11,7 +11,7 @@ from .utils import LocalArgs, Registers
 from .strs import Attribute, Callable, Const, Name, Subscript
 from .args import Argument, arg_from_value, _struct_desc, StructArg,\
     IntArg, Vec2Arg, Vec3Arg, Vec4Arg, FloatArg, StructArgPtr, ArgList,\
-    SampledArg, PointerArg
+    SampledArg, PointerArg, RGBArg
 from .asm_cmds import store_func_args, load_func_args, move_reg_to_reg,\
     move_reg_to_mem, move_mem_to_reg
 from .ext_func import ExtFunction
@@ -369,7 +369,8 @@ class CodeGenerator:
 
     def acum_for_type(self, arg_type):
         types = {IntArg: 'eax', FloatArg: 'xmm0',
-                 Vec2Arg: 'xmm0', Vec3Arg: 'xmm0', Vec4Arg: 'xmm0'}
+                 Vec2Arg: 'xmm0', Vec3Arg: 'xmm0', Vec4Arg: 'xmm0', 
+                 RGBArg: 'xmm0', SampledArg: 'rax'}
         return types[arg_type]
 
     def _call_shader(self, shader, operand, regs):

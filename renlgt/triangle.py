@@ -6,6 +6,7 @@ from .hitpoint import HitPoint
 from .shape import Shape, DependencyShader
 from .shader_lib import ray_triangle_isect_shader
 from .bbox import BBox
+from .shadepoint import ShadePoint
 
 
 class FlatTriangle(Shape):
@@ -168,6 +169,50 @@ else:
             return False
 
         return True
+
+    def light_sample(self, spectrum):
+        area = (self.p1 - self.p0).cross(self.p2 - self.p0).length() * 0.5
+        inv_area = 1.0 / area
+
+        code = """
+r1 = random()
+tmp = 1.0 - r1
+tmp = sqrt(tmp)
+beta = 1.0 - tmp
+gamma = tmp * random()
+shadepoint.light_position = (1.0 - beta - gamma) * p0 + beta * p1 + gamma * p2
+shadepoint.light_pdf = inv_area
+shadepoint.light_normal = normal
+        """
+        inv_area = FloatArg('inv_area', inv_area)
+        normal = Vec3Arg('normal', self.normal)
+        p0 = Vec3Arg('p0', self.p0)
+        p1 = Vec3Arg('p1', self.p1)
+        p2 = Vec3Arg('p2', self.p2)
+        args = [inv_area, normal, p0, p1, p2]
+
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
+
+        name = 'triangle_sample_%i' % id(self)
+        return Shader(code=code, args=args, name=name,
+                      func_args=func_args, is_func=True)
+
+    def light_pdf(self, spectrum):
+        area = (self.p1 - self.p0).cross(self.p2 - self.p0).length() * 0.5
+        inv_area = 1.0 / area
+
+        code = """
+shadepoint.light_pdf = inv_area
+        """
+        inv_area = FloatArg('inv_area', inv_area)
+        args = [inv_area]
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
+
+        name = 'triangle_light_pdf_%i' % id(self)
+        return Shader(code=code, args=args, name=name,
+                      func_args=func_args, is_func=True)
 
     def bbox(self):
         epsilon = 0.0001

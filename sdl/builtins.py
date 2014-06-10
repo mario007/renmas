@@ -5,7 +5,7 @@ from .args import IntArg, FloatArg, Vec2Arg, Vec3Arg, Vec4Arg, StructArg,\
     SampledArg, RGBArg, PointerArg
 from .asm_cmds import load_operand, conv_float_to_int, conv_int_to_float,\
     zero_register
-from .cgen import register_function, create_spectrum
+from .cgen import register_function
 
 
 def _int_function(cgen, operands):
@@ -468,13 +468,15 @@ def _spectrum(cgen, operands):
     else:
         code += "shufps %s, %s, 0x00\n" % (xmm, xmm)
 
-    spec = create_spectrum()
+    if cgen.color_mgr:
+        spec = cgen.color_mgr.zero()
+    else:
+        spec = RGBSpectrum(0.0, 0.0, 0.0)
     if isinstance(spec, RGBSpectrum):
         return code, xmm, RGBArg
 
     name = Name(cgen._generate_name('local'))
-    arg = SampledArg(name, spec)
-    sam_arg = cgen.create_arg(name, arg)
+    sam_arg = cgen.create_arg(name, SampledArg)
     dst_reg = cgen.register(typ='pointer')
     code += 'mov %s, %s\n' % (dst_reg, sam_arg.name)
 
@@ -482,12 +484,12 @@ def _spectrum(cgen, operands):
     if cgen.AVX:
         xmm = "y" + xmm[1:]
         code += "vperm2f128 %s, %s, %s, 0x00 \n" % (xmm, xmm, xmm)
-        rounds = len(arg.value.samples) // 8
+        rounds = len(spec.samples) // 8
         for i in range(rounds):
             code += "vmovaps yword[%s + %i], %s\n" % (sam_arg.name, offset, xmm)
             offset += 32
     else:
-        rounds = len(arg.value.samples) // 4
+        rounds = len(spec.samples) // 4
         for i in range(rounds):
             code += "movaps oword[%s + %i], %s\n" % (sam_arg.name, offset, xmm)
             offset += 16

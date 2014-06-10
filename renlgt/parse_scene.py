@@ -34,7 +34,7 @@ def _extract_values(fobj):
     return values
 
 
-def _value_factory(old_val, val, sam_mgr, light=False):
+def _value_factory(old_val, val, color_mgr, light=False):
 
     if isinstance(old_val, Vector3):
         return Vector3(float(val[0]), float(val[1]), float(val[2]))
@@ -44,7 +44,7 @@ def _value_factory(old_val, val, sam_mgr, light=False):
     elif isinstance(old_val, SampledSpectrum):
         #TODO parsing of spectrum values from file
         s = RGBSpectrum(float(val[0]), float(val[1]), float(val[2]))
-        return sam_mgr.rgb_to_sampled(s, illum=light)
+        return color_mgr.rgb_to_sampled(s, illum=light)
     elif isinstance(old_val, float):
         return float(val[0])
     else:
@@ -75,7 +75,7 @@ def _parse_light(fobj, renderer):
         raise ValueError("Type attribute for light is missing")
     typ = values['type'][0].strip()
     light = GeneralLight()
-    light.load(typ, renderer.sam_mgr, renderer.spectral)
+    light.load(typ, renderer.color_mgr)
     del values['type']
     name = 'light_%i' % id(light)
     if 'name' in values:
@@ -83,7 +83,7 @@ def _parse_light(fobj, renderer):
         del values['name']
     for key, val in values.items():
         old_val = light.get_value(key)
-        new_val = _value_factory(old_val, val, renderer.sam_mgr)
+        new_val = _value_factory(old_val, val, renderer.color_mgr)
         light.set_value(key, new_val)
     renderer.lights.add(name, light)
 
@@ -94,7 +94,7 @@ def _parse_material(fobj, renderer):
         raise ValueError("Type attribute for light is missing")
     typ = values['type'][0].strip()
     mat = Material()
-    mat.load(typ, renderer.sam_mgr, renderer.spectral)
+    mat.load(typ, renderer.color_mgr)
     if 'name' not in values:
         raise ValueError("Material name is missing")
     name = values['name'][0].strip()
@@ -102,7 +102,7 @@ def _parse_material(fobj, renderer):
     del values['name']
     for key, val in values.items():
         old_val = mat.get_value(key)
-        new_val = _value_factory(old_val, val, renderer.sam_mgr)
+        new_val = _value_factory(old_val, val, renderer.color_mgr)
         mat.set_value(key, new_val)
     renderer.materials.add(name, mat)
 

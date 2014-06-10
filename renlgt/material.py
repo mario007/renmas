@@ -1,12 +1,13 @@
 
 import os.path
-from sdl import Vector3, Loader, parse_args, Vec3Arg, FloatArg,\
+from sdl import Vector3, Loader, Vec3Arg, FloatArg,\
     Ray, StructArgPtr, Shader, StructArg, RGBSpectrum, RGBArg,\
     SampledSpectrum, SampledArg, IntArg, ArgList, PointerArg
 from sdl.arr import PtrsArray, ArrayArg
 
 from .hitpoint import HitPoint
 from .shadepoint import ShadePoint
+from .parse_args import parse_args
 
 
 def output_arg(name, value):
@@ -41,27 +42,14 @@ class Material:
         return func_args
 
     def _load_args(self):
-        tmp_args = []
+        args = []
         text = self._loader.load(self._shader_name, 'props.txt')
         if text is not None:
-            tmp_args = parse_args(text)
-        args = []
-        for a in tmp_args:
-            if self._spectral and isinstance(a, RGBArg):
-                val = self._sam_mgr.rgb_to_sampled(a.value, illum=True)
-                aa = SampledArg(a.name, val)
-                args.append(aa)
-            elif not self._spectral and isinstance(a, SampledArg):
-                val = self._sam_mgr.sampled_to_rgb(a.value)
-                aa = RGBArg(a.name, val)
-                args.append(aa)
-            else:
-                args.append(a)
+            args = parse_args(text, self._color_mgr)
         return args
 
-    def load(self, shader_name, sam_mgr, spectral=False):
-        self._spectral = spectral
-        self._sam_mgr = sam_mgr
+    def load(self, shader_name, color_mgr):
+        self._color_mgr = color_mgr
         self._shader_name = shader_name
 
         code = self._loader.load(shader_name, 'bsdf.py')
@@ -70,7 +58,7 @@ class Material:
         
         args = self._load_args()
         name = 'material_%i' % id(args)
-        s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
+        s = color_mgr.zero()
         func_args = self._func_args(s)
         self._bsdf_shader = Shader(code=code, args=args, name=name,
                                    func_args=func_args, is_func=True)
@@ -143,9 +131,9 @@ shadepoint.pdf = dot(hitpoint.normal, shadepoint.wi) * 0.318309886
         return code
 
     def compile(self, shaders=[]):
-        self._bsdf_shader.compile(shaders)
-        self._sampling_shader.compile(shaders)
-        self._pdf_shader.compile(shaders)
+        self._bsdf_shader.compile(shaders, color_mgr=self._color_mgr)
+        self._sampling_shader.compile(shaders, color_mgr=self._color_mgr)
+        self._pdf_shader.compile(shaders, color_mgr=self._color_mgr)
 
     def prepare(self, runtimes):
         self._bsdf_shader.prepare(runtimes)
@@ -170,7 +158,7 @@ shadepoint.pdf = dot(hitpoint.normal, shadepoint.wi) * 0.318309886
             raise ValueError("emission.py in %s dont exist!" % self._shader_name)
 
         name = 'material_emission_%i' % id(args)
-        s = self._sam_mgr.zero() if self._spectral else RGBSpectrum(0.0, 0.0, 0.0)
+        s = self._color_mgr.zero()
         func_args = self._func_args(s)
         emission_shader = Shader(code=code, args=args, name=name,
                                  func_args=func_args, is_func=True)
@@ -184,10 +172,8 @@ shadepoint.pdf = dot(hitpoint.normal, shadepoint.wi) * 0.318309886
     def set_value(self, name, val):
         if self._bsdf_shader is None:
             raise ValueError("Material shader is not loaded!")
-        if self._spectral and isinstance(val, RGBSpectrum):
-            val = self._sam_mgr.rgb_to_sampled(val, illum=False)
-        if not self._spectral and isinstance(val, SampledSpectrum):
-            val = self._sam_mgr.sampled_to_rgb(val)
+        if isinstance(val, (RGBSpectrum, SampledSpectrum)):
+            val = self._color_mgr.convert_spectrum(val)
         self._bsdf_shader.set_value(name, val)
         self._sampling_shader.set_value(name, val)
         self._pdf_shader.set_value(name, val)
@@ -231,58 +217,55 @@ class MaterialManager:
                      IntArg('mat_idx', 0)]
         return func_args
 
-    def _mtl_reflectance(self, sam_mgr, spectral=False):
+    def _mtl_reflectance(self, color_mgr):
         code = """
 ptr_func = mtl_ptrs[mat_idx]
 __material_reflectance(hitpoint, shadepoint, ptr_func)
         """
         ref_ptrs = ArrayArg('mtl_ptrs', PtrsArray())
         al = ArgList('mtl_ptrs', [ref_ptrs])
-        s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
-        func_args = self._func_args(s)
+        func_args = self._func_args(color_mgr.zero())
         args = [al]
         self.ref_shader = Shader(code=code, args=args, name='material_reflectance',
                                  func_args=func_args, is_func=True)
 
-    def _mtl_sampling(self, sam_mgr, spectral=False):
+    def _mtl_sampling(self, color_mgr):
         code = """
 ptr_func = mtl_sampling_ptrs[mat_idx]
 __material_sampling(hitpoint, shadepoint, ptr_func)
         """
         sampling_ptrs = ArrayArg('mtl_sampling_ptrs', PtrsArray())
         al = ArgList('mtl_sampling_ptrs', [sampling_ptrs])
-        s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
-        func_args = self._func_args(s)
+        func_args = self._func_args(color_mgr.zero())
         args = [al]
         self.sampling_shader = Shader(code=code, args=args, name='material_sampling',
                                  func_args=func_args, is_func=True)
 
-    def _mtl_pdf(self, sam_mgr, spectral=False):
+    def _mtl_pdf(self, color_mgr):
         code = """
 ptr_func = mtl_pdf_ptrs[mat_idx]
 __material_pdf(hitpoint, shadepoint, ptr_func)
         """
         pdf_ptrs = ArrayArg('mtl_pdf_ptrs', PtrsArray())
         al = ArgList('mtl_pdf_ptrs', [pdf_ptrs])
-        s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
-        func_args = self._func_args(s)
+        func_args = self._func_args(color_mgr.zero())
         args = [al]
         self.pdf_shader = Shader(code=code, args=args, name='material_pdf',
                                  func_args=func_args, is_func=True)
 
-    def compile_shaders(self, sam_mgr, spectral=False, shaders=[]):
+    def compile_shaders(self, color_mgr, shaders=[]):
 
         for m in self._materials:
             m.compile(shaders)
 
-        self._mtl_reflectance(sam_mgr, spectral)
-        self.ref_shader.compile(shaders)
+        self._mtl_reflectance(color_mgr)
+        self.ref_shader.compile(shaders, color_mgr=color_mgr)
 
-        self._mtl_sampling(sam_mgr, spectral)
-        self.sampling_shader.compile(shaders)
+        self._mtl_sampling(color_mgr)
+        self.sampling_shader.compile(shaders, color_mgr=color_mgr)
 
-        self._mtl_pdf(sam_mgr, spectral)
-        self.pdf_shader.compile(shaders)
+        self._mtl_pdf(color_mgr)
+        self.pdf_shader.compile(shaders, color_mgr=color_mgr)
 
     def prepare_shaders(self, runtimes):
         for m in self._materials:

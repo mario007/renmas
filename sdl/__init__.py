@@ -4,13 +4,13 @@ from .loader import Loader
 from .shader import Shader
 from .builtins import *
 from .args import register_struct, Vec3Arg, StructArgPtr,\
-    StructArg, PointerArg, parse_args, ArgList
+    StructArg, PointerArg, ArgList, arg_from_value, get_struct_desc, Vec4Arg
 
 
 from .ray import Ray
-from .vector import Vector3
+from .vector import Vector2, Vector3, Vector4
 from .image import ImageRGBA, ImagePRGBA
-from .spectrum import RGBSpectrum, SampledSpectrum, SampledManager
+from .spectrum import RGBSpectrum, SampledSpectrum, SampledManager, RGBManager
 
 register_struct(Ray, 'Ray', fields=[('origin', Vec3Arg),
                 ('direction', Vec3Arg)],

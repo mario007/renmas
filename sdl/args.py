@@ -241,6 +241,14 @@ def register_struct(typ, type_name, fields, factory=None):
     _struct_desc[type_name] = desc
 
 
+def get_struct_desc(type_name=None, typ=None):
+    if type_name and type_name in _struct_desc:
+        return _struct_desc[type_name]
+    if typ and typ in _struct_desc:
+        return _struct_desc[typ]
+    return None
+
+
 class StructArg(Argument):
     def __init__(self, name, value):
         super(StructArg, self).__init__(name)
@@ -530,6 +538,10 @@ def arg_from_value(name, value):
         arg = IntArg(name, value)
     elif isinstance(value, float):
         arg = FloatArg(name, value)
+    elif isinstance(value, RGBSpectrum):
+        arg = RGBArg(name, value)
+    elif isinstance(value, SampledSpectrum):
+        arg = SampledArg(name, value)
     elif isinstance(value, (list, tuple)):
         if len(value) == 2:
             arg = Vec2Arg(name, Vector2.create(*value))
@@ -542,69 +554,3 @@ def arg_from_value(name, value):
     else:
         raise ValueError("Unknown type of value", type(value), value)
     return arg
-
-
-def _parse_float(line):
-    t = line.split('=', maxsplit=1)
-    name = t.pop(0).strip()
-    if len(t) == 0:
-        return FloatArg(name, 0.0)
-    v = float(t.pop(0).strip())
-    return FloatArg(name, v)
-
-
-def _parse_vec4(line):
-    t = line.split('=', maxsplit=1)
-    name = t.pop(0).strip()
-    if len(t) == 0:
-        return Vec4Arg(name, Vector4(0.0, 0.0, 0.0, 0.0))
-
-    v = t.pop(0).strip().split(',')
-    arg = Vec4Arg(name, Vector4(float(v[0]), float(v[1]),
-                                float(v[2]), float(v[3])))
-
-    return arg
-
-def _parse_vec3(line):
-    t = line.split('=', maxsplit=1)
-    name = t.pop(0).strip()
-    if len(t) == 0:
-        return Vec3Arg(name, Vector3(0.0, 0.0, 0.0))
-
-    v = t.pop(0).strip().split(',')
-    arg = Vec3Arg(name, Vector3(float(v[0]), float(v[1]),
-                                float(v[2])))
-
-    return arg
-
-def _parse_rgb(line):
-    t = line.split('=', maxsplit=1)
-    name = t.pop(0).strip()
-    if len(t) == 0:
-        return RGBArg(name, RGBSpectrum(0.0, 0.0, 0.0))
-    v = t.pop(0).strip().split(',')
-    return RGBArg(name, RGBSpectrum(float(v[0]), float(v[1]), float(v[2])))
-
-
-def parse_args(text):
-    funcs = {'vector4': _parse_vec4, 'rgb': _parse_rgb,
-            'float': _parse_float, 'vector3': _parse_vec3}
-
-    args = []
-    for line in text.splitlines():
-        line = line.strip()
-        if line == '':
-            continue
-        type_name, rest = line.split(maxsplit=1)
-        if type_name in funcs:
-            arg = funcs[type_name](rest.strip())
-        elif type_name in _struct_desc:
-            value = _struct_desc[type_name].factory()
-            vals = rest.strip().split()
-            name = vals.pop(0).strip()
-            arg = StructArg(name, value)
-        else:
-            raise ValueError("Unknown typename ", type_name)
-        args.append(arg)
-    return args
-

@@ -2,10 +2,9 @@
 import unittest
 from tdasm import Runtime
 
-from sdl.spectrum import RGBSpectrum, SampledSpectrum, create_samples
+from sdl.spectrum import RGBSpectrum, SampledSpectrum, create_samples, SampledManager
 from sdl.shader import Shader
 from sdl.args import RGBArg, SampledArg
-from sdl.cgen import spectrum_factory
 
 
 class SpectrumTests(unittest.TestCase):
@@ -27,9 +26,6 @@ spec = Spectrum(0.23)
         self.assertAlmostEqual(val.b, 0.23)
 
     def test_sampled_spectrum(self):
-        factory = lambda: SampledSpectrum(tuple((0.0 for i in range(32))))
-        spectrum_factory(factory)
-
         code = """
 spec = Spectrum(0.23)
         """
@@ -40,7 +36,7 @@ spec = Spectrum(0.23)
         spec = SampledArg('spec', sam_spec)
 
         shader = Shader(code=code, args=[spec])
-        shader.compile()
+        shader.compile(color_mgr=SampledManager())
         runtime = Runtime()
         shader.prepare([runtime])
         shader.execute()

@@ -2,9 +2,10 @@
 
 import os.path
 from tdasm import Runtime
-from sdl import Loader, parse_args, StructArgPtr, Shader, FloatArg
+from sdl import Loader, StructArgPtr, Shader, FloatArg
 
 from .sample import Sample
+from .parse_args import parse_args
 
 
 class SampleFilter:

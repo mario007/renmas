@@ -1,12 +1,13 @@
 
 import os.path
-from sdl import Loader, parse_args, StructArgPtr, Shader,\
+from sdl import Loader, StructArgPtr, Shader,\
     RGBSpectrum, RGBArg, SampledSpectrum, SampledArg, IntArg,\
     ArgList, PointerArg, Vector3
 from sdl.arr import PtrsArray, ArrayArg
 
 from .hitpoint import HitPoint
 from .shadepoint import ShadePoint
+from .parse_args import parse_args
 
 
 def output_arg(name, value):
@@ -38,39 +39,26 @@ class GeneralLight(Light):
                      StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
         return func_args
 
-    def load(self, shader_name, sam_mgr, spectral=False):
-        tmp_args = []
+
+    def load(self, shader_name, color_mgr):
+        args = []
         text = self._loader.load(shader_name, 'props.txt')
         if text is not None:
-            tmp_args = parse_args(text)
-        args = []
-        for a in tmp_args:
-            if spectral and isinstance(a, RGBArg):
-                val = sam_mgr.rgb_to_sampled(a.value, illum=True)
-                aa = SampledArg(a.name, val)
-                args.append(aa)
-            elif not spectral and isinstance(a, SampledArg):
-                val = sam_mgr.sampled_to_rgb(a.value)
-                aa = RGBArg(a.name, val)
-                args.append(aa)
-            else:
-                args.append(a)
+            args = parse_args(text, color_mgr)
 
         code = self._loader.load(shader_name, 'code.py')
         if code is None:
             raise ValueError("code.py in %s shader dont exist!" % shader_name)
 
         name = 'light_%i' % id(args)
-        s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
-        func_args = self._func_args(s)
+        func_args = self._func_args(color_mgr.zero())
         self.shader = Shader(code=code, args=args, name=name,
                              func_args=func_args, is_func=True)
-        self._spectral = spectral
-        self._sam_mgr = sam_mgr
+        self._color_mgr = color_mgr
         self._shader_name = shader_name
 
     def compile(self, shaders=[]):
-        self.shader.compile(shaders)
+        self.shader.compile(shaders, color_mgr=self._color_mgr)
 
     def prepare(self, runtimes):
         self.shader.prepare(runtimes)
@@ -83,10 +71,8 @@ class GeneralLight(Light):
     def set_value(self, name, val):
         if self.shader is None:
             raise ValueError("Light shader is not loaded!")
-        if self._spectral and isinstance(val, RGBSpectrum):
-            val = self._sam_mgr.rgb_to_sampled(val, illum=True)
-        if not self._spectral and isinstance(val, SampledSpectrum):
-            val = self._sam_mgr.sampled_to_rgb(val)
+        if isinstance(val, (RGBSpectrum, SampledSpectrum)):
+            val = self._color_mgr.convert_spectrum(val, illum=True)
         self.shader.set_value(name, val)
 
     def output(self, name):
@@ -122,27 +108,14 @@ class AreaLight(Light):
         return func_args
 
     def _load_args(self):
-        tmp_args = []
+        args = []
         text = self._loader.load(self._shader_name, 'props.txt')
         if text is not None:
-            tmp_args = parse_args(text)
-        args = []
-        for a in tmp_args:
-            if self._spectral and isinstance(a, RGBArg):
-                val = self._sam_mgr.rgb_to_sampled(a.value, illum=True)
-                aa = SampledArg(a.name, val)
-                args.append(aa)
-            elif not self._spectral and isinstance(a, SampledArg):
-                val = self._sam_mgr.sampled_to_rgb(a.value)
-                aa = RGBArg(a.name, val)
-                args.append(aa)
-            else:
-                args.append(a)
+            args = parse_args(text, self._color_mgr)
         return args
 
-    def load(self, shader_name, sam_mgr, spectral=False):
-        self._spectral = spectral
-        self._sam_mgr = sam_mgr
+    def load(self, shader_name, color_mgr):
+        self._color_mgr = color_mgr
         self._shader_name = shader_name
 
         args = self._load_args()
@@ -159,14 +132,13 @@ class AreaLight(Light):
             raise ValueError("code.py in %s shader dont exist!" % shader_name)
 
         name = 'light_%i' % id(args)
-        s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
-        func_args = self._func_args(s)
+        func_args = self._func_args(color_mgr.zero())
         self.shader = Shader(code=code, args=args, name=name,
                              func_args=func_args, is_func=True)
         
         # area light emission shader
         name = 'light_emission%i' % id(args)
-        func_args = self._func_args(s)
+        func_args = self._func_args(color_mgr.zero())
         args = []
         ptr_lgt_pdf = PointerArg('ptr_light_pdf', 0)
         lgt_pdf = ArgList('ptr_light_pdf', [ptr_lgt_pdf])
@@ -182,18 +154,18 @@ __material_emission(hitpoint, shadepoint, ptr_mat_emission)
                                       func_args=func_args, is_func=True)
 
     def compile(self, shaders=[]):
-        self.shader.compile(shaders)
-        self.emission_shader.compile(shaders)
+        self.shader.compile(shaders, color_mgr=self._color_mgr)
+        self.emission_shader.compile(shaders, color_mgr=self._color_mgr)
 
-        s = self._sam_mgr.zero() if self._spectral else RGBSpectrum(0.0, 0.0, 0.0)
-        self.light_sample_shader = self.shape.light_sample(s)
-        self.light_sample_shader.compile(shaders)
+        spec = self._color_mgr.zero()
+        self.light_sample_shader = self.shape.light_sample(spec)
+        self.light_sample_shader.compile(shaders, color_mgr=self._color_mgr)
 
-        self.light_pdf_shader = self.shape.light_pdf(s)
-        self.light_pdf_shader.compile(shaders)
+        self.light_pdf_shader = self.shape.light_pdf(spec)
+        self.light_pdf_shader.compile(shaders, color_mgr=self._color_mgr)
 
         self._emission_shader = self.material.emission_shader()
-        self._emission_shader.compile(shaders)
+        self._emission_shader.compile(shaders, color_mgr=self._color_mgr)
 
 
     def prepare(self, runtimes):
@@ -231,10 +203,7 @@ __material_emission(hitpoint, shadepoint, ptr_mat_emission)
     def set_value(self, name, val):
         if self.shader is None:
             raise ValueError("Light shader is not loaded!")
-        if self._spectral and isinstance(val, RGBSpectrum):
-            val = self._sam_mgr.rgb_to_sampled(val, illum=True)
-        if not self._spectral and isinstance(val, SampledSpectrum):
-            val = self._sam_mgr.sampled_to_rgb(val)
+        val = self._color_mgr.convert_spectrum(val, illum=True)
         self.shader.set_value(name, val)
 
 
@@ -292,20 +261,19 @@ class LightManager:
                      IntArg('mat_idx', 0)]
         return func_args
 
-    def _lgt_radiance(self, sam_mgr, spectral=False):
+    def _lgt_radiance(self, color_mgr):
         code = """
 ptr_func = lgt_ptrs[mat_idx]
 __light_radiance(hitpoint, shadepoint, ptr_func)
         """
         lgt_ptrs = ArrayArg('lgt_ptrs', PtrsArray())
         al = ArgList('lgt_ptrs', [lgt_ptrs])
-        s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
-        func_args = self._func_args(s)
+        func_args = self._func_args(color_mgr.zero())
         args = [al]
         self.rad_shader = Shader(code=code, args=args, name='light_radiance',
                                  func_args=func_args, is_func=True)
 
-    def _lgt_emission(self, sam_mgr, spectral=True):
+    def _lgt_emission(self, color_mgr):
         code = """
 if light_id < 0:
     shadepoint.light_intensity = Spectrum(0.0)
@@ -316,35 +284,35 @@ else:
         """
         lgt_ptrs = ArrayArg('lgt_ptrs', PtrsArray())
         al = ArgList('lgt_ptrs', [lgt_ptrs])
-        s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
+        spec = color_mgr.zero()
         func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
-                     StructArgPtr('shadepoint', ShadePoint.factory(s)),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spec)),
                      IntArg('light_id', -1)]
         args = [al]
         self.emission_shader = Shader(code=code, args=args, name='light_emission',
                                       func_args=func_args, is_func=True)
 
-    def compile_shaders(self, sam_mgr, spectral=False, shaders=[]):
+    def compile_shaders(self, color_mgr, shaders=[]):
 
         for l in self._lights:
             l.compile(shaders)
-        self._lgt_radiance(sam_mgr, spectral)
-        self.rad_shader.compile(shaders)
+        self._lgt_radiance(color_mgr)
+        self.rad_shader.compile(shaders, color_mgr=color_mgr)
 
-        self._lgt_emission(sam_mgr, spectral)
-        self.emission_shader.compile(shaders)
+        self._lgt_emission(color_mgr)
+        self.emission_shader.compile(shaders, color_mgr=color_mgr)
 
         code = "return %i\n" % len(self._lights)
         self.nlights_shader = Shader(code=code, name='number_of_lights',
                                      is_func=True)
         self.nlights_shader.compile()
 
-        self._compile_environment(sam_mgr, spectral, shaders)
+        self._compile_environment(color_mgr, shaders)
 
-    def _compile_environment(self, sam_mgr, spectral, shaders=[]):
+    def _compile_environment(self, color_mgr, shaders=[]):
         if self._env_light is not None:
             self.env_shader = self._env_light.env_shader()
-            self.env_shader.compile(shaders)
+            self.env_shader.compile(shaders, color_mgr=color_mgr)
             return
 
         # We create dummy shader for environment emission
@@ -352,12 +320,12 @@ else:
 shadepoint.light_intensity = Spectrum(0.0)
 shadepoint.light_pdf = 1.0
         '''
-        s = sam_mgr.zero() if spectral else RGBSpectrum(0.0, 0.0, 0.0)
+        spec = color_mgr.zero()
         func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
-                     StructArgPtr('shadepoint', ShadePoint.factory(s))]
+                     StructArgPtr('shadepoint', ShadePoint.factory(spec))]
         self.env_shader = Shader(code=code, name='environment_emission',
                                  func_args=func_args, is_func=True)
-        self.env_shader.compile(shaders)
+        self.env_shader.compile(shaders, color_mgr=color_mgr)
 
     def prepare_shaders(self, runtimes):
         for l in self._lights:

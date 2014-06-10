@@ -1,29 +1,28 @@
 
-from sdl import RGBSpectrum, SampledSpectrum, Shader,\
-    RGBArg, SampledArg, FloatArg, Vec3Arg, Vector3
+from sdl import RGBSpectrum, Shader, RGBArg, SampledArg,\
+    FloatArg, Vec3Arg, Vector3, RGBManager, SampledManager
 from sdl.args import SampledArgPtr
 
 
-def lum_sampled_shader(col_mgr):
+def _sampled_luminance_shader(sampled_mgr):
     code = """
 y =  cie_y * spec
 y_sum = sum_samples(y)
 return y_sum * scale
     """
-
-    spec = col_mgr.zero()
+    spec = sampled_mgr.zero()
     spec_arg = SampledArgPtr('spec', 0, spec)
 
-    scale = (col_mgr.end - col_mgr.start) / (col_mgr.yint * col_mgr.nsamples)
+    scale = (sampled_mgr.end - sampled_mgr.start) / (sampled_mgr.yint * sampled_mgr.nsamples)
     p1 = FloatArg('scale', scale)
-    cie_y = SampledArg('cie_y', col_mgr._cie_y)
+    cie_y = SampledArg('cie_y', sampled_mgr._cie_y)
 
     shader = Shader(code=code, args=[p1, cie_y], name='luminance',
                     func_args=[spec_arg], is_func=True)
     return shader
 
 
-def lum_rgb_shader():
+def _rgb_luminance_shader(rgb_mgr):
     code = """
 return rgb[0] * 0.212671 + rgb[1] * 0.715160 + rgb[2] * 0.072169
     """
@@ -33,17 +32,26 @@ return rgb[0] * 0.212671 + rgb[1] * 0.715160 + rgb[2] * 0.072169
     return shader
 
 
-def rgb_to_vec_shader():
+def luminance_shader(color_mgr):
+    if isinstance(color_mgr, RGBManager):
+        return _rgb_luminance_shader(color_mgr)
+    elif isinstance(color_mgr, SampledManager):
+        return _sampled_luminance_shader(color_mgr)
+    else:
+        raise ValueError("Unsuported color manager! ", color_mgr)
+
+
+def _rgb_to_rgb_shader(rgb_mgr):
     code = """
 return float3(rgb[0], rgb[1], rgb[2])
     """
     rgb = RGBArg('rgb', RGBSpectrum(0.0, 0.0, 0.0))
-    shader = Shader(code=code, name='spectrum_to_vec',
+    shader = Shader(code=code, name='spectrum_to_rgb',
                     func_args=[rgb], is_func=True)
     return shader
 
 
-def sampled_to_vec_shader(col_mgr):
+def _sampled_to_rgb_shader(sampled_mgr):
     code = """
 x = cie_x * spec
 y = cie_y * spec
@@ -60,22 +68,31 @@ b = 0.055648 * X - 0.204043 * Y + 1.057311 * Z
 return float3(r, g, b)
     """
 
-    spec = col_mgr.zero()
+    spec = sampled_mgr.zero()
     spec_arg = SampledArgPtr('spec', 0, spec)
 
-    scale = float(col_mgr.end - col_mgr.start) / (col_mgr.yint * col_mgr.nsamples)
+    scale = (sampled_mgr.end - sampled_mgr.start) / (sampled_mgr.yint * sampled_mgr.nsamples)
     p1 = FloatArg('scale', scale)
-    cie_x = SampledArg('cie_x', col_mgr._cie_x)
-    cie_y = SampledArg('cie_y', col_mgr._cie_y)
-    cie_z = SampledArg('cie_z', col_mgr._cie_z)
+    cie_x = SampledArg('cie_x', sampled_mgr._cie_x)
+    cie_y = SampledArg('cie_y', sampled_mgr._cie_y)
+    cie_z = SampledArg('cie_z', sampled_mgr._cie_z)
 
     shader = Shader(code=code, args=[p1, cie_x, cie_y, cie_z],
-                    name='spectrum_to_vec',
+                    name='spectrum_to_rgb',
                     func_args=[spec_arg], is_func=True)
     return shader
 
 
-def vec_to_rgb_shader():
+def spectrum_to_rgb_shader(color_mgr):
+    if isinstance(color_mgr, RGBManager):
+        return _rgb_to_rgb_shader(color_mgr)
+    elif isinstance(color_mgr, SampledManager):
+        return _sampled_to_rgb_shader(color_mgr)
+    else:
+        raise ValueError("Unsuported color manager! ", color_mgr)
+
+
+def _rgb_to_rgb_spectrum_shader(rgb_mgr):
     code = """
 return rgb(color[0], color[1], color[2])
     """
@@ -85,7 +102,7 @@ return rgb(color[0], color[1], color[2])
     return shader
 
 
-def vec_to_sampled_shader(col_mgr):
+def _rgb_to_sampled_shader(sampled_mgr):
     code = """
 # conversion of reflectance
 r = color[0]
@@ -131,13 +148,13 @@ return rez
 
     vec = Vec3Arg('color', Vector3.zero())
 
-    spect_cyan = SampledArg('spect_cyan', col_mgr._spect_cyan)
-    spect_blue = SampledArg('spect_blue', col_mgr._spect_blue)
-    spect_green = SampledArg('spect_green', col_mgr._spect_green)
-    spect_magenta = SampledArg('spect_magenta', col_mgr._spect_magenta)
-    spect_red = SampledArg('spect_red', col_mgr._spect_red)
-    spect_yellow = SampledArg('spect_yellow', col_mgr._spect_yellow)
-    spect_white = SampledArg('spect_white', col_mgr._spect_white)
+    spect_cyan = SampledArg('spect_cyan', sampled_mgr._spect_cyan)
+    spect_blue = SampledArg('spect_blue', sampled_mgr._spect_blue)
+    spect_green = SampledArg('spect_green', sampled_mgr._spect_green)
+    spect_magenta = SampledArg('spect_magenta', sampled_mgr._spect_magenta)
+    spect_red = SampledArg('spect_red', sampled_mgr._spect_red)
+    spect_yellow = SampledArg('spect_yellow', sampled_mgr._spect_yellow)
+    spect_white = SampledArg('spect_white', sampled_mgr._spect_white)
 
     args = [spect_cyan, spect_blue, spect_green, spect_magenta,
             spect_red, spect_yellow, spect_white]
@@ -146,3 +163,12 @@ return rez
                     name='rgb_to_spectrum',
                     func_args=[vec], is_func=True)
     return shader
+
+
+def rgb_to_spectrum_shader(color_mgr):
+    if isinstance(color_mgr, RGBManager):
+        return _rgb_to_rgb_spectrum_shader(color_mgr)
+    elif isinstance(color_mgr, SampledManager):
+        return _rgb_to_sampled_shader(color_mgr)
+    else:
+        raise ValueError("Unsuported color manager! ", color_mgr)

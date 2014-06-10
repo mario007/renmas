@@ -9,6 +9,7 @@ nlights = number_of_lights()
 max_depth = 5
 treshold = 0.01 
 min_dist = 99999.0
+nrays = 0
 
 while 1:
     ret = generate_sample(sample)
@@ -25,6 +26,7 @@ while 1:
 
     while 1:
 
+        nrays = nrays + 1
         hit = isect_scene(ray, hitpoint, min_dist)
         shadepoint.wo = ray.direction * -1.0
 
@@ -62,6 +64,7 @@ while 1:
                 light_radiance(hitpoint, shadepoint, idx)
                 ndotwi = dot(hitpoint.normal, shadepoint.wi)
                 if ndotwi > 0.0:
+                    nrays = nrays + 1
                     vis = visibility(hitpoint.hit, shadepoint.light_position)
                     if vis:
                         material_reflectance(hitpoint, shadepoint, hitpoint.mat_idx)
@@ -89,8 +92,8 @@ while 1:
         if shadepoint.pdf < 0.000001:
             break
         pdf = ndotwi / shadepoint.pdf
-        if pdf < 0.000001:
-            break
+        # if pdf < 0.000001:
+        #     break
         ttt = luminance(shadepoint.material_reflectance)
         if ttt < 0.00001:
             break
@@ -111,7 +114,7 @@ while 1:
         ray.direction = shadepoint.wi
         cur_depth = cur_depth + 1
         
-    c = spectrum_to_vec(acum_col)
+    c = spectrum_to_rgb(acum_col)
     color = float4(c[0], c[1], c[2], 0.99)
 
     rgba = get_rgba(hdr_buffer, sample.ix, sample.iy)

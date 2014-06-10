@@ -495,7 +495,7 @@ def load_operand(cgen, op, dest_reg=None):
         reg = _pointer(dest_reg)
         #TODO check if reg is valid 32-64 bit pointer
         code = 'mov %s, %s\n' % (reg, arg.name)
-        return code, reg, arg
+        return code, reg, SampledArg
 
     def _load_atr_sampled_arg(cgen, op, arg, dest_reg):
         reg = _pointer(dest_reg)
@@ -505,7 +505,7 @@ def load_operand(cgen, op, dest_reg=None):
             code += "lea %s, qword [%s + %s]\n" % (reg, ptr_reg, path)
         else:
             code += "lea %s, dword [%s + %s]\n" % (reg, ptr_reg, path)
-        return code, reg, arg
+        return code, reg, SampledArg
 
     def _load_sampled_ptr_name_arg(cgen, op, arg, dest_reg):
         reg = _pointer(dest_reg)
@@ -515,8 +515,7 @@ def load_operand(cgen, op, dest_reg=None):
         else:
             code = "mov %s, dword [%s] \n" % (reg, arg.name)
 
-        spec_arg = SampledArg(arg.name, arg.spectrum)
-        return code, reg, spec_arg
+        return code, reg, SampledArgPtr
 
     def _load_atr_int_arg(cgen, op, arg, dest_reg):
         reg = _general(dest_reg)
@@ -792,21 +791,23 @@ def arith_cmd(cgen, reg1, typ1, op, reg2, typ2):
             code2 = "mulps %s, %s \n" % (reg1, reg2)
         return code + code2, reg1, typ1
 
-    def _ar_sampled_sampled_arg(cgen, reg1, arg1, op, reg2, arg2):
-
+    def _ar_sampled_sampled_arg(cgen, reg1, typ1, op, reg2, typ2):
         used_xmms = cgen.get_used_xmms()
         prolog = cgen.save_regs(used_xmms)
 
-        sam_arg = cgen.create_tmp_spec(arg1)
+        sam_arg = cgen.create_tmp_spec()
+        if not isinstance(sam_arg, SampledArg):
+            raise ValueError("Sampled argument is expected", sam_arg)
+
         dst_reg = cgen.register(typ='pointer')
         ld_sam = 'mov %s, %s\n' % (dst_reg, sam_arg.name)
 
-        n = len(arg1.value.samples)
+        n = len(sam_arg.value.samples)
         ar = arithmetic_sampled(cgen, reg1, op, reg2, dst_reg, n)
 
         epilog = cgen.load_regs(used_xmms)
         code = prolog + ld_sam + ar + epilog
-        return code, dst_reg, sam_arg
+        return code, dst_reg, SampledArg
 
     def _expand_to_xmm7(cgen, xmm, typ):
         def _conv_int_to_float(cgen, reg, xmm):
@@ -831,25 +832,46 @@ def arith_cmd(cgen, reg1, typ1, op, reg2, typ2):
                 expand += "movaps %s, %s\n" % ('xmm7', xmm)
         return expand
 
-    def _ar_sampled_float_arg(cgen, reg1, arg1, op, xmm, typ2):
+    def _ar_sampled_float_arg(cgen, reg1, typ1, op, xmm, typ2):
         if op != '*':
-            raise ValueError("Only multiplication is allowed", arg1, typ2)
+            raise ValueError("Only multiplication is allowed", typ1, typ2)
 
         used_xmms = cgen.get_used_xmms()
         prolog = cgen.save_regs(used_xmms)
 
-        sam_arg = cgen.create_tmp_spec(arg1)
+        sam_arg = cgen.create_tmp_spec()
         dst_reg = cgen.register(typ='pointer')
         ld_sam = 'mov %s, %s\n' % (dst_reg, sam_arg.name)
 
         expand = _expand_to_xmm7(cgen, xmm, typ2)
 
-        n = len(arg1.value.samples)
+        n = len(sam_arg.value.samples)
         ar = arith_sampled_mult(cgen, reg1, dst_reg, n)
 
         epilog = cgen.load_regs(used_xmms)
         code = prolog + ld_sam + expand + ar + epilog
-        return code, dst_reg, sam_arg
+        return code, dst_reg, SampledArg
+
+    def _ar_float_sampled_arg(cgen, xmm, typ1, op, reg2, typ2):
+        if op != '*':
+            raise ValueError("Only multiplication is allowed", typ1, typ2)
+
+        used_xmms = cgen.get_used_xmms()
+        prolog = cgen.save_regs(used_xmms)
+
+        sam_arg = cgen.create_tmp_spec()
+        dst_reg = cgen.register(typ='pointer')
+        ld_sam = 'mov %s, %s\n' % (dst_reg, sam_arg.name)
+
+        expand = _expand_to_xmm7(cgen, xmm, typ1)
+
+        n = len(sam_arg.value.samples)
+        ar = arith_sampled_mult(cgen, reg2, dst_reg, n)
+
+        epilog = cgen.load_regs(used_xmms)
+        code = prolog + ld_sam + expand + ar + epilog
+        return code, dst_reg, SampledArg
+
 
     _arf = {(IntArg, IntArg): _ar_int_int_arg,
             (FloatArg, FloatArg): _ar_float_float_arg,
@@ -875,22 +897,19 @@ def arith_cmd(cgen, reg1, typ1, op, reg2, typ2):
             (RGBArg, FloatArg): _ar_v234_float_arg,
             (IntArg, RGBArg): _ar_int_v234_arg,
             (FloatArg, RGBArg): _ar_float_v234_arg,
-            (PointerArg, IntArg): _ar_pointer_int_arg
+            (PointerArg, IntArg): _ar_pointer_int_arg,
+            (SampledArg, SampledArg): _ar_sampled_sampled_arg,
+            (SampledArg, FloatArg): _ar_sampled_float_arg,
+            (SampledArg, IntArg): _ar_sampled_float_arg,
+            (FloatArg, SampledArg): _ar_float_sampled_arg,
+            (IntArg, SampledArg): _ar_float_sampled_arg,
+            (SampledArg, SampledArgPtr): _ar_sampled_sampled_arg,
+            (SampledArgPtr, SampledArg): _ar_sampled_sampled_arg,
             }
 
-    if isinstance(typ1, SampledArg) and isinstance(typ2, SampledArg):
-        return _ar_sampled_sampled_arg(cgen, reg1, typ1, op, reg2, typ2)
-    elif isinstance(typ1, SampledArg) and typ2 is FloatArg:
-        return _ar_sampled_float_arg(cgen, reg1, typ1, op, reg2, typ2)
-    elif typ1 is FloatArg and isinstance(typ2, SampledArg):
-        return _ar_sampled_float_arg(cgen, reg2, typ2, op, reg1, typ1)
-    elif isinstance(typ1, SampledArg) and typ2 is IntArg:
-        return _ar_sampled_float_arg(cgen, reg1, typ1, op, reg2, typ2)
-    elif typ1 is IntArg and isinstance(typ2, SampledArg):
-        return _ar_sampled_float_arg(cgen, reg2, typ2, op, reg1, typ1)
     key = (typ1, typ2)
     if key not in _arf:
-        raise ValueError("Arithmetic is not defined!", key)
+        raise ValueError("Arithmetic is not defined!", key, reg1, typ1, op, reg2, typ2)
     code, reg, typ = _arf[key](cgen, reg1, typ1, op, reg2, typ2)
     return code, reg, typ
 

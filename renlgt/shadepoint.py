@@ -1,8 +1,8 @@
 
-from sdl import Vector3, RGBSpectrum, register_struct, FloatArg, Vec3Arg,\
-    RGBArg, SampledArg, StructArgPtr, IntArg
+from sdl import Vector3, register_struct, FloatArg, Vec3Arg,\
+    StructArgPtr, IntArg, arg_from_value
+from sdl.cgen import register_prototype
 
-from sdl.cgen import register_prototype, spectrum_factory
 from .hitpoint import HitPoint
 
 
@@ -40,76 +40,35 @@ class ShadePoint:
         return ShadePoint(wo, wi, li, lpos, ref, 1.0, lnormal, 1.0, em, 0)
 
 
-def register_rgb_class():
-
-    spectrum = RGBSpectrum(0.0, 0.0, 0.0)
+def register_shadepoint_class(spectrum):
+    spec_arg = arg_from_value('dummy_name', spectrum)
     register_struct(ShadePoint, 'ShadePoint', fields=[
                     ('wo', Vec3Arg),
                     ('wi', Vec3Arg),
-                    ('light_intensity', RGBArg),
+                    ('light_intensity', type(spec_arg)),
                     ('light_position', Vec3Arg),
-                    ('material_reflectance', RGBArg),
+                    ('material_reflectance', type(spec_arg)),
                     ('pdf', FloatArg),
                     ('light_normal', Vec3Arg),
                     ('light_pdf', FloatArg),
-                    ('material_emission', RGBArg),
+                    ('material_emission', type(spec_arg)),
                     ('specular_bounce', IntArg)],
                     factory=lambda: ShadePoint.factory(spectrum))
 
 
-def register_sampled_class(col_mgr):
-    spectrum = col_mgr.zero()
-    register_struct(ShadePoint, 'ShadePoint', fields=[
-                    ('wo', Vec3Arg),
-                    ('wi', Vec3Arg),
-                    ('light_intensity', SampledArg),
-                    ('light_position', Vec3Arg),
-                    ('material_reflectance', SampledArg),
-                    ('pdf', FloatArg),
-                    ('light_normal', Vec3Arg),
-                    ('light_pdf', FloatArg),
-                    ('material_emission', SampledArg),
-                    ('specular_bounce', IntArg)],
-                    factory=lambda: ShadePoint.factory(spectrum))
-
-
-def register_rgb_prototype(name):
-    spectrum = RGBSpectrum(0.0, 0.0, 0.0)
+def _register_prototype(spectrum, name):
     func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
                  StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
     register_prototype(name, func_args=func_args)
 
 
-def register_sampled_prototype(col_mgr, name):
-    spectrum = col_mgr.zero()
-    func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
-                 StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
-    register_prototype(name, func_args=func_args)
-
-
-def register_rgb_shadepoint():
-    register_rgb_class()
-    register_rgb_prototype('__material_reflectance')
-    register_rgb_prototype('__light_radiance')
-    register_rgb_prototype('__light_sample')
-    register_rgb_prototype('__light_pdf')
-    register_rgb_prototype('__material_emission')
-    register_rgb_prototype('__material_sampling')
-    register_rgb_prototype('__material_pdf')
-    register_rgb_prototype('__light_emission')
-    spectrum_factory(lambda: RGBSpectrum(0.0, 0.0, 0.0))
-
-
-def register_sampled_shadepoint(col_mgr):
-    register_sampled_class(col_mgr)
-    register_sampled_prototype(col_mgr, '__material_reflectance')
-    register_sampled_prototype(col_mgr, '__light_radiance')
-    register_sampled_prototype(col_mgr, '__light_sample')
-    register_sampled_prototype(col_mgr, '__light_pdf')
-    register_sampled_prototype(col_mgr, '__material_emission')
-    register_sampled_prototype(col_mgr, '__material_sampling')
-    register_sampled_prototype(col_mgr, '__material_pdf')
-    register_sampled_prototype(col_mgr, '__light_emission')
-    spectrum_factory(lambda: col_mgr.zero())
-
-register_rgb_shadepoint()
+def register_prototypes(spectrum):
+    register_shadepoint_class(spectrum)
+    _register_prototype(spectrum, '__material_reflectance')
+    _register_prototype(spectrum, '__light_radiance')
+    _register_prototype(spectrum, '__light_sample')
+    _register_prototype(spectrum, '__light_pdf')
+    _register_prototype(spectrum, '__material_emission')
+    _register_prototype(spectrum, '__material_sampling')
+    _register_prototype(spectrum, '__material_pdf')
+    _register_prototype(spectrum, '__light_emission')

@@ -1,64 +1,61 @@
 
 import unittest
 from tdasm import Runtime
-from renlgt.light import GeneralLight
-from renlgt.shadepoint import register_sampled_shadepoint,\
-    register_rgb_shadepoint
-from sdl import PointerArg, Shader, SampledManager,\
-    RGBSpectrum, RGBArg, SampledArg, Vector3, Vec3Arg
+from sdl import Shader, SampledManager,\
+    RGBSpectrum, RGBArg, SampledArg, Vector3, Vec3Arg, RGBManager
 
-from renlgt.spec_shaders import vec_to_rgb_shader, vec_to_sampled_shader
+from renlgt.spec_shaders import rgb_to_spectrum_shader
 
 
 class RgbToSpectrumTest(unittest.TestCase):
 
-    def atest_rgb_to_rgb_spectrum(self):
-        sam_mgr = SampledManager()
-        register_rgb_shadepoint()
-
+    def test_rgb_to_rgb_spectrum(self):
         runtimes = [Runtime()]
-        rgb_to_shader = vec_to_rgb_shader()
-        rgb_to_shader.compile()
-        rgb_to_shader.prepare(runtimes)
-        
+
+        color_mgr = RGBManager()
+        rgb_to_spec = rgb_to_spectrum_shader(color_mgr)
+        rgb_to_spec.compile(color_mgr=color_mgr)
+        rgb_to_spec.prepare(runtimes)
 
         code = """
-rgb_color = float3(0.4, 0.6, 0.8)
-tmp = rgb_to_spectrum(rgb_color)
-ret = tmp
-
+spec = rgb_to_spectrum(color)
         """
-        rgb_arg = RGBArg('ret', RGBSpectrum(0.0, 0.0, 0.0))
-        shader = Shader(code=code, args=[rgb_arg])
-        shader.compile([rgb_to_shader])
+        val = Vector3(0.3, 0.5, 0.7)
+        col = Vec3Arg('color', val)
+        spec = RGBArg('spec', RGBSpectrum(0.0, 0.0, 0.0))
+        shader = Shader(code=code, args=[col, spec])
+        shader.compile(shaders=[rgb_to_spec], color_mgr=color_mgr)
         shader.prepare(runtimes)
         shader.execute()
-        val = shader.get_value('ret')
-        print(val)
+
+        value = shader.get_value('spec')
+        self.assertAlmostEqual(value.r, val.x)
+        self.assertAlmostEqual(value.g, val.y)
+        self.assertAlmostEqual(value.b, val.z)
 
     def test_rgb_to_sampled_spectrum(self):
-        sam_mgr = SampledManager()
-        register_sampled_shadepoint(sam_mgr)
-
         runtimes = [Runtime()]
-        rgb_to_shader = vec_to_sampled_shader(sam_mgr)
-        rgb_to_shader.compile()
-        rgb_to_shader.prepare(runtimes)
 
-        #print(rgb_to_shader._asm_code)
+        color_mgr = SampledManager()
+        rgb_to_spec = rgb_to_spectrum_shader(color_mgr)
+        rgb_to_spec.compile(color_mgr=color_mgr)
+        rgb_to_spec.prepare(runtimes)
+
         code = """
-rgb_color = float3(0.4, 0.6, 0.8)
-tmp = rgb_to_spectrum(rgb_color)
-#ret = tmp
-
+spec = rgb_to_spectrum(color)
         """
-        sampled_arg = SampledArg('ret', sam_mgr.zero())
-        shader = Shader(code=code, args=[sampled_arg])
-        shader.compile([rgb_to_shader])
+        val = Vector3(0.3, 0.5, 0.7)
+        col = Vec3Arg('color', val)
+        spec = SampledArg('spec', color_mgr.zero())
+        shader = Shader(code=code, args=[col, spec])
+        shader.compile(shaders=[rgb_to_spec], color_mgr=color_mgr)
         shader.prepare(runtimes)
         shader.execute()
-        val = shader.get_value('ret')
-        print(val)
+
+        value = shader.get_value('spec')
+        vv = color_mgr.rgb_to_sampled(RGBSpectrum(val.x, val.y, val.z))
+        for i in range(len(value.samples)):
+            self.assertAlmostEqual(value.samples[i], vv.samples[i], places=6)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 import unittest
 from tdasm import Runtime
 from sdl.vector import Vector2, Vector3, Vector4
-from sdl.spectrum import RGBSpectrum, SampledSpectrum, create_samples
+from sdl.spectrum import RGBSpectrum, SampledSpectrum, create_samples, SampledManager
 from sdl.shader import Shader
 from sdl.args import IntArg, FloatArg, Vec2Arg, Vec3Arg, Vec4Arg,\
     RGBArg, SampledArg
@@ -131,7 +131,7 @@ p7 = 5 * p2
         p7 = SampledArg('p7', SampledSpectrum(samples7))
 
         shader = Shader(code=code, args=[p1, p2, p3, p4, p5, p6, p7])
-        shader.compile()
+        shader.compile(color_mgr=SampledManager())
         shader.prepare([Runtime()])
         shader.execute()
 

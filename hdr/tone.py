@@ -1,7 +1,9 @@
 
 import os.path
 from tdasm import Runtime
-from sdl import Loader, Shader, parse_args, ImagePRGBA, StructArg
+from sdl import Loader, Shader, ImagePRGBA, StructArg
+from .parse_args import parse_args
+
 
 class Tmo:
     def __init__(self):
@@ -33,6 +35,14 @@ class Tmo:
         self._shader.prepare([self._runtime])
 
     def tmo(self, in_img, out_img):
+        """
+            Perform tone mapping on input image
+
+            Args:
+                in_img:  Input image
+                out_img: Output image
+
+        """
         if self._shader is None:
             raise ValueError("Shader is not loaded.")
 
@@ -47,5 +57,3 @@ class Tmo:
         self._shader.set_value('input_image', in_img)
         self._shader.set_value('output_image', out_img)
         self._shader.execute()
-
-

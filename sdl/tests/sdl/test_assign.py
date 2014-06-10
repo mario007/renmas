@@ -4,7 +4,7 @@ from sdl.vector import Vector2, Vector3, Vector4
 from sdl.shader import Shader
 from sdl.args import IntArg, FloatArg, Vec2Arg, Vec3Arg,\
     Vec4Arg, RGBArg, SampledArg
-from sdl.spectrum import RGBSpectrum, SampledSpectrum, create_samples
+from sdl.spectrum import RGBSpectrum, SampledSpectrum, create_samples, SampledManager
 
 
 class AssignTest(unittest.TestCase):
@@ -74,7 +74,7 @@ p2 = p1
         p2 = SampledArg('p2', SampledSpectrum(samples2))
 
         shader = Shader(code=code, args=[p1, p2])
-        shader.compile()
+        shader.compile(color_mgr=SampledManager())
         shader.prepare([Runtime()])
         shader.execute()
 

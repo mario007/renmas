@@ -40,13 +40,7 @@ class Spectrum:
         """
         raise NotImplementedError()
 
-    def mix(self, spectrum):
-        """
-            Multiply components of two spectrums.
-        """
-        raise NotImplementedError()
-
-    def divide(self, spectrum):
+    def __truediv__(self, spectrum):
         """
             Divide components of two spectrums.
         """
@@ -106,21 +100,15 @@ class RGBSpectrum(Spectrum):
 
     def __mul__(self, t):
         if isinstance(t, RGBSpectrum):
-            return self.mix(t)
+            return RGBSpectrum(self.r * t.r, self.g * t.g, self.b * t.b)
         return RGBSpectrum(self.r * t, self.g * t, self.b * t)
 
     def __rmul__(self, t):
         if isinstance(t, RGBSpectrum):
-            return self.mix(t)
+            return RGBSpectrum(self.r * t.r, self.g * t.g, self.b * t.b)
         return RGBSpectrum(self.r * t, self.g * t, self.b * t)
 
-    def mix(self, spectrum):
-        """
-            Mix two spectrums by multiplying their components.
-        """
-        return RGBSpectrum(self.r * spectrum.r, self.g * spectrum.g, self.b * spectrum.b)
-
-    def divide(self, spectrum):
+    def __truediv__(self, spectrum):
         """
             Divide components of spectrums.
         """
@@ -196,24 +184,19 @@ class SampledSpectrum(Spectrum):
 
     def __mul__(self, t):
         if isinstance(t, SampledSpectrum):
-            return self.mix(t)
+            samples = [self.samples[i] * t.samples[i] for i in range(len(self.samples))]
+            return SampledSpectrum(samples)
         samples = [self.samples[i] * t for i in range(len(self.samples))]
         return SampledSpectrum(samples)
 
     def __rmul__(self, t):
         if isinstance(t, SampledSpectrum):
-            return self.mix(t)
+            samples = [self.samples[i] * t.samples[i] for i in range(len(self.samples))]
+            return SampledSpectrum(samples)
         samples = [self.samples[i] * t for i in range(len(self.samples))]
         return SampledSpectrum(samples)
 
-    def mix(self, spectrum):
-        """
-            Mix two spectrums by multiplying their components.
-        """
-        samples = [self.samples[i] * spectrum.samples[i] for i in range(len(self.samples))]
-        return SampledSpectrum(samples)
-
-    def divide(self, spectrum):
+    def __truediv__(self, spectrum):
         """
             Divide components of spectrums.
         """
@@ -347,10 +330,10 @@ class SampledManager:
         self._illum_spect_green = self._create_sampled_spectrum(IllumSpectGreen)
         self._illum_spect_blue = self._create_sampled_spectrum(IllumSpectBlue)
 
-    def lumminance(self, spectrum):
+    def luminance(self, spectrum):
         if not isinstance(spectrum, SampledSpectrum):
             raise ValueError("SampledSpectrum is expected!", spectrum)
-        y = self._cie_y.mix(spectrum)
+        y = self._cie_y * spectrum
         y_sum = sum(y.samples)
 
         #yint = CIE_Y_integral
@@ -430,9 +413,9 @@ class SampledManager:
         if not isinstance(spectrum, SampledSpectrum):
             raise ValueError("Sampled spectrum is expected!", spectrum)
 
-        x = self._cie_x.mix(spectrum)
-        y = self._cie_y.mix(spectrum)
-        z = self._cie_z.mix(spectrum)
+        x = self._cie_x * spectrum
+        y = self._cie_y * spectrum
+        z = self._cie_z * spectrum
         x_sum = sum(x.samples)
         y_sum = sum(y.samples)
         z_sum = sum(z.samples)
@@ -459,6 +442,89 @@ class SampledManager:
         Z = 0.019334 * r + 0.119193 * g + 0.950227 * b
         return (X, Y, Z)
 
+    def convert_spectrum(self, spectrum, illum=False):
+        if isinstance(spectrum, RGBSpectrum):
+            return self.rgb_to_sampled(spectrum, illum=illum)
+        elif isinstance(spectrum, SampledSpectrum):
+            return SampledSpectrum(tuple(spectrum.samples))
+        else:
+            raise ValueError("Unknown spectrum type", spectrum)
+
     def zero(self):
         vals = [0.0 for i in range(self.nsamples)]
         return SampledSpectrum(vals)
+
+
+class RGBManager:
+    def __init__(self, nsamples=32, start=400, end=700):
+
+        self.nsamples = nsamples
+        self.start = start
+        self.end = end
+
+        self._create_spectrums()
+
+    ## Create spectrum from samples
+    # @param self The object pointer
+    # @param vals This is list of samples and each sample is represent with
+    # tuple [(wavelength, intesity), ...]
+    # @return Return spectrum
+    def _create_sampled_spectrum(self, vals):
+        samples = create_samples(vals, self.nsamples, self.start, self.end)
+        return SampledSpectrum(samples)
+
+    def _create_spectrums(self):
+        self._cie_x = self._create_sampled_spectrum(Cie_x)
+        self._cie_y = self._create_sampled_spectrum(Cie_y)
+        self._cie_z = self._create_sampled_spectrum(Cie_z)
+        self.yint = 106.856895
+        #yint = CIE_Y_integral
+
+    def luminance(self, spectrum):
+        if not isinstance(spectrum, RGBSpectrum):
+            raise ValueError("RGBSpectrum is expected!", spectrum)
+        return spectrum.r * 0.212671 + spectrum.g * 0.715160 + spectrum.b * 0.072169
+
+    def xyz_to_rgb(self, X, Y, Z):
+        r = 3.240479 * X - 1.537150 * Y - 0.498535 * Z
+        g = -0.969256 * X + 1.875991 * Y + 0.041556 * Z
+        b = 0.055648 * X - 0.204043 * Y + 1.057311 * Z
+        return (r, g, b)
+
+    def rgb_to_xyz(self, r, g, b):
+        X = 0.412453 * r + 0.357580 * g + 0.180423 * b
+        Y = 0.212671 * r + 0.715160 * g + 0.072169 * b
+        Z = 0.019334 * r + 0.119193 * g + 0.950227 * b
+        return (X, Y, Z)
+
+    def sampled_to_rgb(self, spectrum):
+        if not isinstance(spectrum, SampledSpectrum):
+            raise ValueError("Sampled spectrum is expected!", spectrum)
+
+        x = self._cie_x * spectrum
+        y = self._cie_y * spectrum
+        z = self._cie_z * spectrum
+        x_sum = sum(x.samples)
+        y_sum = sum(y.samples)
+        z_sum = sum(z.samples)
+
+        #yint = CIE_Y_integral
+        scale = float(self.end - self.start) / (self.yint * self.nsamples)
+
+        X = x_sum * scale
+        Y = y_sum * scale
+        Z = z_sum * scale
+
+        r, g, b = self.xyz_to_rgb(X, Y, Z)
+        return RGBSpectrum(r, g, b)
+
+    def convert_spectrum(self, spectrum, illum=False):
+        if isinstance(spectrum, RGBSpectrum):
+            return RGBSpectrum(spectrum.r, spectrum.g, spectrum.b)
+        elif isinstance(spectrum, SampledSpectrum):
+            return self.sampled_to_rgb(spectrum)
+        else:
+            raise ValueError("Unknown spectrum type", spectrum)
+
+    def zero(self):
+        return RGBSpectrum(0.0, 0.0, 0.0)

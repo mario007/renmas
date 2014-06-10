@@ -4,7 +4,7 @@ import os
 import os.path
 
 from tdasm import Runtime
-from sdl import ImagePRGBA, ImageRGBA, Vector3, SampledManager
+from sdl import ImagePRGBA, ImageRGBA, Vector3, RGBManager, SampledManager
 from hdr import Tmo
 
 from .camera import Camera
@@ -14,9 +14,8 @@ from .linear import LinearIsect
 from .integrator import Integrator
 from .light import LightManager, AreaLight
 from .material import MaterialManager
-from .shadepoint import register_sampled_shadepoint, register_rgb_shadepoint
-from .spec_shaders import sampled_to_vec_shader, rgb_to_vec_shader,\
-    lum_rgb_shader, lum_sampled_shader
+from .shadepoint import register_prototypes
+from .spec_shaders import spectrum_to_rgb_shader, luminance_shader
 from .flt import SampleFilter
 from .shader_lib import shaders_functions
 
@@ -24,13 +23,10 @@ from .parse_scene import import_scene
 
 
 class Renderer:
-    def __init__(self):
-        self._spectral = False
-        self._sam_mgr = SampledManager()
-        if self._spectral:
-            register_sampled_shadepoint(self._sam_mgr)
-        else:
-            register_rgb_shadepoint()
+    def __init__(self, color_mgr=RGBManager()):
+    # def __init__(self, color_mgr=SampledManager()):
+        self._color_mgr = color_mgr
+        register_prototypes(color_mgr.zero())
 
         self.sampler = RegularSampler(width=512, height=512,
                                       pixelsize=1.0, nthreads=1)
@@ -44,8 +40,8 @@ class Renderer:
         self.filter = SampleFilter()
         self.filter.load('box')
         self.integrator = Integrator()
-        #self.integrator.load('isect')
-        self.integrator.load('test', self._sam_mgr, self._spectral)
+        # self.integrator.load('isect')
+        self.integrator.load('test', self._color_mgr)
 
         self.tone_mapping = Tmo()
         self.tone_mapping.load('exp')
@@ -54,12 +50,8 @@ class Renderer:
         self._create_hdr_buffer()
 
     @property
-    def spectral(self):
-        return self._spectral
-
-    @property
-    def sam_mgr(self):
-        return self._sam_mgr
+    def color_mgr(self):
+        return self._color_mgr
 
     def _create_defaults(self):
         pass
@@ -95,32 +87,27 @@ class Renderer:
         self.intersector.compile()
         self.intersector.prepare(runtimes)
 
-        self.lights.compile_shaders(self.sam_mgr, self.spectral)
+        self.lights.compile_shaders(self._color_mgr)
         self.lights.prepare_shaders(runtimes)
         for shape in self.lights.shapes_to_update():
             self.shapes.update(shape)
 
-        if self.spectral:
-            spec_to_vec = sampled_to_vec_shader(self.sam_mgr)
-            lumminance = lum_sampled_shader(self.sam_mgr)
-        else:
-            spec_to_vec = rgb_to_vec_shader()
-            lumminance = lum_rgb_shader()
-        spec_to_vec.compile()
-        spec_to_vec.prepare(runtimes)
-        lumminance.compile()
-        lumminance.prepare(runtimes)
+        lum_shader = luminance_shader(self._color_mgr)
+        lum_shader.compile(color_mgr=self._color_mgr)
+        lum_shader.prepare(runtimes)
+        spec_to_rgb_shader = spectrum_to_rgb_shader(self._color_mgr)
+        spec_to_rgb_shader.compile(color_mgr=self._color_mgr)
+        spec_to_rgb_shader.prepare(runtimes)
 
-        self.materials.compile_shaders(self.sam_mgr, self.spectral,
-                                       shaders_funcs + [lumminance])
+        self.materials.compile_shaders(self._color_mgr, shaders_funcs + [lum_shader])
         self.materials.prepare_shaders(runtimes)
 
         shaders = [self.sampler.shader, self.camera.shader,
                    self.intersector.shader, self.lights.rad_shader,
-                   self.lights.nlights_shader, self.lights.env_shader, 
+                   self.lights.nlights_shader, self.lights.env_shader,
                    self.lights.emission_shader, self.materials.ref_shader,
-                   spec_to_vec, self.intersector.visible_shader,
-                   lumminance, self.materials.sampling_shader,
+                   spec_to_rgb_shader, self.intersector.visible_shader,
+                   lum_shader, self.materials.sampling_shader,
                    self.materials.pdf_shader, self.filter.shader]
 
         self.integrator.compile(shaders)
@@ -202,7 +189,7 @@ class Renderer:
             area_light = self.lights.arealight(shape)
             if material.is_emissive() and area_light is None:
                 light = AreaLight(shape=shape, material=material)
-                light.load('general', self._sam_mgr, self._spectral)
+                light.load('general', self._color_mgr)
                 name = 'arealight_%i' % id(light)
                 self.lights.add(name, light)
             elif not material.is_emissive() and area_light is not None:

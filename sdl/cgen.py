@@ -31,20 +31,6 @@ def register_prototype(name, func_args=[], ret_type=None):
     _prototype_functions[name] = (func_args, ret_type)
 
 
-_spectrum_factory = None
-
-
-def spectrum_factory(factory):
-    global _spectrum_factory
-    _spectrum_factory = factory
-
-
-def create_spectrum():
-    if _spectrum_factory is None:
-        return RGBSpectrum(0.0, 0.0, 0.0)
-    return _spectrum_factory()
-
-
 class CodeGenerator:
     def __init__(self):
         self.regs = Registers()
@@ -110,7 +96,6 @@ class CodeGenerator:
         if not isinstance(value, (Const, Name,
                                   Attribute, Subscript, Callable))\
                 and not isinstance(value, StructArg)\
-                and not isinstance(value, SampledArg)\
                 and not issubclass(value, Argument):
             raise ValueError("Unknown(unsuported) value in create arg!", value)
 
@@ -123,17 +108,20 @@ class CodeGenerator:
             struct_desc = _struct_desc[value.name]
             val = struct_desc.factory()
             arg2 = StructArg(name, val)
-        elif isinstance(value, SampledArg):
-            name = self._generate_name('local')
-            samples = tuple(value.value.samples)
-            arg2 = SampledArg(name, SampledSpectrum(samples))
         elif isinstance(value, StructArg):
             name = self._generate_name('local')
             struct_desc = _struct_desc[value.type_name]
             val = struct_desc.factory()
             arg2 = StructArgPtr(name, val)
         elif issubclass(value, Argument):  # value is Argument class
-            arg2 = value(self._generate_name('local'))
+            if value is SampledArg:
+                name = self._generate_name('local')
+                if self.color_mgr is None:
+                    raise ValueError("Sampled spectrum cannot be created!")
+                spec = self.color_mgr.zero()
+                arg2 = SampledArg(name, spec)
+            else:
+                arg2 = value(self._generate_name('local'))
         else:
             arg2 = self.get_arg(value)
             if arg2 is None:
@@ -191,8 +179,10 @@ class CodeGenerator:
         return data
 
     def generate_code(self, statements, args=[], is_func=False,
-                      name=None, func_args=[], shaders=[]):
+                      name=None, func_args=[], shaders=[],
+                      color_mgr=None):
 
+        self.color_mgr = color_mgr
         self._locals = LocalArgs()
         self._constants = {}
         self._ret_type = None
@@ -227,12 +217,16 @@ class CodeGenerator:
 
         return code, self._ret_type, self.ext_functions
 
-    def create_tmp_spec(self, factory_arg):
+    def create_tmp_spec(self):
         if self._tmp_specs:
             arg = self._tmp_specs.pop()
         else:
             name = self._generate_name('local_sam_spec')
-            val = factory_arg.value.zero()
+            val = None
+            if self.color_mgr:
+                val = self.color_mgr.zero()
+            if val is None or not isinstance(val, SampledSpectrum):
+                raise ValueError("Temporary sampled spectrum cannot be created", val)
             arg = SampledArg(name, val)
         self._tmp_specs_used.append(arg)
         return arg

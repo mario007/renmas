@@ -47,14 +47,15 @@ class Shader:
     def args(self):
         return self._args
 
-    def compile(self, shaders=[]):
+    def compile(self, shaders=[], color_mgr=None):
         stms = parse(self._code)
         cgen = CodeGenerator()
         asm, ret_type, fns = cgen.generate_code(stms, args=self._args,
                                                 is_func=self._is_func,
                                                 name=self._name,
                                                 func_args=self._func_args,
-                                                shaders=shaders)
+                                                shaders=shaders,
+                                                color_mgr=color_mgr)
         self._asm_code = asm
         self._ret_type = ret_type
         self._ext_functions = fns

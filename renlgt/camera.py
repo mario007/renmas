@@ -1,10 +1,11 @@
 
 import os.path
 from tdasm import Runtime
-from sdl import Vector3, Loader, parse_args, Vec3Arg, FloatArg,\
+from sdl import Vector3, Loader, Vec3Arg, FloatArg,\
     Ray, StructArgPtr, Shader, StructArg
 
 from .sample import Sample
+from .parse_args import parse_args
 
 
 class Camera:

@@ -30,6 +30,8 @@ if tmp > 0.5: # diffuse direction
 
 # specular direction
 u1 = r1
+if r1 < 0.25:
+    u1 = 4.0 * r1
 if r1 > 0.25: #second quadrant
     if r1 < 0.5:
         u1 = 4.0 * (0.5 - r1)

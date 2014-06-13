@@ -1223,7 +1223,13 @@ def load_func_args(cgen, operands, args):
             else:
                 code = "mov %s, dword [%s] \n" % (reg, arg.name)
         elif isinstance(operand, Attribute):  # TODO
-            raise ValueError("Not load argument Implement this.", operand)
+            raise ValueError("This is not tested!!!", operand.name, operand.path)
+            code, path = _load_struct_ptr(cgen, operand, ptr_reg)
+            reg = 'r' + reg[1:] if cgen.BIT64 else reg
+            if cgen.BIT64:
+                code += "lea %s, qword [%s + %s]\n" % (reg, ptr_reg, path)
+            else:
+                code += "lea %s, dword [%s + %s]\n" % (reg, ptr_reg, path)
         else:
             raise ValueError("Could not load argument!", operand)
         return code
@@ -1234,7 +1240,12 @@ def load_func_args(cgen, operands, args):
         if isinstance(operand, Name):
             code = 'mov %s, %s\n' % (reg, arg.name)
         elif isinstance(operand, Attribute):
-            raise ValueError("Not load argument Implement this.", operand)
+            code, path = _load_struct_ptr(cgen, operand, ptr_reg)
+            reg = 'r' + reg[1:] if cgen.BIT64 else reg
+            if cgen.BIT64:
+                code += "lea %s, qword [%s + %s]\n" % (reg, ptr_reg, path)
+            else:
+                code += "lea %s, dword [%s + %s]\n" % (reg, ptr_reg, path)
         else:
             raise ValueError("Could not load argument!", operand)
         return code

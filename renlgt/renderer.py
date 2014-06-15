@@ -15,7 +15,7 @@ from .integrator import Integrator
 from .light import LightManager, AreaLight
 from .material import MaterialManager
 from .shadepoint import register_prototypes
-from .spec_shaders import spectrum_to_rgb_shader, luminance_shader
+from .spec_shaders import spectrum_to_rgb_shader, luminance_shader, rgb_to_spectrum_shader
 from .flt import SampleFilter
 from .shader_lib import shaders_functions
 
@@ -40,7 +40,6 @@ class Renderer:
         self.filter = SampleFilter()
         self.filter.load('box')
         self.integrator = Integrator()
-        # self.integrator.load('isect')
         self.integrator.load('test', self._color_mgr)
 
         self.tone_mapping = Tmo()
@@ -98,8 +97,12 @@ class Renderer:
         spec_to_rgb_shader = spectrum_to_rgb_shader(self._color_mgr)
         spec_to_rgb_shader.compile(color_mgr=self._color_mgr)
         spec_to_rgb_shader.prepare(runtimes)
+        rgb_to_spec_shader = rgb_to_spectrum_shader(self._color_mgr)
+        rgb_to_spec_shader.compile(color_mgr=self._color_mgr)
+        rgb_to_spec_shader.prepare(runtimes)
 
-        self.materials.compile_shaders(self._color_mgr, shaders_funcs + [lum_shader])
+        mat_shader_funcs = shaders_funcs + [lum_shader, rgb_to_spec_shader]
+        self.materials.compile_shaders(self._color_mgr, mat_shader_funcs)
         self.materials.prepare_shaders(runtimes)
 
         shaders = [self.sampler.shader, self.camera.shader,

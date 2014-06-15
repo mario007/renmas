@@ -1281,7 +1281,7 @@ def load_func_args(cgen, operands, args):
 
         key = (type(arg), type(arg2))
         if key not in _ldf:
-            raise ValueError("Could not load function arg", arg, arg2, operand)
+            raise ValueError("Could not load function arg", arg, arg2, operand, operand.name)
         code += _ldf[key](cgen, operand, arg2, xmms, regs, ptr_reg)
     return code
 

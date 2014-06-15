@@ -1,5 +1,6 @@
 
 import os.path
+from imldr.load_image import load_image
 from sdl import RGBSpectrum
 from .material import Material
 
@@ -61,14 +62,20 @@ def _create_material(name, values, renderer, directory):
         map_d = values['map_d'][0].strip()
 
     mat = Material()
-    if Ke is not None: # lambertian emission
-        mat.load('lambertian_emiter', renderer.sam_mgr, renderer.spectral)
+    if map_Kd is not None: # lambertian texture
+        full_path = os.path.join(directory, map_Kd)
+        img = load_image(full_path)
+        img_factory = lambda: type(img)(1, 1)
+        mat.load('lambertian_texture', renderer.color_mgr, image_factory=img_factory)
+        mat.set_value('texture', img)
+    elif Ke is not None: # lambertian emission
+        mat.load('lambertian_emiter', renderer.color_mgr)
         mat.set_value('emission', Ke)
         if Kd is None:
             Kd = RGBSpectrum(0.0, 0.0, 0.0)
         mat.set_value('diffuse', Kd)
     elif Ks is not None: # phong material
-        mat.load('phong2', renderer.sam_mgr, renderer.spectral)
+        mat.load('phong2', renderer.color_mgr)
         mat.set_value('specular', Ks)
         if Kd is None:
             Kd = RGBSpectrum(0.0, 0.0, 0.0)
@@ -76,10 +83,10 @@ def _create_material(name, values, renderer, directory):
         exponent = 1.0 if Ns is None else Ns
         mat.set_value('exponent', exponent)
     elif Kd is not None: # simple lambertian material
-        mat.load('lambertian', renderer.sam_mgr, renderer.spectral)
+        mat.load('lambertian', renderer.color_mgr)
         mat.set_value('diffuse', Kd)
     elif Kd is None and Ks is None: #black lambertian
-        mat.load('lambertian', renderer.sam_mgr, renderer.spectral)
+        mat.load('lambertian', renderer.color_mgr)
         Kd = RGBSpectrum(0.0, 0.0, 0.0)
         mat.set_value('diffuse', Kd)
     else:

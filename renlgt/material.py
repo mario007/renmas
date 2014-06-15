@@ -45,12 +45,13 @@ class Material:
         args = []
         text = self._loader.load(self._shader_name, 'props.txt')
         if text is not None:
-            args = parse_args(text, self._color_mgr)
+            args = parse_args(text, self._color_mgr, image_factory=self._image_factory)
         return args
 
-    def load(self, shader_name, color_mgr):
+    def load(self, shader_name, color_mgr, image_factory=None):
         self._color_mgr = color_mgr
         self._shader_name = shader_name
+        self._image_factory = image_factory
 
         code = self._loader.load(shader_name, 'bsdf.py')
         if code is None:

@@ -1,7 +1,8 @@
 
 from functools import partial
 from sdl import FloatArg, Vec3Arg, Vec4Arg, RGBArg, RGBSpectrum,\
-    StructArg, arg_from_value, Vector4, Vector3, get_struct_desc, Vector4
+    StructArg, arg_from_value, Vector3, get_struct_desc, Vector4,\
+    ImagePRGBA
 
 
 def _parse_float(line):
@@ -54,10 +55,23 @@ def _parse_rgb(line, color_mgr=None):
         return arg_from_value(name, color_mgr.convert_spectrum(spectrum))
 
 
-def parse_args(text, color_mgr=None):
+def _parse_image(line, image_factory=None):
+    if image_factory is None:
+        img = ImagePRGBA(1, 1)  # image of 1 pixel in size
+    else:
+        img = image_factory()
+    name = line
+    arg = StructArg(name, img)
+    return arg
+
+
+def parse_args(text, color_mgr=None, image_factory=None):
     _new_parse_rgb = partial(_parse_rgb, color_mgr=color_mgr)
+    _new_parse_image = partial(_parse_image, image_factory=image_factory)
+
     funcs = {'vector4': _parse_vec4, 'rgb': _new_parse_rgb,
-             'float': _parse_float, 'vector3': _parse_vec3}
+             'float': _parse_float, 'vector3': _parse_vec3,
+             'image': _new_parse_image}
 
     args = []
     for line in text.splitlines():

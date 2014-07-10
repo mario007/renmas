@@ -203,15 +203,51 @@ __material_emission(hitpoint, shadepoint, ptr_mat_emission)
     def set_value(self, name, val):
         if self.shader is None:
             raise ValueError("Light shader is not loaded!")
-        val = self._color_mgr.convert_spectrum(val, illum=True)
+        if isinstance(val, (RGBSpectrum, SampledSpectrum)):
+            val = self._color_mgr.convert_spectrum(val, illum=True)
         self.shader.set_value(name, val)
 
 
 class EnvironmentLight(Light):
     def __init__(self):
         path = os.path.dirname(__file__)
-        path = os.path.join(path, 'environment_light_shaders')
+        path = os.path.join(path, 'env_shaders')
         self._loader = Loader([path])
+
+    def _func_args(self, spectrum):
+        func_args = [StructArgPtr('hitpoint', HitPoint.factory()),
+                     StructArgPtr('shadepoint', ShadePoint.factory(spectrum))]
+        return func_args
+
+    def load(self, shader_name, color_mgr):
+        self._color_mgr = color_mgr
+        self._shader_name = shader_name
+
+        args = []
+        text = self._loader.load(shader_name, 'props.txt')
+        if text is not None:
+            args = parse_args(text, color_mgr)
+
+        code = self._loader.load(shader_name, 'env.py')
+        if code is None:
+            raise ValueError("env.py in %s shader dont exist!" % shader_name)
+
+        name = 'env_light_%i' % id(args)
+        func_args = self._func_args(color_mgr.zero())
+        self.env_shader = Shader(code=code, args=args, name='environment_emission',
+                                 func_args=func_args, is_func=True)
+
+    def get_value(self, name):
+        if self.env_shader is None:
+            raise ValueError("Environment shader is not loaded!")
+        return self.env_shader.get_value(name)
+
+    def set_value(self, name, val):
+        if self.env_shader is None:
+            raise ValueError("Environment shader is not loaded!")
+        if isinstance(val, (RGBSpectrum, SampledSpectrum)):
+            val = self._color_mgr.convert_spectrum(val, illum=True)
+        self.env_shader.set_value(name, val)
 
 
 class LightManager:
@@ -228,8 +264,11 @@ class LightManager:
             raise ValueError("Type error. Light is expected!", light)
 
         #TODO -- implement check not to add environment light more than once
-        self._lights.append(light)
-        self._lights_d[name] = light
+        if isinstance(light, EnvironmentLight):
+            self._env_light = light
+        else:
+            self._lights.append(light)
+            self._lights_d[name] = light
 
     def remove(self, name=None, light=None):
         if name is None and light is None:
@@ -311,7 +350,7 @@ else:
 
     def _compile_environment(self, color_mgr, shaders=[]):
         if self._env_light is not None:
-            self.env_shader = self._env_light.env_shader()
+            self.env_shader = self._env_light.env_shader
             self.env_shader.compile(shaders, color_mgr=color_mgr)
             return
 

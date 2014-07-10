@@ -33,7 +33,11 @@ while 1:
         # ray misis whole scene
         if hit == 0:
             environment_emission(hitpoint, shadepoint)
-            acum_col = acum_col + shadepoint.light_intensity * path_weight
+            mis_weight = 1.0
+            if cur_depth > 1:
+                if specular_bounce != 1:
+                    mis_weight = last_pdf / (last_pdf + shadepoint.light_pdf)
+            acum_col = acum_col + shadepoint.light_intensity * path_weight * mis_weight
             break
 
         # direct hit of light

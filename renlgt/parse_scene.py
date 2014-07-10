@@ -4,7 +4,7 @@ import os.path
 from sdl import Vector3, RGBSpectrum, SampledSpectrum
 from .camera import Camera
 from .sphere import Sphere
-from .light import GeneralLight
+from .light import GeneralLight, EnvironmentLight
 from .material import Material
 from .triangle import FlatTriangle
 from .rectangle import Rectangle
@@ -78,6 +78,25 @@ def _parse_light(fobj, renderer):
     light.load(typ, renderer.color_mgr)
     del values['type']
     name = 'light_%i' % id(light)
+    if 'name' in values:
+        name = values['name'][0].strip()
+        del values['name']
+    for key, val in values.items():
+        old_val = light.get_value(key)
+        new_val = _value_factory(old_val, val, renderer.color_mgr)
+        light.set_value(key, new_val)
+    renderer.lights.add(name, light)
+
+
+def _parse_env(fobj, renderer):
+    values = _extract_values(fobj)
+    if 'type' not in values:
+        raise ValueError("Type attribute for light is missing")
+    typ = values['type'][0].strip()
+    light = EnvironmentLight()
+    light.load(typ, renderer.color_mgr)
+    del values['type']
+    name = 'env_light_%i' % id(light)
     if 'name' in values:
         name = values['name'][0].strip()
         del values['name']
@@ -245,5 +264,7 @@ def import_scene(filename, renderer):
             _parse_shape(fobj, renderer)
         elif line.lower() == 'sampler':
             _parse_sampler(fobj, renderer)
+        elif line.lower() == 'environment':
+            _parse_env(fobj, renderer)
         else:
             raise ValueError("Unknown keyword in scene file!", line)

@@ -38,11 +38,11 @@ while 1:
                             acum_col = acum_col + col
                 idx = idx + 1
 
-        c = spectrum_to_vec(acum_col)
+        c = spectrum_to_rgb(acum_col)
         color = float4(c[0], c[1], c[2], 0.99)
     else:
         environment_emission(hitpoint, shadepoint)
-        c = spectrum_to_vec(shadepoint.light_intensity)
+        c = spectrum_to_rgb(shadepoint.light_intensity)
         color = float4(c[0], c[1], c[2], 0.99)
 
     rgba = get_rgba(hdr_buffer, sample.ix, sample.iy)

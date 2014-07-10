@@ -1,0 +1,3 @@
+
+rgb intensity = 1.0, 1.0, 1.0
+float scale = 1.0

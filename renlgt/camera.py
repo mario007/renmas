@@ -57,9 +57,8 @@ class Camera:
         code = self._loader.load(shader_name, 'code.py')
         if code is None:
             raise ValueError("code.py in %s shader dont exist!" % shader_name)
-        sample = Sample(0.0, 0.0, 0.0, 0.0, 0, 0, 0.0)
         func_args = [StructArgPtr('ray', Ray.factory()),
-                     StructArgPtr('sample', sample)]
+                     StructArgPtr('sample', Sample.factory())]
         self._shader_name = shader_name
 
         self.shader = Shader(code=code, args=args, name='generate_ray',
